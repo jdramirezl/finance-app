@@ -1,0 +1,160 @@
+import type { SubPocket } from '../types';
+import { StorageService } from './storageService';
+import { generateId } from '../utils/idGenerator';
+
+// Lazy getter to avoid circular dependency - using dynamic import
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let pocketServiceCache: any = null;
+const getPocketService = async () => {
+  if (!pocketServiceCache) {
+    const module = await import('./pocketService');
+    pocketServiceCache = module.pocketService;
+  }
+  return pocketServiceCache;
+};
+
+class SubPocketService {
+  // Get all sub-pockets
+  getAllSubPockets(): SubPocket[] {
+    return StorageService.getSubPockets();
+  }
+
+  // Get sub-pocket by ID
+  getSubPocket(id: string): SubPocket | null {
+    const subPockets = this.getAllSubPockets();
+    return subPockets.find(sp => sp.id === id) || null;
+  }
+
+  // Get sub-pockets by pocket (fixed expenses pocket)
+  getSubPocketsByPocket(pocketId: string): SubPocket[] {
+    const subPockets = this.getAllSubPockets();
+    return subPockets.filter(sp => sp.pocketId === pocketId);
+  }
+
+  // Calculate monthly contribution (aporteMensual)
+  calculateAporteMensual(valueTotal: number, periodicityMonths: number): number {
+    if (periodicityMonths <= 0) return 0;
+    return valueTotal / periodicityMonths;
+  }
+
+  // Calculate progress (progreso)
+  calculateProgreso(balance: number, valueTotal: number): number {
+    if (valueTotal <= 0) return 0;
+    return balance / valueTotal;
+  }
+
+  // Calculate total monthly fixed expenses (sum of enabled sub-pockets)
+  calculateTotalFijosMes(pocketId: string): number {
+    const subPockets = this.getSubPocketsByPocket(pocketId);
+    return subPockets
+      .filter(sp => sp.enabled)
+      .reduce((sum, sp) => sum + this.calculateAporteMensual(sp.valueTotal, sp.periodicityMonths), 0);
+  }
+
+  // Calculate next payment for a sub-pocket (handles negative balance and near completion)
+  calculateNextPayment(subPocketId: string): number {
+    const subPocket = this.getSubPocket(subPocketId);
+    if (!subPocket) return 0;
+
+    const aporteMensual = this.calculateAporteMensual(subPocket.valueTotal, subPocket.periodicityMonths);
+    const remaining = subPocket.valueTotal - subPocket.balance;
+
+    // Case 1: Negative balance - compensate + normal payment
+    if (subPocket.balance < 0) {
+      return aporteMensual + Math.abs(subPocket.balance);
+    }
+
+    // Case 2: Near completion - min of remaining or normal payment
+    if (remaining < aporteMensual) {
+      return remaining;
+    }
+
+    // Normal case
+    return aporteMensual;
+  }
+
+  // Create new sub-pocket
+  async createSubPocket(pocketId: string, name: string, valueTotal: number, periodicityMonths: number): Promise<SubPocket> {
+    // Validate pocket exists and is fixed type (dynamic import to avoid circular dependency)
+    const pocketService = await getPocketService();
+    const pocket = pocketService.getPocket(pocketId);
+    if (!pocket) {
+      throw new Error(`Pocket with id "${pocketId}" not found.`);
+    }
+    if (pocket.type !== 'fixed') {
+      throw new Error('Sub-pockets can only be created for fixed expenses pockets.');
+    }
+
+    const subPocket: SubPocket = {
+      id: generateId(),
+      pocketId,
+      name,
+      valueTotal,
+      periodicityMonths,
+      balance: 0,
+      enabled: true,
+    };
+
+    const subPockets = this.getAllSubPockets();
+    subPockets.push(subPocket);
+    StorageService.saveSubPockets(subPockets);
+
+    // Recalculate pocket balance
+    await pocketService.updatePocket(pocketId, {});
+
+    return subPocket;
+  }
+
+  // Update sub-pocket
+  async updateSubPocket(id: string, updates: Partial<Pick<SubPocket, 'name' | 'valueTotal' | 'periodicityMonths'>>): Promise<SubPocket> {
+    const subPockets = this.getAllSubPockets();
+    const index = subPockets.findIndex(sp => sp.id === id);
+
+    if (index === -1) {
+      throw new Error(`Sub-pocket with id "${id}" not found.`);
+    }
+
+    const subPocket = subPockets[index];
+    const updatedSubPocket = { ...subPocket, ...updates };
+
+    subPockets[index] = updatedSubPocket;
+    StorageService.saveSubPockets(subPockets);
+
+    // Recalculate pocket balance
+    const pocketService = await getPocketService();
+    await pocketService.updatePocket(subPocket.pocketId, {});
+
+    return updatedSubPocket;
+  }
+
+  // Delete sub-pocket
+  async deleteSubPocket(id: string): Promise<void> {
+    const subPockets = this.getAllSubPockets();
+    const index = subPockets.findIndex(sp => sp.id === id);
+
+    if (index === -1) {
+      throw new Error(`Sub-pocket with id "${id}" not found.`);
+    }
+
+    const subPocket = subPockets[index];
+    subPockets.splice(index, 1);
+    StorageService.saveSubPockets(subPockets);
+
+    // Recalculate pocket balance
+    const pocketService = await getPocketService();
+    await pocketService.updatePocket(subPocket.pocketId, {});
+  }
+
+  // Toggle enabled state
+  async toggleSubPocketEnabled(id: string): Promise<SubPocket> {
+    const subPocket = this.getSubPocket(id);
+    if (!subPocket) {
+      throw new Error(`Sub-pocket with id "${id}" not found.`);
+    }
+
+    return await this.updateSubPocket(id, { enabled: !subPocket.enabled });
+  }
+}
+
+export const subPocketService = new SubPocketService();
+

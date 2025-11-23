@@ -1,0 +1,74 @@
+// Currency types
+export type Currency = 'USD' | 'MXN' | 'COP' | 'EUR' | 'GBP';
+
+// Pocket types
+export type PocketType = 'normal' | 'fixed';
+
+// Movement types
+export type MovementType = 
+  | 'IngresoNormal' 
+  | 'EgresoNormal' 
+  | 'IngresoFijo' 
+  | 'EgresoFijo' 
+  | 'InvestmentIngreso' 
+  | 'InvestmentShares';
+
+// Account interface
+export interface Account {
+  id: string;
+  name: string;
+  color: string;
+  currency: Currency;
+  balance: number; // Calculated: sum of pocket balances
+  type?: 'normal' | 'investment'; // Default: 'normal'
+}
+
+// Pocket interface
+export interface Pocket {
+  id: string;
+  accountId: string;
+  name: string;
+  type: PocketType;
+  balance: number;
+  currency: Currency; // Inherited from account
+}
+
+// SubPocket interface (only for fixed expenses)
+export interface SubPocket {
+  id: string;
+  pocketId: string; // References the fixed expenses pocket
+  name: string;
+  valueTotal: number; // Total amount to save
+  periodicityMonths: number; // How many months to divide
+  balance: number; // Current balance
+  enabled: boolean; // For toggling in budget planning
+}
+
+// Movement interface
+export interface Movement {
+  id: string;
+  type: MovementType;
+  accountId: string;
+  pocketId: string;
+  subPocketId?: string; // Optional, only for fixed expenses
+  amount: number;
+  notes?: string;
+  displayedDate: string; // User-assigned date (ISO string)
+  createdAt: string; // Registration date (ISO string)
+}
+
+// Investment-specific properties (extends Account)
+export interface InvestmentAccount extends Account {
+  type: 'investment';
+  montoInvertido: number; // Total money invested
+  shares: number; // Number of shares owned
+  precioActual: number; // Current price per share
+  gananciasUSD: number; // Current gains in USD
+  gananciasPct: number; // Percentage gain/loss
+}
+
+// Settings
+export interface Settings {
+  primaryCurrency: Currency;
+}
+
