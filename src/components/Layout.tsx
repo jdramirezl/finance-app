@@ -6,8 +6,11 @@ import {
   Target, 
   Calendar, 
   TrendingUp, 
-  Settings 
+  Settings,
+  Moon,
+  Sun
 } from 'lucide-react';
+import { useThemeStore } from '../store/useThemeStore';
 
 interface LayoutProps {
   children: ReactNode;
@@ -15,6 +18,7 @@ interface LayoutProps {
 
 const Layout = ({ children }: LayoutProps) => {
   const location = useLocation();
+  const { theme, toggleTheme } = useThemeStore();
 
   const navItems = [
     { path: '/summary', label: 'Summary', icon: Home },
@@ -26,11 +30,18 @@ const Layout = ({ children }: LayoutProps) => {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
       {/* Navigation Sidebar */}
-      <nav className="fixed left-0 top-0 h-full w-64 bg-white shadow-lg">
-        <div className="p-6">
-          <h1 className="text-2xl font-bold text-gray-800">My Finances</h1>
+      <nav className="fixed left-0 top-0 h-full w-64 bg-white dark:bg-gray-800 shadow-lg border-r border-gray-200 dark:border-gray-700">
+        <div className="p-6 flex items-center justify-between">
+          <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-100">Finance App</h1>
+          <button
+            onClick={toggleTheme}
+            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 transition-colors"
+            title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+          >
+            {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+          </button>
         </div>
         <ul className="mt-4">
           {navItems.map((item) => {
@@ -42,8 +53,8 @@ const Layout = ({ children }: LayoutProps) => {
                   to={item.path}
                   className={`flex items-center gap-3 px-6 py-3 transition-colors ${
                     isActive
-                      ? 'bg-blue-50 text-blue-600 border-r-4 border-blue-600'
-                      : 'text-gray-700 hover:bg-gray-50'
+                      ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border-r-4 border-blue-600 dark:border-blue-400'
+                      : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
                   }`}
                 >
                   <Icon className="w-5 h-5" />
