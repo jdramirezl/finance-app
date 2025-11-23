@@ -17,7 +17,7 @@ interface FinanceStore {
 
   // Actions - Accounts
   loadAccounts: () => void;
-  createAccount: (name: string, color: string, currency: Account['currency'], type?: Account['type']) => void;
+  createAccount: (name: string, color: string, currency: Account['currency'], type?: Account['type'], stockSymbol?: string) => void;
   updateAccount: (id: string, updates: Partial<Pick<Account, 'name' | 'color' | 'currency'>>) => void;
   deleteAccount: (id: string) => void;
   selectAccount: (id: string | null) => void;
@@ -87,9 +87,9 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
   },
 
   // Account actions
-  createAccount: async (name, color, currency, type = 'normal') => {
+  createAccount: async (name, color, currency, type = 'normal', stockSymbol) => {
     try {
-      const account = accountService.createAccount(name, color, currency, type);
+      const account = accountService.createAccount(name, color, currency, type, stockSymbol);
       set((state) => ({ accounts: [...state.accounts, account] }));
       get().loadPockets(); // Reload pockets to ensure sync
     } catch (error) {
