@@ -21,6 +21,9 @@ export interface Account {
   currency: Currency;
   balance: number; // Calculated: sum of pocket balances
   type?: 'normal' | 'investment'; // Default: 'normal'
+  stockSymbol?: string; // For investment accounts (e.g., 'VOO')
+  montoInvertido?: number; // Total money invested (for investment accounts)
+  shares?: number; // Total shares owned (for investment accounts)
 }
 
 // Pocket interface
@@ -70,5 +73,6 @@ export interface InvestmentAccount extends Account {
 // Settings
 export interface Settings {
   primaryCurrency: Currency;
+  alphaVantageApiKey?: string; // API key for stock prices
 }
 
