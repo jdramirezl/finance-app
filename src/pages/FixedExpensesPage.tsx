@@ -139,12 +139,12 @@ const FixedExpensesPage = () => {
   if (!fixedPocket) {
     return (
       <div className="space-y-6">
-        <h1 className="text-3xl font-bold">Fixed Expenses</h1>
-        <div className="p-8 text-center bg-yellow-50 border border-yellow-200 rounded-lg">
-          <p className="text-yellow-800 font-medium mb-2">
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Fixed Expenses</h1>
+        <div className="p-8 text-center bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+          <p className="text-yellow-800 dark:text-yellow-300 font-medium mb-2">
             No fixed expenses pocket found
           </p>
-          <p className="text-yellow-700 text-sm">
+          <p className="text-yellow-700 dark:text-yellow-400 text-sm">
             Please create a fixed expenses pocket in the Accounts page first.
           </p>
         </div>
@@ -156,9 +156,9 @@ const FixedExpensesPage = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Fixed Expenses</h1>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Fixed Expenses</h1>
           {fixedAccount && (
-            <p className="text-gray-600 mt-1">
+            <p className="text-gray-600 dark:text-gray-400 mt-1">
               Account: {fixedAccount.name} ({fixedAccount.currency})
             </p>
           )}
@@ -168,7 +168,7 @@ const FixedExpensesPage = () => {
             setShowForm(true);
             setEditingSubPocket(null);
           }}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          className="flex items-center gap-2 px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600"
         >
           <Plus className="w-5 h-5" />
           New Fixed Expense
@@ -176,63 +176,63 @@ const FixedExpensesPage = () => {
       </div>
 
       {error && (
-        <div className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg">
+        <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 rounded-lg">
           {error}
         </div>
       )}
 
       {/* Summary Card */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
-        <h2 className="text-lg font-semibold text-blue-900 mb-2">Monthly Fixed Expenses Total</h2>
-        <p className="text-3xl font-bold text-blue-700">
+      <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-6">
+        <h2 className="text-lg font-semibold text-blue-900 dark:text-blue-200 mb-2">Monthly Fixed Expenses Total</h2>
+        <p className="text-3xl font-bold text-blue-700 dark:text-blue-300">
           {totalFijosMes.toLocaleString(undefined, {
             style: 'currency',
             currency: fixedAccount?.currency || 'USD',
           })}
         </p>
-        <p className="text-sm text-blue-600 mt-1">
+        <p className="text-sm text-blue-600 dark:text-blue-400 mt-1">
           Sum of all enabled fixed expenses monthly contributions
         </p>
       </div>
 
       {/* Fixed Expenses Table */}
       {fixedSubPockets.length === 0 ? (
-        <div className="p-8 text-center text-gray-500 bg-white rounded-lg border">
+        <div className="p-8 text-center text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-800 rounded-lg border dark:border-gray-700">
           No fixed expenses yet. Create your first fixed expense!
         </div>
       ) : (
-        <div className="bg-white rounded-lg border overflow-hidden">
+        <div className="bg-white dark:bg-gray-800 rounded-lg border dark:border-gray-700 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-gray-50 border-b">
+              <thead className="bg-gray-50 dark:bg-gray-700/50 border-b dark:border-gray-600">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Status
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Name
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Total Value
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Periodicity (Months)
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Monthly Contribution
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Current Balance
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Progress
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Actions
                   </th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                 {fixedSubPockets.map((subPocket) => {
                   const aporteMensual = calculateAporteMensual(
                     subPocket.valueTotal,
@@ -243,26 +243,26 @@ const FixedExpensesPage = () => {
                   return (
                     <tr
                       key={subPocket.id}
-                      className={subPocket.enabled ? 'hover:bg-gray-50' : 'opacity-60 hover:bg-gray-50'}
+                      className={subPocket.enabled ? 'hover:bg-gray-50 dark:hover:bg-gray-700/30' : 'opacity-60 hover:bg-gray-50 dark:hover:bg-gray-700/30'}
                     >
                       <td className="px-6 py-4 whitespace-nowrap">
                         <button
                           onClick={() => handleToggle(subPocket.id)}
-                          className="text-gray-400 hover:text-blue-600 transition-colors"
+                          className="text-gray-400 dark:text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
                           title={subPocket.enabled ? 'Disable' : 'Enable'}
                         >
                           {subPocket.enabled ? (
-                            <ToggleRight className="w-6 h-6 text-green-600" />
+                            <ToggleRight className="w-6 h-6 text-green-600 dark:text-green-400" />
                           ) : (
                             <ToggleLeft className="w-6 h-6" />
                           )}
                         </button>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">{subPocket.name}</div>
+                        <div className="text-sm font-medium text-gray-900 dark:text-gray-100">{subPocket.name}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">
+                        <div className="text-sm text-gray-900 dark:text-gray-100">
                           {subPocket.valueTotal.toLocaleString(undefined, {
                             style: 'currency',
                             currency: fixedAccount?.currency || 'USD',
@@ -270,10 +270,10 @@ const FixedExpensesPage = () => {
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">{subPocket.periodicityMonths}</div>
+                        <div className="text-sm text-gray-900 dark:text-gray-100">{subPocket.periodicityMonths}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">
+                        <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
                           {aporteMensual.toLocaleString(undefined, {
                             style: 'currency',
                             currency: fixedAccount?.currency || 'USD',
@@ -284,10 +284,10 @@ const FixedExpensesPage = () => {
                         <div
                           className={`text-sm font-medium ${
                             subPocket.balance < 0
-                              ? 'text-red-600'
+                              ? 'text-red-600 dark:text-red-400'
                               : subPocket.balance >= subPocket.valueTotal
-                              ? 'text-green-600'
-                              : 'text-gray-900'
+                              ? 'text-green-600 dark:text-green-400'
+                              : 'text-gray-900 dark:text-gray-100'
                           }`}
                         >
                           {subPocket.balance.toLocaleString(undefined, {
@@ -298,7 +298,7 @@ const FixedExpensesPage = () => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center gap-2">
-                          <div className="flex-1 bg-gray-200 rounded-full h-2.5 min-w-[100px]">
+                          <div className="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-2.5 min-w-[100px]">
                             <div
                               className={`h-2.5 rounded-full transition-all ${getProgressColor(
                                 progress
@@ -306,7 +306,7 @@ const FixedExpensesPage = () => {
                               style={{ width: `${Math.min(progress, 100)}%` }}
                             />
                           </div>
-                          <span className="text-xs text-gray-600 min-w-[45px]">
+                          <span className="text-xs text-gray-600 dark:text-gray-400 min-w-[45px]">
                             {progress.toFixed(0)}%
                           </span>
                         </div>
@@ -318,13 +318,13 @@ const FixedExpensesPage = () => {
                               setEditingSubPocket(subPocket);
                               setShowForm(true);
                             }}
-                            className="text-blue-600 hover:text-blue-900"
+                            className="text-blue-600 dark:text-blue-400 hover:text-blue-900 dark:hover:text-blue-300"
                           >
                             <Edit2 className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => handleDelete(subPocket.id)}
-                            className="text-red-600 hover:text-red-900"
+                            className="text-red-600 dark:text-red-400 hover:text-red-900 dark:hover:text-red-300"
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
@@ -350,19 +350,19 @@ const FixedExpensesPage = () => {
       >
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium mb-1">Name</label>
+            <label className="block text-sm font-medium mb-1 text-gray-900 dark:text-gray-100">Name</label>
             <input
               type="text"
               name="name"
               defaultValue={editingSubPocket?.name || ''}
               required
-              className="w-full px-3 py-2 border rounded-lg"
+              className="w-full px-3 py-2 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
               placeholder="e.g., Car payment, Insurance"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-1">Total Value</label>
+            <label className="block text-sm font-medium mb-1 text-gray-900 dark:text-gray-100">Total Value</label>
             <input
               type="number"
               name="valueTotal"
@@ -370,33 +370,33 @@ const FixedExpensesPage = () => {
               min="0"
               defaultValue={editingSubPocket?.valueTotal || ''}
               required
-              className="w-full px-3 py-2 border rounded-lg"
+              className="w-full px-3 py-2 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
               placeholder="Total amount to save/pay"
             />
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
               The total amount you need to save or pay for this expense
             </p>
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-1">Periodicity (Months)</label>
+            <label className="block text-sm font-medium mb-1 text-gray-900 dark:text-gray-100">Periodicity (Months)</label>
             <input
               type="number"
               name="periodicityMonths"
               min="1"
               defaultValue={editingSubPocket?.periodicityMonths || ''}
               required
-              className="w-full px-3 py-2 border rounded-lg"
+              className="w-full px-3 py-2 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
               placeholder="e.g., 12 for monthly over a year"
             />
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
               How many months to divide this expense over
             </p>
           </div>
 
           {editingSubPocket && (
-            <div className="bg-gray-50 p-3 rounded-lg">
-              <p className="text-sm text-gray-600">
+            <div className="bg-gray-50 dark:bg-gray-700/50 p-3 rounded-lg">
+              <p className="text-sm text-gray-600 dark:text-gray-300">
                 <span className="font-medium">Monthly Contribution:</span>{' '}
                 {calculateAporteMensual(
                   editingSubPocket.valueTotal,
@@ -412,7 +412,7 @@ const FixedExpensesPage = () => {
           <div className="flex gap-2">
             <button
               type="submit"
-              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              className="flex-1 px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600"
             >
               {editingSubPocket ? 'Save Changes' : 'Create Fixed Expense'}
             </button>
@@ -422,7 +422,7 @@ const FixedExpensesPage = () => {
                 setShowForm(false);
                 setEditingSubPocket(null);
               }}
-              className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+              className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600"
             >
               Cancel
             </button>

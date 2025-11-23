@@ -59,19 +59,19 @@ const MovementsPage = () => {
   const getMovementTypeColor = (type: MovementType): string => {
     switch (type) {
       case 'IngresoNormal':
-        return 'bg-green-100 text-green-800 border-green-300';
+        return 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 border-green-300 dark:border-green-700';
       case 'EgresoNormal':
-        return 'bg-red-100 text-red-800 border-red-300';
+        return 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300 border-red-300 dark:border-red-700';
       case 'IngresoFijo':
-        return 'bg-blue-100 text-blue-800 border-blue-300';
+        return 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 border-blue-300 dark:border-blue-700';
       case 'EgresoFijo':
-        return 'bg-orange-100 text-orange-800 border-orange-300';
+        return 'bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-300 border-orange-300 dark:border-orange-700';
       case 'InvestmentIngreso':
-        return 'bg-purple-100 text-purple-800 border-purple-300';
+        return 'bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300 border-purple-300 dark:border-purple-700';
       case 'InvestmentShares':
-        return 'bg-indigo-100 text-indigo-800 border-indigo-300';
+        return 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-800 dark:text-indigo-300 border-indigo-300 dark:border-indigo-700';
       default:
-        return 'bg-gray-100 text-gray-800 border-gray-300';
+        return 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-300 border-gray-300 dark:border-gray-700';
     }
   };
 
@@ -114,7 +114,10 @@ const MovementsPage = () => {
 
     const type = formData.get('type') as MovementType;
     const accountId = formData.get('accountId') as string;
-    const pocketId = formData.get('pocketId') as string;
+    // For investment accounts, use a dummy pocket ID (they don't use pockets)
+    const pocketId = isInvestmentAccount 
+      ? 'investment-dummy-pocket' 
+      : (formData.get('pocketId') as string);
     const subPocketId = formData.get('subPocketId') as string || undefined;
     const amount = parseFloat(formData.get('amount') as string);
     const notes = formData.get('notes') as string || undefined;
@@ -144,8 +147,8 @@ const MovementsPage = () => {
         setSelectedPocketId('');
         setIsFixedExpense(false);
       }
-    } catch (err: any) {
-      setError(err.message || 'Failed to save movement');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to save movement');
     }
   };
 
@@ -172,7 +175,12 @@ const MovementsPage = () => {
     setShowForm(true);
   };
 
-  const availablePockets = selectedAccountId
+  const selectedAccount = selectedAccountId
+    ? accounts.find((acc) => acc.id === selectedAccountId)
+    : null;
+  const isInvestmentAccount = selectedAccount?.type === 'investment';
+
+  const availablePockets = selectedAccountId && !isInvestmentAccount
     ? getPocketsByAccount(selectedAccountId)
     : [];
   const fixedPocket = availablePockets.find((p) => p.type === 'fixed');
@@ -180,17 +188,23 @@ const MovementsPage = () => {
     ? getSubPocketsByPocket(fixedPocket.id)
     : [];
 
-  const movementTypes: { value: MovementType; label: string }[] = [
-    { value: 'IngresoNormal', label: 'Normal Income' },
-    { value: 'EgresoNormal', label: 'Normal Expense' },
-    { value: 'IngresoFijo', label: 'Fixed Income' },
-    { value: 'EgresoFijo', label: 'Fixed Expense' },
-  ];
+  // Movement types depend on account type
+  const movementTypes: { value: MovementType; label: string }[] = isInvestmentAccount
+    ? [
+        { value: 'InvestmentIngreso', label: 'Invest Money' },
+        { value: 'InvestmentShares', label: 'Add Shares' },
+      ]
+    : [
+        { value: 'IngresoNormal', label: 'Normal Income' },
+        { value: 'EgresoNormal', label: 'Normal Expense' },
+        { value: 'IngresoFijo', label: 'Fixed Income' },
+        { value: 'EgresoFijo', label: 'Fixed Expense' },
+      ];
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Movements</h1>
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Movements</h1>
         <button
           onClick={() => {
             setShowForm(true);
@@ -199,7 +213,7 @@ const MovementsPage = () => {
             setSelectedPocketId('');
             setIsFixedExpense(false);
           }}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          className="flex items-center gap-2 px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600"
         >
           <Plus className="w-5 h-5" />
           New Movement
@@ -207,14 +221,14 @@ const MovementsPage = () => {
       </div>
 
       {error && (
-        <div className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg">
+        <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 rounded-lg">
           {error}
         </div>
       )}
 
       {/* Movements List */}
       {movementsByMonth.length === 0 ? (
-        <div className="p-8 text-center text-gray-500 bg-white rounded-lg border">
+        <div className="p-8 text-center text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-800 rounded-lg border dark:border-gray-700">
           No movements yet. Create your first movement!
         </div>
       ) : (
@@ -222,8 +236,8 @@ const MovementsPage = () => {
           {movementsByMonth.map(([monthKey, monthMovements]) => {
             const date = parseISO(`${monthKey}-01`);
             return (
-              <div key={monthKey} className="bg-white rounded-lg border p-6">
-                <h2 className="text-xl font-semibold mb-4 text-gray-800">
+              <div key={monthKey} className="bg-white dark:bg-gray-800 rounded-lg border dark:border-gray-700 p-6">
+                <h2 className="text-xl font-semibold mb-4 text-gray-800 dark:text-gray-200">
                   {format(date, 'MMMM yyyy')}
                 </h2>
                 <div className="space-y-2">
@@ -323,7 +337,7 @@ const MovementsPage = () => {
       >
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium mb-1">Type</label>
+            <label className="block text-sm font-medium mb-1 text-gray-900 dark:text-gray-100">Type</label>
             <select
               name="type"
               defaultValue={editingMovement?.type || 'IngresoNormal'}
@@ -340,7 +354,7 @@ const MovementsPage = () => {
                 }
               }}
               required
-              className="w-full px-3 py-2 border rounded-lg"
+              className="w-full px-3 py-2 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
             >
               {movementTypes.map((mt) => (
                 <option key={mt.value} value={mt.value}>
@@ -351,7 +365,7 @@ const MovementsPage = () => {
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-1">Account</label>
+            <label className="block text-sm font-medium mb-1 text-gray-900 dark:text-gray-100">Account</label>
             <select
               name="accountId"
               value={selectedAccountId}
@@ -361,20 +375,20 @@ const MovementsPage = () => {
                 setIsFixedExpense(false);
               }}
               required
-              className="w-full px-3 py-2 border rounded-lg"
+              className="w-full px-3 py-2 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
             >
               <option value="">Select an account</option>
               {accounts.map((account) => (
                 <option key={account.id} value={account.id}>
-                  {account.name} ({account.currency})
+                  {account.name} ({account.currency}) {account.type === 'investment' ? '- Investment' : ''}
                 </option>
               ))}
             </select>
           </div>
 
-          {selectedAccountId && (
+          {selectedAccountId && !isInvestmentAccount && (
             <div>
-              <label className="block text-sm font-medium mb-1">Pocket</label>
+              <label className="block text-sm font-medium mb-1 text-gray-900 dark:text-gray-100">Pocket</label>
               <select
                 name="pocketId"
                 value={selectedPocketId}
@@ -384,7 +398,7 @@ const MovementsPage = () => {
                   setIsFixedExpense(pocket?.type === 'fixed' || false);
                 }}
                 required
-                className="w-full px-3 py-2 border rounded-lg"
+                className="w-full px-3 py-2 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
               >
                 <option value="">Select a pocket</option>
                 {availablePockets.map((pocket) => (
@@ -396,13 +410,22 @@ const MovementsPage = () => {
             </div>
           )}
 
+          {isInvestmentAccount && (
+            <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+              <p className="text-sm text-blue-800 dark:text-blue-300">
+                Investment movements update the account directly. No pocket selection needed.
+                {selectedAccount?.stockSymbol && ` Tracking: ${selectedAccount.stockSymbol}`}
+              </p>
+            </div>
+          )}
+
           {isFixedExpense && fixedPocket && availableSubPockets.length > 0 && (
             <div>
-              <label className="block text-sm font-medium mb-1">Sub-Pocket (Fixed Expense)</label>
+              <label className="block text-sm font-medium mb-1 text-gray-900 dark:text-gray-100">Sub-Pocket (Fixed Expense)</label>
               <select
                 name="subPocketId"
                 defaultValue={editingMovement?.subPocketId || ''}
-                className="w-full px-3 py-2 border rounded-lg"
+                className="w-full px-3 py-2 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
               >
                 <option value="">None</option>
                 {availableSubPockets.map((subPocket) => (
@@ -415,7 +438,7 @@ const MovementsPage = () => {
           )}
 
           <div>
-            <label className="block text-sm font-medium mb-1">Amount</label>
+            <label className="block text-sm font-medium mb-1 text-gray-900 dark:text-gray-100">Amount</label>
             <input
               type="number"
               name="amount"
@@ -423,12 +446,12 @@ const MovementsPage = () => {
               min="0"
               defaultValue={editingMovement?.amount || ''}
               required
-              className="w-full px-3 py-2 border rounded-lg"
+              className="w-full px-3 py-2 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-1">Date</label>
+            <label className="block text-sm font-medium mb-1 text-gray-900 dark:text-gray-100">Date</label>
             <input
               type="date"
               name="displayedDate"
@@ -438,24 +461,24 @@ const MovementsPage = () => {
                   : format(new Date(), 'yyyy-MM-dd')
               }
               required
-              className="w-full px-3 py-2 border rounded-lg"
+              className="w-full px-3 py-2 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-1">Notes (optional)</label>
+            <label className="block text-sm font-medium mb-1 text-gray-900 dark:text-gray-100">Notes (optional)</label>
             <textarea
               name="notes"
               defaultValue={editingMovement?.notes || ''}
               rows={3}
-              className="w-full px-3 py-2 border rounded-lg"
+              className="w-full px-3 py-2 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
             />
           </div>
 
           <div className="flex gap-2">
             <button
               type="submit"
-              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              className="flex-1 px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600"
             >
               {editingMovement ? 'Save Changes' : 'Create Movement'}
             </button>
@@ -468,7 +491,7 @@ const MovementsPage = () => {
                 setSelectedPocketId('');
                 setIsFixedExpense(false);
               }}
-              className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+              className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600"
             >
               Cancel
             </button>

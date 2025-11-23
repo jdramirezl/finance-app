@@ -25,6 +25,7 @@ const AccountsPage = () => {
   const [editingAccount, setEditingAccount] = useState<Account | null>(null);
   const [editingPocket, setEditingPocket] = useState<Pocket | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [accountType, setAccountType] = useState<'normal' | 'investment'>('normal');
 
   useEffect(() => {
     loadAccounts();
@@ -47,14 +48,15 @@ const AccountsPage = () => {
     const color = formData.get('color') as string;
     const currency = formData.get('currency') as Currency;
     const type = (formData.get('type') as Account['type']) || 'normal';
+    const stockSymbol = type === 'investment' ? (formData.get('stockSymbol') as string) || 'VOO' : undefined;
 
     try {
-      await createAccount(name, color, currency, type);
+      await createAccount(name, color, currency, type, stockSymbol);
       // Reset form synchronously before closing modal
       form.reset();
       setShowAccountForm(false);
-    } catch (err: any) {
-      setError(err.message || 'Failed to create account');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to create account');
     }
   };
 
@@ -75,8 +77,8 @@ const AccountsPage = () => {
       await updateAccount(editingAccount.id, updates);
       setEditingAccount(null);
       // Form will unmount when editingAccount is set to null, so no need to reset
-    } catch (err: any) {
-      setError(err.message || 'Failed to update account');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to update account');
     }
   };
 
@@ -90,8 +92,8 @@ const AccountsPage = () => {
       if (selectedAccountId === id) {
         selectAccount(null);
       }
-    } catch (err: any) {
-      setError(err.message || 'Failed to delete account');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to delete account');
     }
   };
 
@@ -110,8 +112,8 @@ const AccountsPage = () => {
       // Reset form synchronously before hiding
       form.reset();
       setShowPocketForm(false);
-    } catch (err: any) {
-      setError(err.message || 'Failed to create pocket');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to create pocket');
     }
   };
 
@@ -129,8 +131,8 @@ const AccountsPage = () => {
       await updatePocket(editingPocket.id, updates);
       setEditingPocket(null);
       // Form will unmount when editingPocket is set to null, so no need to reset
-    } catch (err: any) {
-      setError(err.message || 'Failed to update pocket');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to update pocket');
     }
   };
 
@@ -141,8 +143,8 @@ const AccountsPage = () => {
     setError(null);
     try {
       await deletePocket(id);
-    } catch (err: any) {
-      setError(err.message || 'Failed to delete pocket');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to delete pocket');
     }
   };
 
@@ -151,7 +153,7 @@ const AccountsPage = () => {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Accounts</h1>
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Accounts</h1>
         <button
           onClick={() => {
             setShowAccountForm(true);
@@ -165,7 +167,7 @@ const AccountsPage = () => {
       </div>
 
       {error && (
-        <div className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg">
+        <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 rounded-lg">
           {error}
         </div>
       )}
@@ -173,9 +175,9 @@ const AccountsPage = () => {
       <div className="grid grid-cols-2 gap-6">
         {/* Left: Account List */}
         <div className="space-y-4">
-          <h2 className="text-xl font-semibold">All Accounts</h2>
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">All Accounts</h2>
           {accounts.length === 0 ? (
-            <div className="p-8 text-center text-gray-500 bg-white rounded-lg border">
+            <div className="p-8 text-center text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-800 rounded-lg border dark:border-gray-700">
               No accounts yet. Create your first account!
             </div>
           ) : (
@@ -184,10 +186,10 @@ const AccountsPage = () => {
                 <div
                   key={account.id}
                   onClick={() => selectAccount(account.id)}
-                  className={`p-4 bg-white rounded-lg border-2 cursor-pointer transition-all ${
+                  className={`p-4 bg-white dark:bg-gray-800 rounded-lg border-2 cursor-pointer transition-all ${
                     selectedAccountId === account.id
-                      ? 'border-blue-500 shadow-md'
-                      : 'border-gray-200 hover:border-gray-300'
+                      ? 'border-blue-500 dark:border-blue-400 shadow-md'
+                      : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
                   }`}
                 >
                   <div className="flex items-center justify-between">
@@ -197,14 +199,14 @@ const AccountsPage = () => {
                         style={{ backgroundColor: account.color }}
                       />
                       <div>
-                        <h3 className="font-semibold">{account.name}</h3>
-                        <p className="text-sm text-gray-500">
+                        <h3 className="font-semibold text-gray-900 dark:text-gray-100">{account.name}</h3>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
                           {account.currency} • {account.type || 'normal'}
                         </p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="font-mono text-lg">
+                      <span className="font-mono text-lg text-gray-900 dark:text-gray-100">
                         {account.balance.toLocaleString(undefined, {
                           style: 'currency',
                           currency: account.currency,
@@ -216,7 +218,7 @@ const AccountsPage = () => {
                           setEditingAccount(account);
                           setShowAccountForm(false);
                         }}
-                        className="p-1 text-gray-400 hover:text-blue-600"
+                        className="p-1 text-gray-400 dark:text-gray-500 hover:text-blue-600 dark:hover:text-blue-400"
                       >
                         <Edit2 className="w-4 h-4" />
                       </button>
@@ -225,7 +227,7 @@ const AccountsPage = () => {
                           e.stopPropagation();
                           handleDeleteAccount(account.id);
                         }}
-                        className="p-1 text-gray-400 hover:text-red-600"
+                        className="p-1 text-gray-400 dark:text-gray-500 hover:text-red-600 dark:hover:text-red-400"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -241,12 +243,12 @@ const AccountsPage = () => {
         <div className="space-y-4">
           {selectedAccount ? (
             <>
-              <div className="bg-white rounded-lg border p-6">
+              <div className="bg-white dark:bg-gray-800 rounded-lg border dark:border-gray-700 p-6">
                 <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-xl font-semibold">Account Details</h2>
+                  <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Account Details</h2>
                   <button
                     onClick={() => selectAccount(null)}
-                    className="p-1 text-gray-400 hover:text-gray-600"
+                    className="p-1 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
                   >
                     <X className="w-5 h-5" />
                   </button>
@@ -254,32 +256,32 @@ const AccountsPage = () => {
                 {editingAccount ? (
                   <form onSubmit={handleUpdateAccount} className="space-y-4">
                     <div>
-                      <label className="block text-sm font-medium mb-1">Name</label>
+                      <label className="block text-sm font-medium mb-1 text-gray-900 dark:text-gray-100">Name</label>
                       <input
                         type="text"
                         name="name"
                         defaultValue={editingAccount.name}
                         required
-                        className="w-full px-3 py-2 border rounded-lg"
+                        className="w-full px-3 py-2 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium mb-1">Color</label>
+                      <label className="block text-sm font-medium mb-1 text-gray-900 dark:text-gray-100">Color</label>
                       <input
                         type="color"
                         name="color"
                         defaultValue={editingAccount.color}
                         required
-                        className="w-full h-10 border rounded-lg"
+                        className="w-full h-10 border dark:border-gray-600 rounded-lg"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium mb-1">Currency</label>
+                      <label className="block text-sm font-medium mb-1 text-gray-900 dark:text-gray-100">Currency</label>
                       <select
                         name="currency"
                         defaultValue={editingAccount.currency}
                         required
-                        className="w-full px-3 py-2 border rounded-lg"
+                        className="w-full px-3 py-2 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                       >
                         {currencies.map((curr) => (
                           <option key={curr} value={curr}>
@@ -291,14 +293,14 @@ const AccountsPage = () => {
                     <div className="flex gap-2">
                       <button
                         type="submit"
-                        className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                        className="flex-1 px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600"
                       >
                         Save
                       </button>
                       <button
                         type="button"
                         onClick={() => setEditingAccount(null)}
-                        className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+                        className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600"
                       >
                         Cancel
                       </button>
@@ -312,8 +314,8 @@ const AccountsPage = () => {
                         style={{ backgroundColor: selectedAccount.color }}
                       />
                       <div>
-                        <p className="font-semibold text-lg">{selectedAccount.name}</p>
-                        <p className="text-sm text-gray-500">
+                        <p className="font-semibold text-lg text-gray-900 dark:text-gray-100">{selectedAccount.name}</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
                           {selectedAccount.currency} • Balance:{' '}
                           {selectedAccount.balance.toLocaleString(undefined, {
                             style: 'currency',
@@ -326,9 +328,9 @@ const AccountsPage = () => {
                 )}
               </div>
 
-              <div className="bg-white rounded-lg border p-6">
+              <div className="bg-white dark:bg-gray-800 rounded-lg border dark:border-gray-700 p-6">
                 <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-xl font-semibold">Pockets</h2>
+                  <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Pockets</h2>
                   <button
                     onClick={() => {
                       setShowPocketForm(true);
@@ -342,22 +344,22 @@ const AccountsPage = () => {
                 </div>
 
                 {showPocketForm && (
-                  <form onSubmit={handleCreatePocket} className="mb-4 p-4 bg-gray-50 rounded-lg space-y-3">
+                  <form onSubmit={handleCreatePocket} className="mb-4 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg space-y-3">
                     <div>
-                      <label className="block text-sm font-medium mb-1">Name</label>
+                      <label className="block text-sm font-medium mb-1 text-gray-900 dark:text-gray-100">Name</label>
                       <input
                         type="text"
                         name="name"
                         required
-                        className="w-full px-3 py-2 border rounded-lg"
+                        className="w-full px-3 py-2 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium mb-1">Type</label>
+                      <label className="block text-sm font-medium mb-1 text-gray-900 dark:text-gray-100">Type</label>
                       <select
                         name="type"
                         required
-                        className="w-full px-3 py-2 border rounded-lg"
+                        className="w-full px-3 py-2 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 disabled:opacity-50"
                         disabled={selectedAccount?.type === 'investment'}
                       >
                         {selectedAccount?.type === 'investment' ? (
@@ -373,7 +375,7 @@ const AccountsPage = () => {
                         )}
                       </select>
                       {selectedAccount?.type === 'investment' && (
-                        <p className="text-xs text-gray-500 mt-1">
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                           Investment accounts use special pocket types
                         </p>
                       )}
@@ -381,14 +383,14 @@ const AccountsPage = () => {
                     <div className="flex gap-2">
                       <button
                         type="submit"
-                        className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                        className="flex-1 px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600"
                       >
                         Create
                       </button>
                       <button
                         type="button"
                         onClick={() => setShowPocketForm(false)}
-                        className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+                        className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600"
                       >
                         Cancel
                       </button>
@@ -397,17 +399,17 @@ const AccountsPage = () => {
                 )}
 
                 {selectedAccountPockets.length === 0 ? (
-                  <p className="text-gray-500 text-center py-4">No pockets yet</p>
+                  <p className="text-gray-500 dark:text-gray-400 text-center py-4">No pockets yet</p>
                 ) : (
                   <div className="space-y-2">
                     {selectedAccountPockets.map((pocket) => (
                       <div
                         key={pocket.id}
-                        className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                        className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg"
                       >
                         <div>
-                          <p className="font-medium">{pocket.name}</p>
-                          <p className="text-sm text-gray-500">
+                          <p className="font-medium text-gray-900 dark:text-gray-100">{pocket.name}</p>
+                          <p className="text-sm text-gray-500 dark:text-gray-400">
                             {pocket.type} •{' '}
                             {pocket.balance.toLocaleString(undefined, {
                               style: 'currency',
@@ -421,13 +423,13 @@ const AccountsPage = () => {
                               setEditingPocket(pocket);
                               setShowPocketForm(false);
                             }}
-                            className="p-1 text-gray-400 hover:text-blue-600"
+                            className="p-1 text-gray-400 dark:text-gray-500 hover:text-blue-600 dark:hover:text-blue-400"
                           >
                             <Edit2 className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => handleDeletePocket(pocket.id)}
-                            className="p-1 text-gray-400 hover:text-red-600"
+                            className="p-1 text-gray-400 dark:text-gray-500 hover:text-red-600 dark:hover:text-red-400"
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
@@ -440,29 +442,29 @@ const AccountsPage = () => {
                 {editingPocket && (
                   <form
                     onSubmit={handleUpdatePocket}
-                    className="mt-4 p-4 bg-gray-50 rounded-lg space-y-3"
+                    className="mt-4 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg space-y-3"
                   >
                     <div>
-                      <label className="block text-sm font-medium mb-1">Name</label>
+                      <label className="block text-sm font-medium mb-1 text-gray-900 dark:text-gray-100">Name</label>
                       <input
                         type="text"
                         name="name"
                         defaultValue={editingPocket.name}
                         required
-                        className="w-full px-3 py-2 border rounded-lg"
+                        className="w-full px-3 py-2 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                       />
                     </div>
                     <div className="flex gap-2">
                       <button
                         type="submit"
-                        className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                        className="flex-1 px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600"
                       >
                         Save
                       </button>
                       <button
                         type="button"
                         onClick={() => setEditingPocket(null)}
-                        className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+                        className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600"
                       >
                         Cancel
                       </button>
@@ -472,7 +474,7 @@ const AccountsPage = () => {
               </div>
             </>
           ) : (
-            <div className="p-8 text-center text-gray-500 bg-white rounded-lg border">
+            <div className="p-8 text-center text-gray-500 bg-white dark:bg-gray-800 rounded-lg border dark:border-gray-700">
               Select an account to view details
             </div>
           )}
@@ -522,16 +524,33 @@ const AccountsPage = () => {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">Type</label>
+                <label className="block text-sm font-medium mb-1 text-gray-900 dark:text-gray-100">Type</label>
                 <select
                   name="type"
-                  defaultValue="normal"
-                  className="w-full px-3 py-2 border rounded-lg"
+                  id="accountType"
+                  value={accountType}
+                  onChange={(e) => setAccountType(e.target.value as 'normal' | 'investment')}
+                  className="w-full px-3 py-2 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                 >
                   <option value="normal">Normal</option>
                   <option value="investment">Investment</option>
                 </select>
               </div>
+              {accountType === 'investment' && (
+              <div>
+                <label className="block text-sm font-medium mb-1 text-gray-900 dark:text-gray-100">Stock Symbol (e.g., VOO)</label>
+                <input
+                  type="text"
+                  name="stockSymbol"
+                  defaultValue="VOO"
+                  placeholder="VOO"
+                  className="w-full px-3 py-2 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                />
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  The stock/ETF symbol for this investment account
+                </p>
+              </div>
+              )}
               <div className="flex gap-2">
                 <button
                   type="submit"
