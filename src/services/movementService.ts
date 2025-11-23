@@ -148,6 +148,31 @@ class MovementService {
     await pocketService.updatePocket(subPocket.pocketId, {});
   }
 
+  // Update investment account (money or shares)
+  private async updateInvestmentAccount(
+    accountId: string,
+    type: MovementType,
+    amount: number
+  ): Promise<void> {
+    const accountService = await getAccountService();
+    const account = accountService.getAccount(accountId);
+    if (!account || account.type !== 'investment') return;
+
+    const accounts = accountService.getAllAccounts();
+    const index = accounts.findIndex(acc => acc.id === accountId);
+    if (index === -1) return;
+
+    if (type === 'InvestmentIngreso') {
+      // Add to invested money
+      accounts[index].montoInvertido = (accounts[index].montoInvertido || 0) + amount;
+    } else if (type === 'InvestmentShares') {
+      // Add to shares
+      accounts[index].shares = (accounts[index].shares || 0) + amount;
+    }
+
+    StorageService.saveAccounts(accounts);
+  }
+
   // Create new movement
   async createMovement(
     type: MovementType,
@@ -175,8 +200,14 @@ class MovementService {
     movements.push(movement);
     StorageService.saveMovements(movements);
 
-    // Update balances
-    const isIncome = type === 'IngresoNormal' || type === 'IngresoFijo' || type === 'InvestmentIngreso';
+    // Handle investment movements separately
+    if (type === 'InvestmentIngreso' || type === 'InvestmentShares') {
+      await this.updateInvestmentAccount(accountId, type, amount);
+      return movement;
+    }
+
+    // Update balances for normal movements
+    const isIncome = type === 'IngresoNormal' || type === 'IngresoFijo';
     
     if (subPocketId) {
       // Fixed expense movement
@@ -202,27 +233,53 @@ class MovementService {
     }
 
     const oldMovement = movements[index];
-    
-    // Revert old balance changes
-    const oldIsIncome = oldMovement.type === 'IngresoNormal' || oldMovement.type === 'IngresoFijo' || oldMovement.type === 'InvestmentIngreso';
-    if (oldMovement.subPocketId) {
-      await this.updateSubPocketBalance(oldMovement.subPocketId, oldMovement.amount, !oldIsIncome);
-    } else {
-      await this.updatePocketBalance(oldMovement.pocketId, oldMovement.amount, !oldIsIncome);
+    const updatedMovement = { ...oldMovement, ...updates };
+
+    // Handle investment movements
+    const isOldInvestment = oldMovement.type === 'InvestmentIngreso' || oldMovement.type === 'InvestmentShares';
+    const isNewInvestment = updatedMovement.type === 'InvestmentIngreso' || updatedMovement.type === 'InvestmentShares';
+
+    if (isOldInvestment) {
+      // Revert old investment changes
+      const accountService = await getAccountService();
+      const account = accountService.getAccount(oldMovement.accountId);
+      if (account && account.type === 'investment') {
+        const accounts = accountService.getAllAccounts();
+        const accIndex = accounts.findIndex(acc => acc.id === oldMovement.accountId);
+        if (accIndex !== -1) {
+          if (oldMovement.type === 'InvestmentIngreso') {
+            accounts[accIndex].montoInvertido = Math.max(0, (accounts[accIndex].montoInvertido || 0) - oldMovement.amount);
+          } else if (oldMovement.type === 'InvestmentShares') {
+            accounts[accIndex].shares = Math.max(0, (accounts[accIndex].shares || 0) - oldMovement.amount);
+          }
+          StorageService.saveAccounts(accounts);
+        }
+      }
     }
 
-    // Apply new movement
-    const updatedMovement = { ...oldMovement, ...updates };
+    if (isNewInvestment) {
+      // Apply new investment changes
+      await this.updateInvestmentAccount(updatedMovement.accountId, updatedMovement.type, updatedMovement.amount);
+    } else {
+      // Revert old balance changes for normal movements
+      const oldIsIncome = oldMovement.type === 'IngresoNormal' || oldMovement.type === 'IngresoFijo';
+      if (oldMovement.subPocketId) {
+        await this.updateSubPocketBalance(oldMovement.subPocketId, oldMovement.amount, !oldIsIncome);
+      } else if (!isOldInvestment) {
+        await this.updatePocketBalance(oldMovement.pocketId, oldMovement.amount, !oldIsIncome);
+      }
+
+      // Apply new balance changes
+      const newIsIncome = updatedMovement.type === 'IngresoNormal' || updatedMovement.type === 'IngresoFijo';
+      if (updatedMovement.subPocketId) {
+        await this.updateSubPocketBalance(updatedMovement.subPocketId, updatedMovement.amount, newIsIncome);
+      } else if (!isNewInvestment) {
+        await this.updatePocketBalance(updatedMovement.pocketId, updatedMovement.amount, newIsIncome);
+      }
+    }
+
     movements[index] = updatedMovement;
     StorageService.saveMovements(movements);
-
-    // Apply new balance changes
-    const newIsIncome = updatedMovement.type === 'IngresoNormal' || updatedMovement.type === 'IngresoFijo' || updatedMovement.type === 'InvestmentIngreso';
-    if (updatedMovement.subPocketId) {
-      await this.updateSubPocketBalance(updatedMovement.subPocketId, updatedMovement.amount, newIsIncome);
-    } else {
-      await this.updatePocketBalance(updatedMovement.pocketId, updatedMovement.amount, newIsIncome);
-    }
 
     return updatedMovement;
   }
@@ -231,19 +288,37 @@ class MovementService {
   async deleteMovement(id: string): Promise<void> {
     const movements = this.getAllMovements();
     const index = movements.findIndex(m => m.id === id);
-
+    
     if (index === -1) {
       throw new Error(`Movement with id "${id}" not found.`);
     }
 
     const movement = movements[index];
     
-    // Revert balance changes
-    const isIncome = movement.type === 'IngresoNormal' || movement.type === 'IngresoFijo' || movement.type === 'InvestmentIngreso';
-    if (movement.subPocketId) {
-      await this.updateSubPocketBalance(movement.subPocketId, movement.amount, !isIncome);
+    // Handle investment movements
+    if (movement.type === 'InvestmentIngreso' || movement.type === 'InvestmentShares') {
+      const accountService = await getAccountService();
+      const account = accountService.getAccount(movement.accountId);
+      if (account && account.type === 'investment') {
+        const accounts = accountService.getAllAccounts();
+        const accIndex = accounts.findIndex(acc => acc.id === movement.accountId);
+        if (accIndex !== -1) {
+          if (movement.type === 'InvestmentIngreso') {
+            accounts[accIndex].montoInvertido = Math.max(0, (accounts[accIndex].montoInvertido || 0) - movement.amount);
+          } else if (movement.type === 'InvestmentShares') {
+            accounts[accIndex].shares = Math.max(0, (accounts[accIndex].shares || 0) - movement.amount);
+          }
+          StorageService.saveAccounts(accounts);
+        }
+      }
     } else {
-      await this.updatePocketBalance(movement.pocketId, movement.amount, !isIncome);
+      // Revert balance changes for normal movements
+      const isIncome = movement.type === 'IngresoNormal' || movement.type === 'IngresoFijo';
+      if (movement.subPocketId) {
+        await this.updateSubPocketBalance(movement.subPocketId, movement.amount, !isIncome);
+      } else {
+        await this.updatePocketBalance(movement.pocketId, movement.amount, !isIncome);
+      }
     }
 
     movements.splice(index, 1);

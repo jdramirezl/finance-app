@@ -44,7 +44,13 @@ class AccountService {
   }
 
   // Create new account
-  createAccount(name: string, color: string, currency: Account['currency'], type: Account['type'] = 'normal'): Account {
+  createAccount(
+    name: string,
+    color: string,
+    currency: Account['currency'],
+    type: Account['type'] = 'normal',
+    stockSymbol?: string
+  ): Account {
     // Validate uniqueness
     if (!this.validateAccountUniqueness(name, currency)) {
       throw new Error(`An account with name "${name}" and currency "${currency}" already exists.`);
@@ -57,6 +63,11 @@ class AccountService {
       currency,
       balance: 0,
       type,
+      ...(type === 'investment' && {
+        stockSymbol: stockSymbol || 'VOO',
+        montoInvertido: 0,
+        shares: 0,
+      }),
     };
 
     const accounts = this.getAllAccounts();

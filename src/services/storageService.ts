@@ -7,6 +7,7 @@ const STORAGE_KEYS = {
   SUB_POCKETS: 'finance_app_sub_pockets',
   MOVEMENTS: 'finance_app_movements',
   SETTINGS: 'finance_app_settings',
+  BUDGET_PLANNING: 'finance_app_budget_planning',
 } as const;
 
 export class StorageService {
@@ -80,6 +81,15 @@ export class StorageService {
 
   static saveSettings(settings: any) {
     this.set(STORAGE_KEYS.SETTINGS, settings);
+  }
+
+  // Budget Planning
+  static getBudgetPlanning() {
+    return this.get<any>(STORAGE_KEYS.BUDGET_PLANNING) || { initialAmount: 0, distributionEntries: [] };
+  }
+
+  static saveBudgetPlanning(data: any) {
+    this.set(STORAGE_KEYS.BUDGET_PLANNING, data);
   }
 
   // Clear all data (for testing/reset)
