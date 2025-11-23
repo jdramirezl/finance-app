@@ -2,4 +2,14 @@
 
 @source "../**/*.{js,ts,jsx,tsx,html}";
 
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+  }
+}
 
+/* Enable dark mode class strategy */
+@theme {
+  --color-scheme: light dark;
+}
