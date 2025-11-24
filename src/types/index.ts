@@ -24,6 +24,7 @@ export interface Account {
   stockSymbol?: string; // For investment accounts (e.g., 'VOO')
   montoInvertido?: number; // Total money invested (for investment accounts)
   shares?: number; // Total shares owned (for investment accounts)
+  displayOrder?: number; // For drag & drop reordering
 }
 
 // Pocket interface
@@ -34,6 +35,7 @@ export interface Pocket {
   type: PocketType;
   balance: number;
   currency: Currency; // Inherited from account
+  displayOrder?: number; // For drag & drop reordering
 }
 
 // SubPocket interface (only for fixed expenses)
@@ -45,6 +47,7 @@ export interface SubPocket {
   periodicityMonths: number; // How many months to divide
   balance: number; // Current balance
   enabled: boolean; // For toggling in budget planning
+  displayOrder?: number; // For drag & drop reordering
 }
 
 // Movement interface
@@ -58,6 +61,7 @@ export interface Movement {
   notes?: string;
   displayedDate: string; // User-assigned date (ISO string)
   createdAt: string; // Registration date (ISO string)
+  isPending?: boolean; // If true, movement is registered but not applied to balances
 }
 
 // Investment-specific properties (extends Account)
