@@ -2,6 +2,9 @@ import { useEffect, useState } from 'react';
 import { useFinanceStore } from '../store/useFinanceStore';
 import { StorageService } from '../services/storageService';
 import { Plus, Trash2, Edit2, X } from 'lucide-react';
+import Button from '../components/Button';
+import Input from '../components/Input';
+import Card from '../components/Card';
 
 interface DistributionEntry {
   id: string;
@@ -148,25 +151,23 @@ const BudgetPlanningPage = () => {
       <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Budget Planning</h1>
 
       {/* Initial Amount Input */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg border dark:border-gray-700 p-6">
-        <label className="block text-sm font-medium mb-2 text-gray-900 dark:text-gray-100">Initial Amount</label>
-        <input
+      <Card padding="md">
+        <Input
+          label="Initial Amount"
           type="number"
           step="0.01"
           min="0"
           value={initialAmount || ''}
           onChange={(e) => setInitialAmount(parseFloat(e.target.value) || 0)}
           placeholder="Enter your total amount (e.g., salary)"
-          className="w-full px-4 py-2 border dark:border-gray-600 rounded-lg text-lg font-semibold bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+          helperText="Typically your monthly income or the amount you want to distribute"
+          className="text-lg font-semibold"
         />
-        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-          Typically your monthly income or the amount you want to distribute
-        </p>
-      </div>
+      </Card>
 
       {/* Calculation Summary */}
       {initialAmount > 0 && (
-        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-6 space-y-3">
+        <Card padding="md" className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 space-y-3">
           <div className="flex items-center justify-between">
             <span className="text-gray-700 dark:text-gray-300 font-medium">Initial Amount:</span>
             <span className="text-xl font-bold text-blue-900 dark:text-blue-200">
@@ -200,21 +201,21 @@ const BudgetPlanningPage = () => {
               </span>
             </div>
           </div>
-        </div>
+        </Card>
       )}
 
       {/* Distribution Grid */}
       {remaining > 0 && (
-        <div className="bg-white dark:bg-gray-800 rounded-lg border dark:border-gray-700 p-6">
+        <Card padding="md">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Distribution</h2>
-            <button
+            <Button
+              variant="primary"
               onClick={handleAddEntry}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600"
             >
               <Plus className="w-4 h-4" />
               Add Entry
-            </button>
+            </Button>
           </div>
 
           {distributionEntries.length === 0 ? (
@@ -276,20 +277,24 @@ const BudgetPlanningPage = () => {
                           </div>
                         </div>
                         <div className="col-span-2 flex justify-end gap-2">
-                          <button
+                          <Button
+                            variant="ghost"
+                            size="sm"
                             onClick={() => handleSaveEntry(entry.id)}
-                            className="p-1.5 text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/30 rounded"
+                            className="p-1.5 text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/30"
                             title="Save"
                           >
                             <Edit2 className="w-4 h-4" />
-                          </button>
-                          <button
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
                             onClick={handleCancelEdit}
-                            className="p-1.5 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600 rounded"
+                            className="p-1.5 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600"
                             title="Cancel"
                           >
                             <X className="w-4 h-4" />
-                          </button>
+                          </Button>
                         </div>
                       </>
                     ) : (
@@ -305,20 +310,24 @@ const BudgetPlanningPage = () => {
                           })}
                         </div>
                         <div className="col-span-2 flex justify-end gap-2">
-                          <button
+                          <Button
+                            variant="ghost"
+                            size="sm"
                             onClick={() => handleStartEdit(entry)}
-                            className="p-1.5 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded"
+                            className="p-1.5 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30"
                             title="Edit"
                           >
                             <Edit2 className="w-4 h-4" />
-                          </button>
-                          <button
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
                             onClick={() => handleDeleteEntry(entry.id)}
-                            className="p-1.5 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded"
+                            className="p-1.5 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30"
                             title="Delete"
                           >
                             <Trash2 className="w-4 h-4" />
-                          </button>
+                          </Button>
                         </div>
                       </>
                     )}
@@ -344,7 +353,7 @@ const BudgetPlanningPage = () => {
               )}
             </div>
           )}
-        </div>
+        </Card>
       )}
 
       {/* Warning if no fixed expenses pocket */}

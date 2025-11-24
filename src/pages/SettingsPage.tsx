@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useFinanceStore } from '../store/useFinanceStore';
 import { currencyService } from '../services/currencyService';
 import type { Currency } from '../types';
+import Card from '../components/Card';
 
 const SettingsPage = () => {
   const { settings, loadSettings, updateSettings } = useFinanceStore();
@@ -21,7 +22,7 @@ const SettingsPage = () => {
     <div className="space-y-6">
       <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Settings</h1>
 
-      <div className="bg-white dark:bg-gray-800 rounded-lg border dark:border-gray-700 p-6 max-w-2xl">
+      <Card className="max-w-2xl">
         <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">Primary Currency</h2>
         <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
           Select your primary currency. All totals will be converted and displayed in this currency
@@ -53,7 +54,7 @@ const SettingsPage = () => {
             </label>
           ))}
         </div>
-      </div>
+      </Card>
     </div>
   );
 };

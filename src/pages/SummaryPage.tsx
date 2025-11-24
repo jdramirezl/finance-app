@@ -26,7 +26,7 @@ const SummaryPage = () => {
   } = useFinanceStore();
 
   const [investmentData, setInvestmentData] = useState<Map<string, InvestmentData>>(new Map());
-  const [loadingInvestments, setLoadingInvestments] = useState(false);
+  const [, setLoadingInvestments] = useState(false);
 
   useEffect(() => {
     loadAccounts();
@@ -54,7 +54,6 @@ const SummaryPage = () => {
           console.error(`Error loading price for ${account.stockSymbol}:`, error);
           // Use cached or default values
           const montoInvertido = account.montoInvertido || 0;
-          const shares = account.shares || 0;
           newData.set(account.id, {
             precioActual: 0,
             totalValue: 0,
@@ -203,11 +202,6 @@ const SummaryPage = () => {
                     <div className="space-y-4">
                       {sortedAccounts.map((account) => {
                         const accountPockets = getPocketsByAccount(account.id);
-                        const accountTotalInPrimary = currencyService.convertAmount(
-                          account.balance,
-                          account.currency,
-                          primaryCurrency
-                        );
 
                         return (
                           <div key={account.id} className="border-l-4 pl-4" style={{ borderColor: account.color }}>
@@ -224,8 +218,8 @@ const SummaryPage = () => {
                               </div>
                               <span className="font-mono text-lg font-semibold">
                                 {currencyService.formatCurrency(
-                                  accountTotalInPrimary,
-                                  primaryCurrency
+                                  account.balance,
+                                  account.currency
                                 )}
                               </span>
                             </div>
@@ -247,31 +241,15 @@ const SummaryPage = () => {
                                     );
                                   }
 
-                                  const totalValueInPrimary = currencyService.convertAmount(
-                                    invData.totalValue,
-                                    account.currency,
-                                    primaryCurrency
-                                  );
-                                  const montoInPrimary = currencyService.convertAmount(
-                                    montoInvertido,
-                                    account.currency,
-                                    primaryCurrency
-                                  );
-                                  const gainsInPrimary = currencyService.convertAmount(
-                                    invData.gainsUSD,
-                                    account.currency,
-                                    primaryCurrency
-                                  );
-
                                   return (
                                     <>
                                       <div className="font-semibold text-gray-900 dark:text-gray-100 mb-2">
-                                        {account.name} - {stockSymbol} | {currencyService.formatCurrency(totalValueInPrimary, primaryCurrency)}
+                                        {account.name} - {stockSymbol} | {currencyService.formatCurrency(invData.totalValue, account.currency)}
                                       </div>
                                       <div className="space-y-1 text-gray-700 dark:text-gray-300">
                                         <div className="flex justify-between">
                                           <span>Total money invested:</span>
-                                          <span className="font-mono">{currencyService.formatCurrency(montoInPrimary, primaryCurrency)}</span>
+                                          <span className="font-mono">{currencyService.formatCurrency(montoInvertido, account.currency)}</span>
                                         </div>
                                         <div className="flex justify-between">
                                           <span>Total shares:</span>
@@ -290,7 +268,7 @@ const SummaryPage = () => {
                                         <div className="flex justify-between">
                                           <span>Total money gained:</span>
                                           <span className={`font-mono font-semibold ${invData.gainsUSD >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                                            {invData.gainsUSD >= 0 ? '+' : ''}{currencyService.formatCurrency(gainsInPrimary, primaryCurrency)}
+                                            {invData.gainsUSD >= 0 ? '+' : ''}{currencyService.formatCurrency(invData.gainsUSD, account.currency)}
                                           </span>
                                         </div>
                                       </div>
@@ -302,12 +280,6 @@ const SummaryPage = () => {
                               /* Normal Account - Show Pockets */
                               <div className="ml-5 space-y-1">
                                 {accountPockets.map((pocket) => {
-                                  const pocketTotalInPrimary = currencyService.convertAmount(
-                                    pocket.balance,
-                                    pocket.currency,
-                                    primaryCurrency
-                                  );
-
                                   return (
                                     <div
                                       key={pocket.id}
@@ -321,8 +293,8 @@ const SummaryPage = () => {
                                       </span>
                                       <span className="font-mono text-gray-900 dark:text-gray-100">
                                         {currencyService.formatCurrency(
-                                          pocketTotalInPrimary,
-                                          primaryCurrency
+                                          pocket.balance,
+                                          pocket.currency
                                         )}
                                       </span>
                                     </div>

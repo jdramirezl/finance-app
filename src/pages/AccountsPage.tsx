@@ -1,8 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useFinanceStore } from '../store/useFinanceStore';
+import { useToast } from '../hooks/useToast';
+import { useConfirm } from '../hooks/useConfirm';
 import type { Account, Pocket, Currency } from '../types';
 import { Plus, Trash2, Edit2, X } from 'lucide-react';
 import Modal from '../components/Modal';
+import ConfirmDialog from '../components/ConfirmDialog';
+import SortableList from '../components/SortableList';
+import SortableItem from '../components/SortableItem';
 
 const AccountsPage = () => {
   const {
@@ -14,11 +19,16 @@ const AccountsPage = () => {
     updateAccount,
     deleteAccount,
     selectAccount,
+    reorderAccounts,
     createPocket,
     updatePocket,
     deletePocket,
+    reorderPockets,
     getPocketsByAccount,
   } = useFinanceStore();
+
+  const toast = useToast();
+  const { confirm, confirmState, handleClose, handleConfirm } = useConfirm();
 
   const [showAccountForm, setShowAccountForm] = useState(false);
   const [showPocketForm, setShowPocketForm] = useState(false);
@@ -81,17 +91,28 @@ const AccountsPage = () => {
   };
 
   const handleDeleteAccount = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this account? This will also delete all its pockets.')) {
-      return;
-    }
+    const account = accounts.find(a => a.id === id);
+    const confirmed = await confirm({
+      title: 'Delete Account',
+      message: `Are you sure you want to delete "${account?.name}"? This will also delete all its pockets and cannot be undone.`,
+      confirmText: 'Delete Account',
+      cancelText: 'Cancel',
+      variant: 'danger',
+    });
+
+    if (!confirmed) return;
+
     setError(null);
     try {
       await deleteAccount(id);
       if (selectedAccountId === id) {
         selectAccount(null);
       }
+      toast.success('Account deleted successfully!');
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to delete account');
+      const errorMessage = err instanceof Error ? err.message : 'Failed to delete account';
+      setError(errorMessage);
+      toast.error(errorMessage);
     }
   };
 
@@ -147,14 +168,25 @@ const AccountsPage = () => {
   };
 
   const handleDeletePocket = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this pocket?')) {
-      return;
-    }
+    const pocket = selectedAccountPockets.find(p => p.id === id);
+    const confirmed = await confirm({
+      title: 'Delete Pocket',
+      message: `Are you sure you want to delete "${pocket?.name}"? This action cannot be undone.`,
+      confirmText: 'Delete Pocket',
+      cancelText: 'Cancel',
+      variant: 'danger',
+    });
+
+    if (!confirmed) return;
+
     setError(null);
     try {
       await deletePocket(id);
+      toast.success('Pocket deleted successfully!');
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to delete pocket');
+      const errorMessage = err instanceof Error ? err.message : 'Failed to delete pocket';
+      setError(errorMessage);
+      toast.error(errorMessage);
     }
   };
 
@@ -191,61 +223,65 @@ const AccountsPage = () => {
               No accounts yet. Create your first account!
             </div>
           ) : (
-            <div className="space-y-2">
-              {accounts.map((account) => (
-                <div
-                  key={account.id}
-                  onClick={() => selectAccount(account.id)}
-                  className={`p-4 bg-white dark:bg-gray-800 rounded-lg border-2 cursor-pointer transition-all ${
-                    selectedAccountId === account.id
-                      ? 'border-blue-500 dark:border-blue-400 shadow-md'
-                      : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div
-                        className="w-4 h-4 rounded-full"
-                        style={{ backgroundColor: account.color }}
-                      />
-                      <div>
-                        <h3 className="font-semibold text-gray-900 dark:text-gray-100">{account.name}</h3>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">
-                          {account.currency} • {account.type || 'normal'}
-                        </p>
+            <SortableList
+              items={[...accounts].sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0))}
+              onReorder={reorderAccounts}
+              getId={(account) => account.id}
+              renderItem={(account) => (
+                <SortableItem key={account.id} id={account.id}>
+                  <div
+                    onClick={() => selectAccount(account.id)}
+                    className={`p-4 bg-white dark:bg-gray-800 rounded-lg border-2 cursor-pointer transition-all ${
+                      selectedAccountId === account.id
+                        ? 'border-blue-500 dark:border-blue-400 shadow-md'
+                        : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div
+                          className="w-4 h-4 rounded-full"
+                          style={{ backgroundColor: account.color }}
+                        />
+                        <div>
+                          <h3 className="font-semibold text-gray-900 dark:text-gray-100">{account.name}</h3>
+                          <p className="text-sm text-gray-500 dark:text-gray-400">
+                            {account.currency} • {account.type || 'normal'}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono text-lg text-gray-900 dark:text-gray-100">
+                          {account.balance.toLocaleString(undefined, {
+                            style: 'currency',
+                            currency: account.currency,
+                          })}
+                        </span>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setEditingAccount(account);
+                            setShowAccountForm(false);
+                          }}
+                          className="p-1 text-gray-400 dark:text-gray-500 hover:text-blue-600 dark:hover:text-blue-400"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteAccount(account.id);
+                          }}
+                          className="p-1 text-gray-400 dark:text-gray-500 hover:text-red-600 dark:hover:text-red-400"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono text-lg text-gray-900 dark:text-gray-100">
-                        {account.balance.toLocaleString(undefined, {
-                          style: 'currency',
-                          currency: account.currency,
-                        })}
-                      </span>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setEditingAccount(account);
-                          setShowAccountForm(false);
-                        }}
-                        className="p-1 text-gray-400 dark:text-gray-500 hover:text-blue-600 dark:hover:text-blue-400"
-                      >
-                        <Edit2 className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeleteAccount(account.id);
-                        }}
-                        className="p-1 text-gray-400 dark:text-gray-500 hover:text-red-600 dark:hover:text-red-400"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                </SortableItem>
+              )}
+            />
           )}
         </div>
 
@@ -418,42 +454,44 @@ const AccountsPage = () => {
                 {selectedAccountPockets.length === 0 ? (
                   <p className="text-gray-500 dark:text-gray-400 text-center py-4">No pockets yet</p>
                 ) : (
-                  <div className="space-y-2">
-                    {selectedAccountPockets.map((pocket) => (
-                      <div
-                        key={pocket.id}
-                        className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg"
-                      >
-                        <div>
-                          <p className="font-medium text-gray-900 dark:text-gray-100">{pocket.name}</p>
-                          <p className="text-sm text-gray-500 dark:text-gray-400">
-                            {pocket.type} •{' '}
-                            {pocket.balance.toLocaleString(undefined, {
-                              style: 'currency',
-                              currency: pocket.currency,
-                            })}
-                          </p>
+                  <SortableList
+                    items={[...selectedAccountPockets].sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0))}
+                    onReorder={reorderPockets}
+                    getId={(pocket) => pocket.id}
+                    renderItem={(pocket) => (
+                      <SortableItem key={pocket.id} id={pocket.id}>
+                        <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                          <div>
+                            <p className="font-medium text-gray-900 dark:text-gray-100">{pocket.name}</p>
+                            <p className="text-sm text-gray-500 dark:text-gray-400">
+                              {pocket.type} •{' '}
+                              {pocket.balance.toLocaleString(undefined, {
+                                style: 'currency',
+                                currency: pocket.currency,
+                              })}
+                            </p>
+                          </div>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => {
+                                setEditingPocket(pocket);
+                                setShowPocketForm(false);
+                              }}
+                              className="p-1 text-gray-400 dark:text-gray-500 hover:text-blue-600 dark:hover:text-blue-400"
+                            >
+                              <Edit2 className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => handleDeletePocket(pocket.id)}
+                              className="p-1 text-gray-400 dark:text-gray-500 hover:text-red-600 dark:hover:text-red-400"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
                         </div>
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => {
-                              setEditingPocket(pocket);
-                              setShowPocketForm(false);
-                            }}
-                            className="p-1 text-gray-400 dark:text-gray-500 hover:text-blue-600 dark:hover:text-blue-400"
-                          >
-                            <Edit2 className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => handleDeletePocket(pocket.id)}
-                            className="p-1 text-gray-400 dark:text-gray-500 hover:text-red-600 dark:hover:text-red-400"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                      </SortableItem>
+                    )}
+                  />
                 )}
 
                 {editingPocket && (
@@ -586,6 +624,18 @@ const AccountsPage = () => {
             </form>
         </Modal>
       )}
+
+      {/* Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={confirmState.isOpen}
+        onClose={handleClose}
+        onConfirm={handleConfirm}
+        title={confirmState.title}
+        message={confirmState.message}
+        confirmText={confirmState.confirmText}
+        cancelText={confirmState.cancelText}
+        variant={confirmState.variant}
+      />
     </div>
   );
 };
