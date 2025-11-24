@@ -79,6 +79,12 @@ class PocketService {
 
   // Create new pocket
   async createPocket(accountId: string, name: string, type: Pocket['type']): Promise<Pocket> {
+    // Validate and sanitize input
+    const trimmedName = name.trim();
+    if (!trimmedName) {
+      throw new Error('Pocket name cannot be empty.');
+    }
+
     // Validate account exists (dynamic import to avoid circular dependency)
     const accountService = await getAccountService();
     const account = accountService.getAccount(accountId);
@@ -86,20 +92,14 @@ class PocketService {
       throw new Error(`Account with id "${accountId}" not found.`);
     }
 
-    // Investment accounts: only allow two special pockets, and no fixed pockets
-    if (account.type === 'investment') {
-      if (type !== 'normal') {
-        throw new Error('Investment accounts only support normal pockets.');
-      }
-      const allowedNames = ['Shares', 'Invested Money'];
-      if (!allowedNames.includes(name)) {
-        throw new Error('Invalid pocket for investment account. Allowed: Shares, Invested Money.');
-      }
+    // Investment accounts cannot have fixed pockets
+    if (account.type === 'investment' && type === 'fixed') {
+      throw new Error('Investment accounts cannot have fixed expenses pockets.');
     }
 
     // Validate uniqueness within account
-    if (!this.validatePocketUniqueness(accountId, name)) {
-      throw new Error(`A pocket with name "${name}" already exists in this account.`);
+    if (!this.validatePocketUniqueness(accountId, trimmedName)) {
+      throw new Error(`A pocket with name "${trimmedName}" already exists in this account.`);
     }
 
     // If creating fixed pocket, validate global uniqueness
@@ -116,7 +116,7 @@ class PocketService {
     const pocket: Pocket = {
       id: generateId(),
       accountId,
-      name,
+      name: trimmedName,
       type,
       balance: 0,
       currency: account.currency, // Inherit from account
@@ -142,14 +142,23 @@ class PocketService {
     }
 
     const pocket = pockets[index];
-    const updatedPocket = { ...pocket, ...updates };
 
-    // Validate uniqueness if name changed
-    if (updates.name && updates.name !== pocket.name) {
-      if (!this.validatePocketUniqueness(pocket.accountId, updates.name, id)) {
-        throw new Error(`A pocket with name "${updates.name}" already exists in this account.`);
+    // Validate and sanitize updates
+    if (updates.name !== undefined) {
+      const trimmedName = updates.name.trim();
+      if (!trimmedName) {
+        throw new Error('Pocket name cannot be empty.');
       }
+      // Validate uniqueness if name changed
+      if (trimmedName.toLowerCase() !== pocket.name.toLowerCase()) {
+        if (!this.validatePocketUniqueness(pocket.accountId, trimmedName, id)) {
+          throw new Error(`A pocket with name "${trimmedName}" already exists in this account.`);
+        }
+      }
+      updates.name = trimmedName;
     }
+
+    const updatedPocket = { ...pocket, ...updates };
 
     // Recalculate balance
     updatedPocket.balance = await this.calculatePocketBalance(id);

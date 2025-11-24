@@ -181,8 +181,41 @@ class MovementService {
     amount: number,
     notes?: string,
     displayedDate?: string,
-    subPocketId?: string
+    subPocketId?: string,
+    isPending?: boolean
   ): Promise<Movement> {
+    // Validate amount
+    if (amount <= 0) {
+      throw new Error('Movement amount must be greater than zero.');
+    }
+
+    // Validate account exists
+    const accountService = await getAccountService();
+    const account = accountService.getAccount(accountId);
+    if (!account) {
+      throw new Error(`Account with id "${accountId}" not found.`);
+    }
+
+    // Validate pocket exists
+    const pocketService = await getPocketService();
+    const pocket = pocketService.getPocket(pocketId);
+    if (!pocket) {
+      throw new Error(`Pocket with id "${pocketId}" not found.`);
+    }
+
+    // Validate sub-pocket if provided
+    if (subPocketId) {
+      const subPocketService = await getSubPocketService();
+      const subPocket = subPocketService.getSubPocket(subPocketId);
+      if (!subPocket) {
+        throw new Error(`Sub-pocket with id "${subPocketId}" not found.`);
+      }
+      // Validate sub-pocket belongs to the specified pocket
+      if (subPocket.pocketId !== pocketId) {
+        throw new Error('Sub-pocket does not belong to the specified pocket.');
+      }
+    }
+
     const now = new Date().toISOString();
     const movement: Movement = {
       id: generateId(),
@@ -191,14 +224,20 @@ class MovementService {
       pocketId,
       subPocketId,
       amount,
-      notes,
+      notes: notes?.trim(),
       displayedDate: displayedDate || now,
       createdAt: now,
+      isPending: isPending || false,
     };
 
     const movements = this.getAllMovements();
     movements.push(movement);
     StorageService.saveMovements(movements);
+
+    // If pending, don't apply balance changes yet
+    if (isPending) {
+      return movement;
+    }
 
     // Handle investment movements separately
         // Handle investment movements separately
@@ -348,6 +387,75 @@ class MovementService {
 
     movements.splice(index, 1);
     StorageService.saveMovements(movements);
+  }
+
+  // Get pending movements
+  getPendingMovements(): Movement[] {
+    const movements = this.getAllMovements();
+    return movements.filter(m => m.isPending === true);
+  }
+
+  // Get applied (non-pending) movements
+  getAppliedMovements(): Movement[] {
+    const movements = this.getAllMovements();
+    return movements.filter(m => !m.isPending);
+  }
+
+  // Apply a pending movement (convert to applied)
+  async applyPendingMovement(id: string): Promise<Movement> {
+    const movements = this.getAllMovements();
+    const index = movements.findIndex(m => m.id === id);
+
+    if (index === -1) {
+      throw new Error(`Movement with id "${id}" not found.`);
+    }
+
+    const movement = movements[index];
+
+    if (!movement.isPending) {
+      throw new Error('Movement is already applied.');
+    }
+
+    // Mark as applied
+    movements[index].isPending = false;
+    StorageService.saveMovements(movements);
+
+    // Now apply the balance changes
+    const isIncome = movement.type === 'IngresoNormal' || movement.type === 'IngresoFijo';
+
+    // Handle investment movements
+    if (movement.type === 'InvestmentIngreso' || movement.type === 'InvestmentShares') {
+      await this.updatePocketBalance(movement.pocketId, movement.amount, true);
+
+      // Synchronize account fields
+      const pocketService = await getPocketService();
+      const accountService = await getAccountService();
+      const account = accountService.getAccount(movement.accountId);
+      if (account && account.type === 'investment') {
+        const pockets = pocketService.getPocketsByAccount(movement.accountId);
+        const investedPocket = pockets.find((p: Pocket) => p.name === 'Invested Money');
+        const sharesPocket = pockets.find((p: Pocket) => p.name === 'Shares');
+        const accounts = accountService.getAllAccounts();
+        const accIndex = accounts.findIndex((acc: Account) => acc.id === movement.accountId);
+        if (accIndex !== -1) {
+          if (investedPocket) {
+            accounts[accIndex].montoInvertido = investedPocket.balance;
+          }
+          if (sharesPocket) {
+            accounts[accIndex].shares = sharesPocket.balance;
+          }
+          StorageService.saveAccounts(accounts);
+        }
+      }
+    } else if (movement.subPocketId) {
+      // Fixed expense movement
+      await this.updateSubPocketBalance(movement.subPocketId, movement.amount, isIncome);
+    } else {
+      // Normal pocket movement
+      await this.updatePocketBalance(movement.pocketId, movement.amount, isIncome);
+    }
+
+    return movements[index];
   }
 }
 

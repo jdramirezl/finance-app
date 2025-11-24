@@ -51,20 +51,29 @@ class AccountService {
     type: Account['type'] = 'normal',
     stockSymbol?: string
   ): Account {
+    // Validate and sanitize input
+    const trimmedName = name.trim();
+    if (!trimmedName) {
+      throw new Error('Account name cannot be empty.');
+    }
+    if (!color || !color.trim()) {
+      throw new Error('Account color cannot be empty.');
+    }
+
     // Validate uniqueness
-    if (!this.validateAccountUniqueness(name, currency)) {
-      throw new Error(`An account with name "${name}" and currency "${currency}" already exists.`);
+    if (!this.validateAccountUniqueness(trimmedName, currency)) {
+      throw new Error(`An account with name "${trimmedName}" and currency "${currency}" already exists.`);
     }
 
     const account: Account = {
       id: generateId(),
-      name,
-      color,
+      name: trimmedName,
+      color: color.trim(),
       currency,
       balance: 0,
       type,
       ...(type === 'investment' && {
-        stockSymbol: stockSymbol || 'VOO',
+        stockSymbol: stockSymbol?.trim() || 'VOO',
         montoInvertido: 0,
         shares: 0,
       }),
@@ -87,6 +96,23 @@ class AccountService {
     }
 
     const account = accounts[index];
+
+    // Validate and sanitize updates
+    if (updates.name !== undefined) {
+      const trimmedName = updates.name.trim();
+      if (!trimmedName) {
+        throw new Error('Account name cannot be empty.');
+      }
+      updates.name = trimmedName;
+    }
+    if (updates.color !== undefined) {
+      const trimmedColor = updates.color.trim();
+      if (!trimmedColor) {
+        throw new Error('Account color cannot be empty.');
+      }
+      updates.color = trimmedColor;
+    }
+
     const updatedAccount = { ...account, ...updates };
 
     // Validate uniqueness if name or currency changed

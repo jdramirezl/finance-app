@@ -38,7 +38,7 @@ class SubPocketService {
   }
 
   // Calculate progress (progreso)
-  calculateProgreso(balance: number, valueTotal: number): number {
+  calculateProgress(balance: number, valueTotal: number): number {
     if (valueTotal <= 0) return 0;
     return balance / valueTotal;
   }
@@ -73,6 +73,15 @@ class SubPocketService {
     return aporteMensual;
   }
 
+  // Validate sub-pocket uniqueness within a pocket
+  validateSubPocketUniqueness(pocketId: string, name: string, excludeId?: string): boolean {
+    const subPockets = this.getSubPocketsByPocket(pocketId);
+    const existing = subPockets.find(
+      sp => sp.name.trim().toLowerCase() === name.trim().toLowerCase() && sp.id !== excludeId
+    );
+    return !existing; // Returns true if unique
+  }
+
   // Create new sub-pocket
   async createSubPocket(pocketId: string, name: string, valueTotal: number, periodicityMonths: number): Promise<SubPocket> {
     // Validate pocket exists and is fixed type (dynamic import to avoid circular dependency)
@@ -85,10 +94,27 @@ class SubPocketService {
       throw new Error('Sub-pockets can only be created for fixed expenses pockets.');
     }
 
+    // Validate input
+    const trimmedName = name.trim();
+    if (!trimmedName) {
+      throw new Error('Sub-pocket name cannot be empty.');
+    }
+    if (valueTotal <= 0) {
+      throw new Error('Sub-pocket total value must be greater than zero.');
+    }
+    if (periodicityMonths <= 0) {
+      throw new Error('Sub-pocket periodicity must be greater than zero.');
+    }
+
+    // Validate uniqueness
+    if (!this.validateSubPocketUniqueness(pocketId, trimmedName)) {
+      throw new Error(`A sub-pocket with name "${trimmedName}" already exists in this pocket.`);
+    }
+
     const subPocket: SubPocket = {
       id: generateId(),
       pocketId,
-      name,
+      name: trimmedName,
       valueTotal,
       periodicityMonths,
       balance: 0,
@@ -115,6 +141,28 @@ class SubPocketService {
     }
 
     const subPocket = subPockets[index];
+
+    // Validate updates
+    if (updates.name !== undefined) {
+      const trimmedName = updates.name.trim();
+      if (!trimmedName) {
+        throw new Error('Sub-pocket name cannot be empty.');
+      }
+      // Validate uniqueness if name changed
+      if (trimmedName.toLowerCase() !== subPocket.name.toLowerCase()) {
+        if (!this.validateSubPocketUniqueness(subPocket.pocketId, trimmedName, id)) {
+          throw new Error(`A sub-pocket with name "${trimmedName}" already exists in this pocket.`);
+        }
+      }
+      updates.name = trimmedName;
+    }
+    if (updates.valueTotal !== undefined && updates.valueTotal <= 0) {
+      throw new Error('Sub-pocket total value must be greater than zero.');
+    }
+    if (updates.periodicityMonths !== undefined && updates.periodicityMonths <= 0) {
+      throw new Error('Sub-pocket periodicity must be greater than zero.');
+    }
+
     const updatedSubPocket = { ...subPocket, ...updates };
 
     subPockets[index] = updatedSubPocket;
@@ -152,7 +200,12 @@ class SubPocketService {
       throw new Error(`Sub-pocket with id "${id}" not found.`);
     }
 
-    return await this.updateSubPocket(id, { enabled: !subPocket.enabled });
+    const allSubPockets = StorageService.getSubPockets();
+    const updated = { ...subPocket, enabled: !subPocket.enabled };
+    StorageService.saveSubPockets(
+      allSubPockets.map((sp: SubPocket) => (sp.id === id ? updated : sp))
+    );
+    return updated;
   }
 }
 
