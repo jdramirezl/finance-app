@@ -33,7 +33,7 @@ const AccountsPage = () => {
   }, [loadAccounts, loadPockets]);
 
   const selectedAccount = selectedAccountId
-    ? accounts.find((acc) => acc.id === selectedAccountId)
+    ? accounts.find((acc) => acc.id === selectedAccountId) || null
     : null;
   const selectedAccountPockets = selectedAccountId
     ? getPocketsByAccount(selectedAccountId)
@@ -48,18 +48,16 @@ const AccountsPage = () => {
     const color = formData.get('color') as string;
     const currency = formData.get('currency') as Currency;
     const type = (formData.get('type') as Account['type']) || 'normal';
-    const stockSymbol = type === 'investment' ? (formData.get('stockSymbol') as string) || 'VOO' : undefined;
+    const stockSymbol = (formData.get('stockSymbol') as string) || undefined;
 
     try {
       await createAccount(name, color, currency, type, stockSymbol);
-      // Reset form synchronously before closing modal
       form.reset();
       setShowAccountForm(false);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to create account');
     }
   };
-
   const handleUpdateAccount = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError(null);
@@ -104,8 +102,20 @@ const AccountsPage = () => {
 
     const form = e.currentTarget;
     const formData = new FormData(form);
-    const name = formData.get('name') as string;
-    const type = formData.get('type') as Pocket['type'];
+    let name: string;
+    let type: Pocket['type'] = 'normal';
+    if (selectedAccount?.type === 'investment') {
+      const kind = formData.get('investmentKind') as string;
+      if (!kind) {
+        setError('Please select an investment pocket');
+        return;
+      }
+      name = kind === 'shares' ? 'Shares' : 'Invested Money';
+      type = 'normal';
+    } else {
+      name = formData.get('name') as string;
+      type = formData.get('type') as Pocket['type'];
+    }
 
     try {
       await createPocket(selectedAccountId, name, type);
@@ -345,41 +355,48 @@ const AccountsPage = () => {
 
                 {showPocketForm && (
                   <form onSubmit={handleCreatePocket} className="mb-4 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg space-y-3">
-                    <div>
-                      <label className="block text-sm font-medium mb-1 text-gray-900 dark:text-gray-100">Name</label>
-                      <input
-                        type="text"
-                        name="name"
-                        required
-                        className="w-full px-3 py-2 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-1 text-gray-900 dark:text-gray-100">Type</label>
-                      <select
-                        name="type"
-                        required
-                        className="w-full px-3 py-2 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 disabled:opacity-50"
-                        disabled={selectedAccount?.type === 'investment'}
-                      >
-                        {selectedAccount?.type === 'investment' ? (
-                          <>
-                            <option value="normal">Shares</option>
-                            <option value="normal">Invested Money</option>
-                          </>
-                        ) : (
-                          <>
+                    {selectedAccount?.type === 'investment' ? (
+                      <div>
+                        <label className="block text-sm font-medium mb-1 text-gray-900 dark:text-gray-100">Investment pocket</label>
+                        <select
+                          name="investmentKind"
+                          required
+                          className="w-full px-3 py-2 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                        >
+                          <option value="" disabled>Select one</option>
+                          <option value="shares" disabled={selectedAccountPockets.some((p) => p.name === 'Shares')}>
+                            Shares {selectedAccountPockets.some((p) => p.name === 'Shares') ? '(already created)' : ''}
+                          </option>
+                          <option value="invested" disabled={selectedAccountPockets.some((p) => p.name === 'Invested Money')}>
+                            Invested Money {selectedAccountPockets.some((p) => p.name === 'Invested Money') ? '(already created)' : ''}
+                          </option>
+                        </select>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Only one of each is allowed per investment account.</p>
+                      </div>
+                    ) : (
+                      <>
+                        <div>
+                          <label className="block text-sm font-medium mb-1 text-gray-900 dark:text-gray-100">Name</label>
+                          <input
+                            type="text"
+                            name="name"
+                            required
+                            className="w-full px-3 py-2 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium mb-1 text-gray-900 dark:text-gray-100">Type</label>
+                          <select
+                            name="type"
+                            required
+                            className="w-full px-3 py-2 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                          >
                             <option value="normal">Normal</option>
                             <option value="fixed">Fixed Expenses</option>
-                          </>
-                        )}
-                      </select>
-                      {selectedAccount?.type === 'investment' && (
-                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                          Investment accounts use special pocket types
-                        </p>
-                      )}
-                    </div>
+                          </select>
+                        </div>
+                      </>
+                    )}
                     <div className="flex gap-2">
                       <button
                         type="submit"

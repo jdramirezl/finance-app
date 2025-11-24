@@ -114,14 +114,13 @@ const MovementsPage = () => {
 
     const type = formData.get('type') as MovementType;
     const accountId = formData.get('accountId') as string;
-    // For investment accounts, use a dummy pocket ID (they don't use pockets)
-    const pocketId = isInvestmentAccount 
-      ? 'investment-dummy-pocket' 
-      : (formData.get('pocketId') as string);
+    const pocketId = formData.get('pocketId') as string;
     const subPocketId = formData.get('subPocketId') as string || undefined;
     const amount = parseFloat(formData.get('amount') as string);
     const notes = formData.get('notes') as string || undefined;
     const displayedDate = formData.get('displayedDate') as string;
+
+
 
     try {
       if (editingMovement) {
@@ -140,6 +139,8 @@ const MovementsPage = () => {
         setSelectedPocketId('');
         setIsFixedExpense(false);
       } else {
+        // print the pocket for the operation to be done, the id and the name
+        console.log('Pocket for the operation to be done:', pocketId, getPocket(pocketId)?.name || 'Unknown');
         await createMovement(type, accountId, pocketId, amount, notes, displayedDate, subPocketId);
         form.reset();
         setShowForm(false);
@@ -180,7 +181,7 @@ const MovementsPage = () => {
     : null;
   const isInvestmentAccount = selectedAccount?.type === 'investment';
 
-  const availablePockets = selectedAccountId && !isInvestmentAccount
+  const availablePockets = selectedAccountId
     ? getPocketsByAccount(selectedAccountId)
     : [];
   const fixedPocket = availablePockets.find((p) => p.type === 'fixed');
@@ -386,7 +387,7 @@ const MovementsPage = () => {
             </select>
           </div>
 
-          {selectedAccountId && !isInvestmentAccount && (
+          {selectedAccountId && (
             <div>
               <label className="block text-sm font-medium mb-1 text-gray-900 dark:text-gray-100">Pocket</label>
               <select
@@ -407,15 +408,6 @@ const MovementsPage = () => {
                   </option>
                 ))}
               </select>
-            </div>
-          )}
-
-          {isInvestmentAccount && (
-            <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-              <p className="text-sm text-blue-800 dark:text-blue-300">
-                Investment movements update the account directly. No pocket selection needed.
-                {selectedAccount?.stockSymbol && ` Tracking: ${selectedAccount.stockSymbol}`}
-              </p>
             </div>
           )}
 
