@@ -1,4 +1,4 @@
-import type { Movement, MovementType } from '../types';
+import type { Movement, MovementType, Pocket, SubPocket, Account } from '../types';
 import { StorageService } from './storageService';
 import { generateId } from '../utils/idGenerator';
 import { format } from 'date-fns';
@@ -50,7 +50,7 @@ class MovementService {
   // Get movements sorted by createdAt (registration date)
   getMovementsSortedByCreatedAt(): Movement[] {
     const movements = this.getAllMovements();
-    return movements.sort((a, b) => 
+    return movements.sort((a, b) =>
       new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
     );
   }
@@ -84,7 +84,7 @@ class MovementService {
     movements.forEach(movement => {
       const date = new Date(movement.displayedDate);
       const monthKey = format(date, 'yyyy-MM'); // e.g., "2025-01"
-      
+
       if (!grouped.has(monthKey)) {
         grouped.set(monthKey, []);
       }
@@ -105,7 +105,7 @@ class MovementService {
     if (!pocket) return;
 
     const pockets = pocketService.getAllPockets();
-    const index = pockets.findIndex(p => p.id === pocketId);
+    const index = pockets.findIndex((p: Pocket) => p.id === pocketId);
     if (index === -1) return;
 
     if (isIncome) {
@@ -132,7 +132,7 @@ class MovementService {
     if (!subPocket) return;
 
     const subPockets = subPocketService.getAllSubPockets();
-    const index = subPockets.findIndex(sp => sp.id === subPocketId);
+    const index = subPockets.findIndex((sp: SubPocket) => sp.id === subPocketId);
     if (index === -1) return;
 
     if (isIncome) {
@@ -159,7 +159,7 @@ class MovementService {
     if (!account || account.type !== 'investment') return;
 
     const accounts = accountService.getAllAccounts();
-    const index = accounts.findIndex(acc => acc.id === accountId);
+    const index = accounts.findIndex((acc: Account) => acc.id === accountId);
     if (index === -1) return;
 
     if (type === 'InvestmentIngreso') {
@@ -201,14 +201,39 @@ class MovementService {
     StorageService.saveMovements(movements);
 
     // Handle investment movements separately
-    if (type === 'InvestmentIngreso' || type === 'InvestmentShares') {
-      await this.updateInvestmentAccount(accountId, type, amount);
-      return movement;
-    }
+        // Handle investment movements separately
+        if (type === 'InvestmentIngreso' || type === 'InvestmentShares') {
+          // Update the pocket balance first so pockets remain the source of truth
+          // (the form passes the pocketId where the user recorded the movement)
+          await this.updatePocketBalance(pocketId, amount, true);
+
+          // Synchronize account fields with pocket balances (keep account totals in sync)
+          const pocketService = await getPocketService();
+          const accountService = await getAccountService();
+          const account = accountService.getAccount(accountId);
+          if (account && account.type === 'investment') {
+            const pockets = pocketService.getPocketsByAccount(accountId);
+            const investedPocket = pockets.find((p: Pocket) => p.name === 'Invested Money');
+            const sharesPocket = pockets.find((p: Pocket) => p.name === 'Shares');
+            const accounts = accountService.getAllAccounts();
+            const accIndex = accounts.findIndex((acc: Account) => acc.id === accountId);
+            if (accIndex !== -1) {
+              if (investedPocket) {
+                accounts[accIndex].montoInvertido = investedPocket.balance;
+              }
+              if (sharesPocket) {
+                accounts[accIndex].shares = sharesPocket.balance;
+              }
+              StorageService.saveAccounts(accounts);
+            }
+          }
+
+          return movement;
+        }
 
     // Update balances for normal movements
     const isIncome = type === 'IngresoNormal' || type === 'IngresoFijo';
-    
+
     if (subPocketId) {
       // Fixed expense movement
       await this.updateSubPocketBalance(subPocketId, amount, isIncome);
@@ -245,7 +270,7 @@ class MovementService {
       const account = accountService.getAccount(oldMovement.accountId);
       if (account && account.type === 'investment') {
         const accounts = accountService.getAllAccounts();
-        const accIndex = accounts.findIndex(acc => acc.id === oldMovement.accountId);
+        const accIndex = accounts.findIndex((acc: Account) => acc.id === oldMovement.accountId);
         if (accIndex !== -1) {
           if (oldMovement.type === 'InvestmentIngreso') {
             accounts[accIndex].montoInvertido = Math.max(0, (accounts[accIndex].montoInvertido || 0) - oldMovement.amount);
@@ -288,20 +313,20 @@ class MovementService {
   async deleteMovement(id: string): Promise<void> {
     const movements = this.getAllMovements();
     const index = movements.findIndex(m => m.id === id);
-    
+
     if (index === -1) {
       throw new Error(`Movement with id "${id}" not found.`);
     }
 
     const movement = movements[index];
-    
+
     // Handle investment movements
     if (movement.type === 'InvestmentIngreso' || movement.type === 'InvestmentShares') {
       const accountService = await getAccountService();
       const account = accountService.getAccount(movement.accountId);
       if (account && account.type === 'investment') {
         const accounts = accountService.getAllAccounts();
-        const accIndex = accounts.findIndex(acc => acc.id === movement.accountId);
+        const accIndex = accounts.findIndex((acc: Account) => acc.id === movement.accountId);
         if (accIndex !== -1) {
           if (movement.type === 'InvestmentIngreso') {
             accounts[accIndex].montoInvertido = Math.max(0, (accounts[accIndex].montoInvertido || 0) - movement.amount);

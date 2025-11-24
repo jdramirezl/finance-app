@@ -86,6 +86,17 @@ class PocketService {
       throw new Error(`Account with id "${accountId}" not found.`);
     }
 
+    // Investment accounts: only allow two special pockets, and no fixed pockets
+    if (account.type === 'investment') {
+      if (type !== 'normal') {
+        throw new Error('Investment accounts only support normal pockets.');
+      }
+      const allowedNames = ['Shares', 'Invested Money'];
+      if (!allowedNames.includes(name)) {
+        throw new Error('Invalid pocket for investment account. Allowed: Shares, Invested Money.');
+      }
+    }
+
     // Validate uniqueness within account
     if (!this.validatePocketUniqueness(accountId, name)) {
       throw new Error(`A pocket with name "${name}" already exists in this account.`);
@@ -93,6 +104,10 @@ class PocketService {
 
     // If creating fixed pocket, validate global uniqueness
     if (type === 'fixed') {
+      // Disallow fixed pocket in investment accounts
+      if (account.type === 'investment') {
+        throw new Error('Investment accounts cannot have a fixed expenses pocket.');
+      }
       if (!this.validateFixedPocketUniqueness()) {
         throw new Error('A fixed expenses pocket already exists. Only one fixed expenses pocket is allowed.');
       }
