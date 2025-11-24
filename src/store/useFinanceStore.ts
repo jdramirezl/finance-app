@@ -21,12 +21,14 @@ interface FinanceStore {
   updateAccount: (id: string, updates: Partial<Pick<Account, 'name' | 'color' | 'currency'>>) => void;
   deleteAccount: (id: string) => void;
   selectAccount: (id: string | null) => void;
+  reorderAccounts: (accounts: Account[]) => void;
 
   // Actions - Pockets
   loadPockets: () => void;
   createPocket: (accountId: string, name: string, type: Pocket['type']) => void;
   updatePocket: (id: string, updates: Partial<Pick<Pocket, 'name'>>) => void;
   deletePocket: (id: string) => void;
+  reorderPockets: (pockets: Pocket[]) => void;
 
   // Actions - SubPockets
   loadSubPockets: () => void;
@@ -34,13 +36,17 @@ interface FinanceStore {
   updateSubPocket: (id: string, updates: Partial<Pick<SubPocket, 'name' | 'valueTotal' | 'periodicityMonths'>>) => void;
   deleteSubPocket: (id: string) => void;
   toggleSubPocketEnabled: (id: string) => void;
+  reorderSubPockets: (subPockets: SubPocket[]) => void;
 
   // Actions - Movements
   loadMovements: () => void;
-  createMovement: (type: MovementType, accountId: string, pocketId: string, amount: number, notes?: string, displayedDate?: string, subPocketId?: string) => Promise<void>;
+  createMovement: (type: MovementType, accountId: string, pocketId: string, amount: number, notes?: string, displayedDate?: string, subPocketId?: string, isPending?: boolean) => Promise<void>;
   updateMovement: (id: string, updates: Partial<Pick<Movement, 'type' | 'accountId' | 'pocketId' | 'subPocketId' | 'amount' | 'notes' | 'displayedDate'>>) => Promise<void>;
   deleteMovement: (id: string) => Promise<void>;
+  applyPendingMovement: (id: string) => Promise<void>;
   getMovementsGroupedByMonth: () => Map<string, Movement[]>;
+  getPendingMovements: () => Movement[];
+  getAppliedMovements: () => Movement[];
 
   // Actions - Settings
   loadSettings: () => void;
@@ -126,6 +132,20 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
     set({ selectedAccountId: id });
   },
 
+  reorderAccounts: (accounts) => {
+    // Update display order for each account
+    const accountsWithOrder = accounts.map((account, index) => ({
+      ...account,
+      displayOrder: index,
+    }));
+    
+    // Save to storage
+    StorageService.saveAccounts(accountsWithOrder);
+    
+    // Update state
+    set({ accounts: accountsWithOrder });
+  },
+
   // Pocket actions
   createPocket: async (accountId, name, type) => {
     try {
@@ -159,6 +179,23 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
     } catch (error) {
       throw error;
     }
+  },
+
+  reorderPockets: (pockets) => {
+    // Update display order for each pocket
+    const pocketsWithOrder = pockets.map((pocket, index) => ({
+      ...pocket,
+      displayOrder: index,
+    }));
+    
+    // Save to storage
+    StorageService.savePockets(pocketsWithOrder);
+    
+    // Update state
+    set({ pockets: pocketsWithOrder });
+    
+    // Reload accounts to ensure consistency
+    get().loadAccounts();
   },
 
   // SubPocket actions
@@ -210,8 +247,19 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
     }
   },
 
+  reorderSubPockets: (subPockets) => {
+    const subPocketsWithOrder = subPockets.map((subPocket, index) => ({
+      ...subPocket,
+      displayOrder: index,
+    }));
+    
+    StorageService.saveSubPockets(subPocketsWithOrder);
+    set({ subPockets: subPocketsWithOrder });
+    get().loadPockets();
+  },
+
   // Movement actions
-  createMovement: async (type, accountId, pocketId, amount, notes, displayedDate, subPocketId) => {
+  createMovement: async (type, accountId, pocketId, amount, notes, displayedDate, subPocketId, isPending) => {
     try {
       const movement = await movementService.createMovement(
         type,
@@ -220,13 +268,16 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
         amount,
         notes,
         displayedDate,
-        subPocketId
+        subPocketId,
+        isPending
       );
       set((state) => ({ movements: [...state.movements, movement] }));
-      // Reload accounts and pockets to update balances
-      get().loadAccounts();
-      get().loadPockets();
-      get().loadSubPockets();
+      // Reload accounts and pockets to update balances (only if not pending)
+      if (!isPending) {
+        get().loadAccounts();
+        get().loadPockets();
+        get().loadSubPockets();
+      }
     } catch (error) {
       throw error;
     }
@@ -264,6 +315,29 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
 
   getMovementsGroupedByMonth: () => {
     return movementService.getMovementsGroupedByMonth();
+  },
+
+  getPendingMovements: () => {
+    return movementService.getPendingMovements();
+  },
+
+  getAppliedMovements: () => {
+    return movementService.getAppliedMovements();
+  },
+
+  applyPendingMovement: async (id) => {
+    try {
+      const applied = await movementService.applyPendingMovement(id);
+      set((state) => ({
+        movements: state.movements.map((m) => (m.id === id ? applied : m)),
+      }));
+      // Reload accounts and pockets to update balances
+      get().loadAccounts();
+      get().loadPockets();
+      get().loadSubPockets();
+    } catch (error) {
+      throw error;
+    }
   },
 
   // Settings actions
