@@ -61,10 +61,9 @@ const MovementsPage = () => {
     const loadData = async () => {
       setIsLoading(true);
       try {
+        // loadAccounts now loads accounts, pockets, and subPockets in one call
         await Promise.all([
           loadAccounts(),
-          loadPockets(),
-          loadSubPockets(),
           loadMovements(),
         ]);
       } catch (err) {

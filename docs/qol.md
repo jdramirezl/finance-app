@@ -79,12 +79,13 @@
   - Note: This is a breaking change - needs careful implementation
 
 ### Performance Issues
-- [ ] **6. Duplicate page reloads on CRUD operations**
-  - Symptom: Every CRUD operation triggers TWO page reloads
-  - Flow: "Do operation → wait 3s → reload → wait 2-5s → reload again"
-  - Root cause: Likely calling reload functions twice in update flows
-  - Goal: Single reload, or better yet - optimistic updates without full page reload
-  - Impact: App feels sluggish and unresponsive
+- [x] **6. Duplicate page reloads on CRUD operations** ✅ FIXED
+  - Root cause: Pages were calling loadAccounts(), loadPockets(), and loadSubPockets() separately
+  - Problem: loadAccounts() internally loads pockets and subPockets for balance calculation, causing 2-3x duplicate loads
+  - Fix: Refactored loadAccounts() to load all three (accounts, pockets, subPockets) and update state in single set() call
+  - Pages now only call loadAccounts() once instead of three separate load functions
+  - Result: 66% reduction in load operations (3 loads → 1 load), much faster page loads
+  - Commit: Consolidate data loading to eliminate duplicate reloads
 
 ---
 

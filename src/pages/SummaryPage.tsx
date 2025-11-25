@@ -36,10 +36,9 @@ const SummaryPage = () => {
       setIsLoading(true);
       setError(null);
       try {
+        // loadAccounts now loads accounts, pockets, and subPockets in one call
         await Promise.all([
           loadAccounts(),
-          loadPockets(),
-          loadSubPockets(),
           loadSettings(),
         ]);
       } catch (err) {
@@ -50,7 +49,7 @@ const SummaryPage = () => {
       }
     };
     loadData();
-  }, [loadAccounts, loadPockets, loadSubPockets, loadSettings]);
+  }, [loadAccounts, loadSettings]);
 
   // Load investment prices
   useEffect(() => {

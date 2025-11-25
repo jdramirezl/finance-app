@@ -47,7 +47,8 @@ const AccountsPage = () => {
     const loadData = async () => {
       setIsLoading(true);
       try {
-        await Promise.all([loadAccounts(), loadPockets()]);
+        // loadAccounts now loads accounts, pockets, and subPockets in one call
+        await loadAccounts();
       } catch (err) {
         console.error('Failed to load data:', err);
         toast.error('Failed to load accounts and pockets');
@@ -56,7 +57,7 @@ const AccountsPage = () => {
       }
     };
     loadData();
-  }, [loadAccounts, loadPockets, toast]);
+  }, [loadAccounts, toast]);
 
   const selectedAccount = selectedAccountId
     ? accounts.find((acc) => acc.id === selectedAccountId) || null

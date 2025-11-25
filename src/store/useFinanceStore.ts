@@ -67,18 +67,14 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
   selectedAccountId: null,
 
   // Load data from storage
+  // NOTE: This now loads accounts, pockets, AND subPockets in one call
+  // to avoid duplicate loads and ensure all balances are calculated correctly
   loadAccounts: async () => {
     const accounts = await accountService.getAllAccounts();
-    set({ accounts: Array.isArray(accounts) ? accounts : [] });
-    
-    // CRITICAL: Recalculate all account balances from pockets
-    // This ensures balances are always fresh, especially after page refresh
-    // Account.balance in storage may be stale - pockets are the source of truth
     const pockets = await pocketService.getAllPockets();
-    
-    // IMPORTANT: Recalculate fixed pocket balances from sub-pockets FIRST
-    // before calculating account balances
     const subPockets = await SupabaseStorageService.getSubPockets();
+    
+    // STEP 1: Recalculate fixed pocket balances from sub-pockets
     const updatedPockets = pockets.map((pocket) => {
       if (pocket.type === 'fixed') {
         const pocketSubPockets = subPockets.filter(sp => sp.pocketId === pocket.id);
@@ -88,12 +84,12 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
       return pocket;
     });
     
-    // For investment accounts, calculate balance from market value (shares × price)
-    // For normal accounts, sum pocket balances (using updatedPockets with fixed pocket balances)
+    // STEP 2: Calculate account balances
+    // - Investment accounts: use market value (shares × current price)
+    // - Normal accounts: sum pocket balances
     const updatedAccountsPromises = accounts.map(async (account) => {
       if (account.type === 'investment' && account.stockSymbol) {
         try {
-          // Import dynamically to avoid circular dependency
           const { investmentService } = await import('../services/investmentService');
           const invData = await investmentService.updateInvestmentAccount(account);
           return { ...account, balance: invData.totalValue };
@@ -105,7 +101,7 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
           return { ...account, balance: calculatedBalance };
         }
       } else {
-        // Normal account - sum pocket balances (using updatedPockets with recalculated fixed pocket balances)
+        // Normal account - sum pocket balances
         const accountPockets = updatedPockets.filter(p => p.accountId === account.id);
         const calculatedBalance = accountPockets.reduce((sum, p) => sum + p.balance, 0);
         return { ...account, balance: calculatedBalance };
@@ -113,7 +109,13 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
     });
     
     const updatedAccounts = await Promise.all(updatedAccountsPromises);
-    set({ accounts: updatedAccounts });
+    
+    // STEP 3: Update all state in a single set() call to avoid multiple re-renders
+    set({ 
+      accounts: updatedAccounts,
+      pockets: updatedPockets,
+      subPockets: Array.isArray(subPockets) ? subPockets : [],
+    });
   },
 
   loadPockets: async () => {

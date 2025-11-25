@@ -41,7 +41,8 @@ const BudgetPlanningPage = () => {
     const loadData = async () => {
       setIsLoading(true);
       try {
-        await Promise.all([loadAccounts(), loadPockets(), loadSubPockets()]);
+        // loadAccounts now loads accounts, pockets, and subPockets in one call
+        await loadAccounts();
       } catch (err) {
         console.error('Failed to load data:', err);
       } finally {
@@ -49,7 +50,7 @@ const BudgetPlanningPage = () => {
       }
     };
     loadData();
-  }, [loadAccounts, loadPockets, loadSubPockets]);
+  }, [loadAccounts]);
 
   // Persist data whenever it changes
   useEffect(() => {

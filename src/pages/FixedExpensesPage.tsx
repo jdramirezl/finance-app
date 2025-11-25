@@ -38,7 +38,8 @@ const FixedExpensesPage = () => {
     const loadData = async () => {
       setIsLoading(true);
       try {
-        await Promise.all([loadAccounts(), loadPockets(), loadSubPockets()]);
+        // loadAccounts now loads accounts, pockets, and subPockets in one call
+        await loadAccounts();
       } catch (err) {
         console.error('Failed to load data:', err);
         toast.error('Failed to load fixed expenses data');
@@ -47,7 +48,7 @@ const FixedExpensesPage = () => {
       }
     };
     loadData();
-  }, [loadAccounts, loadPockets, loadSubPockets, toast]);
+  }, [loadAccounts, toast]);
 
   // Find the fixed expenses pocket
   const fixedPocket = pockets.find((p) => p.type === 'fixed');
