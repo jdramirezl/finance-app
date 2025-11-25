@@ -70,16 +70,73 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
   loadAccounts: async () => {
     const accounts = await accountService.getAllAccounts();
     set({ accounts: Array.isArray(accounts) ? accounts : [] });
+    
+    // CRITICAL: Recalculate all account balances from pockets
+    // This ensures balances are always fresh, especially after page refresh
+    // Account.balance in storage may be stale - pockets are the source of truth
+    const pockets = await pocketService.getAllPockets();
+    
+    // IMPORTANT: Recalculate fixed pocket balances from sub-pockets FIRST
+    // before calculating account balances
+    const subPockets = await SupabaseStorageService.getSubPockets();
+    const updatedPockets = pockets.map((pocket) => {
+      if (pocket.type === 'fixed') {
+        const pocketSubPockets = subPockets.filter(sp => sp.pocketId === pocket.id);
+        const calculatedBalance = pocketSubPockets.reduce((sum, sp) => sum + sp.balance, 0);
+        return { ...pocket, balance: calculatedBalance };
+      }
+      return pocket;
+    });
+    
+    // For investment accounts, calculate balance from market value (shares × price)
+    // For normal accounts, sum pocket balances (using updatedPockets with fixed pocket balances)
+    const updatedAccountsPromises = accounts.map(async (account) => {
+      if (account.type === 'investment' && account.stockSymbol) {
+        try {
+          // Import dynamically to avoid circular dependency
+          const { investmentService } = await import('../services/investmentService');
+          const invData = await investmentService.updateInvestmentAccount(account);
+          return { ...account, balance: invData.totalValue };
+        } catch (error) {
+          console.error(`Error loading investment data for ${account.name}:`, error);
+          // Fallback to pocket balances on error
+          const accountPockets = updatedPockets.filter(p => p.accountId === account.id);
+          const calculatedBalance = accountPockets.reduce((sum, p) => sum + p.balance, 0);
+          return { ...account, balance: calculatedBalance };
+        }
+      } else {
+        // Normal account - sum pocket balances (using updatedPockets with recalculated fixed pocket balances)
+        const accountPockets = updatedPockets.filter(p => p.accountId === account.id);
+        const calculatedBalance = accountPockets.reduce((sum, p) => sum + p.balance, 0);
+        return { ...account, balance: calculatedBalance };
+      }
+    });
+    
+    const updatedAccounts = await Promise.all(updatedAccountsPromises);
+    set({ accounts: updatedAccounts });
   },
 
   loadPockets: async () => {
     const pockets = await pocketService.getAllPockets();
-    set({ pockets: Array.isArray(pockets) ? pockets : [] });
     
-    // Recalculate account balances from loaded pockets
+    // CRITICAL: Recalculate fixed pocket balances from sub-pockets
+    // Fixed pocket balances in storage may be stale - sub-pockets are the source of truth
+    const subPockets = await SupabaseStorageService.getSubPockets();
+    const updatedPockets = pockets.map((pocket) => {
+      if (pocket.type === 'fixed') {
+        const pocketSubPockets = subPockets.filter(sp => sp.pocketId === pocket.id);
+        const calculatedBalance = pocketSubPockets.reduce((sum, sp) => sum + sp.balance, 0);
+        return { ...pocket, balance: calculatedBalance };
+      }
+      return pocket;
+    });
+    
+    set({ pockets: Array.isArray(updatedPockets) ? updatedPockets : [] });
+    
+    // Recalculate account balances from updated pockets
     set((state) => {
       const updatedAccounts = state.accounts.map((account) => {
-        const accountPockets = pockets.filter(p => p.accountId === account.id);
+        const accountPockets = updatedPockets.filter(p => p.accountId === account.id);
         const calculatedBalance = accountPockets.reduce((sum, p) => sum + p.balance, 0);
         return { ...account, balance: calculatedBalance };
       });

@@ -36,6 +36,8 @@ class AccountService {
 
   // Calculate account balance (sum of all pocket balances)
   // Note: This method should be called after pockets are loaded
+  // IMPORTANT: This is the ONLY source of truth for account balances
+  // Account.balance in storage may be stale - always recalculate from pockets
   async calculateAccountBalance(accountId: string): Promise<number> {
     // Import dynamically to avoid circular dependency
     const pocketService = await getPocketService();

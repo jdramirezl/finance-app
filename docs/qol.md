@@ -1,5 +1,93 @@
 # Quality of Life Improvements
 
+## 🐛 Critical Bugs & Features To Fix
+
+### Balance Calculation Issues
+- [x] **1. Account balances reset to 0 on page refresh (F5)** ✅ FIXED
+  - Root cause: Account.balance in storage was stale
+  - Fix: loadAccounts() now always recalculates balances from pockets (source of truth)
+  - Commit: Recalculate account balances on load from pockets
+
+- [x] **2. Account total balances inconsistent loading** ✅ FIXED
+  - Root cause: Same as #1 - stale balance values in storage
+  - Fix: Same as #1 - always recalculate from pockets
+  - Commit: Recalculate account balances on load from pockets
+
+- [x] **3. Fixed pocket not calculating total from sub-pockets** ✅ FIXED
+  - Root cause: Fixed pocket.balance in storage was stale
+  - Fix: loadPockets() now recalculates fixed pocket balances from sub-pockets (source of truth)
+  - Commit: Recalculate fixed pocket balances on load from sub-pockets
+
+- [x] **7. Investment account total excludes gains** ✅ FIXED
+  - Root cause: Same as #1 - account balance wasn't recalculated from pocket with market value
+  - Fix: Same as #1 - always recalculate account balance from pockets
+  - Commit: Recalculate account balances on load from pockets
+
+### UX Improvements
+- [ ] **4. Investment stock price - show last updated timestamp**
+  - Feature: Add "Last updated at: [timestamp]" for each stock price
+  - Reason: Users need to know if price data is stale
+  - Location: Investment account display
+
+- [ ] **5. Bulk/batch movements**
+  - Feature: Allow adding multiple movements at once
+  - Current: Must add transactions one by one
+  - Proposed: Modal allows adding multiple movements, only saves when user clicks "Save All"
+  - Benefit: Much faster for entering multiple transactions (e.g., monthly bills)
+
+- [ ] **8. Visual indicator for disabled fixed expenses on Summary page**
+  - Feature: Show which fixed expenses are turned off/disabled
+  - Current: Can toggle fixed expenses on/off in Fixed Expenses page, but no visual feedback on Summary
+  - Proposed: Add visual indicator (grayed out, strikethrough, "disabled" badge, or opacity change) on Summary page
+  - Benefit: Users can see at a glance which fixed expenses are excluded from budget calculations
+  - Location: Summary page fixed expenses section
+
+### Investment Movement Issues
+- [ ] **9. Investment movement types hidden until account selected**
+  - Issue: "InvestmentIngreso" and "InvestmentShares" movement types only appear after selecting investment account
+  - Expected: These movement types should be visible from the start in the movement type selector
+  - Impact: Confusing UX - users don't know these options exist until they select the account first
+  - Location: MovementsPage movement type dropdown
+
+- [ ] **10. Investment movements allow wrong pocket selection**
+  - Issue: When selecting "Invest Money" type, user can still manually select "Shares" pocket (and vice versa)
+  - Expected: Movement type should auto-select the correct pocket:
+    - "Invest Money" → auto-select "Invested Money" pocket
+    - "Add Shares" → auto-select "Shares" pocket
+  - Impact: Allows invalid data entry, breaks investment tracking logic
+  - Location: MovementsPage pocket selector
+
+- [ ] **11. Add Shares movement shows negative amount (visual bug)**
+  - Issue: When adding shares, the movement displays with a minus sign in the movements list
+  - Behavior: The operation works correctly (shares are added), but visual indicator is wrong
+  - Expected: Adding shares should show positive/neutral indicator, not negative
+  - Impact: Confusing - looks like shares are being removed when they're actually being added
+  - Location: MovementsPage movements list display
+
+- [ ] **12. REFACTOR: Simplify investment movements to use Income/Expense types**
+  - Proposal: Remove special "InvestmentIngreso" and "InvestmentShares" movement types
+  - New approach: Use standard "IngresoNormal" / "EgresoNormal" types
+  - Logic: 
+    - User selects Income or Expense (as usual)
+    - User selects pocket: "Shares" or "Invested Money"
+    - Income = add to pocket, Expense = remove from pocket
+  - Benefits:
+    - Simpler, more consistent UX
+    - No special cases in movement type logic
+    - Fixes issues #9, #10, #11 automatically
+  - Impact: Requires migration of existing investment movements
+  - Note: This is a breaking change - needs careful implementation
+
+### Performance Issues
+- [ ] **6. Duplicate page reloads on CRUD operations**
+  - Symptom: Every CRUD operation triggers TWO page reloads
+  - Flow: "Do operation → wait 3s → reload → wait 2-5s → reload again"
+  - Root cause: Likely calling reload functions twice in update flows
+  - Goal: Single reload, or better yet - optimistic updates without full page reload
+  - Impact: App feels sluggish and unresponsive
+
+---
+
 ## ✅ Completed
 
 ### 1. Loading Skeletons
