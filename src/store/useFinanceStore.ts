@@ -20,6 +20,7 @@ interface FinanceStore {
   createAccount: (name: string, color: string, currency: Account['currency'], type?: Account['type'], stockSymbol?: string) => Promise<void>;
   updateAccount: (id: string, updates: Partial<Pick<Account, 'name' | 'color' | 'currency'>>) => Promise<void>;
   deleteAccount: (id: string) => Promise<void>;
+  deleteAccountCascade: (id: string, deleteMovements?: boolean) => Promise<{ account: string; pockets: number; subPockets: number; movements: number }>;
   selectAccount: (id: string | null) => void;
   reorderAccounts: (accounts: Account[]) => Promise<void>;
 
@@ -200,6 +201,23 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
       }));
       // Reload pockets in background (cascade delete)
       get().loadPockets();
+    } catch (error) {
+      await get().loadAccounts();
+      throw error;
+    }
+  },
+
+  deleteAccountCascade: async (id: string, deleteMovements: boolean = false) => {
+    try {
+      const result = await accountService.deleteAccountCascade(id, deleteMovements);
+      // Optimistic update - remove account and reload everything
+      set((state) => ({
+        accounts: state.accounts.filter((acc) => acc.id !== id),
+        selectedAccountId: state.selectedAccountId === id ? null : state.selectedAccountId,
+      }));
+      // Reload all data to reflect cascade deletions
+      await get().loadAccounts();
+      return result;
     } catch (error) {
       await get().loadAccounts();
       throw error;

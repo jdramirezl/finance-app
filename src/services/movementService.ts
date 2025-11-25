@@ -360,6 +360,42 @@ class MovementService {
 
     return { ...movement, isPending: false };
   }
+
+  // Get count of movements by account
+  async getMovementCountByAccount(accountId: string): Promise<number> {
+    const movements = await this.getAllMovements();
+    return movements.filter(m => m.accountId === accountId).length;
+  }
+
+  // Get count of movements by pocket
+  async getMovementCountByPocket(pocketId: string): Promise<number> {
+    const movements = await this.getAllMovements();
+    return movements.filter(m => m.pocketId === pocketId).length;
+  }
+
+  // Delete all movements by account (for cascade delete)
+  async deleteMovementsByAccount(accountId: string): Promise<number> {
+    const movements = await this.getAllMovements();
+    const accountMovements = movements.filter(m => m.accountId === accountId);
+    
+    for (const movement of accountMovements) {
+      await SupabaseStorageService.deleteMovement(movement.id);
+    }
+    
+    return accountMovements.length;
+  }
+
+  // Delete all movements by pocket (for cascade delete)
+  async deleteMovementsByPocket(pocketId: string): Promise<number> {
+    const movements = await this.getAllMovements();
+    const pocketMovements = movements.filter(m => m.pocketId === pocketId);
+    
+    for (const movement of pocketMovements) {
+      await SupabaseStorageService.deleteMovement(movement.id);
+    }
+    
+    return pocketMovements.length;
+  }
 }
 
 export const movementService = new MovementService();

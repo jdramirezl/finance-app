@@ -226,7 +226,7 @@
 - [ ] **Data validation** - Prevent negative balances, invalid dates
 - [ ] **Audit log** - Track all changes with timestamps and user
 - [ ] **Multi-currency conversion display** - Show all amounts in primary currency
-- [ ] **Cascade delete for accounts** - "Delete All" button to delete account with all pockets and optionally orphan/delete related movements
+- [x] **Cascade delete for accounts** ✅ FIXED - "Delete All" button to delete account with all pockets and optionally orphan/delete related movements
 - [ ] **Orphaned movements handling** - Currently movements remain when account/pocket deleted (causes errors). Options:
   - Auto-delete movements when account/pocket deleted (destructive)
   - Mark movements as "orphaned" and show warning (safer)

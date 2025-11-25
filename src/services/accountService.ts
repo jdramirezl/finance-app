@@ -2,15 +2,36 @@ import type { Account } from '../types';
 import { SupabaseStorageService } from './supabaseStorageService';
 import { generateId } from '../utils/idGenerator';
 
-// Lazy getter to avoid circular dependency - using dynamic import
+// Lazy getters to avoid circular dependencies - using dynamic import
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let pocketServiceCache: any = null;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let subPocketServiceCache: any = null;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let movementServiceCache: any = null;
+
 const getPocketService = async () => {
   if (!pocketServiceCache) {
     const module = await import('./pocketService');
     pocketServiceCache = module.pocketService;
   }
   return pocketServiceCache;
+};
+
+const getSubPocketService = async () => {
+  if (!subPocketServiceCache) {
+    const module = await import('./subPocketService');
+    subPocketServiceCache = module.subPocketService;
+  }
+  return subPocketServiceCache;
+};
+
+const getMovementService = async () => {
+  if (!movementServiceCache) {
+    const module = await import('./movementService');
+    movementServiceCache = module.movementService;
+  }
+  return movementServiceCache;
 };
 
 class AccountService {
@@ -164,6 +185,64 @@ class AccountService {
 
     // Delete directly - much faster
     await SupabaseStorageService.deleteAccount(id);
+  }
+
+  // Cascade delete account with all pockets, sub-pockets, and optionally movements
+  async deleteAccountCascade(id: string, deleteMovements: boolean = false): Promise<{
+    account: string;
+    pockets: number;
+    subPockets: number;
+    movements: number;
+  }> {
+    const account = await this.getAccount(id);
+    if (!account) {
+      throw new Error(`Account with id "${id}" not found.`);
+    }
+
+    const pocketService = await getPocketService();
+    const subPocketService = await getSubPocketService();
+    const movementService = await getMovementService();
+
+    const pockets = await pocketService.getPocketsByAccount(id);
+    let totalSubPockets = 0;
+    let totalMovements = 0;
+
+    // Delete in order: movements -> sub-pockets -> pockets -> account
+    for (const pocket of pockets) {
+      // Get sub-pockets for this pocket
+      const subPockets = await subPocketService.getSubPocketsByPocket(pocket.id);
+      totalSubPockets += subPockets.length;
+
+      // Delete sub-pockets
+      for (const subPocket of subPockets) {
+        await subPocketService.deleteSubPocket(subPocket.id);
+      }
+
+      // Delete movements if requested
+      if (deleteMovements) {
+        const deletedCount = await movementService.deleteMovementsByPocket(pocket.id);
+        totalMovements += deletedCount;
+      }
+
+      // Delete pocket
+      await SupabaseStorageService.deletePocket(pocket.id);
+    }
+
+    // Delete any remaining movements by account if requested
+    if (deleteMovements) {
+      const remainingCount = await movementService.deleteMovementsByAccount(id);
+      totalMovements += remainingCount;
+    }
+
+    // Delete account
+    await SupabaseStorageService.deleteAccount(id);
+
+    return {
+      account: account.name,
+      pockets: pockets.length,
+      subPockets: totalSubPockets,
+      movements: totalMovements,
+    };
   }
 
   // Recalculate all account balances (useful after movements)

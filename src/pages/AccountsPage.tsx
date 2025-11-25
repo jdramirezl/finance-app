@@ -19,6 +19,7 @@ const AccountsPage = () => {
     createAccount,
     updateAccount,
     deleteAccount,
+    deleteAccountCascade,
     selectAccount,
     reorderAccounts,
     createPocket,
@@ -33,11 +34,15 @@ const AccountsPage = () => {
 
   const [showAccountForm, setShowAccountForm] = useState(false);
   const [showPocketForm, setShowPocketForm] = useState(false);
+  const [showCascadeDialog, setShowCascadeDialog] = useState(false);
+  const [cascadeAccountId, setCascadeAccountId] = useState<string | null>(null);
+  const [cascadeDeleteMovements, setCascadeDeleteMovements] = useState(false);
   const [editingAccount, setEditingAccount] = useState<Account | null>(null);
   const [editingPocket, setEditingPocket] = useState<Pocket | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [accountType, setAccountType] = useState<'normal' | 'investment'>('normal');
   const [isLoading, setIsLoading] = useState(true);
+  const [isCascadeDeleting, setIsCascadeDeleting] = useState(false);
   const [isSaving, setIsSaving] = useState(false); // Button-level loading
   const [_deletingAccountId, setDeletingAccountId] = useState<string | null>(null);
   const [_deletingPocketId, setDeletingPocketId] = useState<string | null>(null);
@@ -147,6 +152,40 @@ const AccountsPage = () => {
       toast.error(errorMessage);
     } finally {
       setDeletingAccountId(null);
+    }
+  };
+
+  const handleCascadeDelete = (id: string) => {
+    setCascadeAccountId(id);
+    setCascadeDeleteMovements(false);
+    setShowCascadeDialog(true);
+  };
+
+  const handleConfirmCascadeDelete = async () => {
+    if (!cascadeAccountId) return;
+
+    setIsCascadeDeleting(true);
+    setError(null);
+    try {
+      const result = await deleteAccountCascade(cascadeAccountId, cascadeDeleteMovements);
+      
+      if (selectedAccountId === cascadeAccountId) {
+        selectAccount(null);
+      }
+      
+      setShowCascadeDialog(false);
+      setCascadeAccountId(null);
+      
+      toast.success(
+        `Deleted account "${result.account}" with ${result.pockets} pocket(s), ${result.subPockets} sub-pocket(s)` +
+        (result.movements > 0 ? `, and ${result.movements} movement(s)` : '')
+      );
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to delete account';
+      setError(errorMessage);
+      toast.error(errorMessage);
+    } finally {
+      setIsCascadeDeleting(false);
     }
   };
 
@@ -449,6 +488,14 @@ const AccountsPage = () => {
                         </p>
                       </div>
                     </div>
+                    <Button
+                      variant="danger"
+                      onClick={() => handleCascadeDelete(selectedAccount.id)}
+                      className="mt-4 w-full"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      Delete Account & All Data
+                    </Button>
                   </div>
                 )}
               </div>
@@ -712,6 +759,65 @@ const AccountsPage = () => {
             </form>
         </Modal>
       )}
+
+      {/* Cascade Delete Dialog */}
+      <Modal isOpen={showCascadeDialog} onClose={() => !isCascadeDeleting && setShowCascadeDialog(false)}>
+        <div className="space-y-4">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+            Delete Account & All Data
+          </h3>
+          
+          <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+            <p className="text-yellow-800 dark:text-yellow-300 font-medium mb-2">
+              ⚠️ Warning: This action cannot be undone!
+            </p>
+            <p className="text-yellow-700 dark:text-yellow-400 text-sm">
+              This will permanently delete:
+            </p>
+            <ul className="list-disc list-inside text-yellow-700 dark:text-yellow-400 text-sm mt-2 space-y-1">
+              <li>The account "{accounts.find(a => a.id === cascadeAccountId)?.name}"</li>
+              <li>All pockets in this account</li>
+              <li>All sub-pockets (fixed expenses)</li>
+              <li>Optionally: All related movements</li>
+            </ul>
+          </div>
+
+          <div className="flex items-start gap-3 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+            <input
+              type="checkbox"
+              id="deleteMovements"
+              checked={cascadeDeleteMovements}
+              onChange={(e) => setCascadeDeleteMovements(e.target.checked)}
+              className="mt-1"
+            />
+            <label htmlFor="deleteMovements" className="text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
+              <span className="font-medium">Also delete all movements</span>
+              <p className="text-gray-600 dark:text-gray-400 mt-1">
+                If unchecked, movements will remain but may cause errors since their account/pocket will be deleted.
+                It's recommended to check this option.
+              </p>
+            </label>
+          </div>
+
+          <div className="flex gap-2 justify-end">
+            <Button
+              variant="secondary"
+              onClick={() => setShowCascadeDialog(false)}
+              disabled={isCascadeDeleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="danger"
+              onClick={handleConfirmCascadeDelete}
+              loading={isCascadeDeleting}
+              disabled={isCascadeDeleting}
+            >
+              Delete Everything
+            </Button>
+          </div>
+        </div>
+      </Modal>
 
       {/* Confirmation Dialog */}
       <ConfirmDialog
