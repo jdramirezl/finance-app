@@ -1,5 +1,5 @@
 import type { Account } from '../types';
-// import { StorageService } from './storageService';
+import { SupabaseStorageService } from './supabaseStorageService';
 
 interface PriceCache {
     symbol: string;
@@ -22,58 +22,97 @@ const API_KEY = import.meta.env.VITE_ALPHA_VANTAGE_API_KEY;
 
 class InvestmentService {
     private priceCache: Map<string, PriceCache> = new Map();
-    private dailyCallCount: { date: string; count: number } = { date: '', count: 0 };
+    private apiKeyHash: string = '';
 
-    // Load cache and call count from storage
-    private loadCache(): void {
+    // Initialize API key hash (simple hash for identification)
+    private async initApiKeyHash(): Promise<void> {
+        if (!this.apiKeyHash && API_KEY) {
+            // Simple hash using Web Crypto API
+            const encoder = new TextEncoder();
+            const data = encoder.encode(API_KEY);
+            const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            this.apiKeyHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+    }
+
+    // Load price cache from localStorage (cache stays local for performance)
+    private loadPriceCache(): void {
         try {
             const cached = localStorage.getItem('investment_price_cache');
             if (cached) {
                 const data = JSON.parse(cached);
                 this.priceCache = new Map(data);
             }
-
-            const callCount = localStorage.getItem('investment_daily_calls');
-            if (callCount) {
-                this.dailyCallCount = JSON.parse(callCount);
-            }
         } catch (error) {
             console.error('Error loading investment cache:', error);
         }
     }
 
-    // Save cache to storage
-    private saveCache(): void {
+    // Save price cache to localStorage
+    private savePriceCache(): void {
         try {
             const cacheArray = Array.from(this.priceCache.entries());
             localStorage.setItem('investment_price_cache', JSON.stringify(cacheArray));
-            localStorage.setItem('investment_daily_calls', JSON.stringify(this.dailyCallCount));
         } catch (error) {
             console.error('Error saving investment cache:', error);
         }
     }
 
-    // Check if we can make an API call today
-    private canMakeApiCall(): boolean {
+    // Get current call count from Supabase (global tracking)
+    private async getCurrentCallCount(): Promise<number> {
+        await this.initApiKeyHash();
         const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
 
-        // Reset count if it's a new day
-        if (this.dailyCallCount.date !== today) {
-            this.dailyCallCount = { date: today, count: 0 };
-            this.saveCache();
-        }
+        try {
+            const { data, error } = await SupabaseStorageService.supabase
+                .from('investment_api_calls')
+                .select('call_count')
+                .eq('api_key_hash', this.apiKeyHash)
+                .eq('call_date', today)
+                .single();
 
-        return this.dailyCallCount.count < MAX_CALLS_PER_DAY;
+            if (error && error.code !== 'PGRST116') { // PGRST116 = no rows found
+                console.error('Error fetching call count:', error);
+                return 0;
+            }
+
+            return data?.call_count || 0;
+        } catch (error) {
+            console.error('Error getting call count:', error);
+            return 0;
+        }
     }
 
-    // Increment daily call count
-    private incrementCallCount(): void {
+    // Check if we can make an API call today (global check)
+    private async canMakeApiCall(): Promise<boolean> {
+        const currentCount = await this.getCurrentCallCount();
+        return currentCount < MAX_CALLS_PER_DAY;
+    }
+
+    // Increment daily call count in Supabase (global tracking)
+    private async incrementCallCount(): Promise<void> {
+        await this.initApiKeyHash();
         const today = new Date().toISOString().split('T')[0];
-        if (this.dailyCallCount.date !== today) {
-            this.dailyCallCount = { date: today, count: 0 };
+
+        try {
+            // Use upsert to insert or update
+            const { error } = await SupabaseStorageService.supabase
+                .from('investment_api_calls')
+                .upsert({
+                    api_key_hash: this.apiKeyHash,
+                    call_date: today,
+                    call_count: (await this.getCurrentCallCount()) + 1,
+                }, {
+                    onConflict: 'api_key_hash,call_date'
+                });
+
+            if (error) {
+                console.error('Error incrementing call count:', error);
+            }
+        } catch (error) {
+            console.error('Error updating call count:', error);
         }
-        this.dailyCallCount.count++;
-        this.saveCache();
     }
 
     // Check if cached price is still valid
@@ -122,16 +161,16 @@ class InvestmentService {
                 throw new Error('Invalid price value from API');
             }
 
-            // Cache the price
+            // Cache the price (local storage for performance)
             this.priceCache.set(symbol, {
                 symbol,
                 price,
                 timestamp: Date.now(),
             });
-            this.saveCache();
+            this.savePriceCache();
 
-            // Increment call count
-            this.incrementCallCount();
+            // Increment call count (global tracking in Supabase)
+            await this.incrementCallCount();
 
             return price;
         } catch (error) {
@@ -142,7 +181,7 @@ class InvestmentService {
 
     // Get current price for a symbol (with caching and rate limiting)
     async getCurrentPrice(symbol: string): Promise<number> {
-        this.loadCache();
+        this.loadPriceCache();
 
         // Check cache first
         const cachedPrice = this.getCachedPrice(symbol);
@@ -178,7 +217,7 @@ class InvestmentService {
 
     // Get the timestamp of the cached price for a symbol
     getPriceTimestamp(symbol: string): number | null {
-        this.loadCache();
+        this.loadPriceCache();
         const cached = this.priceCache.get(symbol);
         return cached ? cached.timestamp : null;
     }
@@ -206,14 +245,10 @@ class InvestmentService {
         };
     }
 
-    // Get remaining API calls for today
-    getRemainingCalls(): number {
-        this.loadCache();
-        const today = new Date().toISOString().split('T')[0];
-        if (this.dailyCallCount.date !== today) {
-            return MAX_CALLS_PER_DAY;
-        }
-        return Math.max(0, MAX_CALLS_PER_DAY - this.dailyCallCount.count);
+    // Get remaining API calls for today (global tracking)
+    async getRemainingCalls(): Promise<number> {
+        const currentCount = await this.getCurrentCallCount();
+        return Math.max(0, MAX_CALLS_PER_DAY - currentCount);
     }
 }
 
