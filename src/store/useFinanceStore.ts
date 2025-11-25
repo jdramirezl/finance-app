@@ -482,8 +482,7 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
         subPocketId,
         isPending
       );
-      // Optimistic update
-      set((state) => ({ movements: [...state.movements, movement] }));
+      
       // Selective reload: only reload affected entities (only if not pending)
       if (!isPending) {
         // Reload the affected pocket first
@@ -495,7 +494,7 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
           subPocket = await subPocketService.getSubPocket(subPocketId);
         }
         
-        // Update pocket, subPocket, and account balance in a single set call
+        // SINGLE set() call: Update movement, pocket, subPocket, and account balance together
         set((state) => {
           // Update pocket
           const updatedPockets = pocket 
@@ -511,26 +510,21 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
           const accountPockets = updatedPockets.filter(p => p.accountId === accountId);
           const calculatedBalance = accountPockets.reduce((sum, p) => sum + p.balance, 0);
           
-          console.log('🔍 Movement created - Balance calculation:', {
-            accountId,
-            pocketId,
-            pocketBalance: pocket?.balance,
-            accountPocketsCount: accountPockets.length,
-            accountPocketsBalances: accountPockets.map(p => ({ id: p.id, name: p.name, balance: p.balance })),
-            calculatedBalance,
-          });
-          
           // Update account with calculated balance
           const updatedAccounts = state.accounts.map((a) => 
             a.id === accountId ? { ...a, balance: calculatedBalance } : a
           );
           
           return {
+            movements: [...state.movements, movement],
             pockets: updatedPockets,
             subPockets: updatedSubPockets,
             accounts: updatedAccounts,
           };
         });
+      } else {
+        // Pending movement - only update movements
+        set((state) => ({ movements: [...state.movements, movement] }));
       }
     } catch (error) {
       await get().loadMovements();
@@ -541,10 +535,7 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
   updateMovement: async (id, updates) => {
     try {
       const updated = await movementService.updateMovement(id, updates);
-      // Optimistic update
-      set((state) => ({
-        movements: state.movements.map((m) => (m.id === id ? updated : m)),
-      }));
+      
       // Selective reload: only reload affected entities
       const pocket = await pocketService.getPocket(updated.pocketId);
       
@@ -554,7 +545,7 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
         subPocket = await subPocketService.getSubPocket(updated.subPocketId);
       }
       
-      // Update pocket, subPocket, and account balance in a single set call
+      // SINGLE set() call: Update movement, pocket, subPocket, and account balance together
       set((state) => {
         // Update pocket
         const updatedPockets = pocket 
@@ -576,6 +567,7 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
         );
         
         return {
+          movements: state.movements.map((m) => (m.id === id ? updated : m)),
           pockets: updatedPockets,
           subPockets: updatedSubPockets,
           accounts: updatedAccounts,
@@ -592,10 +584,7 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
       // Get movement before deleting to know what to reload
       const movement = get().movements.find((m) => m.id === id);
       await movementService.deleteMovement(id);
-      // Optimistic update
-      set((state) => ({
-        movements: state.movements.filter((m) => m.id !== id),
-      }));
+      
       // Selective reload: only reload affected entities
       if (movement) {
         const pocket = await pocketService.getPocket(movement.pocketId);
@@ -606,7 +595,7 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
           subPocket = await subPocketService.getSubPocket(movement.subPocketId);
         }
         
-        // Update pocket, subPocket, and account balance in a single set call
+        // SINGLE set() call: Update movement, pocket, subPocket, and account balance together
         set((state) => {
           // Update pocket
           const updatedPockets = pocket 
@@ -628,11 +617,17 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
           );
           
           return {
+            movements: state.movements.filter((m) => m.id !== id),
             pockets: updatedPockets,
             subPockets: updatedSubPockets,
             accounts: updatedAccounts,
           };
         });
+      } else {
+        // Movement not found, just remove it
+        set((state) => ({
+          movements: state.movements.filter((m) => m.id !== id),
+        }));
       }
     } catch (error) {
       await get().loadMovements();
@@ -655,9 +650,7 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
   applyPendingMovement: async (id) => {
     try {
       const applied = await movementService.applyPendingMovement(id);
-      set((state) => ({
-        movements: state.movements.map((m) => (m.id === id ? applied : m)),
-      }));
+      
       // Selective reload: only reload affected entities
       const pocket = await pocketService.getPocket(applied.pocketId);
       
@@ -667,7 +660,7 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
         subPocket = await subPocketService.getSubPocket(applied.subPocketId);
       }
       
-      // Update pocket, subPocket, and account balance in a single set call
+      // SINGLE set() call: Update movement, pocket, subPocket, and account balance together
       set((state) => {
         // Update pocket
         const updatedPockets = pocket 
@@ -689,6 +682,7 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
         );
         
         return {
+          movements: state.movements.map((m) => (m.id === id ? applied : m)),
           pockets: updatedPockets,
           subPockets: updatedSubPockets,
           accounts: updatedAccounts,
