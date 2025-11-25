@@ -198,6 +198,7 @@ CREATE POLICY "Users can delete their own budget_entries"
   USING (auth.uid() = user_id);
 
 -- Indexes for better performance
+-- Single column indexes for basic queries
 CREATE INDEX idx_accounts_user_id ON accounts(user_id);
 CREATE INDEX idx_pockets_user_id ON pockets(user_id);
 CREATE INDEX idx_pockets_account_id ON pockets(account_id);
@@ -209,6 +210,17 @@ CREATE INDEX idx_movements_pocket_id ON movements(pocket_id);
 CREATE INDEX idx_movements_displayed_date ON movements(displayed_date);
 CREATE INDEX idx_settings_user_id ON settings(user_id);
 CREATE INDEX idx_budget_entries_user_id ON budget_entries(user_id);
+
+-- Composite indexes for common query patterns (PERFORMANCE OPTIMIZATION)
+-- These speed up queries that filter by multiple columns together
+CREATE INDEX idx_pockets_user_account ON pockets(user_id, account_id);
+CREATE INDEX idx_sub_pockets_user_pocket ON sub_pockets(user_id, pocket_id);
+CREATE INDEX idx_movements_user_account ON movements(user_id, account_id);
+CREATE INDEX idx_movements_user_pocket ON movements(user_id, pocket_id);
+CREATE INDEX idx_movements_user_date ON movements(user_id, displayed_date DESC);
+CREATE INDEX idx_accounts_user_display ON accounts(user_id, display_order);
+CREATE INDEX idx_pockets_user_display ON pockets(user_id, display_order);
+CREATE INDEX idx_sub_pockets_user_display ON sub_pockets(user_id, display_order);
 
 -- Function to automatically create settings for new users
 CREATE OR REPLACE FUNCTION create_user_settings()

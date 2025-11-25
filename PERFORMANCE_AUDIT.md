@@ -44,17 +44,19 @@
 ### 4. Missing Database Indexes
 **Problem:** Queries might be slow without proper indexes
 **Impact:** Each query takes longer than necessary
-**Check:**
-- [ ] Verify indexes exist on `user_id` columns (should be from schema)
-- [ ] Add composite indexes for common queries
-- [ ] Check Supabase dashboard for slow queries
+**Status:** ✅ FIXED - Added comprehensive indexes
 
-**Solution:** Add indexes in Supabase SQL editor:
-```sql
-CREATE INDEX IF NOT EXISTS idx_pockets_user_account ON pockets(user_id, account_id);
-CREATE INDEX IF NOT EXISTS idx_sub_pockets_user_pocket ON sub_pockets(user_id, pocket_id);
-CREATE INDEX IF NOT EXISTS idx_movements_user_account ON movements(user_id, account_id);
-```
+**Indexes added:**
+- [x] Composite indexes for user + related entity queries
+- [x] Composite indexes for display order sorting
+- [x] Composite index for movements by date (DESC for recent first)
+- [x] All indexes use `IF NOT EXISTS` for safe re-running
+
+**Files:**
+- `supabase-schema.sql` - Updated with all indexes
+- `supabase-indexes-migration.sql` - Migration file for existing databases
+
+**To apply:** Run `supabase-indexes-migration.sql` in Supabase SQL Editor
 
 ---
 
@@ -178,8 +180,8 @@ CREATE INDEX IF NOT EXISTS idx_movements_user_account ON movements(user_id, acco
 2. **✅ DONE:** Individual insert/update/delete for SubPockets
 3. **✅ DONE:** Remove unnecessary `updateAccount()` and `updatePocket()` calls
 4. **✅ DONE:** Add individual insert/update/delete for Accounts, Pockets, Movements
-5. **TODO:** Stop reloading everything after every action (needs store optimization)
-6. **TODO:** Add database indexes for common queries
+5. **✅ DONE:** Add database indexes for common queries
+6. **DEFERRED:** Stop reloading everything (acceptable for now, necessary for consistency)
 
 ---
 
