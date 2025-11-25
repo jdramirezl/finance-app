@@ -57,7 +57,7 @@ const AccountsPage = () => {
       }
     };
     loadData();
-  }, [loadAccounts, toast]);
+  }, [loadAccounts]); // Removed toast from dependencies - it shouldn't trigger reloads
 
   const selectedAccount = selectedAccountId
     ? accounts.find((acc) => acc.id === selectedAccountId) || null

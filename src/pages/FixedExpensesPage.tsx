@@ -48,7 +48,7 @@ const FixedExpensesPage = () => {
       }
     };
     loadData();
-  }, [loadAccounts, toast]);
+  }, [loadAccounts]); // Removed toast from dependencies - it shouldn't trigger reloads
 
   // Find the fixed expenses pocket
   const fixedPocket = pockets.find((p) => p.type === 'fixed');

@@ -74,7 +74,7 @@ const MovementsPage = () => {
       }
     };
     loadData();
-  }, [loadAccounts, loadPockets, loadSubPockets, loadMovements, toast]);
+  }, [loadAccounts, loadMovements]); // Removed toast from dependencies - it shouldn't trigger reloads
 
   // Calculate date range based on filter
   const getDateRange = () => {
