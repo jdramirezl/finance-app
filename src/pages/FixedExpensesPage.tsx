@@ -3,13 +3,14 @@ import { useFinanceStore } from '../store/useFinanceStore';
 import { useToast } from '../hooks/useToast';
 import { useConfirm } from '../hooks/useConfirm';
 import type { SubPocket } from '../types';
-import { Plus, Edit2, Trash2, ToggleLeft, ToggleRight } from 'lucide-react';
+import { Plus, Edit2, Trash2, ToggleLeft, ToggleRight, Receipt } from 'lucide-react';
 import Modal from '../components/Modal';
 import Button from '../components/Button';
 import Input from '../components/Input';
 import Card from '../components/Card';
 import ConfirmDialog from '../components/ConfirmDialog';
 import { Skeleton } from '../components/Skeleton';
+import BatchMovementForm, { type BatchMovementRow } from '../components/BatchMovementForm';
 
 const FixedExpensesPage = () => {
   const {
@@ -21,11 +22,15 @@ const FixedExpensesPage = () => {
     deleteSubPocket,
     toggleSubPocketEnabled,
     getSubPocketsByPocket,
+    createMovement,
+    getPocketsByAccount,
   } = useFinanceStore();
 
   const toast = useToast();
   const { confirm, confirmState, handleClose, handleConfirm } = useConfirm();
   const [showForm, setShowForm] = useState(false);
+  const [showBatchForm, setShowBatchForm] = useState(false);
+  const [batchRows, setBatchRows] = useState<BatchMovementRow[]>([]);
   const [editingSubPocket, setEditingSubPocket] = useState<SubPocket | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -74,6 +79,62 @@ const FixedExpensesPage = () => {
     if (progress < 50) return 'bg-orange-500';
     if (progress < 100) return 'bg-yellow-500';
     return 'bg-green-500';
+  };
+
+  const handleCreateMovementsFromFixedExpenses = () => {
+    if (!fixedAccount || !fixedPocket) {
+      toast.error('No fixed expenses account found');
+      return;
+    }
+
+    const enabledSubPockets = fixedSubPockets.filter(sp => sp.enabled);
+    
+    if (enabledSubPockets.length === 0) {
+      toast.error('No enabled fixed expenses found');
+      return;
+    }
+
+    // Create batch rows from enabled sub-pockets
+    const rows: BatchMovementRow[] = enabledSubPockets.map(subPocket => ({
+      id: crypto.randomUUID(),
+      type: 'EgresoFijo' as const,
+      accountId: fixedAccount.id,
+      pocketId: fixedPocket.id,
+      subPocketId: subPocket.id,
+      amount: (subPocket.valueTotal / subPocket.periodicityMonths).toFixed(2),
+      notes: `Monthly contribution for ${subPocket.name}`,
+      displayedDate: new Date().toISOString().split('T')[0],
+    }));
+
+    setBatchRows(rows);
+    setShowBatchForm(true);
+    toast.success(`Pre-populated ${rows.length} fixed expenses`);
+  };
+
+  const handleBatchSave = async (rows: BatchMovementRow[]) => {
+    try {
+      // Create all movements
+      for (const row of rows) {
+        await createMovement(
+          row.type,
+          row.accountId,
+          row.pocketId,
+          parseFloat(row.amount),
+          row.notes || undefined,
+          row.displayedDate,
+          row.subPocketId,
+          false // Not pending
+        );
+      }
+      
+      setShowBatchForm(false);
+      setBatchRows([]);
+      toast.success(`Successfully created ${rows.length} movements!`);
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to save movements';
+      toast.error(errorMessage);
+      throw err; // Re-throw so form can handle it
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -274,16 +335,26 @@ const FixedExpensesPage = () => {
             </p>
           )}
         </div>
-        <Button
-          variant="primary"
-          onClick={() => {
-            setShowForm(true);
-            setEditingSubPocket(null);
-          }}
-        >
-          <Plus className="w-5 h-5" />
-          New Fixed Expense
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="secondary"
+            onClick={handleCreateMovementsFromFixedExpenses}
+            disabled={fixedSubPockets.filter(sp => sp.enabled).length === 0}
+          >
+            <Receipt className="w-5 h-5" />
+            Create Movements
+          </Button>
+          <Button
+            variant="primary"
+            onClick={() => {
+              setShowForm(true);
+              setEditingSubPocket(null);
+            }}
+          >
+            <Plus className="w-5 h-5" />
+            New Fixed Expense
+          </Button>
+        </div>
       </div>
 
       {error && (
@@ -555,6 +626,21 @@ const FixedExpensesPage = () => {
             </Button>
           </div>
         </form>
+      </Modal>
+
+      {/* Batch Movement Form Modal */}
+      <Modal isOpen={showBatchForm} onClose={() => setShowBatchForm(false)}>
+        <BatchMovementForm
+          accounts={accounts}
+          getPocketsByAccount={getPocketsByAccount}
+          getSubPocketsByPocket={getSubPocketsByPocket}
+          onSave={handleBatchSave}
+          onCancel={() => {
+            setShowBatchForm(false);
+            setBatchRows([]);
+          }}
+          initialRows={batchRows}
+        />
       </Modal>
 
       {/* Confirmation Dialog */}

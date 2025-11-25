@@ -203,7 +203,7 @@
 - [ ] **Quick transfer** - Fast pocket-to-pocket transfers
 - [ ] **Amount calculator** - Built-in calculator in amount inputs
 - [ ] **Color picker presets** - Common colors for accounts
-- [ ] **Fixed expenses to movements** - Button to auto-populate batch movements modal with enabled monthly fixed expenses contributions (user can modify before saving)
+- [x] **Fixed expenses to movements** ✅ FIXED - Button to auto-populate batch movements modal with enabled monthly fixed expenses contributions (user can modify before saving)
 - [ ] **Consistent spacing** - Standardize padding/margins across all components
 
 ### Performance

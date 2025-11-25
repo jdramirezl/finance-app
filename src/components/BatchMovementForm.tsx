@@ -5,7 +5,7 @@ import Input from './Input';
 import Select from './Select';
 import type { MovementType, Account, Pocket, SubPocket } from '../types';
 
-interface BatchMovementRow {
+export interface BatchMovementRow {
   id: string;
   type: MovementType;
   accountId: string;
@@ -22,6 +22,7 @@ interface BatchMovementFormProps {
   getSubPocketsByPocket: (pocketId: string) => SubPocket[];
   onSave: (rows: BatchMovementRow[]) => Promise<void>;
   onCancel: () => void;
+  initialRows?: BatchMovementRow[]; // Optional pre-populated rows
 }
 
 const BatchMovementForm = ({
@@ -30,18 +31,23 @@ const BatchMovementForm = ({
   getSubPocketsByPocket,
   onSave,
   onCancel,
+  initialRows,
 }: BatchMovementFormProps) => {
-  const [rows, setRows] = useState<BatchMovementRow[]>([
-    {
-      id: crypto.randomUUID(),
-      type: 'IngresoNormal',
-      accountId: '',
-      pocketId: '',
-      amount: '',
-      notes: '',
-      displayedDate: new Date().toISOString().split('T')[0],
-    },
-  ]);
+  const [rows, setRows] = useState<BatchMovementRow[]>(
+    initialRows && initialRows.length > 0
+      ? initialRows
+      : [
+          {
+            id: crypto.randomUUID(),
+            type: 'IngresoNormal',
+            accountId: '',
+            pocketId: '',
+            amount: '',
+            notes: '',
+            displayedDate: new Date().toISOString().split('T')[0],
+          },
+        ]
+  );
   const [isSaving, setIsSaving] = useState(false);
 
   const movementTypes: { value: MovementType; label: string }[] = [
