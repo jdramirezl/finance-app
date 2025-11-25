@@ -92,7 +92,12 @@ class InvestmentService {
                 .single();
 
             if (error && error.code !== 'PGRST116') { // PGRST116 = no rows found
-                console.error('Error fetching call count:', error);
+                console.error('Error fetching call count:', error, {
+                    code: error.code,
+                    message: error.message,
+                    details: error.details,
+                    hint: error.hint,
+                });
                 return 0;
             }
 
@@ -137,7 +142,12 @@ class InvestmentService {
                 });
 
             if (error) {
-                console.error('Error incrementing call count:', error);
+                console.error('Error incrementing call count:', error, {
+                    code: error.code,
+                    message: error.message,
+                    details: error.details,
+                    hint: error.hint,
+                });
             }
         } catch (error) {
             console.error('Error updating call count:', error);
@@ -201,6 +211,7 @@ class InvestmentService {
             // Increment call count (global tracking in Supabase)
             await this.incrementCallCount();
 
+            console.log(`✅ Successfully fetched ${symbol}: $${price} (cached for 4 hours)`);
             return price;
         } catch (error) {
             console.error('Error fetching stock price:', error);
@@ -215,10 +226,12 @@ class InvestmentService {
         // Check cache first
         const cachedPrice = this.getCachedPrice(symbol);
         if (cachedPrice !== null) {
+            console.log(`📊 Using cached price for ${symbol}: $${cachedPrice}`);
             return cachedPrice;
         }
 
         // If cache is invalid or doesn't exist, fetch from API
+        console.log(`🌐 Fetching fresh price for ${symbol} from API...`);
         return await this.fetchPriceFromAPI(symbol);
     }
 
@@ -316,4 +329,9 @@ class InvestmentService {
 }
 
 export const investmentService = new InvestmentService();
+
+// Expose to window for debugging (development only)
+if (import.meta.env.DEV) {
+    (window as any).investmentService = investmentService;
+}
 

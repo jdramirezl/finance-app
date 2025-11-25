@@ -30,7 +30,14 @@ CREATE POLICY "Allow authenticated users to read API call counts"
 -- Allow authenticated users to insert/update call counts
 CREATE POLICY "Allow authenticated users to track API calls"
   ON investment_api_calls
-  FOR ALL
+  FOR INSERT
+  TO authenticated
+  WITH CHECK (true);
+
+-- Allow authenticated users to update call counts
+CREATE POLICY "Allow authenticated users to update API calls"
+  ON investment_api_calls
+  FOR UPDATE
   TO authenticated
   USING (true)
   WITH CHECK (true);
