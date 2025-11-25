@@ -1,5 +1,5 @@
 import type { Account } from '../types';
-import { SupabaseStorageService } from './supabaseStorageService';
+import { supabase } from '../lib/supabase';
 
 interface PriceCache {
     symbol: string;
@@ -65,7 +65,7 @@ class InvestmentService {
         const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
 
         try {
-            const { data, error } = await SupabaseStorageService.supabase
+            const { data, error } = await supabase
                 .from('investment_api_calls')
                 .select('call_count')
                 .eq('api_key_hash', this.apiKeyHash)
@@ -97,7 +97,7 @@ class InvestmentService {
 
         try {
             // Use upsert to insert or update
-            const { error } = await SupabaseStorageService.supabase
+            const { error } = await supabase
                 .from('investment_api_calls')
                 .upsert({
                     api_key_hash: this.apiKeyHash,
@@ -249,6 +249,40 @@ class InvestmentService {
     async getRemainingCalls(): Promise<number> {
         const currentCount = await this.getCurrentCallCount();
         return Math.max(0, MAX_CALLS_PER_DAY - currentCount);
+    }
+
+    // Debug: Get current status (for testing)
+    async getDebugStatus(): Promise<{
+        cacheValid: boolean;
+        cacheExpiry: Date | null;
+        callsToday: number;
+        callsRemaining: number;
+        apiKeyHash: string;
+    }> {
+        await this.initApiKeyHash();
+        this.loadPriceCache();
+        
+        const vooCache = this.priceCache.get('VOO');
+        const callsToday = await this.getCurrentCallCount();
+        
+        return {
+            cacheValid: vooCache ? this.isCacheValid('VOO') : false,
+            cacheExpiry: vooCache ? new Date(vooCache.timestamp + CACHE_DURATION) : null,
+            callsToday,
+            callsRemaining: MAX_CALLS_PER_DAY - callsToday,
+            apiKeyHash: this.apiKeyHash,
+        };
+    }
+
+    // Debug: Force refresh price (ignores cache, respects rate limit)
+    async forceRefreshPrice(symbol: string): Promise<number> {
+        // Clear cache for this symbol
+        this.loadPriceCache();
+        this.priceCache.delete(symbol);
+        this.savePriceCache();
+        
+        // Fetch fresh price (will check rate limit)
+        return await this.getCurrentPrice(symbol);
     }
 }
 
