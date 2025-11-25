@@ -161,8 +161,13 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
       const pocket = await pocketService.createPocket(accountId, name, type);
       // Optimistic update: add to local state immediately
       set((state) => ({ pockets: [...state.pockets, pocket] }));
-      // Reload accounts in background to update balances
-      get().loadAccounts();
+      // Selective reload: only reload the affected account
+      const account = await accountService.getAccount(accountId);
+      if (account) {
+        set((state) => ({
+          accounts: state.accounts.map((a) => (a.id === accountId ? account : a)),
+        }));
+      }
     } catch (error) {
       // On error, reload to ensure consistency
       await get().loadPockets();
@@ -177,8 +182,13 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
       set((state) => ({
         pockets: state.pockets.map((p) => (p.id === id ? updated : p)),
       }));
-      // Reload accounts in background to update balances
-      get().loadAccounts();
+      // Selective reload: only reload the affected account
+      const account = await accountService.getAccount(updated.accountId);
+      if (account) {
+        set((state) => ({
+          accounts: state.accounts.map((a) => (a.id === updated.accountId ? account : a)),
+        }));
+      }
     } catch (error) {
       // On error, reload to ensure consistency
       await get().loadPockets();
@@ -188,13 +198,22 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
 
   deletePocket: async (id) => {
     try {
+      // Get pocket before deleting to know which account to reload
+      const pocket = get().pockets.find((p) => p.id === id);
       await pocketService.deletePocket(id);
       // Optimistic update: remove from local state immediately
       set((state) => ({
         pockets: state.pockets.filter((p) => p.id !== id),
       }));
-      // Reload accounts in background to update balances
-      get().loadAccounts();
+      // Selective reload: only reload the affected account
+      if (pocket) {
+        const account = await accountService.getAccount(pocket.accountId);
+        if (account) {
+          set((state) => ({
+            accounts: state.accounts.map((a) => (a.id === pocket.accountId ? account : a)),
+          }));
+        }
+      }
     } catch (error) {
       // On error, reload to ensure consistency
       await get().loadPockets();
@@ -225,9 +244,20 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
       const subPocket = await subPocketService.createSubPocket(pocketId, name, valueTotal, periodicityMonths);
       // Optimistic update
       set((state) => ({ subPockets: [...state.subPockets, subPocket] }));
-      // Reload pockets/accounts in background to update balances
-      get().loadPockets();
-      get().loadAccounts();
+      // Selective reload: only reload the affected pocket and its account
+      const pocket = await pocketService.getPocket(pocketId);
+      if (pocket) {
+        set((state) => ({
+          pockets: state.pockets.map((p) => (p.id === pocketId ? pocket : p)),
+        }));
+        // Reload the affected account
+        const account = await accountService.getAccount(pocket.accountId);
+        if (account) {
+          set((state) => ({
+            accounts: state.accounts.map((a) => (a.id === pocket.accountId ? account : a)),
+          }));
+        }
+      }
     } catch (error) {
       await get().loadSubPockets();
       throw error;
@@ -241,9 +271,20 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
       set((state) => ({
         subPockets: state.subPockets.map((sp) => (sp.id === id ? updated : sp)),
       }));
-      // Reload pockets/accounts in background to update balances
-      get().loadPockets();
-      get().loadAccounts();
+      // Selective reload: only reload the affected pocket and its account
+      const pocket = await pocketService.getPocket(updated.pocketId);
+      if (pocket) {
+        set((state) => ({
+          pockets: state.pockets.map((p) => (p.id === updated.pocketId ? pocket : p)),
+        }));
+        // Reload the affected account
+        const account = await accountService.getAccount(pocket.accountId);
+        if (account) {
+          set((state) => ({
+            accounts: state.accounts.map((a) => (a.id === pocket.accountId ? account : a)),
+          }));
+        }
+      }
     } catch (error) {
       await get().loadSubPockets();
       throw error;
@@ -252,14 +293,29 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
 
   deleteSubPocket: async (id) => {
     try {
+      // Get subPocket before deleting to know what to reload
+      const subPocket = get().subPockets.find((sp) => sp.id === id);
       await subPocketService.deleteSubPocket(id);
       // Optimistic update
       set((state) => ({
         subPockets: state.subPockets.filter((sp) => sp.id !== id),
       }));
-      // Reload pockets/accounts in background to update balances
-      get().loadPockets();
-      get().loadAccounts();
+      // Selective reload: only reload the affected pocket and its account
+      if (subPocket) {
+        const pocket = await pocketService.getPocket(subPocket.pocketId);
+        if (pocket) {
+          set((state) => ({
+            pockets: state.pockets.map((p) => (p.id === subPocket.pocketId ? pocket : p)),
+          }));
+          // Reload the affected account
+          const account = await accountService.getAccount(pocket.accountId);
+          if (account) {
+            set((state) => ({
+              accounts: state.accounts.map((a) => (a.id === pocket.accountId ? account : a)),
+            }));
+          }
+        }
+      }
     } catch (error) {
       await get().loadSubPockets();
       throw error;
@@ -303,11 +359,31 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
       );
       // Optimistic update
       set((state) => ({ movements: [...state.movements, movement] }));
-      // Reload balances in background (only if not pending)
+      // Selective reload: only reload affected entities (only if not pending)
       if (!isPending) {
-        get().loadAccounts();
-        get().loadPockets();
-        get().loadSubPockets();
+        // Reload the affected pocket
+        const pocket = await pocketService.getPocket(pocketId);
+        if (pocket) {
+          set((state) => ({
+            pockets: state.pockets.map((p) => (p.id === pocketId ? pocket : p)),
+          }));
+          // Reload the affected account
+          const account = await accountService.getAccount(accountId);
+          if (account) {
+            set((state) => ({
+              accounts: state.accounts.map((a) => (a.id === accountId ? account : a)),
+            }));
+          }
+        }
+        // If subPocket is involved, reload it too
+        if (subPocketId) {
+          const subPocket = await subPocketService.getSubPocket(subPocketId);
+          if (subPocket) {
+            set((state) => ({
+              subPockets: state.subPockets.map((sp) => (sp.id === subPocketId ? subPocket : sp)),
+            }));
+          }
+        }
       }
     } catch (error) {
       await get().loadMovements();
@@ -322,10 +398,29 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
       set((state) => ({
         movements: state.movements.map((m) => (m.id === id ? updated : m)),
       }));
-      // Reload balances in background
-      get().loadAccounts();
-      get().loadPockets();
-      get().loadSubPockets();
+      // Selective reload: only reload affected entities
+      const pocket = await pocketService.getPocket(updated.pocketId);
+      if (pocket) {
+        set((state) => ({
+          pockets: state.pockets.map((p) => (p.id === updated.pocketId ? pocket : p)),
+        }));
+        // Reload the affected account
+        const account = await accountService.getAccount(updated.accountId);
+        if (account) {
+          set((state) => ({
+            accounts: state.accounts.map((a) => (a.id === updated.accountId ? account : a)),
+          }));
+        }
+      }
+      // If subPocket is involved, reload it too
+      if (updated.subPocketId) {
+        const subPocket = await subPocketService.getSubPocket(updated.subPocketId);
+        if (subPocket) {
+          set((state) => ({
+            subPockets: state.subPockets.map((sp) => (sp.id === updated.subPocketId ? subPocket : sp)),
+          }));
+        }
+      }
     } catch (error) {
       await get().loadMovements();
       throw error;
@@ -334,15 +429,38 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
 
   deleteMovement: async (id) => {
     try {
+      // Get movement before deleting to know what to reload
+      const movement = get().movements.find((m) => m.id === id);
       await movementService.deleteMovement(id);
       // Optimistic update
       set((state) => ({
         movements: state.movements.filter((m) => m.id !== id),
       }));
-      // Reload balances in background
-      get().loadAccounts();
-      get().loadPockets();
-      get().loadSubPockets();
+      // Selective reload: only reload affected entities
+      if (movement) {
+        const pocket = await pocketService.getPocket(movement.pocketId);
+        if (pocket) {
+          set((state) => ({
+            pockets: state.pockets.map((p) => (p.id === movement.pocketId ? pocket : p)),
+          }));
+          // Reload the affected account
+          const account = await accountService.getAccount(movement.accountId);
+          if (account) {
+            set((state) => ({
+              accounts: state.accounts.map((a) => (a.id === movement.accountId ? account : a)),
+            }));
+          }
+        }
+        // If subPocket was involved, reload it too
+        if (movement.subPocketId) {
+          const subPocket = await subPocketService.getSubPocket(movement.subPocketId);
+          if (subPocket) {
+            set((state) => ({
+              subPockets: state.subPockets.map((sp) => (sp.id === movement.subPocketId ? subPocket : sp)),
+            }));
+          }
+        }
+      }
     } catch (error) {
       await get().loadMovements();
       throw error;
