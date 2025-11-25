@@ -54,11 +54,24 @@ const MovementsPage = () => {
   const [showFilters, setShowFilters] = useState(false);
 
   useEffect(() => {
-    loadAccounts();
-    loadPockets();
-    loadSubPockets();
-    loadMovements();
-  }, [loadAccounts, loadPockets, loadSubPockets, loadMovements]);
+    const loadData = async () => {
+      setIsLoading(true);
+      try {
+        await Promise.all([
+          loadAccounts(),
+          loadPockets(),
+          loadSubPockets(),
+          loadMovements(),
+        ]);
+      } catch (err) {
+        console.error('Failed to load data:', err);
+        toast.error('Failed to load movements data');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    loadData();
+  }, [loadAccounts, loadPockets, loadSubPockets, loadMovements, toast]);
 
   // Calculate date range based on filter
   const getDateRange = () => {
@@ -327,6 +340,18 @@ const MovementsPage = () => {
         { value: 'IngresoFijo', label: 'Fixed Income' },
         { value: 'EgresoFijo', label: 'Fixed Expense' },
       ];
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600 dark:text-gray-400">Loading movements...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

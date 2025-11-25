@@ -4,7 +4,7 @@ import { accountService } from '../services/accountService';
 import { pocketService } from '../services/pocketService';
 import { subPocketService } from '../services/subPocketService';
 import { movementService } from '../services/movementService';
-import { StorageService } from '../services/storageService';
+import { SupabaseStorageService } from '../services/supabaseStorageService';
 
 interface FinanceStore {
   // State
@@ -16,41 +16,41 @@ interface FinanceStore {
   selectedAccountId: string | null;
 
   // Actions - Accounts
-  loadAccounts: () => void;
-  createAccount: (name: string, color: string, currency: Account['currency'], type?: Account['type'], stockSymbol?: string) => void;
-  updateAccount: (id: string, updates: Partial<Pick<Account, 'name' | 'color' | 'currency'>>) => void;
-  deleteAccount: (id: string) => void;
+  loadAccounts: () => Promise<void>;
+  createAccount: (name: string, color: string, currency: Account['currency'], type?: Account['type'], stockSymbol?: string) => Promise<void>;
+  updateAccount: (id: string, updates: Partial<Pick<Account, 'name' | 'color' | 'currency'>>) => Promise<void>;
+  deleteAccount: (id: string) => Promise<void>;
   selectAccount: (id: string | null) => void;
-  reorderAccounts: (accounts: Account[]) => void;
+  reorderAccounts: (accounts: Account[]) => Promise<void>;
 
   // Actions - Pockets
-  loadPockets: () => void;
-  createPocket: (accountId: string, name: string, type: Pocket['type']) => void;
-  updatePocket: (id: string, updates: Partial<Pick<Pocket, 'name'>>) => void;
-  deletePocket: (id: string) => void;
-  reorderPockets: (pockets: Pocket[]) => void;
+  loadPockets: () => Promise<void>;
+  createPocket: (accountId: string, name: string, type: Pocket['type']) => Promise<void>;
+  updatePocket: (id: string, updates: Partial<Pick<Pocket, 'name'>>) => Promise<void>;
+  deletePocket: (id: string) => Promise<void>;
+  reorderPockets: (pockets: Pocket[]) => Promise<void>;
 
   // Actions - SubPockets
-  loadSubPockets: () => void;
-  createSubPocket: (pocketId: string, name: string, valueTotal: number, periodicityMonths: number) => void;
-  updateSubPocket: (id: string, updates: Partial<Pick<SubPocket, 'name' | 'valueTotal' | 'periodicityMonths'>>) => void;
-  deleteSubPocket: (id: string) => void;
-  toggleSubPocketEnabled: (id: string) => void;
-  reorderSubPockets: (subPockets: SubPocket[]) => void;
+  loadSubPockets: () => Promise<void>;
+  createSubPocket: (pocketId: string, name: string, valueTotal: number, periodicityMonths: number) => Promise<void>;
+  updateSubPocket: (id: string, updates: Partial<Pick<SubPocket, 'name' | 'valueTotal' | 'periodicityMonths'>>) => Promise<void>;
+  deleteSubPocket: (id: string) => Promise<void>;
+  toggleSubPocketEnabled: (id: string) => Promise<void>;
+  reorderSubPockets: (subPockets: SubPocket[]) => Promise<void>;
 
   // Actions - Movements
-  loadMovements: () => void;
+  loadMovements: () => Promise<void>;
   createMovement: (type: MovementType, accountId: string, pocketId: string, amount: number, notes?: string, displayedDate?: string, subPocketId?: string, isPending?: boolean) => Promise<void>;
   updateMovement: (id: string, updates: Partial<Pick<Movement, 'type' | 'accountId' | 'pocketId' | 'subPocketId' | 'amount' | 'notes' | 'displayedDate'>>) => Promise<void>;
   deleteMovement: (id: string) => Promise<void>;
   applyPendingMovement: (id: string) => Promise<void>;
-  getMovementsGroupedByMonth: () => Map<string, Movement[]>;
-  getPendingMovements: () => Movement[];
-  getAppliedMovements: () => Movement[];
+  getMovementsGroupedByMonth: () => Promise<Map<string, Movement[]>>;
+  getPendingMovements: () => Promise<Movement[]>;
+  getAppliedMovements: () => Promise<Movement[]>;
 
   // Actions - Settings
-  loadSettings: () => void;
-  updateSettings: (updates: Partial<Settings>) => void;
+  loadSettings: () => Promise<void>;
+  updateSettings: (updates: Partial<Settings>) => Promise<void>;
 
   // Computed getters (as methods)
   getPocketsByAccount: (accountId: string) => Pocket[];
@@ -67,37 +67,39 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
   selectedAccountId: null,
 
   // Load data from storage
-  loadAccounts: () => {
-    const accounts = accountService.getAllAccounts();
-    set({ accounts });
+  loadAccounts: async () => {
+    const accounts = await accountService.getAllAccounts();
+    set({ accounts: Array.isArray(accounts) ? accounts : [] });
   },
 
-  loadPockets: () => {
-    const pockets = pocketService.getAllPockets();
-    set({ pockets });
+  loadPockets: async () => {
+    const pockets = await pocketService.getAllPockets();
+    set({ pockets: Array.isArray(pockets) ? pockets : [] });
   },
 
-  loadSubPockets: () => {
-    const subPockets = StorageService.getSubPockets();
-    set({ subPockets });
+  loadSubPockets: async () => {
+    const subPockets = await SupabaseStorageService.getSubPockets();
+    set({ subPockets: Array.isArray(subPockets) ? subPockets : [] });
   },
 
-  loadMovements: () => {
-    const movements = StorageService.getMovements();
-    set({ movements });
+  loadMovements: async () => {
+    const movements = await SupabaseStorageService.getMovements();
+    set({ movements: Array.isArray(movements) ? movements : [] });
   },
 
-  loadSettings: () => {
-    const settings = StorageService.getSettings();
-    set({ settings });
+  loadSettings: async () => {
+    const settings = await SupabaseStorageService.getSettings();
+    if (settings) {
+      set({ settings });
+    }
   },
 
   // Account actions
   createAccount: async (name, color, currency, type = 'normal', stockSymbol) => {
     try {
-      const account = accountService.createAccount(name, color, currency, type, stockSymbol);
+      const account = await accountService.createAccount(name, color, currency, type, stockSymbol);
       set((state) => ({ accounts: [...state.accounts, account] }));
-      get().loadPockets(); // Reload pockets to ensure sync
+      await get().loadPockets(); // Reload pockets to ensure sync
     } catch (error) {
       throw error;
     }
@@ -109,7 +111,7 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
       set((state) => ({
         accounts: state.accounts.map((acc) => (acc.id === id ? updated : acc)),
       }));
-      get().loadPockets(); // Reload to sync balances
+      await get().loadPockets(); // Reload to sync balances
     } catch (error) {
       throw error;
     }
@@ -122,7 +124,7 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
         accounts: state.accounts.filter((acc) => acc.id !== id),
         selectedAccountId: state.selectedAccountId === id ? null : state.selectedAccountId,
       }));
-      get().loadPockets();
+      await get().loadPockets();
     } catch (error) {
       throw error;
     }
@@ -132,7 +134,7 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
     set({ selectedAccountId: id });
   },
 
-  reorderAccounts: (accounts) => {
+  reorderAccounts: async (accounts) => {
     // Update display order for each account
     const accountsWithOrder = accounts.map((account, index) => ({
       ...account,
@@ -140,7 +142,7 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
     }));
     
     // Save to storage
-    StorageService.saveAccounts(accountsWithOrder);
+    await SupabaseStorageService.saveAccounts(accountsWithOrder);
     
     // Update state
     set({ accounts: accountsWithOrder });
@@ -149,9 +151,10 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
   // Pocket actions
   createPocket: async (accountId, name, type) => {
     try {
-      const pocket = await pocketService.createPocket(accountId, name, type);
-      set((state) => ({ pockets: [...state.pockets, pocket] }));
-      get().loadAccounts(); // Reload accounts to update balances
+      await pocketService.createPocket(accountId, name, type);
+      // Reload both pockets and accounts to ensure consistency
+      await get().loadPockets();
+      await get().loadAccounts();
     } catch (error) {
       throw error;
     }
@@ -159,11 +162,10 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
 
   updatePocket: async (id, updates) => {
     try {
-      const updated = await pocketService.updatePocket(id, updates);
-      set((state) => ({
-        pockets: state.pockets.map((p) => (p.id === id ? updated : p)),
-      }));
-      get().loadAccounts(); // Reload accounts to update balances
+      await pocketService.updatePocket(id, updates);
+      // Reload both pockets and accounts to ensure consistency
+      await get().loadPockets();
+      await get().loadAccounts();
     } catch (error) {
       throw error;
     }
@@ -172,16 +174,15 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
   deletePocket: async (id) => {
     try {
       await pocketService.deletePocket(id);
-      set((state) => ({
-        pockets: state.pockets.filter((p) => p.id !== id),
-      }));
-      get().loadAccounts(); // Reload accounts to update balances
+      // Reload both pockets and accounts to ensure consistency
+      await get().loadPockets();
+      await get().loadAccounts();
     } catch (error) {
       throw error;
     }
   },
 
-  reorderPockets: (pockets) => {
+  reorderPockets: async (pockets) => {
     // Update display order for each pocket
     const pocketsWithOrder = pockets.map((pocket, index) => ({
       ...pocket,
@@ -189,13 +190,13 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
     }));
     
     // Save to storage
-    StorageService.savePockets(pocketsWithOrder);
+    await SupabaseStorageService.savePockets(pocketsWithOrder);
     
     // Update state
     set({ pockets: pocketsWithOrder });
     
     // Reload accounts to ensure consistency
-    get().loadAccounts();
+    await get().loadAccounts();
   },
 
   // SubPocket actions
@@ -203,8 +204,8 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
     try {
       const subPocket = await subPocketService.createSubPocket(pocketId, name, valueTotal, periodicityMonths);
       set((state) => ({ subPockets: [...state.subPockets, subPocket] }));
-      get().loadPockets(); // Reload pockets to update balances
-      get().loadAccounts(); // Reload accounts to update balances
+      await get().loadPockets(); // Reload pockets to update balances
+      await get().loadAccounts(); // Reload accounts to update balances
     } catch (error) {
       throw error;
     }
@@ -216,8 +217,8 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
       set((state) => ({
         subPockets: state.subPockets.map((sp) => (sp.id === id ? updated : sp)),
       }));
-      get().loadPockets();
-      get().loadAccounts();
+      await get().loadPockets();
+      await get().loadAccounts();
     } catch (error) {
       throw error;
     }
@@ -229,8 +230,8 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
       set((state) => ({
         subPockets: state.subPockets.filter((sp) => sp.id !== id),
       }));
-      get().loadPockets();
-      get().loadAccounts();
+      await get().loadPockets();
+      await get().loadAccounts();
     } catch (error) {
       throw error;
     }
@@ -247,15 +248,15 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
     }
   },
 
-  reorderSubPockets: (subPockets) => {
+  reorderSubPockets: async (subPockets) => {
     const subPocketsWithOrder = subPockets.map((subPocket, index) => ({
       ...subPocket,
       displayOrder: index,
     }));
     
-    StorageService.saveSubPockets(subPocketsWithOrder);
+    await SupabaseStorageService.saveSubPockets(subPocketsWithOrder);
     set({ subPockets: subPocketsWithOrder });
-    get().loadPockets();
+    await get().loadPockets();
   },
 
   // Movement actions
@@ -274,9 +275,9 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
       set((state) => ({ movements: [...state.movements, movement] }));
       // Reload accounts and pockets to update balances (only if not pending)
       if (!isPending) {
-        get().loadAccounts();
-        get().loadPockets();
-        get().loadSubPockets();
+        await get().loadAccounts();
+        await get().loadPockets();
+        await get().loadSubPockets();
       }
     } catch (error) {
       throw error;
@@ -290,9 +291,9 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
         movements: state.movements.map((m) => (m.id === id ? updated : m)),
       }));
       // Reload accounts and pockets to update balances
-      get().loadAccounts();
-      get().loadPockets();
-      get().loadSubPockets();
+      await get().loadAccounts();
+      await get().loadPockets();
+      await get().loadSubPockets();
     } catch (error) {
       throw error;
     }
@@ -305,24 +306,24 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
         movements: state.movements.filter((m) => m.id !== id),
       }));
       // Reload accounts and pockets to update balances
-      get().loadAccounts();
-      get().loadPockets();
-      get().loadSubPockets();
+      await get().loadAccounts();
+      await get().loadPockets();
+      await get().loadSubPockets();
     } catch (error) {
       throw error;
     }
   },
 
-  getMovementsGroupedByMonth: () => {
-    return movementService.getMovementsGroupedByMonth();
+  getMovementsGroupedByMonth: async () => {
+    return await movementService.getMovementsGroupedByMonth();
   },
 
-  getPendingMovements: () => {
-    return movementService.getPendingMovements();
+  getPendingMovements: async () => {
+    return await movementService.getPendingMovements();
   },
 
-  getAppliedMovements: () => {
-    return movementService.getAppliedMovements();
+  getAppliedMovements: async () => {
+    return await movementService.getAppliedMovements();
   },
 
   applyPendingMovement: async (id) => {
@@ -332,18 +333,18 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
         movements: state.movements.map((m) => (m.id === id ? applied : m)),
       }));
       // Reload accounts and pockets to update balances
-      get().loadAccounts();
-      get().loadPockets();
-      get().loadSubPockets();
+      await get().loadAccounts();
+      await get().loadPockets();
+      await get().loadSubPockets();
     } catch (error) {
       throw error;
     }
   },
 
   // Settings actions
-  updateSettings: (updates) => {
+  updateSettings: async (updates) => {
     const newSettings = { ...get().settings, ...updates };
-    StorageService.saveSettings(newSettings);
+    await SupabaseStorageService.saveSettings(newSettings);
     set({ settings: newSettings });
   },
 

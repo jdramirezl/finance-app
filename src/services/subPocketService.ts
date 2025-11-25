@@ -1,5 +1,5 @@
 import type { SubPocket } from '../types';
-import { StorageService } from './storageService';
+import { SupabaseStorageService } from './supabaseStorageService';
 import { generateId } from '../utils/idGenerator';
 
 // Lazy getter to avoid circular dependency - using dynamic import
@@ -15,19 +15,19 @@ const getPocketService = async () => {
 
 class SubPocketService {
   // Get all sub-pockets
-  getAllSubPockets(): SubPocket[] {
-    return StorageService.getSubPockets();
+  async getAllSubPockets(): Promise<SubPocket[]> {
+    return await SupabaseStorageService.getSubPockets();
   }
 
   // Get sub-pocket by ID
-  getSubPocket(id: string): SubPocket | null {
-    const subPockets = this.getAllSubPockets();
+  async getSubPocket(id: string): Promise<SubPocket | null> {
+    const subPockets = await this.getAllSubPockets();
     return subPockets.find(sp => sp.id === id) || null;
   }
 
   // Get sub-pockets by pocket (fixed expenses pocket)
-  getSubPocketsByPocket(pocketId: string): SubPocket[] {
-    const subPockets = this.getAllSubPockets();
+  async getSubPocketsByPocket(pocketId: string): Promise<SubPocket[]> {
+    const subPockets = await this.getAllSubPockets();
     return subPockets.filter(sp => sp.pocketId === pocketId);
   }
 
@@ -44,16 +44,16 @@ class SubPocketService {
   }
 
   // Calculate total monthly fixed expenses (sum of enabled sub-pockets)
-  calculateTotalFijosMes(pocketId: string): number {
-    const subPockets = this.getSubPocketsByPocket(pocketId);
+  async calculateTotalFijosMes(pocketId: string): Promise<number> {
+    const subPockets = await this.getSubPocketsByPocket(pocketId);
     return subPockets
       .filter(sp => sp.enabled)
       .reduce((sum, sp) => sum + this.calculateAporteMensual(sp.valueTotal, sp.periodicityMonths), 0);
   }
 
   // Calculate next payment for a sub-pocket (handles negative balance and near completion)
-  calculateNextPayment(subPocketId: string): number {
-    const subPocket = this.getSubPocket(subPocketId);
+  async calculateNextPayment(subPocketId: string): Promise<number> {
+    const subPocket = await this.getSubPocket(subPocketId);
     if (!subPocket) return 0;
 
     const aporteMensual = this.calculateAporteMensual(subPocket.valueTotal, subPocket.periodicityMonths);
@@ -74,8 +74,8 @@ class SubPocketService {
   }
 
   // Validate sub-pocket uniqueness within a pocket
-  validateSubPocketUniqueness(pocketId: string, name: string, excludeId?: string): boolean {
-    const subPockets = this.getSubPocketsByPocket(pocketId);
+  async validateSubPocketUniqueness(pocketId: string, name: string, excludeId?: string): Promise<boolean> {
+    const subPockets = await this.getSubPocketsByPocket(pocketId);
     const existing = subPockets.find(
       sp => sp.name.trim().toLowerCase() === name.trim().toLowerCase() && sp.id !== excludeId
     );
@@ -86,7 +86,7 @@ class SubPocketService {
   async createSubPocket(pocketId: string, name: string, valueTotal: number, periodicityMonths: number): Promise<SubPocket> {
     // Validate pocket exists and is fixed type (dynamic import to avoid circular dependency)
     const pocketService = await getPocketService();
-    const pocket = pocketService.getPocket(pocketId);
+    const pocket = await pocketService.getPocket(pocketId);
     if (!pocket) {
       throw new Error(`Pocket with id "${pocketId}" not found.`);
     }
@@ -121,9 +121,9 @@ class SubPocketService {
       enabled: true,
     };
 
-    const subPockets = this.getAllSubPockets();
+    const subPockets = await this.getAllSubPockets();
     subPockets.push(subPocket);
-    StorageService.saveSubPockets(subPockets);
+    await SupabaseStorageService.saveSubPockets(subPockets);
 
     // Recalculate pocket balance
     await pocketService.updatePocket(pocketId, {});
@@ -133,7 +133,7 @@ class SubPocketService {
 
   // Update sub-pocket
   async updateSubPocket(id: string, updates: Partial<Pick<SubPocket, 'name' | 'valueTotal' | 'periodicityMonths'>>): Promise<SubPocket> {
-    const subPockets = this.getAllSubPockets();
+    const subPockets = await this.getAllSubPockets();
     const index = subPockets.findIndex(sp => sp.id === id);
 
     if (index === -1) {
@@ -150,7 +150,7 @@ class SubPocketService {
       }
       // Validate uniqueness if name changed
       if (trimmedName.toLowerCase() !== subPocket.name.toLowerCase()) {
-        if (!this.validateSubPocketUniqueness(subPocket.pocketId, trimmedName, id)) {
+        if (!(await this.validateSubPocketUniqueness(subPocket.pocketId, trimmedName, id))) {
           throw new Error(`A sub-pocket with name "${trimmedName}" already exists in this pocket.`);
         }
       }
@@ -166,7 +166,7 @@ class SubPocketService {
     const updatedSubPocket = { ...subPocket, ...updates };
 
     subPockets[index] = updatedSubPocket;
-    StorageService.saveSubPockets(subPockets);
+    await SupabaseStorageService.saveSubPockets(subPockets);
 
     // Recalculate pocket balance
     const pocketService = await getPocketService();
@@ -177,7 +177,7 @@ class SubPocketService {
 
   // Delete sub-pocket
   async deleteSubPocket(id: string): Promise<void> {
-    const subPockets = this.getAllSubPockets();
+    const subPockets = await this.getAllSubPockets();
     const index = subPockets.findIndex(sp => sp.id === id);
 
     if (index === -1) {
@@ -186,7 +186,7 @@ class SubPocketService {
 
     const subPocket = subPockets[index];
     subPockets.splice(index, 1);
-    StorageService.saveSubPockets(subPockets);
+    await SupabaseStorageService.saveSubPockets(subPockets);
 
     // Recalculate pocket balance
     const pocketService = await getPocketService();
@@ -195,14 +195,14 @@ class SubPocketService {
 
   // Toggle enabled state
   async toggleSubPocketEnabled(id: string): Promise<SubPocket> {
-    const subPocket = this.getSubPocket(id);
+    const subPocket = await this.getSubPocket(id);
     if (!subPocket) {
       throw new Error(`Sub-pocket with id "${id}" not found.`);
     }
 
-    const allSubPockets = StorageService.getSubPockets();
+    const allSubPockets = await this.getAllSubPockets();
     const updated = { ...subPocket, enabled: !subPocket.enabled };
-    StorageService.saveSubPockets(
+    await SupabaseStorageService.saveSubPockets(
       allSubPockets.map((sp: SubPocket) => (sp.id === id ? updated : sp))
     );
     return updated;

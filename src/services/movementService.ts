@@ -1,5 +1,5 @@
 import type { Movement, MovementType, Pocket, SubPocket, Account } from '../types';
-import { StorageService } from './storageService';
+import { SupabaseStorageService } from './supabaseStorageService';
 import { generateId } from '../utils/idGenerator';
 import { format } from 'date-fns';
 
@@ -37,39 +37,39 @@ const getAccountService = async () => {
 
 class MovementService {
   // Get all movements
-  getAllMovements(): Movement[] {
-    return StorageService.getMovements();
+  async getAllMovements(): Promise<Movement[]> {
+    return await SupabaseStorageService.getMovements();
   }
 
   // Get movement by ID
-  getMovement(id: string): Movement | null {
-    const movements = this.getAllMovements();
+  async getMovement(id: string): Promise<Movement | null> {
+    const movements = await this.getAllMovements();
     return movements.find(m => m.id === id) || null;
   }
 
   // Get movements sorted by createdAt (registration date)
-  getMovementsSortedByCreatedAt(): Movement[] {
-    const movements = this.getAllMovements();
+  async getMovementsSortedByCreatedAt(): Promise<Movement[]> {
+    const movements = await this.getAllMovements();
     return movements.sort((a, b) =>
       new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
     );
   }
 
   // Get movements by account
-  getMovementsByAccount(accountId: string): Movement[] {
-    const movements = this.getAllMovements();
+  async getMovementsByAccount(accountId: string): Promise<Movement[]> {
+    const movements = await this.getAllMovements();
     return movements.filter(m => m.accountId === accountId);
   }
 
   // Get movements by pocket
-  getMovementsByPocket(pocketId: string): Movement[] {
-    const movements = this.getAllMovements();
+  async getMovementsByPocket(pocketId: string): Promise<Movement[]> {
+    const movements = await this.getAllMovements();
     return movements.filter(m => m.pocketId === pocketId);
   }
 
   // Get movements grouped by month (based on displayedDate)
-  getMovementsByMonth(year: number, month: number): Movement[] {
-    const movements = this.getAllMovements();
+  async getMovementsByMonth(year: number, month: number): Promise<Movement[]> {
+    const movements = await this.getAllMovements();
     return movements.filter(m => {
       const date = new Date(m.displayedDate);
       return date.getFullYear() === year && date.getMonth() === month;
@@ -77,8 +77,8 @@ class MovementService {
   }
 
   // Get all movements grouped by month
-  getMovementsGroupedByMonth(): Map<string, Movement[]> {
-    const movements = this.getMovementsSortedByCreatedAt();
+  async getMovementsGroupedByMonth(): Promise<Map<string, Movement[]>> {
+    const movements = await this.getMovementsSortedByCreatedAt();
     const grouped = new Map<string, Movement[]>();
 
     movements.forEach(movement => {
@@ -101,10 +101,10 @@ class MovementService {
     isIncome: boolean
   ): Promise<void> {
     const pocketService = await getPocketService();
-    const pocket = pocketService.getPocket(pocketId);
+    const pocket = await pocketService.getPocket(pocketId);
     if (!pocket) return;
 
-    const pockets = pocketService.getAllPockets();
+    const pockets = await pocketService.getAllPockets();
     const index = pockets.findIndex((p: Pocket) => p.id === pocketId);
     if (index === -1) return;
 
@@ -114,7 +114,7 @@ class MovementService {
       pockets[index].balance -= amount;
     }
 
-    StorageService.savePockets(pockets);
+    await SupabaseStorageService.savePockets(pockets);
 
     // Recalculate account balance
     const accountService = await getAccountService();
@@ -128,10 +128,10 @@ class MovementService {
     isIncome: boolean
   ): Promise<void> {
     const subPocketService = await getSubPocketService();
-    const subPocket = subPocketService.getSubPocket(subPocketId);
+    const subPocket = await subPocketService.getSubPocket(subPocketId);
     if (!subPocket) return;
 
-    const subPockets = subPocketService.getAllSubPockets();
+    const subPockets = await subPocketService.getAllSubPockets();
     const index = subPockets.findIndex((sp: SubPocket) => sp.id === subPocketId);
     if (index === -1) return;
 
@@ -141,7 +141,7 @@ class MovementService {
       subPockets[index].balance -= amount;
     }
 
-    StorageService.saveSubPockets(subPockets);
+    await SupabaseStorageService.saveSubPockets(subPockets);
 
     // Recalculate pocket balance (which will recalculate account balance)
     const pocketService = await getPocketService();
@@ -155,10 +155,10 @@ class MovementService {
     amount: number
   ): Promise<void> {
     const accountService = await getAccountService();
-    const account = accountService.getAccount(accountId);
+    const account = await accountService.getAccount(accountId);
     if (!account || account.type !== 'investment') return;
 
-    const accounts = accountService.getAllAccounts();
+    const accounts = await accountService.getAllAccounts();
     const index = accounts.findIndex((acc: Account) => acc.id === accountId);
     if (index === -1) return;
 
@@ -170,7 +170,7 @@ class MovementService {
       accounts[index].shares = (accounts[index].shares || 0) + amount;
     }
 
-    StorageService.saveAccounts(accounts);
+    await SupabaseStorageService.saveAccounts(accounts);
   }
 
   // Create new movement
@@ -191,14 +191,14 @@ class MovementService {
 
     // Validate account exists
     const accountService = await getAccountService();
-    const account = accountService.getAccount(accountId);
+    const account = await accountService.getAccount(accountId);
     if (!account) {
       throw new Error(`Account with id "${accountId}" not found.`);
     }
 
     // Validate pocket exists
     const pocketService = await getPocketService();
-    const pocket = pocketService.getPocket(pocketId);
+    const pocket = await pocketService.getPocket(pocketId);
     if (!pocket) {
       throw new Error(`Pocket with id "${pocketId}" not found.`);
     }
@@ -206,7 +206,7 @@ class MovementService {
     // Validate sub-pocket if provided
     if (subPocketId) {
       const subPocketService = await getSubPocketService();
-      const subPocket = subPocketService.getSubPocket(subPocketId);
+      const subPocket = await subPocketService.getSubPocket(subPocketId);
       if (!subPocket) {
         throw new Error(`Sub-pocket with id "${subPocketId}" not found.`);
       }
@@ -230,9 +230,9 @@ class MovementService {
       isPending: isPending || false,
     };
 
-    const movements = this.getAllMovements();
+    const movements = await this.getAllMovements();
     movements.push(movement);
-    StorageService.saveMovements(movements);
+    await SupabaseStorageService.saveMovements(movements);
 
     // If pending, don't apply balance changes yet
     if (isPending) {
@@ -249,12 +249,12 @@ class MovementService {
           // Synchronize account fields with pocket balances (keep account totals in sync)
           const pocketService = await getPocketService();
           const accountService = await getAccountService();
-          const account = accountService.getAccount(accountId);
+          const account = await accountService.getAccount(accountId);
           if (account && account.type === 'investment') {
-            const pockets = pocketService.getPocketsByAccount(accountId);
+            const pockets = await pocketService.getPocketsByAccount(accountId);
             const investedPocket = pockets.find((p: Pocket) => p.name === 'Invested Money');
             const sharesPocket = pockets.find((p: Pocket) => p.name === 'Shares');
-            const accounts = accountService.getAllAccounts();
+            const accounts = await accountService.getAllAccounts();
             const accIndex = accounts.findIndex((acc: Account) => acc.id === accountId);
             if (accIndex !== -1) {
               if (investedPocket) {
@@ -263,7 +263,7 @@ class MovementService {
               if (sharesPocket) {
                 accounts[accIndex].shares = sharesPocket.balance;
               }
-              StorageService.saveAccounts(accounts);
+              await SupabaseStorageService.saveAccounts(accounts);
             }
           }
 
@@ -289,7 +289,7 @@ class MovementService {
     id: string,
     updates: Partial<Pick<Movement, 'type' | 'accountId' | 'pocketId' | 'subPocketId' | 'amount' | 'notes' | 'displayedDate'>>
   ): Promise<Movement> {
-    const movements = this.getAllMovements();
+    const movements = await this.getAllMovements();
     const index = movements.findIndex(m => m.id === id);
 
     if (index === -1) {
@@ -306,9 +306,9 @@ class MovementService {
     if (isOldInvestment) {
       // Revert old investment changes
       const accountService = await getAccountService();
-      const account = accountService.getAccount(oldMovement.accountId);
+      const account = await accountService.getAccount(oldMovement.accountId);
       if (account && account.type === 'investment') {
-        const accounts = accountService.getAllAccounts();
+        const accounts = await accountService.getAllAccounts();
         const accIndex = accounts.findIndex((acc: Account) => acc.id === oldMovement.accountId);
         if (accIndex !== -1) {
           if (oldMovement.type === 'InvestmentIngreso') {
@@ -316,7 +316,7 @@ class MovementService {
           } else if (oldMovement.type === 'InvestmentShares') {
             accounts[accIndex].shares = Math.max(0, (accounts[accIndex].shares || 0) - oldMovement.amount);
           }
-          StorageService.saveAccounts(accounts);
+          await SupabaseStorageService.saveAccounts(accounts);
         }
       }
     }
@@ -343,14 +343,14 @@ class MovementService {
     }
 
     movements[index] = updatedMovement;
-    StorageService.saveMovements(movements);
+    await SupabaseStorageService.saveMovements(movements);
 
     return updatedMovement;
   }
 
   // Delete movement
   async deleteMovement(id: string): Promise<void> {
-    const movements = this.getAllMovements();
+    const movements = await this.getAllMovements();
     const index = movements.findIndex(m => m.id === id);
 
     if (index === -1) {
@@ -362,9 +362,9 @@ class MovementService {
     // Handle investment movements
     if (movement.type === 'InvestmentIngreso' || movement.type === 'InvestmentShares') {
       const accountService = await getAccountService();
-      const account = accountService.getAccount(movement.accountId);
+      const account = await accountService.getAccount(movement.accountId);
       if (account && account.type === 'investment') {
-        const accounts = accountService.getAllAccounts();
+        const accounts = await accountService.getAllAccounts();
         const accIndex = accounts.findIndex((acc: Account) => acc.id === movement.accountId);
         if (accIndex !== -1) {
           if (movement.type === 'InvestmentIngreso') {
@@ -372,7 +372,7 @@ class MovementService {
           } else if (movement.type === 'InvestmentShares') {
             accounts[accIndex].shares = Math.max(0, (accounts[accIndex].shares || 0) - movement.amount);
           }
-          StorageService.saveAccounts(accounts);
+          await SupabaseStorageService.saveAccounts(accounts);
         }
       }
     } else {
@@ -386,24 +386,24 @@ class MovementService {
     }
 
     movements.splice(index, 1);
-    StorageService.saveMovements(movements);
+    await SupabaseStorageService.saveMovements(movements);
   }
 
   // Get pending movements
-  getPendingMovements(): Movement[] {
-    const movements = this.getAllMovements();
+  async getPendingMovements(): Promise<Movement[]> {
+    const movements = await this.getAllMovements();
     return movements.filter(m => m.isPending === true);
   }
 
   // Get applied (non-pending) movements
-  getAppliedMovements(): Movement[] {
-    const movements = this.getAllMovements();
+  async getAppliedMovements(): Promise<Movement[]> {
+    const movements = await this.getAllMovements();
     return movements.filter(m => !m.isPending);
   }
 
   // Apply a pending movement (convert to applied)
   async applyPendingMovement(id: string): Promise<Movement> {
-    const movements = this.getAllMovements();
+    const movements = await this.getAllMovements();
     const index = movements.findIndex(m => m.id === id);
 
     if (index === -1) {
@@ -418,7 +418,7 @@ class MovementService {
 
     // Mark as applied
     movements[index].isPending = false;
-    StorageService.saveMovements(movements);
+    await SupabaseStorageService.saveMovements(movements);
 
     // Now apply the balance changes
     const isIncome = movement.type === 'IngresoNormal' || movement.type === 'IngresoFijo';
@@ -430,12 +430,12 @@ class MovementService {
       // Synchronize account fields
       const pocketService = await getPocketService();
       const accountService = await getAccountService();
-      const account = accountService.getAccount(movement.accountId);
+      const account = await accountService.getAccount(movement.accountId);
       if (account && account.type === 'investment') {
-        const pockets = pocketService.getPocketsByAccount(movement.accountId);
+        const pockets = await pocketService.getPocketsByAccount(movement.accountId);
         const investedPocket = pockets.find((p: Pocket) => p.name === 'Invested Money');
         const sharesPocket = pockets.find((p: Pocket) => p.name === 'Shares');
-        const accounts = accountService.getAllAccounts();
+        const accounts = await accountService.getAllAccounts();
         const accIndex = accounts.findIndex((acc: Account) => acc.id === movement.accountId);
         if (accIndex !== -1) {
           if (investedPocket) {
@@ -444,7 +444,7 @@ class MovementService {
           if (sharesPocket) {
             accounts[accIndex].shares = sharesPocket.balance;
           }
-          StorageService.saveAccounts(accounts);
+          await SupabaseStorageService.saveAccounts(accounts);
         }
       }
     } else if (movement.subPocketId) {

@@ -29,13 +29,22 @@ const FixedExpensesPage = () => {
   const [showForm, setShowForm] = useState(false);
   const [editingSubPocket, setEditingSubPocket] = useState<SubPocket | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    loadAccounts();
-    loadPockets();
-    loadSubPockets();
-  }, [loadAccounts, loadPockets, loadSubPockets]);
+    const loadData = async () => {
+      setIsLoading(true);
+      try {
+        await Promise.all([loadAccounts(), loadPockets(), loadSubPockets()]);
+      } catch (err) {
+        console.error('Failed to load data:', err);
+        toast.error('Failed to load fixed expenses data');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    loadData();
+  }, [loadAccounts, loadPockets, loadSubPockets, toast]);
 
   // Find the fixed expenses pocket
   const fixedPocket = pockets.find((p) => p.type === 'fixed');
@@ -181,6 +190,18 @@ const FixedExpensesPage = () => {
           <p className="text-yellow-700 dark:text-yellow-400 text-sm">
             Please create a fixed expenses pocket in the Accounts page first.
           </p>
+        </div>
+      </div>
+    );
+  }
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600 dark:text-gray-400">Loading fixed expenses...</p>
         </div>
       </div>
     );

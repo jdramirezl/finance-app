@@ -27,12 +27,28 @@ const SummaryPage = () => {
 
   const [investmentData, setInvestmentData] = useState<Map<string, InvestmentData>>(new Map());
   const [, setLoadingInvestments] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    loadAccounts();
-    loadPockets();
-    loadSubPockets();
-    loadSettings();
+    const loadData = async () => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        await Promise.all([
+          loadAccounts(),
+          loadPockets(),
+          loadSubPockets(),
+          loadSettings(),
+        ]);
+      } catch (err) {
+        console.error('Failed to load data:', err);
+        setError('Failed to load data. Please refresh the page.');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    loadData();
   }, [loadAccounts, loadPockets, loadSubPockets, loadSettings]);
 
   // Load investment prices
@@ -137,6 +153,37 @@ const SummaryPage = () => {
     if (!aHasInvestment && bHasInvestment) return 1;
     return a.localeCompare(b);
   });
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600 dark:text-gray-400">Loading your financial data...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <div className="text-red-600 dark:text-red-400 text-xl mb-4">⚠️</div>
+          <p className="text-gray-900 dark:text-gray-100 font-semibold mb-2">Error Loading Data</p>
+          <p className="text-gray-600 dark:text-gray-400 mb-4">{error}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          >
+            Refresh Page
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

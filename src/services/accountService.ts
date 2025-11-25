@@ -1,5 +1,5 @@
 import type { Account } from '../types';
-import { StorageService } from './storageService';
+import { SupabaseStorageService } from './supabaseStorageService';
 import { generateId } from '../utils/idGenerator';
 
 // Lazy getter to avoid circular dependency - using dynamic import
@@ -15,19 +15,19 @@ const getPocketService = async () => {
 
 class AccountService {
   // Get all accounts
-  getAllAccounts(): Account[] {
-    return StorageService.getAccounts();
+  async getAllAccounts(): Promise<Account[]> {
+    return await SupabaseStorageService.getAccounts();
   }
 
   // Get account by ID
-  getAccount(id: string): Account | null {
-    const accounts = this.getAllAccounts();
+  async getAccount(id: string): Promise<Account | null> {
+    const accounts = await this.getAllAccounts();
     return accounts.find(acc => acc.id === id) || null;
   }
 
   // Validate account uniqueness (name + currency combination)
-  validateAccountUniqueness(name: string, currency: string, excludeId?: string): boolean {
-    const accounts = this.getAllAccounts();
+  async validateAccountUniqueness(name: string, currency: string, excludeId?: string): Promise<boolean> {
+    const accounts = await this.getAllAccounts();
     const existing = accounts.find(
       acc => acc.name === name && acc.currency === currency && acc.id !== excludeId
     );
@@ -39,18 +39,18 @@ class AccountService {
   async calculateAccountBalance(accountId: string): Promise<number> {
     // Import dynamically to avoid circular dependency
     const pocketService = await getPocketService();
-    const pockets = pocketService.getPocketsByAccount(accountId);
+    const pockets = await pocketService.getPocketsByAccount(accountId);
     return pockets.reduce((sum: number, pocket: { balance: number }) => sum + pocket.balance, 0);
   }
 
   // Create new account
-  createAccount(
+  async createAccount(
     name: string,
     color: string,
     currency: Account['currency'],
     type: Account['type'] = 'normal',
     stockSymbol?: string
-  ): Account {
+  ): Promise<Account> {
     // Validate and sanitize input
     const trimmedName = name.trim();
     if (!trimmedName) {
@@ -61,7 +61,7 @@ class AccountService {
     }
 
     // Validate uniqueness
-    if (!this.validateAccountUniqueness(trimmedName, currency)) {
+    if (!(await this.validateAccountUniqueness(trimmedName, currency))) {
       throw new Error(`An account with name "${trimmedName}" and currency "${currency}" already exists.`);
     }
 
@@ -79,16 +79,16 @@ class AccountService {
       }),
     };
 
-    const accounts = this.getAllAccounts();
+    const accounts = await this.getAllAccounts();
     accounts.push(account);
-    StorageService.saveAccounts(accounts);
+    await SupabaseStorageService.saveAccounts(accounts);
 
     return account;
   }
 
   // Update account
   async updateAccount(id: string, updates: Partial<Pick<Account, 'name' | 'color' | 'currency'>>): Promise<Account> {
-    const accounts = this.getAllAccounts();
+    const accounts = await this.getAllAccounts();
     const index = accounts.findIndex(acc => acc.id === id);
 
     if (index === -1) {
@@ -119,7 +119,7 @@ class AccountService {
     if (updates.name || updates.currency) {
       const newName = updates.name || account.name;
       const newCurrency = updates.currency || account.currency;
-      if (!this.validateAccountUniqueness(newName, newCurrency, id)) {
+      if (!(await this.validateAccountUniqueness(newName, newCurrency, id))) {
         throw new Error(`An account with name "${newName}" and currency "${newCurrency}" already exists.`);
       }
     }
@@ -128,28 +128,28 @@ class AccountService {
     if (updates.currency) {
       const pocketService = await getPocketService();
       const pockets = pocketService.getPocketsByAccount(id);
-      const allPockets = pocketService.getAllPockets();
+      const allPockets = await pocketService.getAllPockets();
       pockets.forEach((pocket: { id: string }) => {
         const pocketIndex = allPockets.findIndex((p: { id: string }) => p.id === pocket.id);
         if (pocketIndex !== -1) {
           allPockets[pocketIndex].currency = updates.currency!;
         }
       });
-      StorageService.savePockets(allPockets);
+      await SupabaseStorageService.savePockets(allPockets);
     }
 
     // Recalculate balance
     updatedAccount.balance = await this.calculateAccountBalance(id);
 
     accounts[index] = updatedAccount;
-    StorageService.saveAccounts(accounts);
+    await SupabaseStorageService.saveAccounts(accounts);
 
     return updatedAccount;
   }
 
   // Delete account
   async deleteAccount(id: string): Promise<void> {
-    const accounts = this.getAllAccounts();
+    const accounts = await this.getAllAccounts();
     const index = accounts.findIndex(acc => acc.id === id);
 
     if (index === -1) {
@@ -164,16 +164,16 @@ class AccountService {
     }
 
     accounts.splice(index, 1);
-    StorageService.saveAccounts(accounts);
+    await SupabaseStorageService.saveAccounts(accounts);
   }
 
   // Recalculate all account balances (useful after movements)
   async recalculateAllBalances(): Promise<void> {
-    const accounts = this.getAllAccounts();
+    const accounts = await this.getAllAccounts();
     for (const account of accounts) {
       account.balance = await this.calculateAccountBalance(account.id);
     }
-    StorageService.saveAccounts(accounts);
+    await SupabaseStorageService.saveAccounts(accounts);
   }
 }
 

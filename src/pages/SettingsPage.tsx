@@ -8,14 +8,25 @@ const SettingsPage = () => {
   const { settings, loadSettings, updateSettings } = useFinanceStore();
 
   useEffect(() => {
-    loadSettings();
+    const loadData = async () => {
+      try {
+        await loadSettings();
+      } catch (err) {
+        console.error('Failed to load settings:', err);
+      }
+    };
+    loadData();
   }, [loadSettings]);
 
   const currencies: Currency[] = ['USD', 'MXN', 'COP', 'EUR', 'GBP'];
 
-  const handleCurrencyChange = (currency: Currency) => {
-    currencyService.setPrimaryCurrency(currency);
-    updateSettings({ primaryCurrency: currency });
+  const handleCurrencyChange = async (currency: Currency) => {
+    try {
+      currencyService.setPrimaryCurrency(currency);
+      await updateSettings({ primaryCurrency: currency });
+    } catch (err) {
+      console.error('Failed to update settings:', err);
+    }
   };
 
   return (

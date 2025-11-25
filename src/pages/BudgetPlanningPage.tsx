@@ -31,11 +31,20 @@ const BudgetPlanningPage = () => {
   const [editingEntryId, setEditingEntryId] = useState<string | null>(null);
   const [editingEntryName, setEditingEntryName] = useState<string>('');
   const [editingEntryPercentage, setEditingEntryPercentage] = useState<number>(0);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    loadAccounts();
-    loadPockets();
-    loadSubPockets();
+    const loadData = async () => {
+      setIsLoading(true);
+      try {
+        await Promise.all([loadAccounts(), loadPockets(), loadSubPockets()]);
+      } catch (err) {
+        console.error('Failed to load data:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    loadData();
   }, [loadAccounts, loadPockets, loadSubPockets]);
 
   // Persist data whenever it changes
@@ -145,6 +154,18 @@ const BudgetPlanningPage = () => {
     setEditingEntryName('');
     setEditingEntryPercentage(0);
   };
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600 dark:text-gray-400">Loading budget planning...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
