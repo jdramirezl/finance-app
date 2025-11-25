@@ -3,7 +3,9 @@ import { useFinanceStore } from '../store/useFinanceStore';
 import { currencyService } from '../services/currencyService';
 import { investmentService } from '../services/investmentService';
 import type { Currency, Account } from '../types';
-import { TrendingUp } from 'lucide-react';
+import { TrendingUp, RefreshCw } from 'lucide-react';
+import Button from '../components/Button';
+import { useToast } from '../hooks/useToast';
 import { SkeletonStats, SkeletonAccountCard, SkeletonList } from '../components/Skeleton';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -30,6 +32,8 @@ const SummaryPage = () => {
   const [, setLoadingInvestments] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [refreshingPrices, setRefreshingPrices] = useState<Set<string>>(new Set());
+  const toast = useToast();
 
   useEffect(() => {
     const loadData = async () => {
@@ -86,6 +90,40 @@ const SummaryPage = () => {
 
     loadInvestmentPrices();
   }, [accounts]);
+
+  // Refresh price for a specific investment account
+  const handleRefreshPrice = async (account: Account) => {
+    if (!account.stockSymbol) return;
+
+    setRefreshingPrices(prev => new Set(prev).add(account.id));
+
+    try {
+      const data = await investmentService.forceRefreshPrice(account.stockSymbol);
+      const values = investmentService.calculateInvestmentValues(account, data);
+      const lastUpdated = investmentService.getPriceTimestamp(account.stockSymbol);
+
+      setInvestmentData(prev => {
+        const newMap = new Map(prev);
+        newMap.set(account.id, {
+          precioActual: data,
+          ...values,
+          lastUpdated,
+        });
+        return newMap;
+      });
+
+      toast.success(`Price refreshed: ${account.stockSymbol} = ${currencyService.formatCurrency(data, account.currency)}`);
+    } catch (error) {
+      console.error('Error refreshing price:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to refresh price');
+    } finally {
+      setRefreshingPrices(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(account.id);
+        return newSet;
+      });
+    }
+  };
 
   const primaryCurrency = settings.primaryCurrency || 'USD';
 
@@ -282,6 +320,7 @@ const SummaryPage = () => {
                                   const montoInvertido = account.montoInvertido || 0;
                                   const shares = account.shares || 0;
                                   const stockSymbol = account.stockSymbol || 'N/A';
+                                  const isRefreshing = refreshingPrices.has(account.id);
                                   
                                   if (!invData) {
                                     return (
@@ -293,8 +332,20 @@ const SummaryPage = () => {
 
                                   return (
                                     <>
-                                      <div className="font-semibold text-gray-900 dark:text-gray-100 mb-2">
-                                        {account.name} - {stockSymbol} | {currencyService.formatCurrency(invData.totalValue, account.currency)}
+                                      <div className="flex items-center justify-between mb-2">
+                                        <div className="font-semibold text-gray-900 dark:text-gray-100">
+                                          {account.name} - {stockSymbol} | {currencyService.formatCurrency(invData.totalValue, account.currency)}
+                                        </div>
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          onClick={() => handleRefreshPrice(account)}
+                                          loading={isRefreshing}
+                                          disabled={isRefreshing}
+                                          className="ml-2"
+                                        >
+                                          <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                                        </Button>
                                       </div>
                                       <div className="space-y-1 text-gray-700 dark:text-gray-300">
                                         <div className="flex justify-between">
