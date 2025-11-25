@@ -75,6 +75,16 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
   loadPockets: async () => {
     const pockets = await pocketService.getAllPockets();
     set({ pockets: Array.isArray(pockets) ? pockets : [] });
+    
+    // Recalculate account balances from loaded pockets
+    set((state) => {
+      const updatedAccounts = state.accounts.map((account) => {
+        const accountPockets = pockets.filter(p => p.accountId === account.id);
+        const calculatedBalance = accountPockets.reduce((sum, p) => sum + p.balance, 0);
+        return { ...account, balance: calculatedBalance };
+      });
+      return { accounts: updatedAccounts };
+    });
   },
 
   loadSubPockets: async () => {
@@ -441,6 +451,15 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
           // Calculate account balance from updated pockets
           const accountPockets = updatedPockets.filter(p => p.accountId === accountId);
           const calculatedBalance = accountPockets.reduce((sum, p) => sum + p.balance, 0);
+          
+          console.log('🔍 Movement created - Balance calculation:', {
+            accountId,
+            pocketId,
+            pocketBalance: pocket?.balance,
+            accountPocketsCount: accountPockets.length,
+            accountPocketsBalances: accountPockets.map(p => ({ id: p.id, name: p.name, balance: p.balance })),
+            calculatedBalance,
+          });
           
           // Update account with calculated balance
           const updatedAccounts = state.accounts.map((a) => 
