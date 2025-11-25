@@ -28,6 +28,8 @@ const MovementsPage = () => {
     applyPendingMovement,
     getPocketsByAccount,
     getSubPocketsByPocket,
+    getOrphanedMovements,
+    getOrphanedMovementsCount,
   } = useFinanceStore();
 
   const toast = useToast();
@@ -48,6 +50,11 @@ const MovementsPage = () => {
   // Advanced filters
   const [filterAccount, setFilterAccount] = useState<string>('all');
   const [filterPocket, setFilterPocket] = useState<string>('all');
+  
+  // Orphaned movements
+  const [showOrphaned, setShowOrphaned] = useState(false);
+  const [orphanedMovements, setOrphanedMovements] = useState<Movement[]>([]);
+  const [orphanedCount, setOrphanedCount] = useState(0);
   const [filterType, setFilterType] = useState<'all' | 'income' | 'expense' | 'investment'>('all');
   const [filterDateRange, setFilterDateRange] = useState<'all' | '7days' | '30days' | '3months' | '6months' | 'year' | 'custom'>('all');
   const [filterDateFrom, setFilterDateFrom] = useState<string>('');
@@ -66,6 +73,10 @@ const MovementsPage = () => {
           loadAccounts(),
           loadMovements(),
         ]);
+        
+        // Load orphaned movements count
+        const count = await getOrphanedMovementsCount();
+        setOrphanedCount(count);
       } catch (err) {
         console.error('Failed to load data:', err);
         toast.error('Failed to load movements data');
@@ -74,7 +85,18 @@ const MovementsPage = () => {
       }
     };
     loadData();
-  }, [loadAccounts, loadMovements]); // Removed toast from dependencies - it shouldn't trigger reloads
+  }, [loadAccounts, loadMovements, getOrphanedMovementsCount]); // Removed toast from dependencies - it shouldn't trigger reloads
+  
+  // Load orphaned movements when showing orphaned section
+  useEffect(() => {
+    const loadOrphaned = async () => {
+      if (showOrphaned) {
+        const orphaned = await getOrphanedMovements();
+        setOrphanedMovements(orphaned);
+      }
+    };
+    loadOrphaned();
+  }, [showOrphaned, getOrphanedMovements]);
 
   // Calculate date range based on filter
   const getDateRange = () => {
@@ -390,6 +412,15 @@ const MovementsPage = () => {
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Movements</h1>
         <div className="flex gap-2">
+          {orphanedCount > 0 && (
+            <Button
+              variant="secondary"
+              onClick={() => setShowOrphaned(!showOrphaned)}
+            >
+              <Trash2 className="w-5 h-5" />
+              Orphaned ({orphanedCount})
+            </Button>
+          )}
           <Button
             variant="secondary"
             onClick={() => setShowBatchForm(true)}
@@ -417,6 +448,123 @@ const MovementsPage = () => {
         <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 rounded-lg">
           {error}
         </div>
+      )}
+
+      {/* Orphaned Movements Section */}
+      {showOrphaned && (
+        <Card padding="md">
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
+                  Orphaned Movements
+                </h2>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                  These movements belong to deleted accounts or pockets. They are hidden from the UI but preserved for audit purposes.
+                </p>
+              </div>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => setShowOrphaned(false)}
+              >
+                <X className="w-4 h-4" />
+                Close
+              </Button>
+            </div>
+
+            {orphanedMovements.length === 0 ? (
+              <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                No orphaned movements found
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-gray-200 dark:border-gray-700">
+                      <th className="text-left py-3 px-4 text-sm font-medium text-gray-700 dark:text-gray-300">Date</th>
+                      <th className="text-left py-3 px-4 text-sm font-medium text-gray-700 dark:text-gray-300">Type</th>
+                      <th className="text-left py-3 px-4 text-sm font-medium text-gray-700 dark:text-gray-300">Account ID</th>
+                      <th className="text-left py-3 px-4 text-sm font-medium text-gray-700 dark:text-gray-300">Pocket ID</th>
+                      <th className="text-right py-3 px-4 text-sm font-medium text-gray-700 dark:text-gray-300">Amount</th>
+                      <th className="text-left py-3 px-4 text-sm font-medium text-gray-700 dark:text-gray-300">Notes</th>
+                      <th className="text-right py-3 px-4 text-sm font-medium text-gray-700 dark:text-gray-300">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {orphanedMovements.map((movement) => (
+                      <tr
+                        key={movement.id}
+                        className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50"
+                      >
+                        <td className="py-3 px-4 text-sm text-gray-900 dark:text-gray-100">
+                          {format(parseISO(movement.displayedDate), 'MMM dd, yyyy')}
+                        </td>
+                        <td className="py-3 px-4 text-sm">
+                          <span className={`inline-flex items-center gap-1 ${
+                            movement.type.includes('Ingreso') 
+                              ? 'text-green-600 dark:text-green-400' 
+                              : 'text-red-600 dark:text-red-400'
+                          }`}>
+                            {movement.type.includes('Ingreso') ? (
+                              <ArrowUpCircle className="w-4 h-4" />
+                            ) : (
+                              <ArrowDownCircle className="w-4 h-4" />
+                            )}
+                            {movement.type}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 text-sm text-gray-600 dark:text-gray-400 font-mono text-xs">
+                          {movement.accountId.substring(0, 8)}...
+                        </td>
+                        <td className="py-3 px-4 text-sm text-gray-600 dark:text-gray-400 font-mono text-xs">
+                          {movement.pocketId.substring(0, 8)}...
+                        </td>
+                        <td className="py-3 px-4 text-sm text-right font-medium text-gray-900 dark:text-gray-100">
+                          ${movement.amount.toFixed(2)}
+                        </td>
+                        <td className="py-3 px-4 text-sm text-gray-600 dark:text-gray-400">
+                          {movement.notes || '-'}
+                        </td>
+                        <td className="py-3 px-4 text-right">
+                          <Button
+                            variant="danger"
+                            size="sm"
+                            onClick={async () => {
+                              if (await confirm({
+                                title: 'Delete Orphaned Movement',
+                                message: 'Are you sure you want to permanently delete this orphaned movement? This action cannot be undone.',
+                                variant: 'danger'
+                              })) {
+                                try {
+                                  setDeletingId(movement.id);
+                                  await deleteMovement(movement.id);
+                                  // Reload orphaned movements
+                                  const updated = await getOrphanedMovements();
+                                  setOrphanedMovements(updated);
+                                  setOrphanedCount(updated.length);
+                                  toast.success('Orphaned movement deleted');
+                                } catch (err) {
+                                  toast.error('Failed to delete movement');
+                                } finally {
+                                  setDeletingId(null);
+                                }
+                              }
+                            }}
+                            loading={deletingId === movement.id}
+                            disabled={deletingId === movement.id}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </Card>
       )}
 
       {/* Filter Section */}
