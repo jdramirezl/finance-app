@@ -97,7 +97,7 @@ const FixedExpensesPage = () => {
     // Create batch rows from enabled sub-pockets
     const rows: BatchMovementRow[] = enabledSubPockets.map(subPocket => ({
       id: crypto.randomUUID(),
-      type: 'EgresoFijo' as const,
+      type: 'IngresoFijo' as const, // Fixed Income - money going INTO the fixed expenses pocket
       accountId: fixedAccount.id,
       pocketId: fixedPocket.id,
       subPocketId: subPocket.id,
