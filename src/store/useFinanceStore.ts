@@ -159,20 +159,25 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
   createPocket: async (accountId, name, type) => {
     try {
       const pocket = await pocketService.createPocket(accountId, name, type);
-      // Optimistic update: add to local state immediately
-      set((state) => ({ pockets: [...state.pockets, pocket] }));
       
-      // Calculate account balance from pockets in store
-      const state = get();
-      const accountPockets = state.pockets.filter(p => p.accountId === accountId);
-      const calculatedBalance = accountPockets.reduce((sum, p) => sum + p.balance, 0);
-      
-      // Update account with calculated balance
-      set((state) => ({
-        accounts: state.accounts.map((a) => 
+      // Update pockets and account balance in a single set call
+      set((state) => {
+        const updatedPockets = [...state.pockets, pocket];
+        
+        // Calculate account balance from updated pockets
+        const accountPockets = updatedPockets.filter(p => p.accountId === accountId);
+        const calculatedBalance = accountPockets.reduce((sum, p) => sum + p.balance, 0);
+        
+        // Update account with calculated balance
+        const updatedAccounts = state.accounts.map((a) => 
           a.id === accountId ? { ...a, balance: calculatedBalance } : a
-        ),
-      }));
+        );
+        
+        return {
+          pockets: updatedPockets,
+          accounts: updatedAccounts,
+        };
+      });
     } catch (error) {
       // On error, reload to ensure consistency
       await get().loadPockets();
@@ -183,22 +188,25 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
   updatePocket: async (id, updates) => {
     try {
       const updated = await pocketService.updatePocket(id, updates);
-      // Optimistic update: update local state immediately
-      set((state) => ({
-        pockets: state.pockets.map((p) => (p.id === id ? updated : p)),
-      }));
       
-      // Calculate account balance from pockets in store
-      const state = get();
-      const accountPockets = state.pockets.filter(p => p.accountId === updated.accountId);
-      const calculatedBalance = accountPockets.reduce((sum, p) => sum + p.balance, 0);
-      
-      // Update account with calculated balance
-      set((state) => ({
-        accounts: state.accounts.map((a) => 
+      // Update pockets and account balance in a single set call
+      set((state) => {
+        const updatedPockets = state.pockets.map((p) => (p.id === id ? updated : p));
+        
+        // Calculate account balance from updated pockets
+        const accountPockets = updatedPockets.filter(p => p.accountId === updated.accountId);
+        const calculatedBalance = accountPockets.reduce((sum, p) => sum + p.balance, 0);
+        
+        // Update account with calculated balance
+        const updatedAccounts = state.accounts.map((a) => 
           a.id === updated.accountId ? { ...a, balance: calculatedBalance } : a
-        ),
-      }));
+        );
+        
+        return {
+          pockets: updatedPockets,
+          accounts: updatedAccounts,
+        };
+      });
     } catch (error) {
       // On error, reload to ensure consistency
       await get().loadPockets();
@@ -211,22 +219,30 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
       // Get pocket before deleting to know which account to reload
       const pocket = get().pockets.find((p) => p.id === id);
       await pocketService.deletePocket(id);
-      // Optimistic update: remove from local state immediately
-      set((state) => ({
-        pockets: state.pockets.filter((p) => p.id !== id),
-      }));
       
-      // Calculate account balance from remaining pockets in store
+      // Update pockets and account balance in a single set call
       if (pocket) {
-        const state = get();
-        const accountPockets = state.pockets.filter(p => p.accountId === pocket.accountId);
-        const calculatedBalance = accountPockets.reduce((sum, p) => sum + p.balance, 0);
-        
-        // Update account with calculated balance
-        set((state) => ({
-          accounts: state.accounts.map((a) => 
+        set((state) => {
+          const updatedPockets = state.pockets.filter((p) => p.id !== id);
+          
+          // Calculate account balance from remaining pockets
+          const accountPockets = updatedPockets.filter(p => p.accountId === pocket.accountId);
+          const calculatedBalance = accountPockets.reduce((sum, p) => sum + p.balance, 0);
+          
+          // Update account with calculated balance
+          const updatedAccounts = state.accounts.map((a) => 
             a.id === pocket.accountId ? { ...a, balance: calculatedBalance } : a
-          ),
+          );
+          
+          return {
+            pockets: updatedPockets,
+            accounts: updatedAccounts,
+          };
+        });
+      } else {
+        // If pocket not found, just remove it
+        set((state) => ({
+          pockets: state.pockets.filter((p) => p.id !== id),
         }));
       }
     } catch (error) {
@@ -403,33 +419,40 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
       if (!isPending) {
         // Reload the affected pocket first
         const pocket = await pocketService.getPocket(pocketId);
-        if (pocket) {
-          set((state) => ({
-            pockets: state.pockets.map((p) => (p.id === pocketId ? pocket : p)),
-          }));
-        }
         
         // If subPocket is involved, reload it too
+        let subPocket = null;
         if (subPocketId) {
-          const subPocket = await subPocketService.getSubPocket(subPocketId);
-          if (subPocket) {
-            set((state) => ({
-              subPockets: state.subPockets.map((sp) => (sp.id === subPocketId ? subPocket : sp)),
-            }));
-          }
+          subPocket = await subPocketService.getSubPocket(subPocketId);
         }
         
-        // Calculate account balance from updated pockets in store
-        const state = get();
-        const accountPockets = state.pockets.filter(p => p.accountId === accountId);
-        const calculatedBalance = accountPockets.reduce((sum, p) => sum + p.balance, 0);
-        
-        // Update account with calculated balance
-        set((state) => ({
-          accounts: state.accounts.map((a) => 
+        // Update pocket, subPocket, and account balance in a single set call
+        set((state) => {
+          // Update pocket
+          const updatedPockets = pocket 
+            ? state.pockets.map((p) => (p.id === pocketId ? pocket : p))
+            : state.pockets;
+          
+          // Update subPocket if needed
+          const updatedSubPockets = subPocket
+            ? state.subPockets.map((sp) => (sp.id === subPocketId ? subPocket : sp))
+            : state.subPockets;
+          
+          // Calculate account balance from updated pockets
+          const accountPockets = updatedPockets.filter(p => p.accountId === accountId);
+          const calculatedBalance = accountPockets.reduce((sum, p) => sum + p.balance, 0);
+          
+          // Update account with calculated balance
+          const updatedAccounts = state.accounts.map((a) => 
             a.id === accountId ? { ...a, balance: calculatedBalance } : a
-          ),
-        }));
+          );
+          
+          return {
+            pockets: updatedPockets,
+            subPockets: updatedSubPockets,
+            accounts: updatedAccounts,
+          };
+        });
       }
     } catch (error) {
       await get().loadMovements();
@@ -446,33 +469,40 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
       }));
       // Selective reload: only reload affected entities
       const pocket = await pocketService.getPocket(updated.pocketId);
-      if (pocket) {
-        set((state) => ({
-          pockets: state.pockets.map((p) => (p.id === updated.pocketId ? pocket : p)),
-        }));
-      }
       
       // If subPocket is involved, reload it too
+      let subPocket = null;
       if (updated.subPocketId) {
-        const subPocket = await subPocketService.getSubPocket(updated.subPocketId);
-        if (subPocket) {
-          set((state) => ({
-            subPockets: state.subPockets.map((sp) => (sp.id === updated.subPocketId ? subPocket : sp)),
-          }));
-        }
+        subPocket = await subPocketService.getSubPocket(updated.subPocketId);
       }
       
-      // Calculate account balance from updated pockets in store
-      const state = get();
-      const accountPockets = state.pockets.filter(p => p.accountId === updated.accountId);
-      const calculatedBalance = accountPockets.reduce((sum, p) => sum + p.balance, 0);
-      
-      // Update account with calculated balance
-      set((state) => ({
-        accounts: state.accounts.map((a) => 
+      // Update pocket, subPocket, and account balance in a single set call
+      set((state) => {
+        // Update pocket
+        const updatedPockets = pocket 
+          ? state.pockets.map((p) => (p.id === updated.pocketId ? pocket : p))
+          : state.pockets;
+        
+        // Update subPocket if needed
+        const updatedSubPockets = subPocket
+          ? state.subPockets.map((sp) => (sp.id === updated.subPocketId ? subPocket : sp))
+          : state.subPockets;
+        
+        // Calculate account balance from updated pockets
+        const accountPockets = updatedPockets.filter(p => p.accountId === updated.accountId);
+        const calculatedBalance = accountPockets.reduce((sum, p) => sum + p.balance, 0);
+        
+        // Update account with calculated balance
+        const updatedAccounts = state.accounts.map((a) => 
           a.id === updated.accountId ? { ...a, balance: calculatedBalance } : a
-        ),
-      }));
+        );
+        
+        return {
+          pockets: updatedPockets,
+          subPockets: updatedSubPockets,
+          accounts: updatedAccounts,
+        };
+      });
     } catch (error) {
       await get().loadMovements();
       throw error;
@@ -491,33 +521,40 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
       // Selective reload: only reload affected entities
       if (movement) {
         const pocket = await pocketService.getPocket(movement.pocketId);
-        if (pocket) {
-          set((state) => ({
-            pockets: state.pockets.map((p) => (p.id === movement.pocketId ? pocket : p)),
-          }));
-        }
         
         // If subPocket was involved, reload it too
+        let subPocket = null;
         if (movement.subPocketId) {
-          const subPocket = await subPocketService.getSubPocket(movement.subPocketId);
-          if (subPocket) {
-            set((state) => ({
-              subPockets: state.subPockets.map((sp) => (sp.id === movement.subPocketId ? subPocket : sp)),
-            }));
-          }
+          subPocket = await subPocketService.getSubPocket(movement.subPocketId);
         }
         
-        // Calculate account balance from updated pockets in store
-        const state = get();
-        const accountPockets = state.pockets.filter(p => p.accountId === movement.accountId);
-        const calculatedBalance = accountPockets.reduce((sum, p) => sum + p.balance, 0);
-        
-        // Update account with calculated balance
-        set((state) => ({
-          accounts: state.accounts.map((a) => 
+        // Update pocket, subPocket, and account balance in a single set call
+        set((state) => {
+          // Update pocket
+          const updatedPockets = pocket 
+            ? state.pockets.map((p) => (p.id === movement.pocketId ? pocket : p))
+            : state.pockets;
+          
+          // Update subPocket if needed
+          const updatedSubPockets = subPocket
+            ? state.subPockets.map((sp) => (sp.id === movement.subPocketId ? subPocket : sp))
+            : state.subPockets;
+          
+          // Calculate account balance from updated pockets
+          const accountPockets = updatedPockets.filter(p => p.accountId === movement.accountId);
+          const calculatedBalance = accountPockets.reduce((sum, p) => sum + p.balance, 0);
+          
+          // Update account with calculated balance
+          const updatedAccounts = state.accounts.map((a) => 
             a.id === movement.accountId ? { ...a, balance: calculatedBalance } : a
-          ),
-        }));
+          );
+          
+          return {
+            pockets: updatedPockets,
+            subPockets: updatedSubPockets,
+            accounts: updatedAccounts,
+          };
+        });
       }
     } catch (error) {
       await get().loadMovements();
@@ -545,33 +582,40 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
       }));
       // Selective reload: only reload affected entities
       const pocket = await pocketService.getPocket(applied.pocketId);
-      if (pocket) {
-        set((state) => ({
-          pockets: state.pockets.map((p) => (p.id === applied.pocketId ? pocket : p)),
-        }));
-      }
       
       // If subPocket is involved, reload it too
+      let subPocket = null;
       if (applied.subPocketId) {
-        const subPocket = await subPocketService.getSubPocket(applied.subPocketId);
-        if (subPocket) {
-          set((state) => ({
-            subPockets: state.subPockets.map((sp) => (sp.id === applied.subPocketId ? subPocket : sp)),
-          }));
-        }
+        subPocket = await subPocketService.getSubPocket(applied.subPocketId);
       }
       
-      // Calculate account balance from updated pockets in store
-      const state = get();
-      const accountPockets = state.pockets.filter(p => p.accountId === applied.accountId);
-      const calculatedBalance = accountPockets.reduce((sum, p) => sum + p.balance, 0);
-      
-      // Update account with calculated balance
-      set((state) => ({
-        accounts: state.accounts.map((a) => 
+      // Update pocket, subPocket, and account balance in a single set call
+      set((state) => {
+        // Update pocket
+        const updatedPockets = pocket 
+          ? state.pockets.map((p) => (p.id === applied.pocketId ? pocket : p))
+          : state.pockets;
+        
+        // Update subPocket if needed
+        const updatedSubPockets = subPocket
+          ? state.subPockets.map((sp) => (sp.id === applied.subPocketId ? subPocket : sp))
+          : state.subPockets;
+        
+        // Calculate account balance from updated pockets
+        const accountPockets = updatedPockets.filter(p => p.accountId === applied.accountId);
+        const calculatedBalance = accountPockets.reduce((sum, p) => sum + p.balance, 0);
+        
+        // Update account with calculated balance
+        const updatedAccounts = state.accounts.map((a) => 
           a.id === applied.accountId ? { ...a, balance: calculatedBalance } : a
-        ),
-      }));
+        );
+        
+        return {
+          pockets: updatedPockets,
+          subPockets: updatedSubPockets,
+          accounts: updatedAccounts,
+        };
+      });
     } catch (error) {
       throw error;
     }
