@@ -26,13 +26,25 @@ class InvestmentService {
 
     // Initialize API key hash (simple hash for identification)
     private async initApiKeyHash(): Promise<void> {
-        if (!this.apiKeyHash && API_KEY) {
+        if (this.apiKeyHash) {
+            return; // Already initialized
+        }
+        
+        if (!API_KEY) {
+            console.error('VITE_ALPHA_VANTAGE_API_KEY not found in environment variables');
+            return;
+        }
+        
+        try {
             // Simple hash using Web Crypto API
             const encoder = new TextEncoder();
             const data = encoder.encode(API_KEY);
             const hashBuffer = await crypto.subtle.digest('SHA-256', data);
             const hashArray = Array.from(new Uint8Array(hashBuffer));
             this.apiKeyHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+            console.log('API key hash initialized:', this.apiKeyHash.substring(0, 8) + '...');
+        } catch (error) {
+            console.error('Error initializing API key hash:', error);
         }
     }
 
@@ -62,6 +74,13 @@ class InvestmentService {
     // Get current call count from Supabase (global tracking)
     private async getCurrentCallCount(): Promise<number> {
         await this.initApiKeyHash();
+        
+        // Ensure hash is initialized
+        if (!this.apiKeyHash) {
+            console.error('API key hash not initialized');
+            return 0;
+        }
+        
         const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
 
         try {
@@ -93,16 +112,26 @@ class InvestmentService {
     // Increment daily call count in Supabase (global tracking)
     private async incrementCallCount(): Promise<void> {
         await this.initApiKeyHash();
+        
+        // Ensure hash is initialized
+        if (!this.apiKeyHash) {
+            console.error('API key hash not initialized, cannot track call');
+            return;
+        }
+        
         const today = new Date().toISOString().split('T')[0];
 
         try {
+            // Get current count first
+            const currentCount = await this.getCurrentCallCount();
+            
             // Use upsert to insert or update
             const { error } = await supabase
                 .from('investment_api_calls')
                 .upsert({
                     api_key_hash: this.apiKeyHash,
                     call_date: today,
-                    call_count: (await this.getCurrentCallCount()) + 1,
+                    call_count: currentCount + 1,
                 }, {
                     onConflict: 'api_key_hash,call_date'
                 });
