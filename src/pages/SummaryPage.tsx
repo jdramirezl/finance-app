@@ -4,6 +4,7 @@ import { currencyService } from '../services/currencyService';
 import { investmentService } from '../services/investmentService';
 import type { Currency, Account } from '../types';
 import { TrendingUp } from 'lucide-react';
+import { SkeletonStats, SkeletonAccountCard, SkeletonList } from '../components/Skeleton';
 
 interface InvestmentData {
   precioActual: number;
@@ -157,11 +158,13 @@ const SummaryPage = () => {
   // Loading state
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600 dark:text-gray-400">Loading your financial data...</p>
+      <div className="space-y-6">
+        <SkeletonStats />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <SkeletonAccountCard />
+          <SkeletonAccountCard />
         </div>
+        <SkeletonList items={4} />
       </div>
     );
   }

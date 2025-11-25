@@ -8,6 +8,7 @@ import { format, parseISO } from 'date-fns';
 import Modal from '../components/Modal';
 import Button from '../components/Button';
 import Input from '../components/Input';
+import { Skeleton, SkeletonTable } from '../components/Skeleton';
 import Select from '../components/Select';
 import Card from '../components/Card';
 import ConfirmDialog from '../components/ConfirmDialog';
@@ -344,11 +345,12 @@ const MovementsPage = () => {
   // Loading state
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600 dark:text-gray-400">Loading movements...</p>
+      <div className="space-y-6">
+        <div className="flex justify-between items-center">
+          <Skeleton className="h-8 w-48" />
+          <Skeleton className="h-10 w-40" />
         </div>
+        <SkeletonTable rows={8} />
       </div>
     );
   }

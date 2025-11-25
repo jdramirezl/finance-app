@@ -8,6 +8,7 @@ import Modal from '../components/Modal';
 import ConfirmDialog from '../components/ConfirmDialog';
 import SortableList from '../components/SortableList';
 import SortableItem from '../components/SortableItem';
+import { Skeleton, SkeletonList } from '../components/Skeleton';
 
 const AccountsPage = () => {
   const {
@@ -205,6 +206,18 @@ const AccountsPage = () => {
 
   // Loading state
   if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex justify-between items-center">
+          <Skeleton className="h-8 w-48" />
+          <Skeleton className="h-10 w-32" />
+        </div>
+        <SkeletonList items={3} />
+      </div>
+    );
+  }
+
+  if (false && isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
