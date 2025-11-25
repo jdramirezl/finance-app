@@ -217,11 +217,17 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
         accounts: state.accounts.filter((acc) => acc.id !== id),
         selectedAccountId: state.selectedAccountId === id ? null : state.selectedAccountId,
       }));
-      // Reload all data to reflect cascade deletions
-      await get().loadAccounts();
+      // Reload all data to reflect cascade deletions (including movements for orphan filtering)
+      await Promise.all([
+        get().loadAccounts(),
+        get().loadMovements(), // CRITICAL: Reload movements so orphan filtering works
+      ]);
       return result;
     } catch (error) {
-      await get().loadAccounts();
+      await Promise.all([
+        get().loadAccounts(),
+        get().loadMovements(),
+      ]);
       throw error;
     }
   },

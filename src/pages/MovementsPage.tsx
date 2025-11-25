@@ -73,10 +73,6 @@ const MovementsPage = () => {
           loadAccounts(),
           loadMovements(),
         ]);
-        
-        // Load orphaned movements count
-        const count = await getOrphanedMovementsCount();
-        setOrphanedCount(count);
       } catch (err) {
         console.error('Failed to load data:', err);
         toast.error('Failed to load movements data');
@@ -85,7 +81,18 @@ const MovementsPage = () => {
       }
     };
     loadData();
-  }, [loadAccounts, loadMovements, getOrphanedMovementsCount]); // Removed toast from dependencies - it shouldn't trigger reloads
+  }, [loadAccounts, loadMovements]); // Removed toast from dependencies - it shouldn't trigger reloads
+  
+  // Load orphaned count separately (lazy - only when movements change)
+  useEffect(() => {
+    const loadOrphanedCount = async () => {
+      const count = await getOrphanedMovementsCount();
+      setOrphanedCount(count);
+    };
+    if (movements.length > 0 || accounts.length > 0) {
+      loadOrphanedCount();
+    }
+  }, [movements.length, accounts.length, getOrphanedMovementsCount]);
   
   // Load orphaned movements when showing orphaned section
   useEffect(() => {
