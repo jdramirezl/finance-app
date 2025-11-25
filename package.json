@@ -23,6 +23,7 @@
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-router-dom": "^7.9.6",
+    "yahoo-finance2": "^2.14.2",
     "zustand": "^5.0.8"
   },
   "devDependencies": {
@@ -34,6 +35,7 @@
     "@types/node": "^24.10.1",
     "@types/react": "^19.2.5",
     "@types/react-dom": "^19.2.3",
+    "@vercel/node": "^5.5.11",
     "@vitejs/plugin-react": "^5.1.1",
     "@vitest/ui": "^2.1.8",
     "autoprefixer": "^10.4.22",

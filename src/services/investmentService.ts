@@ -7,21 +7,16 @@ interface PriceCache {
     timestamp: number; // Unix timestamp in milliseconds
 }
 
-interface YahooFinanceResponse {
-    chart: {
-        result: Array<{
-            meta: {
-                symbol: string;
-                regularMarketPrice: number;
-                chartPreviousClose: number;
-            };
-        }>;
-        error: any;
-    };
+interface StockPriceAPIResponse {
+    symbol: string;
+    price: number;
+    currency: string;
+    marketState: string;
+    lastUpdated: string;
 }
 
-const CACHE_DURATION = 15 * 60 * 1000; // 15 minutes in milliseconds (much more frequent!)
-// No API key needed for Yahoo Finance!
+const CACHE_DURATION = 15 * 60 * 1000; // 15 minutes in milliseconds
+const API_RATE_LIMIT_MINUTES = 15; // Global rate limit across all devices
 
 class InvestmentService {
     private priceCache: Map<string, PriceCache> = new Map();
@@ -49,7 +44,48 @@ class InvestmentService {
         }
     }
 
-    // No rate limiting needed for Yahoo Finance - it's free and unlimited!
+    // Check global rate limit via Supabase (prevents hitting API too frequently across devices)
+    private async checkGlobalRateLimit(symbol: string): Promise<boolean> {
+        try {
+            const cutoffTime = new Date(Date.now() - API_RATE_LIMIT_MINUTES * 60 * 1000).toISOString();
+
+            const { data, error } = await supabase
+                .from('investment_api_calls')
+                .select('called_at')
+                .eq('symbol', symbol)
+                .gte('called_at', cutoffTime)
+                .order('called_at', { ascending: false })
+                .limit(1);
+
+            if (error) {
+                console.error('Error checking rate limit:', error);
+                return false; // Allow call if we can't check (fail open)
+            }
+
+            return data && data.length > 0; // true = rate limited, false = can call
+        } catch (error) {
+            console.error('Error checking rate limit:', error);
+            return false; // Allow call if error (fail open)
+        }
+    }
+
+    // Record API call in Supabase for global rate limiting
+    private async recordAPICall(symbol: string): Promise<void> {
+        try {
+            const { error } = await supabase
+                .from('investment_api_calls')
+                .insert({
+                    symbol,
+                    called_at: new Date().toISOString(),
+                });
+
+            if (error) {
+                console.error('Error recording API call:', error);
+            }
+        } catch (error) {
+            console.error('Error recording API call:', error);
+        }
+    }
 
     // Check if cached price is still valid
     private isCacheValid(symbol: string): boolean {
@@ -70,43 +106,39 @@ class InvestmentService {
         return null;
     }
 
-    // Fetch price from Yahoo Finance API (free, unlimited!)
+    // Fetch price from our Vercel serverless API (uses yahoo-finance2, no CORS issues!)
     private async fetchPriceFromAPI(symbol: string): Promise<number> {
-        const url = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d`;
+        // Use relative URL - works in both dev and production
+        const url = `/api/stock-price?symbol=${encodeURIComponent(symbol)}`;
 
         try {
             const response = await fetch(url);
             if (!response.ok) {
-                throw new Error(`API request failed: ${response.statusText}`);
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.error || `API request failed: ${response.statusText}`);
             }
 
-            const data: YahooFinanceResponse = await response.json();
+            const data: StockPriceAPIResponse = await response.json();
 
-            if (data.chart.error) {
-                throw new Error(`Yahoo Finance API error: ${data.chart.error.description}`);
-            }
-
-            if (!data.chart.result || data.chart.result.length === 0) {
-                throw new Error('No data returned from Yahoo Finance');
-            }
-
-            const price = data.chart.result[0].meta.regularMarketPrice;
-            if (!price || isNaN(price)) {
+            if (!data.price || isNaN(data.price)) {
                 throw new Error('Invalid price value from API');
             }
 
             // Cache the price (local storage for performance)
             this.priceCache.set(symbol, {
                 symbol,
-                price,
+                price: data.price,
                 timestamp: Date.now(),
             });
             this.savePriceCache();
 
-            console.log(`✅ Successfully fetched ${symbol}: $${price} (cached for 15 minutes)`);
-            return price;
+            // Record API call in Supabase for global rate limiting
+            await this.recordAPICall(symbol);
+
+            console.log(`✅ Successfully fetched ${symbol}: ${data.price} (cached for 15 minutes)`);
+            return data.price;
         } catch (error) {
-            console.error('Error fetching stock price from Yahoo Finance:', error);
+            console.error('Error fetching stock price from API:', error);
             throw error;
         }
     }
@@ -118,11 +150,18 @@ class InvestmentService {
         // Check cache first
         const cachedPrice = this.getCachedPrice(symbol);
         if (cachedPrice !== null) {
-            console.log(`📊 Using cached price for ${symbol}: $${cachedPrice}`);
+            console.log(`📊 Using cached price for ${symbol}: ${cachedPrice}`);
             return cachedPrice;
         }
 
-        // If cache is invalid or doesn't exist, fetch from API
+        // Check global rate limit before making API call
+        const isRateLimited = await this.checkGlobalRateLimit(symbol);
+        if (isRateLimited) {
+            console.warn(`⏱️ Rate limited for ${symbol}. Using last cached price or throwing error.`);
+            throw new Error(`Rate limited: Please wait ${API_RATE_LIMIT_MINUTES} minutes between price updates`);
+        }
+
+        // If cache is invalid and not rate limited, fetch from API
         console.log(`🌐 Fetching fresh price for ${symbol} from API...`);
         return await this.fetchPriceFromAPI(symbol);
     }
@@ -192,7 +231,7 @@ class InvestmentService {
         return {
             cacheValid: vooCache ? this.isCacheValid('VOO') : false,
             cacheExpiry: vooCache ? new Date(vooCache.timestamp + CACHE_DURATION) : null,
-            cacheDuration: '15 minutes (Yahoo Finance - unlimited calls!)',
+            cacheDuration: '15 minutes (via Vercel serverless + yahoo-finance2)',
         };
     }
 
@@ -214,4 +253,3 @@ export const investmentService = new InvestmentService();
 if (import.meta.env.DEV) {
     (window as any).investmentService = investmentService;
 }
-

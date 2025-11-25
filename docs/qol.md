@@ -47,6 +47,22 @@
   - Users can now see at a glance which fixed expenses are excluded from budget calculations
   - Commit: Add visual indicators for disabled fixed expenses
 
+### API & External Services
+- [x] **13. Switch from Alpha Vantage to Yahoo Finance API** ✅ FIXED
+  - Problem: Alpha Vantage has strict rate limits (25 calls/day on free tier)
+  - Solution: Created Vercel serverless function using yahoo-finance2 library
+  - Implementation:
+    - `/api/stock-price.ts` - Serverless function that fetches from Yahoo Finance (no CORS!)
+    - Updated `investmentService.ts` to call our API instead of external APIs
+    - Kept Supabase global rate limiting (15 min between calls across all devices)
+    - Kept local caching (15 min) for performance
+  - Benefits:
+    - No CORS issues (server-side API calls)
+    - More reliable than Alpha Vantage
+    - Works on Vercel free tier (100GB bandwidth, 100 hours execution/month)
+    - Better error handling and response formatting
+  - Commit: Implement Yahoo Finance via Vercel serverless function
+
 ### Investment Movement Issues
 - [ ] **9. Investment movement types hidden until account selected**
   - Issue: "InvestmentIngreso" and "InvestmentShares" movement types only appear after selecting investment account
