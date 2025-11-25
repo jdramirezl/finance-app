@@ -412,11 +412,26 @@ const SummaryPage = () => {
                         ? Math.min((subPocket.balance / subPocket.valueTotal) * 100, 100)
                         : 0;
                       const progressColor = getProgressColor(progress);
+                      const isDisabled = !subPocket.enabled;
 
                       return (
-                        <tr key={subPocket.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/30">
+                        <tr 
+                          key={subPocket.id} 
+                          className={`hover:bg-gray-50 dark:hover:bg-gray-700/30 ${
+                            isDisabled ? 'opacity-50' : ''
+                          }`}
+                        >
                           <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-gray-100">
-                            {subPocket.name}
+                            <div className="flex items-center gap-2">
+                              <span className={isDisabled ? 'line-through' : ''}>
+                                {subPocket.name}
+                              </span>
+                              {isDisabled && (
+                                <span className="px-2 py-0.5 text-xs font-medium bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded">
+                                  Disabled
+                                </span>
+                              )}
+                            </div>
                           </td>
                           <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">
                             {currencyService.formatCurrency(

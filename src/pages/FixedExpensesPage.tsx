@@ -335,7 +335,18 @@ const FixedExpensesPage = () => {
                         </Button>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900 dark:text-gray-100">{subPocket.name}</div>
+                        <div className="flex items-center gap-2">
+                          <span className={`text-sm font-medium text-gray-900 dark:text-gray-100 ${
+                            !subPocket.enabled ? 'line-through' : ''
+                          }`}>
+                            {subPocket.name}
+                          </span>
+                          {!subPocket.enabled && (
+                            <span className="px-2 py-0.5 text-xs font-medium bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded">
+                              Disabled
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm text-gray-900 dark:text-gray-100">

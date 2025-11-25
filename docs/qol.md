@@ -35,12 +35,14 @@
   - Proposed: Modal allows adding multiple movements, only saves when user clicks "Save All"
   - Benefit: Much faster for entering multiple transactions (e.g., monthly bills)
 
-- [ ] **8. Visual indicator for disabled fixed expenses on Summary page**
-  - Feature: Show which fixed expenses are turned off/disabled
-  - Current: Can toggle fixed expenses on/off in Fixed Expenses page, but no visual feedback on Summary
-  - Proposed: Add visual indicator (grayed out, strikethrough, "disabled" badge, or opacity change) on Summary page
-  - Benefit: Users can see at a glance which fixed expenses are excluded from budget calculations
-  - Location: Summary page fixed expenses section
+- [x] **8. Visual indicator for disabled fixed expenses on Summary page** ✅ FIXED
+  - Added visual indicators for disabled sub-pockets:
+    - Reduced opacity (50%) for entire row
+    - Strikethrough on expense name
+    - "Disabled" badge next to name
+  - Applied to both SummaryPage and FixedExpensesPage for consistency
+  - Users can now see at a glance which fixed expenses are excluded from budget calculations
+  - Commit: Add visual indicators for disabled fixed expenses
 
 ### Investment Movement Issues
 - [ ] **9. Investment movement types hidden until account selected**
