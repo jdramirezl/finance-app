@@ -108,11 +108,9 @@ const MovementsPage = () => {
     if (filterType !== 'all') {
       const isIncome = movement.type === 'IngresoNormal' || movement.type === 'IngresoFijo';
       const isExpense = movement.type === 'EgresoNormal' || movement.type === 'EgresoFijo';
-      const isInvestment = movement.type === 'InvestmentIngreso' || movement.type === 'InvestmentShares';
       
       if (filterType === 'income' && !isIncome) return false;
       if (filterType === 'expense' && !isExpense) return false;
-      if (filterType === 'investment' && !isInvestment) return false;
     }
     
     // Date range filter
@@ -166,10 +164,6 @@ const MovementsPage = () => {
         return 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 border-blue-300 dark:border-blue-700';
       case 'EgresoFijo':
         return 'bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-300 border-orange-300 dark:border-orange-700';
-      case 'InvestmentIngreso':
-        return 'bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300 border-purple-300 dark:border-purple-700';
-      case 'InvestmentShares':
-        return 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-800 dark:text-indigo-300 border-indigo-300 dark:border-indigo-700';
       default:
         return 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-300 border-gray-300 dark:border-gray-700';
     }
@@ -185,10 +179,6 @@ const MovementsPage = () => {
         return 'Fixed Income';
       case 'EgresoFijo':
         return 'Fixed Expense';
-      case 'InvestmentIngreso':
-        return 'Investment Deposit';
-      case 'InvestmentShares':
-        return 'Investment Shares';
       default:
         return type;
     }
@@ -330,11 +320,6 @@ const MovementsPage = () => {
     }
   };
 
-  const selectedAccount = selectedAccountId
-    ? accounts.find((acc) => acc.id === selectedAccountId)
-    : null;
-  const isInvestmentAccount = selectedAccount?.type === 'investment';
-
   const availablePockets = selectedAccountId
     ? getPocketsByAccount(selectedAccountId)
     : [];
@@ -343,18 +328,13 @@ const MovementsPage = () => {
     ? getSubPocketsByPocket(fixedPocket.id)
     : [];
 
-  // Movement types depend on account type
-  const movementTypes: { value: MovementType; label: string }[] = isInvestmentAccount
-    ? [
-        { value: 'InvestmentIngreso', label: 'Invest Money' },
-        { value: 'InvestmentShares', label: 'Add Shares' },
-      ]
-    : [
-        { value: 'IngresoNormal', label: 'Normal Income' },
-        { value: 'EgresoNormal', label: 'Normal Expense' },
-        { value: 'IngresoFijo', label: 'Fixed Income' },
-        { value: 'EgresoFijo', label: 'Fixed Expense' },
-      ];
+  // Movement types - same for all accounts (investment accounts use pockets to differentiate)
+  const movementTypes: { value: MovementType; label: string }[] = [
+    { value: 'IngresoNormal', label: 'Normal Income' },
+    { value: 'EgresoNormal', label: 'Normal Expense' },
+    { value: 'IngresoFijo', label: 'Fixed Income' },
+    { value: 'EgresoFijo', label: 'Fixed Expense' },
+  ];
 
   // Loading state
   if (isLoading) {
@@ -597,8 +577,7 @@ const MovementsPage = () => {
                       : null;
                     const isIncome =
                       movement.type === 'IngresoNormal' ||
-                      movement.type === 'IngresoFijo' ||
-                      movement.type === 'InvestmentIngreso';
+                      movement.type === 'IngresoFijo';
 
                     return (
                       <div

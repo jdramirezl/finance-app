@@ -130,23 +130,26 @@ class MovementService {
     // Note: Pocket and account balances will be recalculated by store when it reloads
   }
 
-  // Update investment account (money or shares)
-  private async updateInvestmentAccount(
-    accountId: string,
-    type: MovementType,
-    amount: number
-  ): Promise<void> {
+  // Sync investment account fields with pocket balances
+  private async syncInvestmentAccount(accountId: string): Promise<void> {
     const accountService = await getAccountService();
     const account = await accountService.getAccount(accountId);
     if (!account || account.type !== 'investment') return;
 
+    const pocketService = await getPocketService();
+    const pockets = await pocketService.getPocketsByAccount(accountId);
+    
+    const investedPocket = pockets.find((p: Pocket) => p.name === 'Invested Money');
+    const sharesPocket = pockets.find((p: Pocket) => p.name === 'Shares');
+    
     const updates: Partial<Account> = {};
-    if (type === 'InvestmentIngreso') {
-      updates.montoInvertido = (account.montoInvertido || 0) + amount;
-    } else if (type === 'InvestmentShares') {
-      updates.shares = (account.shares || 0) + amount;
+    if (investedPocket) {
+      updates.montoInvertido = investedPocket.balance;
     }
-
+    if (sharesPocket) {
+      updates.shares = sharesPocket.balance;
+    }
+    
     // Update directly - much faster
     await SupabaseStorageService.updateAccount(accountId, updates);
   }
@@ -216,38 +219,7 @@ class MovementService {
       return movement;
     }
 
-    // Handle investment movements separately
-        // Handle investment movements separately
-        if (type === 'InvestmentIngreso' || type === 'InvestmentShares') {
-          // Update the pocket balance first so pockets remain the source of truth
-          // (the form passes the pocketId where the user recorded the movement)
-          await this.updatePocketBalance(pocketId, amount, true);
-
-          // Synchronize account fields with pocket balances (keep account totals in sync)
-          const pocketService = await getPocketService();
-          const accountService = await getAccountService();
-          const account = await accountService.getAccount(accountId);
-          if (account && account.type === 'investment') {
-            const pockets = await pocketService.getPocketsByAccount(accountId);
-            const investedPocket = pockets.find((p: Pocket) => p.name === 'Invested Money');
-            const sharesPocket = pockets.find((p: Pocket) => p.name === 'Shares');
-            
-            const updates: Partial<Account> = {};
-            if (investedPocket) {
-              updates.montoInvertido = investedPocket.balance;
-            }
-            if (sharesPocket) {
-              updates.shares = sharesPocket.balance;
-            }
-            
-            // Update directly - much faster
-            await SupabaseStorageService.updateAccount(accountId, updates);
-          }
-
-          return movement;
-        }
-
-    // Update balances for normal movements
+    // Update balances based on movement type
     const isIncome = type === 'IngresoNormal' || type === 'IngresoFijo';
 
     if (subPocketId) {
@@ -256,6 +228,11 @@ class MovementService {
     } else {
       // Normal pocket movement
       await this.updatePocketBalance(pocketId, amount, isIncome);
+    }
+
+    // If this is an investment account, sync the account fields with pocket balances
+    if (account.type === 'investment') {
+      await this.syncInvestmentAccount(accountId);
     }
 
     return movement;
@@ -276,45 +253,32 @@ class MovementService {
     const oldMovement = movements[index];
     const updatedMovement = { ...oldMovement, ...updates };
 
-    // Handle investment movements
-    const isOldInvestment = oldMovement.type === 'InvestmentIngreso' || oldMovement.type === 'InvestmentShares';
-    const isNewInvestment = updatedMovement.type === 'InvestmentIngreso' || updatedMovement.type === 'InvestmentShares';
+    const accountService = await getAccountService();
+    const oldAccount = await accountService.getAccount(oldMovement.accountId);
+    const newAccount = await accountService.getAccount(updatedMovement.accountId);
 
-    if (isOldInvestment) {
-      // Revert old investment changes
-      const accountService = await getAccountService();
-      const account = await accountService.getAccount(oldMovement.accountId);
-      if (account && account.type === 'investment') {
-        const updates: Partial<Account> = {};
-        if (oldMovement.type === 'InvestmentIngreso') {
-          updates.montoInvertido = Math.max(0, (account.montoInvertido || 0) - oldMovement.amount);
-        } else if (oldMovement.type === 'InvestmentShares') {
-          updates.shares = Math.max(0, (account.shares || 0) - oldMovement.amount);
-        }
-        // Update directly - much faster
-        await SupabaseStorageService.updateAccount(oldMovement.accountId, updates);
-      }
+    // Revert old balance changes
+    const oldIsIncome = oldMovement.type === 'IngresoNormal' || oldMovement.type === 'IngresoFijo';
+    if (oldMovement.subPocketId) {
+      await this.updateSubPocketBalance(oldMovement.subPocketId, oldMovement.amount, !oldIsIncome);
+    } else {
+      await this.updatePocketBalance(oldMovement.pocketId, oldMovement.amount, !oldIsIncome);
     }
 
-    if (isNewInvestment) {
-      // Apply new investment changes
-      await this.updateInvestmentAccount(updatedMovement.accountId, updatedMovement.type, updatedMovement.amount);
+    // Apply new balance changes
+    const newIsIncome = updatedMovement.type === 'IngresoNormal' || updatedMovement.type === 'IngresoFijo';
+    if (updatedMovement.subPocketId) {
+      await this.updateSubPocketBalance(updatedMovement.subPocketId, updatedMovement.amount, newIsIncome);
     } else {
-      // Revert old balance changes for normal movements
-      const oldIsIncome = oldMovement.type === 'IngresoNormal' || oldMovement.type === 'IngresoFijo';
-      if (oldMovement.subPocketId) {
-        await this.updateSubPocketBalance(oldMovement.subPocketId, oldMovement.amount, !oldIsIncome);
-      } else if (!isOldInvestment) {
-        await this.updatePocketBalance(oldMovement.pocketId, oldMovement.amount, !oldIsIncome);
-      }
+      await this.updatePocketBalance(updatedMovement.pocketId, updatedMovement.amount, newIsIncome);
+    }
 
-      // Apply new balance changes
-      const newIsIncome = updatedMovement.type === 'IngresoNormal' || updatedMovement.type === 'IngresoFijo';
-      if (updatedMovement.subPocketId) {
-        await this.updateSubPocketBalance(updatedMovement.subPocketId, updatedMovement.amount, newIsIncome);
-      } else if (!isNewInvestment) {
-        await this.updatePocketBalance(updatedMovement.pocketId, updatedMovement.amount, newIsIncome);
-      }
+    // Sync investment accounts if needed
+    if (oldAccount && oldAccount.type === 'investment') {
+      await this.syncInvestmentAccount(oldMovement.accountId);
+    }
+    if (newAccount && newAccount.type === 'investment' && newAccount.id !== oldAccount?.id) {
+      await this.syncInvestmentAccount(updatedMovement.accountId);
     }
 
     // Update directly - much faster
@@ -330,28 +294,20 @@ class MovementService {
       throw new Error(`Movement with id "${id}" not found.`);
     }
 
-    // Handle investment movements
-    if (movement.type === 'InvestmentIngreso' || movement.type === 'InvestmentShares') {
-      const accountService = await getAccountService();
-      const account = await accountService.getAccount(movement.accountId);
-      if (account && account.type === 'investment') {
-        const updates: Partial<Account> = {};
-        if (movement.type === 'InvestmentIngreso') {
-          updates.montoInvertido = Math.max(0, (account.montoInvertido || 0) - movement.amount);
-        } else if (movement.type === 'InvestmentShares') {
-          updates.shares = Math.max(0, (account.shares || 0) - movement.amount);
-        }
-        // Update directly - much faster
-        await SupabaseStorageService.updateAccount(movement.accountId, updates);
-      }
+    const accountService = await getAccountService();
+    const account = await accountService.getAccount(movement.accountId);
+
+    // Revert balance changes
+    const isIncome = movement.type === 'IngresoNormal' || movement.type === 'IngresoFijo';
+    if (movement.subPocketId) {
+      await this.updateSubPocketBalance(movement.subPocketId, movement.amount, !isIncome);
     } else {
-      // Revert balance changes for normal movements
-      const isIncome = movement.type === 'IngresoNormal' || movement.type === 'IngresoFijo';
-      if (movement.subPocketId) {
-        await this.updateSubPocketBalance(movement.subPocketId, movement.amount, !isIncome);
-      } else {
-        await this.updatePocketBalance(movement.pocketId, movement.amount, !isIncome);
-      }
+      await this.updatePocketBalance(movement.pocketId, movement.amount, !isIncome);
+    }
+
+    // Sync investment account if needed
+    if (account && account.type === 'investment') {
+      await this.syncInvestmentAccount(movement.accountId);
     }
 
     // Delete directly - much faster
@@ -386,37 +342,20 @@ class MovementService {
 
     // Now apply the balance changes
     const isIncome = movement.type === 'IngresoNormal' || movement.type === 'IngresoFijo';
+    const accountService = await getAccountService();
+    const account = await accountService.getAccount(movement.accountId);
 
-    // Handle investment movements
-    if (movement.type === 'InvestmentIngreso' || movement.type === 'InvestmentShares') {
-      await this.updatePocketBalance(movement.pocketId, movement.amount, true);
-
-      // Synchronize account fields
-      const pocketService = await getPocketService();
-      const accountService = await getAccountService();
-      const account = await accountService.getAccount(movement.accountId);
-      if (account && account.type === 'investment') {
-        const pockets = await pocketService.getPocketsByAccount(movement.accountId);
-        const investedPocket = pockets.find((p: Pocket) => p.name === 'Invested Money');
-        const sharesPocket = pockets.find((p: Pocket) => p.name === 'Shares');
-        
-        const updates: Partial<Account> = {};
-        if (investedPocket) {
-          updates.montoInvertido = investedPocket.balance;
-        }
-        if (sharesPocket) {
-          updates.shares = sharesPocket.balance;
-        }
-        
-        // Update directly - much faster
-        await SupabaseStorageService.updateAccount(movement.accountId, updates);
-      }
-    } else if (movement.subPocketId) {
+    if (movement.subPocketId) {
       // Fixed expense movement
       await this.updateSubPocketBalance(movement.subPocketId, movement.amount, isIncome);
     } else {
       // Normal pocket movement
       await this.updatePocketBalance(movement.pocketId, movement.amount, isIncome);
+    }
+
+    // Sync investment account if needed
+    if (account && account.type === 'investment') {
+      await this.syncInvestmentAccount(movement.accountId);
     }
 
     return { ...movement, isPending: false };

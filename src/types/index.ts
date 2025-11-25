@@ -9,9 +9,7 @@ export type MovementType =
   | 'IngresoNormal' 
   | 'EgresoNormal' 
   | 'IngresoFijo' 
-  | 'EgresoFijo' 
-  | 'InvestmentIngreso' 
-  | 'InvestmentShares';
+  | 'EgresoFijo';
 
 // Account interface
 export interface Account {

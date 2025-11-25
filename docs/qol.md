@@ -64,40 +64,24 @@
   - Commit: Implement Yahoo Finance via Vercel serverless function
 
 ### Investment Movement Issues
-- [ ] **9. Investment movement types hidden until account selected**
-  - Issue: "InvestmentIngreso" and "InvestmentShares" movement types only appear after selecting investment account
-  - Expected: These movement types should be visible from the start in the movement type selector
-  - Impact: Confusing UX - users don't know these options exist until they select the account first
-  - Location: MovementsPage movement type dropdown
-
-- [ ] **10. Investment movements allow wrong pocket selection**
-  - Issue: When selecting "Invest Money" type, user can still manually select "Shares" pocket (and vice versa)
-  - Expected: Movement type should auto-select the correct pocket:
-    - "Invest Money" → auto-select "Invested Money" pocket
-    - "Add Shares" → auto-select "Shares" pocket
-  - Impact: Allows invalid data entry, breaks investment tracking logic
-  - Location: MovementsPage pocket selector
-
-- [ ] **11. Add Shares movement shows negative amount (visual bug)**
-  - Issue: When adding shares, the movement displays with a minus sign in the movements list
-  - Behavior: The operation works correctly (shares are added), but visual indicator is wrong
-  - Expected: Adding shares should show positive/neutral indicator, not negative
-  - Impact: Confusing - looks like shares are being removed when they're actually being added
-  - Location: MovementsPage movements list display
-
-- [ ] **12. REFACTOR: Simplify investment movements to use Income/Expense types**
-  - Proposal: Remove special "InvestmentIngreso" and "InvestmentShares" movement types
-  - New approach: Use standard "IngresoNormal" / "EgresoNormal" types
-  - Logic: 
-    - User selects Income or Expense (as usual)
-    - User selects pocket: "Shares" or "Invested Money"
-    - Income = add to pocket, Expense = remove from pocket
+- [x] **9-12. Investment movement refactor** ✅ FIXED
+  - Removed special "InvestmentIngreso" and "InvestmentShares" movement types
+  - Investment accounts now use standard "IngresoNormal" / "EgresoNormal" types
+  - Pocket selection determines what gets updated:
+    - "Invested Money" pocket → updates montoInvertido
+    - "Shares" pocket → updates shares
   - Benefits:
-    - Simpler, more consistent UX
+    - Simpler, more consistent UX (same movement types for all accounts)
     - No special cases in movement type logic
-    - Fixes issues #9, #10, #11 automatically
-  - Impact: Requires migration of existing investment movements
-  - Note: This is a breaking change - needs careful implementation
+    - Fixes all 4 issues (#9, #10, #11, #12) at once
+    - Less code to maintain
+  - Implementation:
+    - Removed investment types from MovementType union
+    - Updated movementService to sync investment account fields from pocket balances
+    - Removed conditional movement type rendering in MovementsPage
+    - Created migration utility in src/utils/migrateInvestmentMovements.ts
+  - Migration: Run `window.migrateInvestmentMovements()` in console to convert existing movements
+  - Commit: Refactor investment movements to use standard types
 
 ### Performance Issues
 - [x] **6. Duplicate page reloads on CRUD operations** ✅ FIXED
