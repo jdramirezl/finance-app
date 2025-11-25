@@ -234,8 +234,16 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
     // Update state
     set({ pockets: pocketsWithOrder });
     
-    // Reload accounts to ensure consistency
-    await get().loadAccounts();
+    // Selective reload: only reload affected accounts (pockets might belong to different accounts)
+    const affectedAccountIds = [...new Set(pockets.map(p => p.accountId))];
+    for (const accountId of affectedAccountIds) {
+      const account = await accountService.getAccount(accountId);
+      if (account) {
+        set((state) => ({
+          accounts: state.accounts.map((a) => (a.id === accountId ? account : a)),
+        }));
+      }
+    }
   },
 
   // SubPocket actions
@@ -341,7 +349,24 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
     
     await SupabaseStorageService.saveSubPockets(subPocketsWithOrder);
     set({ subPockets: subPocketsWithOrder });
-    await get().loadPockets();
+    
+    // Selective reload: only reload affected pockets (all subPockets should belong to same pocket)
+    const affectedPocketIds = [...new Set(subPockets.map(sp => sp.pocketId))];
+    for (const pocketId of affectedPocketIds) {
+      const pocket = await pocketService.getPocket(pocketId);
+      if (pocket) {
+        set((state) => ({
+          pockets: state.pockets.map((p) => (p.id === pocketId ? pocket : p)),
+        }));
+        // Also reload the affected account
+        const account = await accountService.getAccount(pocket.accountId);
+        if (account) {
+          set((state) => ({
+            accounts: state.accounts.map((a) => (a.id === pocket.accountId ? account : a)),
+          }));
+        }
+      }
+    }
   },
 
   // Movement actions
@@ -485,10 +510,29 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
       set((state) => ({
         movements: state.movements.map((m) => (m.id === id ? applied : m)),
       }));
-      // Reload accounts and pockets to update balances
-      await get().loadAccounts();
-      await get().loadPockets();
-      await get().loadSubPockets();
+      // Selective reload: only reload affected entities
+      const pocket = await pocketService.getPocket(applied.pocketId);
+      if (pocket) {
+        set((state) => ({
+          pockets: state.pockets.map((p) => (p.id === applied.pocketId ? pocket : p)),
+        }));
+        // Reload the affected account
+        const account = await accountService.getAccount(applied.accountId);
+        if (account) {
+          set((state) => ({
+            accounts: state.accounts.map((a) => (a.id === applied.accountId ? account : a)),
+          }));
+        }
+      }
+      // If subPocket is involved, reload it too
+      if (applied.subPocketId) {
+        const subPocket = await subPocketService.getSubPocket(applied.subPocketId);
+        if (subPocket) {
+          set((state) => ({
+            subPockets: state.subPockets.map((sp) => (sp.id === applied.subPocketId ? subPocket : sp)),
+          }));
+        }
+      }
     } catch (error) {
       throw error;
     }
