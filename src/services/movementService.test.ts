@@ -12,7 +12,7 @@ describe('movementService', () => {
 
     beforeEach(async () => {
         localStorage.clear();
-        const account = accountService.createAccount('Test Account', '#FF0000', 'USD');
+        const account = await accountService.createAccount('Test Account', '#FF0000', 'USD');
         accountId = account.id;
 
         const pocket = await pocketService.createPocket(accountId, 'Savings', 'normal');
@@ -127,7 +127,7 @@ describe('movementService', () => {
         it('should update pocket balance on IngresoNormal', async () => {
             await movementService.createMovement('IngresoNormal', accountId, pocketId, 500);
 
-            const pocket = pocketService.getPocket(pocketId);
+            const pocket = await pocketService.getPocket(pocketId);
             expect(pocket?.balance).toBe(500);
         });
 
@@ -135,7 +135,7 @@ describe('movementService', () => {
             await movementService.createMovement('IngresoNormal', accountId, pocketId, 500);
             await movementService.createMovement('EgresoNormal', accountId, pocketId, 100);
 
-            const pocket = pocketService.getPocket(pocketId);
+            const pocket = await pocketService.getPocket(pocketId);
             expect(pocket?.balance).toBe(400);
         });
 
@@ -150,7 +150,7 @@ describe('movementService', () => {
                 subPocketId
             );
 
-            const subPocket = subPocketService.getSubPocket(subPocketId);
+            const subPocket = await subPocketService.getSubPocket(subPocketId);
             expect(subPocket?.balance).toBe(100);
         });
 
@@ -158,14 +158,14 @@ describe('movementService', () => {
             await movementService.createMovement('IngresoFijo', accountId, fixedPocketId, 200, '', undefined, subPocketId);
             await movementService.createMovement('EgresoFijo', accountId, fixedPocketId, 50, '', undefined, subPocketId);
 
-            const subPocket = subPocketService.getSubPocket(subPocketId);
+            const subPocket = await subPocketService.getSubPocket(subPocketId);
             expect(subPocket?.balance).toBe(150);
         });
 
         it('should allow negative balance (debt)', async () => {
             await movementService.createMovement('EgresoNormal', accountId, pocketId, 100);
 
-            const pocket = pocketService.getPocket(pocketId);
+            const pocket = await pocketService.getPocket(pocketId);
             expect(pocket?.balance).toBe(-100);
         });
     });
@@ -176,7 +176,7 @@ describe('movementService', () => {
 
             await movementService.updateMovement(movement.id, { amount: 600 });
 
-            const pocket = pocketService.getPocket(pocketId);
+            const pocket = await pocketService.getPocket(pocketId);
             expect(pocket?.balance).toBe(600);
         });
 
@@ -185,7 +185,7 @@ describe('movementService', () => {
 
             await movementService.updateMovement(movement.id, { type: 'EgresoNormal' });
 
-            const pocket = pocketService.getPocket(pocketId);
+            const pocket = await pocketService.getPocket(pocketId);
             expect(pocket?.balance).toBe(-500);
         });
 
@@ -209,7 +209,7 @@ describe('movementService', () => {
 
             await movementService.deleteMovement(movement.id);
 
-            const pocket = pocketService.getPocket(pocketId);
+            const pocket = await pocketService.getPocket(pocketId);
             expect(pocket?.balance).toBe(0);
 
             const movements = movementService.getAllMovements();
@@ -229,7 +229,7 @@ describe('movementService', () => {
             await movementService.createMovement('IngresoNormal', accountId, pocketId, 200, '', '2024-01-20T00:00:00.000Z');
             await movementService.createMovement('IngresoNormal', accountId, pocketId, 300, '', '2024-02-10T00:00:00.000Z');
 
-            const grouped = movementService.getMovementsGroupedByMonth();
+            const grouped = await movementService.getMovementsGroupedByMonth();
 
             expect(grouped.size).toBe(2);
             expect(grouped.get('2024-01')).toHaveLength(2);
@@ -241,7 +241,7 @@ describe('movementService', () => {
             await new Promise(resolve => setTimeout(resolve, 10)); // Ensure different createdAt
             await movementService.createMovement('IngresoNormal', accountId, pocketId, 200, '', '2024-01-10T00:00:00.000Z');
 
-            const grouped = movementService.getMovementsGroupedByMonth();
+            const grouped = await movementService.getMovementsGroupedByMonth();
             const january = grouped.get('2024-01')!;
 
             // Movements sorted by createdAt descending (newest first)
@@ -255,7 +255,7 @@ describe('movementService', () => {
             await movementService.createMovement('IngresoNormal', accountId, pocketId, 500);
             await movementService.createMovement('EgresoNormal', accountId, pocketId, 100);
 
-            const pocket = pocketService.getPocket(pocketId);
+            const pocket = await pocketService.getPocket(pocketId);
             expect(pocket?.balance).toBe(400);
         });
     });

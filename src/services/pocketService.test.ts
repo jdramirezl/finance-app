@@ -5,9 +5,9 @@ import { accountService } from './accountService';
 describe('pocketService', () => {
     let accountId: string;
 
-    beforeEach(() => {
+    beforeEach(async () => {
         localStorage.clear();
-        const account = accountService.createAccount('Test Account', '#FF0000', 'USD');
+        const account = await accountService.createAccount('Test Account', '#FF0000', 'USD');
         accountId = account.id;
     });
 
@@ -51,7 +51,7 @@ describe('pocketService', () => {
         });
 
         it('should allow same pocket name in different accounts', async () => {
-            const account2 = accountService.createAccount('Account 2', '#00FF00', 'MXN');
+            const account2 = await accountService.createAccount('Account 2', '#00FF00', 'MXN');
 
             await pocketService.createPocket(accountId, 'Savings', 'normal');
             const pocket2 = await pocketService.createPocket(account2.id, 'Savings', 'normal');
@@ -63,7 +63,7 @@ describe('pocketService', () => {
         it('should throw error when creating second fixed pocket', async () => {
             await pocketService.createPocket(accountId, 'Fixed 1', 'fixed');
 
-            const account2 = accountService.createAccount('Account 2', '#00FF00', 'MXN');
+            const account2 = await accountService.createAccount('Account 2', '#00FF00', 'MXN');
             await expect(
                 pocketService.createPocket(account2.id, 'Fixed 2', 'fixed')
             ).rejects.toThrow('A fixed expenses pocket already exists');
@@ -81,16 +81,16 @@ describe('pocketService', () => {
             await pocketService.createPocket(accountId, 'Pocket 1', 'normal');
             await pocketService.createPocket(accountId, 'Pocket 2', 'normal');
 
-            const account2 = accountService.createAccount('Account 2', '#00FF00', 'MXN');
+            const account2 = await accountService.createAccount('Account 2', '#00FF00', 'MXN');
             await pocketService.createPocket(account2.id, 'Pocket 3', 'normal');
 
-            const pockets = pocketService.getPocketsByAccount(accountId);
+            const pockets = await pocketService.getPocketsByAccount(accountId);
             expect(pockets).toHaveLength(2);
             expect(pockets.every(p => p.accountId === accountId)).toBe(true);
         });
 
-        it('should return empty array for account with no pockets', () => {
-            const pockets = pocketService.getPocketsByAccount(accountId);
+        it('should return empty array for account with no pockets', async () => {
+            const pockets = await pocketService.getPocketsByAccount(accountId);
             expect(pockets).toEqual([]);
         });
     });
@@ -124,7 +124,7 @@ describe('pocketService', () => {
             const pocket = await pocketService.createPocket(accountId, 'Test', 'normal');
             await pocketService.deletePocket(pocket.id);
 
-            const pockets = pocketService.getPocketsByAccount(accountId);
+            const pockets = await pocketService.getPocketsByAccount(accountId);
             expect(pockets).toHaveLength(0);
         });
 

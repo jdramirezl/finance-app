@@ -253,7 +253,7 @@ describe('Integration Tests: Complete Financial Workflow', () => {
       expect(state.movements).toHaveLength(4);
       
       const { getMovementsGroupedByMonth } = state;
-      const grouped = getMovementsGroupedByMonth();
+      const grouped = await getMovementsGroupedByMonth();
       
       expect(grouped.size).toBeGreaterThanOrEqual(1);
       const jan = grouped.get('2024-01');

@@ -8,7 +8,7 @@ describe('subPocketService', () => {
 
     beforeEach(async () => {
         localStorage.clear();
-        const account = accountService.createAccount('Test Account', '#FF0000', 'USD');
+        const account = await accountService.createAccount('Test Account', '#FF0000', 'USD');
         const fixedPocket = await pocketService.createPocket(account.id, 'Fixed Expenses', 'fixed');
         fixedPocketId = fixedPocket.id;
     });
@@ -34,7 +34,7 @@ describe('subPocketService', () => {
         });
 
         it('should throw error for non-fixed pocket', async () => {
-            const account = accountService.createAccount('Account 2', '#00FF00', 'MXN');
+            const account = await accountService.createAccount('Account 2', '#00FF00', 'MXN');
             const normalPocket = await pocketService.createPocket(account.id, 'Normal', 'normal');
 
             await expect(
