@@ -176,12 +176,20 @@ class InvestmentService {
         };
     }
 
+    // Get the timestamp of the cached price for a symbol
+    getPriceTimestamp(symbol: string): number | null {
+        this.loadCache();
+        const cached = this.priceCache.get(symbol);
+        return cached ? cached.timestamp : null;
+    }
+
     // Update investment account with current price
     async updateInvestmentAccount(account: Account): Promise<{
         precioActual: number;
         totalValue: number;
         gainsUSD: number;
         gainsPct: number;
+        lastUpdated: number | null;
     }> {
         if (!account.stockSymbol) {
             throw new Error('Investment account must have a stock symbol');
@@ -189,10 +197,12 @@ class InvestmentService {
 
         const precioActual = await this.getCurrentPrice(account.stockSymbol);
         const values = this.calculateInvestmentValues(account, precioActual);
+        const lastUpdated = this.getPriceTimestamp(account.stockSymbol);
 
         return {
             precioActual,
             ...values,
+            lastUpdated,
         };
     }
 

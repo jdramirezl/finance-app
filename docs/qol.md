@@ -24,10 +24,13 @@
   - Commit: Recalculate account balances on load from pockets
 
 ### UX Improvements
-- [ ] **4. Investment stock price - show last updated timestamp**
-  - Feature: Add "Last updated at: [timestamp]" for each stock price
-  - Reason: Users need to know if price data is stale
-  - Location: Investment account display
+- [x] **4. Investment stock price - show last updated timestamp** ✅ FIXED
+  - Added "Last updated: X ago" timestamp below current share price
+  - Uses date-fns formatDistanceToNow for human-readable format (e.g., "2 hours ago")
+  - Timestamp comes from investment price cache
+  - Displayed in smaller, italic, gray text for subtle presentation
+  - Users can now see if price data is fresh or stale
+  - Commit: Add last updated timestamp for investment stock prices
 
 - [ ] **5. Bulk/batch movements**
   - Feature: Allow adding multiple movements at once

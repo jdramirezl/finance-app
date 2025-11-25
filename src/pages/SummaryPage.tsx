@@ -5,12 +5,14 @@ import { investmentService } from '../services/investmentService';
 import type { Currency, Account } from '../types';
 import { TrendingUp } from 'lucide-react';
 import { SkeletonStats, SkeletonAccountCard, SkeletonList } from '../components/Skeleton';
+import { formatDistanceToNow } from 'date-fns';
 
 interface InvestmentData {
   precioActual: number;
   totalValue: number;
   gainsUSD: number;
   gainsPct: number;
+  lastUpdated: number | null;
 }
 
 const SummaryPage = () => {
@@ -75,6 +77,7 @@ const SummaryPage = () => {
             totalValue: 0,
             gainsUSD: -montoInvertido,
             gainsPct: -100,
+            lastUpdated: null,
           });
         }
       }
@@ -308,6 +311,12 @@ const SummaryPage = () => {
                                           <span>Current share price:</span>
                                           <span className="font-mono">{currencyService.formatCurrency(invData.precioActual, account.currency)}</span>
                                         </div>
+                                        {invData.lastUpdated && (
+                                          <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 italic">
+                                            <span>Last updated:</span>
+                                            <span>{formatDistanceToNow(invData.lastUpdated, { addSuffix: true })}</span>
+                                          </div>
+                                        )}
                                         <div className="flex justify-between">
                                           <span>Gains %:</span>
                                           <span className={`font-mono font-semibold ${invData.gainsPct >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
