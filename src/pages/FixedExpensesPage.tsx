@@ -15,8 +15,6 @@ const FixedExpensesPage = () => {
     accounts,
     pockets,
     loadAccounts,
-    loadPockets,
-    loadSubPockets,
     createSubPocket,
     updateSubPocket,
     deleteSubPocket,

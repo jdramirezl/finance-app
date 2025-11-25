@@ -19,8 +19,6 @@ const BudgetPlanningPage = () => {
     accounts,
     pockets,
     loadAccounts,
-    loadPockets,
-    loadSubPockets,
     getSubPocketsByPocket,
   } = useFinanceStore();
 

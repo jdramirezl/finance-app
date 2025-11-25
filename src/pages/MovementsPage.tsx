@@ -20,8 +20,6 @@ const MovementsPage = () => {
     subPockets,
     movements,
     loadAccounts,
-    loadPockets,
-    loadSubPockets,
     loadMovements,
     createMovement,
     updateMovement,

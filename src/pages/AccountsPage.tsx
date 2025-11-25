@@ -16,7 +16,6 @@ const AccountsPage = () => {
     accounts,
     selectedAccountId,
     loadAccounts,
-    loadPockets,
     createAccount,
     updateAccount,
     deleteAccount,

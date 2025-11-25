@@ -20,8 +20,6 @@ const SummaryPage = () => {
     accounts,
     pockets,
     loadAccounts,
-    loadPockets,
-    loadSubPockets,
     getPocketsByAccount,
     getSubPocketsByPocket,
     settings,
