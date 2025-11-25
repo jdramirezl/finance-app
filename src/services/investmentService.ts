@@ -7,46 +7,24 @@ interface PriceCache {
     timestamp: number; // Unix timestamp in milliseconds
 }
 
-interface AlphaVantageResponse {
-    'Global Quote': {
-        '01. symbol': string;
-        '05. price': string;
-        '09. change': string;
-        '10. change percent': string;
+interface YahooFinanceResponse {
+    chart: {
+        result: Array<{
+            meta: {
+                symbol: string;
+                regularMarketPrice: number;
+                chartPreviousClose: number;
+            };
+        }>;
+        error: any;
     };
 }
 
-const CACHE_DURATION = 4 * 60 * 60 * 1000; // 4 hours in milliseconds
-const MAX_CALLS_PER_DAY = 10; // Actually 25, but we're limiting it to 10 to avoid abuse
-const API_KEY = import.meta.env.VITE_ALPHA_VANTAGE_API_KEY;
+const CACHE_DURATION = 15 * 60 * 1000; // 15 minutes in milliseconds (much more frequent!)
+// No API key needed for Yahoo Finance!
 
 class InvestmentService {
     private priceCache: Map<string, PriceCache> = new Map();
-    private apiKeyHash: string = '';
-
-    // Initialize API key hash (simple hash for identification)
-    private async initApiKeyHash(): Promise<void> {
-        if (this.apiKeyHash) {
-            return; // Already initialized
-        }
-        
-        if (!API_KEY) {
-            console.error('VITE_ALPHA_VANTAGE_API_KEY not found in environment variables');
-            return;
-        }
-        
-        try {
-            // Simple hash using Web Crypto API
-            const encoder = new TextEncoder();
-            const data = encoder.encode(API_KEY);
-            const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-            const hashArray = Array.from(new Uint8Array(hashBuffer));
-            this.apiKeyHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-            console.log('API key hash initialized:', this.apiKeyHash.substring(0, 8) + '...');
-        } catch (error) {
-            console.error('Error initializing API key hash:', error);
-        }
-    }
 
     // Load price cache from localStorage (cache stays local for performance)
     private loadPriceCache(): void {
@@ -71,88 +49,7 @@ class InvestmentService {
         }
     }
 
-    // Get current call count from Supabase (global tracking)
-    private async getCurrentCallCount(): Promise<number> {
-        await this.initApiKeyHash();
-        
-        // Ensure hash is initialized
-        if (!this.apiKeyHash) {
-            console.error('API key hash not initialized');
-            return 0;
-        }
-        
-        const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-
-        try {
-            const { data, error } = await supabase
-                .from('investment_api_calls')
-                .select('call_count')
-                .eq('api_key_hash', this.apiKeyHash)
-                .eq('call_date', today)
-                .single();
-
-            if (error && error.code !== 'PGRST116') { // PGRST116 = no rows found
-                console.error('Error fetching call count:', error, {
-                    code: error.code,
-                    message: error.message,
-                    details: error.details,
-                    hint: error.hint,
-                });
-                return 0;
-            }
-
-            return data?.call_count || 0;
-        } catch (error) {
-            console.error('Error getting call count:', error);
-            return 0;
-        }
-    }
-
-    // Check if we can make an API call today (global check)
-    private async canMakeApiCall(): Promise<boolean> {
-        const currentCount = await this.getCurrentCallCount();
-        return currentCount < MAX_CALLS_PER_DAY;
-    }
-
-    // Increment daily call count in Supabase (global tracking)
-    private async incrementCallCount(): Promise<void> {
-        await this.initApiKeyHash();
-        
-        // Ensure hash is initialized
-        if (!this.apiKeyHash) {
-            console.error('API key hash not initialized, cannot track call');
-            return;
-        }
-        
-        const today = new Date().toISOString().split('T')[0];
-
-        try {
-            // Get current count first
-            const currentCount = await this.getCurrentCallCount();
-            
-            // Use upsert to insert or update
-            const { error } = await supabase
-                .from('investment_api_calls')
-                .upsert({
-                    api_key_hash: this.apiKeyHash,
-                    call_date: today,
-                    call_count: currentCount + 1,
-                }, {
-                    onConflict: 'api_key_hash,call_date'
-                });
-
-            if (error) {
-                console.error('Error incrementing call count:', error, {
-                    code: error.code,
-                    message: error.message,
-                    details: error.details,
-                    hint: error.hint,
-                });
-            }
-        } catch (error) {
-            console.error('Error updating call count:', error);
-        }
-    }
+    // No rate limiting needed for Yahoo Finance - it's free and unlimited!
 
     // Check if cached price is still valid
     private isCacheValid(symbol: string): boolean {
@@ -173,15 +70,9 @@ class InvestmentService {
         return null;
     }
 
-    // Fetch price from Alpha Vantage API
+    // Fetch price from Yahoo Finance API (free, unlimited!)
     private async fetchPriceFromAPI(symbol: string): Promise<number> {
-        if (!this.canMakeApiCall()) {
-            throw new Error(
-                `Daily API call limit reached (${MAX_CALLS_PER_DAY} calls/day). Please try again tomorrow.`
-            );
-        }
-
-        const url = `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${symbol}&apikey=${API_KEY}`;
+        const url = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d`;
 
         try {
             const response = await fetch(url);
@@ -189,14 +80,18 @@ class InvestmentService {
                 throw new Error(`API request failed: ${response.statusText}`);
             }
 
-            const data: AlphaVantageResponse = await response.json();
+            const data: YahooFinanceResponse = await response.json();
 
-            if (!data['Global Quote'] || !data['Global Quote']['05. price']) {
-                throw new Error('Invalid API response format');
+            if (data.chart.error) {
+                throw new Error(`Yahoo Finance API error: ${data.chart.error.description}`);
             }
 
-            const price = parseFloat(data['Global Quote']['05. price']);
-            if (isNaN(price)) {
+            if (!data.chart.result || data.chart.result.length === 0) {
+                throw new Error('No data returned from Yahoo Finance');
+            }
+
+            const price = data.chart.result[0].meta.regularMarketPrice;
+            if (!price || isNaN(price)) {
                 throw new Error('Invalid price value from API');
             }
 
@@ -208,13 +103,10 @@ class InvestmentService {
             });
             this.savePriceCache();
 
-            // Increment call count (global tracking in Supabase)
-            await this.incrementCallCount();
-
-            console.log(`✅ Successfully fetched ${symbol}: $${price} (cached for 4 hours)`);
+            console.log(`✅ Successfully fetched ${symbol}: $${price} (cached for 15 minutes)`);
             return price;
         } catch (error) {
-            console.error('Error fetching stock price:', error);
+            console.error('Error fetching stock price from Yahoo Finance:', error);
             throw error;
         }
     }
@@ -287,32 +179,20 @@ class InvestmentService {
         };
     }
 
-    // Get remaining API calls for today (global tracking)
-    async getRemainingCalls(): Promise<number> {
-        const currentCount = await this.getCurrentCallCount();
-        return Math.max(0, MAX_CALLS_PER_DAY - currentCount);
-    }
-
     // Debug: Get current status (for testing)
     async getDebugStatus(): Promise<{
         cacheValid: boolean;
         cacheExpiry: Date | null;
-        callsToday: number;
-        callsRemaining: number;
-        apiKeyHash: string;
+        cacheDuration: string;
     }> {
-        await this.initApiKeyHash();
         this.loadPriceCache();
         
         const vooCache = this.priceCache.get('VOO');
-        const callsToday = await this.getCurrentCallCount();
         
         return {
             cacheValid: vooCache ? this.isCacheValid('VOO') : false,
             cacheExpiry: vooCache ? new Date(vooCache.timestamp + CACHE_DURATION) : null,
-            callsToday,
-            callsRemaining: MAX_CALLS_PER_DAY - callsToday,
-            apiKeyHash: this.apiKeyHash,
+            cacheDuration: '15 minutes (Yahoo Finance - unlimited calls!)',
         };
     }
 
