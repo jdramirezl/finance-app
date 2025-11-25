@@ -36,9 +36,51 @@ const getAccountService = async () => {
 };
 
 class MovementService {
-  // Get all movements
+  // Get all movements (including orphaned)
   async getAllMovements(): Promise<Movement[]> {
     return await SupabaseStorageService.getMovements();
+  }
+
+  // Check if a movement is orphaned (account or pocket no longer exists)
+  async isMovementOrphaned(movement: Movement): Promise<boolean> {
+    const accountService = await getAccountService();
+    const pocketService = await getPocketService();
+
+    const account = await accountService.getAccount(movement.accountId);
+    if (!account) return true;
+
+    const pocket = await pocketService.getPocket(movement.pocketId);
+    if (!pocket) return true;
+
+    return false;
+  }
+
+  // Get all orphaned movements
+  async getOrphanedMovements(): Promise<Movement[]> {
+    const movements = await this.getAllMovements();
+    const orphaned: Movement[] = [];
+
+    for (const movement of movements) {
+      if (await this.isMovementOrphaned(movement)) {
+        orphaned.push(movement);
+      }
+    }
+
+    return orphaned;
+  }
+
+  // Get non-orphaned movements (active movements only)
+  async getActiveMovements(): Promise<Movement[]> {
+    const movements = await this.getAllMovements();
+    const active: Movement[] = [];
+
+    for (const movement of movements) {
+      if (!(await this.isMovementOrphaned(movement))) {
+        active.push(movement);
+      }
+    }
+
+    return active;
   }
 
   // Get movement by ID
@@ -47,38 +89,38 @@ class MovementService {
     return movements.find(m => m.id === id) || null;
   }
 
-  // Get movements sorted by createdAt (registration date)
+  // Get movements sorted by createdAt (registration date) - ACTIVE ONLY
   async getMovementsSortedByCreatedAt(): Promise<Movement[]> {
-    const movements = await this.getAllMovements();
+    const movements = await this.getActiveMovements(); // Filter orphaned
     return movements.sort((a, b) =>
       new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
     );
   }
 
-  // Get movements by account
+  // Get movements by account - ACTIVE ONLY
   async getMovementsByAccount(accountId: string): Promise<Movement[]> {
-    const movements = await this.getAllMovements();
+    const movements = await this.getActiveMovements(); // Filter orphaned
     return movements.filter(m => m.accountId === accountId);
   }
 
-  // Get movements by pocket
+  // Get movements by pocket - ACTIVE ONLY
   async getMovementsByPocket(pocketId: string): Promise<Movement[]> {
-    const movements = await this.getAllMovements();
+    const movements = await this.getActiveMovements(); // Filter orphaned
     return movements.filter(m => m.pocketId === pocketId);
   }
 
-  // Get movements grouped by month (based on displayedDate)
+  // Get movements grouped by month (based on displayedDate) - ACTIVE ONLY
   async getMovementsByMonth(year: number, month: number): Promise<Movement[]> {
-    const movements = await this.getAllMovements();
+    const movements = await this.getActiveMovements(); // Filter orphaned
     return movements.filter(m => {
       const date = new Date(m.displayedDate);
       return date.getFullYear() === year && date.getMonth() === month;
     });
   }
 
-  // Get all movements grouped by month
+  // Get all movements grouped by month - ACTIVE ONLY
   async getMovementsGroupedByMonth(): Promise<Map<string, Movement[]>> {
-    const movements = await this.getMovementsSortedByCreatedAt();
+    const movements = await this.getMovementsSortedByCreatedAt(); // Already filtered
     const grouped = new Map<string, Movement[]>();
 
     movements.forEach(movement => {

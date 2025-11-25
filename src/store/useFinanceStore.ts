@@ -48,6 +48,8 @@ interface FinanceStore {
   getMovementsGroupedByMonth: () => Promise<Map<string, Movement[]>>;
   getPendingMovements: () => Promise<Movement[]>;
   getAppliedMovements: () => Promise<Movement[]>;
+  getOrphanedMovements: () => Promise<Movement[]>;
+  getOrphanedMovementsCount: () => Promise<number>;
 
   // Actions - Settings
   loadSettings: () => Promise<void>;
@@ -663,6 +665,15 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
 
   getAppliedMovements: async () => {
     return await movementService.getAppliedMovements();
+  },
+
+  getOrphanedMovements: async () => {
+    return await movementService.getOrphanedMovements();
+  },
+
+  getOrphanedMovementsCount: async () => {
+    const orphaned = await movementService.getOrphanedMovements();
+    return orphaned.length;
   },
 
   applyPendingMovement: async (id) => {

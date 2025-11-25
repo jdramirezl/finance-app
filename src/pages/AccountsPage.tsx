@@ -782,7 +782,7 @@ const AccountsPage = () => {
             </ul>
           </div>
 
-          <div className="flex items-start gap-3 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+          <div className="flex items-start gap-3 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
             <input
               type="checkbox"
               id="deleteMovements"
@@ -791,10 +791,11 @@ const AccountsPage = () => {
               className="mt-1"
             />
             <label htmlFor="deleteMovements" className="text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
-              <span className="font-medium">Also delete all movements</span>
+              <span className="font-medium">Also delete all movements (not recommended)</span>
               <p className="text-gray-600 dark:text-gray-400 mt-1">
-                If unchecked, movements will remain but may cause errors since their account/pocket will be deleted.
-                It's recommended to check this option.
+                💡 <strong>Recommended:</strong> Leave unchecked to preserve transaction history. 
+                Movements will be hidden from the UI but preserved for audit purposes. 
+                If you recreate an account with the same name, movements will automatically reappear.
               </p>
             </label>
           </div>
