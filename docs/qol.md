@@ -203,10 +203,12 @@
 - [ ] **Quick transfer** - Fast pocket-to-pocket transfers
 - [ ] **Amount calculator** - Built-in calculator in amount inputs
 - [ ] **Color picker presets** - Common colors for accounts
+- [ ] **Fixed expenses to movements** - Button to auto-populate batch movements modal with enabled monthly fixed expenses contributions (user can modify before saving)
+- [ ] **Consistent spacing** - Standardize padding/margins across all components
 
 ### Performance
 - [ ] **Pagination for movements** - Load 50 at a time instead of all
-- [ ] **Background data sync** - Refresh data without blocking UI
+- [ ] **Background data sync** - Refresh data without blocking UI (currently loads block UI on page mount)
 - [ ] **Request deduplication** - Prevent duplicate API calls
 - [ ] **Optimistic locking** - Handle concurrent edits gracefully
 - [ ] **Cache invalidation strategy** - Smart cache management
@@ -224,6 +226,12 @@
 - [ ] **Data validation** - Prevent negative balances, invalid dates
 - [ ] **Audit log** - Track all changes with timestamps and user
 - [ ] **Multi-currency conversion display** - Show all amounts in primary currency
+- [ ] **Cascade delete for accounts** - "Delete All" button to delete account with all pockets and optionally orphan/delete related movements
+- [ ] **Orphaned movements handling** - Currently movements remain when account/pocket deleted (causes errors). Options:
+  - Auto-delete movements when account/pocket deleted (destructive)
+  - Mark movements as "orphaned" and show warning (safer)
+  - Prevent deletion if movements exist (current behavior for accounts with pockets)
+  - Recommended: Prevent deletion + show count of movements that would be affected
 
 ---
 
@@ -233,11 +241,22 @@
 - [ ] **Charts and visualizations** - Balance trends, spending by category
 - [ ] **Budget vs actual tracking** - Compare planned vs spent with alerts
 - [ ] **Dashboard customization** - Drag-and-drop widgets, custom layouts
-- [ ] **Mobile-optimized views** - Touch-friendly, swipe gestures
-- [ ] **Dark mode improvements** - Better contrast, smooth transitions
+- [ ] **Mobile-optimized views** - Improvements needed:
+  - Collapsible/drawer sidebar (currently always visible)
+  - Touch-friendly button sizes (44x44px minimum)
+  - Swipe gestures for navigation
+  - Bottom navigation bar for main actions
+  - Responsive table layouts (cards on mobile)
+  - Larger tap targets for form inputs
+- [ ] **Dark mode improvements** - Better contrast ratios, smooth theme transitions, respect system preference
 - [ ] **Keyboard shortcuts panel** - Help overlay showing all shortcuts
 - [ ] **Onboarding flow** - Guided tour for new users
-- [ ] **Settings page expansion** - More customization options
+- [ ] **Settings page expansion** - More customization options:
+  - Date format preferences
+  - Number format (1,000.00 vs 1.000,00)
+  - Default movement type
+  - Auto-save preferences
+  - Notification settings
 
 ### Advanced Features
 - [ ] **Recurring movements** - Automation for fixed expenses and income
@@ -245,9 +264,23 @@
 - [ ] **Multi-user support** - Shared accounts with permissions
 - [ ] **Tags and categories** - Organize movements with custom tags
 - [ ] **Advanced reporting** - Monthly summaries, year-over-year comparisons
-- [ ] **Investment tracking** - Real-time stock prices, portfolio performance
-- [ ] **Bill reminders** - Notifications for upcoming fixed expenses
+- [ ] **Investment tracking** - Real-time stock prices, portfolio performance (partially done)
+- [ ] **Bill reminders & upcoming payments widget** - Implementation plan:
+  - Add optional `dueDate` field to SubPocket (fixed expenses)
+  - Add optional `recurringDay` field (1-31 for monthly bills)
+  - Calculate next due date based on last payment + periodicity
+  - Show "Upcoming Bills" widget on Summary page with:
+    - Next 5 bills to pay (sorted by due date)
+    - Days until due (color-coded: red <3 days, yellow <7 days, green >7 days)
+    - Quick "Mark as Paid" button (creates movement + updates last payment date)
+  - Browser notifications for bills due within 3 days (requires permission)
 - [ ] **Savings goals** - Track progress toward financial goals
+- [ ] **Migrate fixed expenses pocket to different account** - Implementation:
+  - Button on FixedExpensesPage to change account
+  - Select new account from dropdown
+  - Auto-convert all sub-pocket amounts to new account currency
+  - Update all related movements to new account/pocket
+  - Preserve balance history and calculations
 
 ### Performance & Architecture
 - [ ] **Offline support** - Service worker + IndexedDB sync
