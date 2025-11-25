@@ -79,9 +79,8 @@ class AccountService {
       }),
     };
 
-    const accounts = await this.getAllAccounts();
-    accounts.push(account);
-    await SupabaseStorageService.saveAccounts(accounts);
+    // Insert directly - much faster
+    await SupabaseStorageService.insertAccount(account);
 
     return account;
   }
@@ -141,30 +140,28 @@ class AccountService {
     // Recalculate balance
     updatedAccount.balance = await this.calculateAccountBalance(id);
 
-    accounts[index] = updatedAccount;
-    await SupabaseStorageService.saveAccounts(accounts);
+    // Update directly - much faster
+    await SupabaseStorageService.updateAccount(id, updatedAccount);
 
     return updatedAccount;
   }
 
   // Delete account
   async deleteAccount(id: string): Promise<void> {
-    const accounts = await this.getAllAccounts();
-    const index = accounts.findIndex(acc => acc.id === id);
-
-    if (index === -1) {
+    const account = await this.getAccount(id);
+    if (!account) {
       throw new Error(`Account with id "${id}" not found.`);
     }
 
     // Check if account has pockets
     const pocketService = await getPocketService();
-    const pockets = pocketService.getPocketsByAccount(id);
+    const pockets = await pocketService.getPocketsByAccount(id);
     if (pockets.length > 0) {
-      throw new Error(`Cannot delete account "${accounts[index].name}" because it has ${pockets.length} pocket(s). Delete pockets first.`);
+      throw new Error(`Cannot delete account "${account.name}" because it has ${pockets.length} pocket(s). Delete pockets first.`);
     }
 
-    accounts.splice(index, 1);
-    await SupabaseStorageService.saveAccounts(accounts);
+    // Delete directly - much faster
+    await SupabaseStorageService.deleteAccount(id);
   }
 
   // Recalculate all account balances (useful after movements)

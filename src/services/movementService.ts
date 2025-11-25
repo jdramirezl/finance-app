@@ -1,4 +1,4 @@
-import type { Movement, MovementType, Pocket, SubPocket, Account } from '../types';
+import type { Movement, MovementType, Pocket, Account } from '../types';
 import { SupabaseStorageService } from './supabaseStorageService';
 import { generateId } from '../utils/idGenerator';
 import { format } from 'date-fns';
@@ -104,21 +104,12 @@ class MovementService {
     const pocket = await pocketService.getPocket(pocketId);
     if (!pocket) return;
 
-    const pockets = await pocketService.getAllPockets();
-    const index = pockets.findIndex((p: Pocket) => p.id === pocketId);
-    if (index === -1) return;
+    const newBalance = isIncome ? pocket.balance + amount : pocket.balance - amount;
 
-    if (isIncome) {
-      pockets[index].balance += amount;
-    } else {
-      pockets[index].balance -= amount;
-    }
+    // Update directly - much faster
+    await SupabaseStorageService.updatePocket(pocketId, { balance: newBalance });
 
-    await SupabaseStorageService.savePockets(pockets);
-
-    // Recalculate account balance
-    const accountService = await getAccountService();
-    await accountService.updateAccount(pocket.accountId, {});
+    // Note: Account balance will be recalculated by store when it reloads
   }
 
   // Update sub-pocket balance for fixed expenses
@@ -131,21 +122,12 @@ class MovementService {
     const subPocket = await subPocketService.getSubPocket(subPocketId);
     if (!subPocket) return;
 
-    const subPockets = await subPocketService.getAllSubPockets();
-    const index = subPockets.findIndex((sp: SubPocket) => sp.id === subPocketId);
-    if (index === -1) return;
+    const newBalance = isIncome ? subPocket.balance + amount : subPocket.balance - amount;
 
-    if (isIncome) {
-      subPockets[index].balance += amount;
-    } else {
-      subPockets[index].balance -= amount;
-    }
+    // Update directly - much faster
+    await SupabaseStorageService.updateSubPocket(subPocketId, { balance: newBalance });
 
-    await SupabaseStorageService.saveSubPockets(subPockets);
-
-    // Recalculate pocket balance (which will recalculate account balance)
-    const pocketService = await getPocketService();
-    await pocketService.updatePocket(subPocket.pocketId, {});
+    // Note: Pocket and account balances will be recalculated by store when it reloads
   }
 
   // Update investment account (money or shares)
@@ -158,19 +140,15 @@ class MovementService {
     const account = await accountService.getAccount(accountId);
     if (!account || account.type !== 'investment') return;
 
-    const accounts = await accountService.getAllAccounts();
-    const index = accounts.findIndex((acc: Account) => acc.id === accountId);
-    if (index === -1) return;
-
+    const updates: Partial<Account> = {};
     if (type === 'InvestmentIngreso') {
-      // Add to invested money
-      accounts[index].montoInvertido = (accounts[index].montoInvertido || 0) + amount;
+      updates.montoInvertido = (account.montoInvertido || 0) + amount;
     } else if (type === 'InvestmentShares') {
-      // Add to shares
-      accounts[index].shares = (accounts[index].shares || 0) + amount;
+      updates.shares = (account.shares || 0) + amount;
     }
 
-    await SupabaseStorageService.saveAccounts(accounts);
+    // Update directly - much faster
+    await SupabaseStorageService.updateAccount(accountId, updates);
   }
 
   // Create new movement
@@ -230,9 +208,8 @@ class MovementService {
       isPending: isPending || false,
     };
 
-    const movements = await this.getAllMovements();
-    movements.push(movement);
-    await SupabaseStorageService.saveMovements(movements);
+    // Insert directly - much faster
+    await SupabaseStorageService.insertMovement(movement);
 
     // If pending, don't apply balance changes yet
     if (isPending) {
@@ -254,17 +231,17 @@ class MovementService {
             const pockets = await pocketService.getPocketsByAccount(accountId);
             const investedPocket = pockets.find((p: Pocket) => p.name === 'Invested Money');
             const sharesPocket = pockets.find((p: Pocket) => p.name === 'Shares');
-            const accounts = await accountService.getAllAccounts();
-            const accIndex = accounts.findIndex((acc: Account) => acc.id === accountId);
-            if (accIndex !== -1) {
-              if (investedPocket) {
-                accounts[accIndex].montoInvertido = investedPocket.balance;
-              }
-              if (sharesPocket) {
-                accounts[accIndex].shares = sharesPocket.balance;
-              }
-              await SupabaseStorageService.saveAccounts(accounts);
+            
+            const updates: Partial<Account> = {};
+            if (investedPocket) {
+              updates.montoInvertido = investedPocket.balance;
             }
+            if (sharesPocket) {
+              updates.shares = sharesPocket.balance;
+            }
+            
+            // Update directly - much faster
+            await SupabaseStorageService.updateAccount(accountId, updates);
           }
 
           return movement;
@@ -308,16 +285,14 @@ class MovementService {
       const accountService = await getAccountService();
       const account = await accountService.getAccount(oldMovement.accountId);
       if (account && account.type === 'investment') {
-        const accounts = await accountService.getAllAccounts();
-        const accIndex = accounts.findIndex((acc: Account) => acc.id === oldMovement.accountId);
-        if (accIndex !== -1) {
-          if (oldMovement.type === 'InvestmentIngreso') {
-            accounts[accIndex].montoInvertido = Math.max(0, (accounts[accIndex].montoInvertido || 0) - oldMovement.amount);
-          } else if (oldMovement.type === 'InvestmentShares') {
-            accounts[accIndex].shares = Math.max(0, (accounts[accIndex].shares || 0) - oldMovement.amount);
-          }
-          await SupabaseStorageService.saveAccounts(accounts);
+        const updates: Partial<Account> = {};
+        if (oldMovement.type === 'InvestmentIngreso') {
+          updates.montoInvertido = Math.max(0, (account.montoInvertido || 0) - oldMovement.amount);
+        } else if (oldMovement.type === 'InvestmentShares') {
+          updates.shares = Math.max(0, (account.shares || 0) - oldMovement.amount);
         }
+        // Update directly - much faster
+        await SupabaseStorageService.updateAccount(oldMovement.accountId, updates);
       }
     }
 
@@ -342,38 +317,32 @@ class MovementService {
       }
     }
 
-    movements[index] = updatedMovement;
-    await SupabaseStorageService.saveMovements(movements);
+    // Update directly - much faster
+    await SupabaseStorageService.updateMovement(id, updates);
 
     return updatedMovement;
   }
 
   // Delete movement
   async deleteMovement(id: string): Promise<void> {
-    const movements = await this.getAllMovements();
-    const index = movements.findIndex(m => m.id === id);
-
-    if (index === -1) {
+    const movement = await this.getMovement(id);
+    if (!movement) {
       throw new Error(`Movement with id "${id}" not found.`);
     }
-
-    const movement = movements[index];
 
     // Handle investment movements
     if (movement.type === 'InvestmentIngreso' || movement.type === 'InvestmentShares') {
       const accountService = await getAccountService();
       const account = await accountService.getAccount(movement.accountId);
       if (account && account.type === 'investment') {
-        const accounts = await accountService.getAllAccounts();
-        const accIndex = accounts.findIndex((acc: Account) => acc.id === movement.accountId);
-        if (accIndex !== -1) {
-          if (movement.type === 'InvestmentIngreso') {
-            accounts[accIndex].montoInvertido = Math.max(0, (accounts[accIndex].montoInvertido || 0) - movement.amount);
-          } else if (movement.type === 'InvestmentShares') {
-            accounts[accIndex].shares = Math.max(0, (accounts[accIndex].shares || 0) - movement.amount);
-          }
-          await SupabaseStorageService.saveAccounts(accounts);
+        const updates: Partial<Account> = {};
+        if (movement.type === 'InvestmentIngreso') {
+          updates.montoInvertido = Math.max(0, (account.montoInvertido || 0) - movement.amount);
+        } else if (movement.type === 'InvestmentShares') {
+          updates.shares = Math.max(0, (account.shares || 0) - movement.amount);
         }
+        // Update directly - much faster
+        await SupabaseStorageService.updateAccount(movement.accountId, updates);
       }
     } else {
       // Revert balance changes for normal movements
@@ -385,8 +354,8 @@ class MovementService {
       }
     }
 
-    movements.splice(index, 1);
-    await SupabaseStorageService.saveMovements(movements);
+    // Delete directly - much faster
+    await SupabaseStorageService.deleteMovement(id);
   }
 
   // Get pending movements
@@ -403,22 +372,17 @@ class MovementService {
 
   // Apply a pending movement (convert to applied)
   async applyPendingMovement(id: string): Promise<Movement> {
-    const movements = await this.getAllMovements();
-    const index = movements.findIndex(m => m.id === id);
-
-    if (index === -1) {
+    const movement = await this.getMovement(id);
+    if (!movement) {
       throw new Error(`Movement with id "${id}" not found.`);
     }
-
-    const movement = movements[index];
 
     if (!movement.isPending) {
       throw new Error('Movement is already applied.');
     }
 
     // Mark as applied
-    movements[index].isPending = false;
-    await SupabaseStorageService.saveMovements(movements);
+    await SupabaseStorageService.updateMovement(id, { isPending: false });
 
     // Now apply the balance changes
     const isIncome = movement.type === 'IngresoNormal' || movement.type === 'IngresoFijo';
@@ -435,17 +399,17 @@ class MovementService {
         const pockets = await pocketService.getPocketsByAccount(movement.accountId);
         const investedPocket = pockets.find((p: Pocket) => p.name === 'Invested Money');
         const sharesPocket = pockets.find((p: Pocket) => p.name === 'Shares');
-        const accounts = await accountService.getAllAccounts();
-        const accIndex = accounts.findIndex((acc: Account) => acc.id === movement.accountId);
-        if (accIndex !== -1) {
-          if (investedPocket) {
-            accounts[accIndex].montoInvertido = investedPocket.balance;
-          }
-          if (sharesPocket) {
-            accounts[accIndex].shares = sharesPocket.balance;
-          }
-          await SupabaseStorageService.saveAccounts(accounts);
+        
+        const updates: Partial<Account> = {};
+        if (investedPocket) {
+          updates.montoInvertido = investedPocket.balance;
         }
+        if (sharesPocket) {
+          updates.shares = sharesPocket.balance;
+        }
+        
+        // Update directly - much faster
+        await SupabaseStorageService.updateAccount(movement.accountId, updates);
       }
     } else if (movement.subPocketId) {
       // Fixed expense movement
@@ -455,7 +419,7 @@ class MovementService {
       await this.updatePocketBalance(movement.pocketId, movement.amount, isIncome);
     }
 
-    return movements[index];
+    return { ...movement, isPending: false };
   }
 }
 

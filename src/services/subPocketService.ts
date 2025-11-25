@@ -121,12 +121,11 @@ class SubPocketService {
       enabled: true,
     };
 
-    const subPockets = await this.getAllSubPockets();
-    subPockets.push(subPocket);
-    await SupabaseStorageService.saveSubPockets(subPockets);
+    // Insert directly - much faster than fetch-all-save-all
+    await SupabaseStorageService.insertSubPocket(subPocket);
 
-    // Recalculate pocket balance
-    await pocketService.updatePocket(pocketId, {});
+    // Note: Pocket balance will be recalculated by the store when it reloads
+    // No need to trigger updatePocket here
 
     return subPocket;
   }
@@ -165,12 +164,8 @@ class SubPocketService {
 
     const updatedSubPocket = { ...subPocket, ...updates };
 
-    subPockets[index] = updatedSubPocket;
-    await SupabaseStorageService.saveSubPockets(subPockets);
-
-    // Recalculate pocket balance
-    const pocketService = await getPocketService();
-    await pocketService.updatePocket(subPocket.pocketId, {});
+    // Update directly - much faster
+    await SupabaseStorageService.updateSubPocket(id, updates);
 
     return updatedSubPocket;
   }
@@ -184,13 +179,8 @@ class SubPocketService {
       throw new Error(`Sub-pocket with id "${id}" not found.`);
     }
 
-    const subPocket = subPockets[index];
-    subPockets.splice(index, 1);
-    await SupabaseStorageService.saveSubPockets(subPockets);
-
-    // Recalculate pocket balance
-    const pocketService = await getPocketService();
-    await pocketService.updatePocket(subPocket.pocketId, {});
+    // Delete directly - much faster
+    await SupabaseStorageService.deleteSubPocket(id);
   }
 
   // Toggle enabled state

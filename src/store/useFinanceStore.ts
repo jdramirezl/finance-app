@@ -98,9 +98,12 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
   createAccount: async (name, color, currency, type = 'normal', stockSymbol) => {
     try {
       const account = await accountService.createAccount(name, color, currency, type, stockSymbol);
+      // Optimistic update
       set((state) => ({ accounts: [...state.accounts, account] }));
-      await get().loadPockets(); // Reload pockets to ensure sync
+      // Reload pockets in background (for investment accounts)
+      get().loadPockets();
     } catch (error) {
+      await get().loadAccounts();
       throw error;
     }
   },
@@ -108,11 +111,12 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
   updateAccount: async (id, updates) => {
     try {
       const updated = await accountService.updateAccount(id, updates);
+      // Optimistic update
       set((state) => ({
         accounts: state.accounts.map((acc) => (acc.id === id ? updated : acc)),
       }));
-      await get().loadPockets(); // Reload to sync balances
     } catch (error) {
+      await get().loadAccounts();
       throw error;
     }
   },
@@ -120,12 +124,15 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
   deleteAccount: async (id) => {
     try {
       await accountService.deleteAccount(id);
+      // Optimistic update
       set((state) => ({
         accounts: state.accounts.filter((acc) => acc.id !== id),
         selectedAccountId: state.selectedAccountId === id ? null : state.selectedAccountId,
       }));
-      await get().loadPockets();
+      // Reload pockets in background (cascade delete)
+      get().loadPockets();
     } catch (error) {
+      await get().loadAccounts();
       throw error;
     }
   },
@@ -151,22 +158,30 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
   // Pocket actions
   createPocket: async (accountId, name, type) => {
     try {
-      await pocketService.createPocket(accountId, name, type);
-      // Reload both pockets and accounts to ensure consistency
-      await get().loadPockets();
-      await get().loadAccounts();
+      const pocket = await pocketService.createPocket(accountId, name, type);
+      // Optimistic update: add to local state immediately
+      set((state) => ({ pockets: [...state.pockets, pocket] }));
+      // Reload accounts in background to update balances
+      get().loadAccounts();
     } catch (error) {
+      // On error, reload to ensure consistency
+      await get().loadPockets();
       throw error;
     }
   },
 
   updatePocket: async (id, updates) => {
     try {
-      await pocketService.updatePocket(id, updates);
-      // Reload both pockets and accounts to ensure consistency
-      await get().loadPockets();
-      await get().loadAccounts();
+      const updated = await pocketService.updatePocket(id, updates);
+      // Optimistic update: update local state immediately
+      set((state) => ({
+        pockets: state.pockets.map((p) => (p.id === id ? updated : p)),
+      }));
+      // Reload accounts in background to update balances
+      get().loadAccounts();
     } catch (error) {
+      // On error, reload to ensure consistency
+      await get().loadPockets();
       throw error;
     }
   },
@@ -174,10 +189,15 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
   deletePocket: async (id) => {
     try {
       await pocketService.deletePocket(id);
-      // Reload both pockets and accounts to ensure consistency
-      await get().loadPockets();
-      await get().loadAccounts();
+      // Optimistic update: remove from local state immediately
+      set((state) => ({
+        pockets: state.pockets.filter((p) => p.id !== id),
+      }));
+      // Reload accounts in background to update balances
+      get().loadAccounts();
     } catch (error) {
+      // On error, reload to ensure consistency
+      await get().loadPockets();
       throw error;
     }
   },
@@ -203,10 +223,13 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
   createSubPocket: async (pocketId, name, valueTotal, periodicityMonths) => {
     try {
       const subPocket = await subPocketService.createSubPocket(pocketId, name, valueTotal, periodicityMonths);
+      // Optimistic update
       set((state) => ({ subPockets: [...state.subPockets, subPocket] }));
-      await get().loadPockets(); // Reload pockets to update balances
-      await get().loadAccounts(); // Reload accounts to update balances
+      // Reload pockets/accounts in background to update balances
+      get().loadPockets();
+      get().loadAccounts();
     } catch (error) {
+      await get().loadSubPockets();
       throw error;
     }
   },
@@ -214,12 +237,15 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
   updateSubPocket: async (id, updates) => {
     try {
       const updated = await subPocketService.updateSubPocket(id, updates);
+      // Optimistic update
       set((state) => ({
         subPockets: state.subPockets.map((sp) => (sp.id === id ? updated : sp)),
       }));
-      await get().loadPockets();
-      await get().loadAccounts();
+      // Reload pockets/accounts in background to update balances
+      get().loadPockets();
+      get().loadAccounts();
     } catch (error) {
+      await get().loadSubPockets();
       throw error;
     }
   },
@@ -227,12 +253,15 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
   deleteSubPocket: async (id) => {
     try {
       await subPocketService.deleteSubPocket(id);
+      // Optimistic update
       set((state) => ({
         subPockets: state.subPockets.filter((sp) => sp.id !== id),
       }));
-      await get().loadPockets();
-      await get().loadAccounts();
+      // Reload pockets/accounts in background to update balances
+      get().loadPockets();
+      get().loadAccounts();
     } catch (error) {
+      await get().loadSubPockets();
       throw error;
     }
   },
@@ -272,14 +301,16 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
         subPocketId,
         isPending
       );
+      // Optimistic update
       set((state) => ({ movements: [...state.movements, movement] }));
-      // Reload accounts and pockets to update balances (only if not pending)
+      // Reload balances in background (only if not pending)
       if (!isPending) {
-        await get().loadAccounts();
-        await get().loadPockets();
-        await get().loadSubPockets();
+        get().loadAccounts();
+        get().loadPockets();
+        get().loadSubPockets();
       }
     } catch (error) {
+      await get().loadMovements();
       throw error;
     }
   },
@@ -287,14 +318,16 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
   updateMovement: async (id, updates) => {
     try {
       const updated = await movementService.updateMovement(id, updates);
+      // Optimistic update
       set((state) => ({
         movements: state.movements.map((m) => (m.id === id ? updated : m)),
       }));
-      // Reload accounts and pockets to update balances
-      await get().loadAccounts();
-      await get().loadPockets();
-      await get().loadSubPockets();
+      // Reload balances in background
+      get().loadAccounts();
+      get().loadPockets();
+      get().loadSubPockets();
     } catch (error) {
+      await get().loadMovements();
       throw error;
     }
   },
@@ -302,14 +335,16 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
   deleteMovement: async (id) => {
     try {
       await movementService.deleteMovement(id);
+      // Optimistic update
       set((state) => ({
         movements: state.movements.filter((m) => m.id !== id),
       }));
-      // Reload accounts and pockets to update balances
-      await get().loadAccounts();
-      await get().loadPockets();
-      await get().loadSubPockets();
+      // Reload balances in background
+      get().loadAccounts();
+      get().loadPockets();
+      get().loadSubPockets();
     } catch (error) {
+      await get().loadMovements();
       throw error;
     }
   },

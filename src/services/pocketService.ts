@@ -62,7 +62,7 @@ class PocketService {
   // For fixed pockets: sum of sub-pocket balances
   // For normal pockets: sum of movements (handled by movement service)
   async calculatePocketBalance(pocketId: string): Promise<number> {
-    const pocket = this.getPocket(pocketId);
+    const pocket = await this.getPocket(pocketId);
     if (!pocket) return 0;
 
     if (pocket.type === 'fixed') {
@@ -122,12 +122,11 @@ class PocketService {
       currency: account.currency, // Inherit from account
     };
 
-    const pockets = await this.getAllPockets();
-    pockets.push(pocket);
-    await SupabaseStorageService.savePockets(pockets);
+    // Insert directly - much faster
+    await SupabaseStorageService.insertPocket(pocket);
 
-    // Recalculate account balance (reuse accountService from above)
-    await accountService.updateAccount(accountId, {});
+    // Note: Account balance will be recalculated by store when it reloads
+    // No need to trigger updateAccount here
 
     return pocket;
   }
@@ -163,26 +162,20 @@ class PocketService {
     // Recalculate balance
     updatedPocket.balance = await this.calculatePocketBalance(id);
 
-    pockets[index] = updatedPocket;
-    await SupabaseStorageService.savePockets(pockets);
+    // Update directly - much faster
+    await SupabaseStorageService.updatePocket(id, updatedPocket);
 
-    // Recalculate account balance
-    const accountService = await getAccountService();
-    await accountService.updateAccount(pocket.accountId, {});
+    // Note: Account balance will be recalculated by store when it reloads
 
     return updatedPocket;
   }
 
   // Delete pocket
   async deletePocket(id: string): Promise<void> {
-    const pockets = await this.getAllPockets();
-    const index = pockets.findIndex(p => p.id === id);
-
-    if (index === -1) {
+    const pocket = await this.getPocket(id);
+    if (!pocket) {
       throw new Error(`Pocket with id "${id}" not found.`);
     }
-
-    const pocket = pockets[index];
 
     // If fixed pocket, check for sub-pockets
     if (pocket.type === 'fixed') {
@@ -193,12 +186,10 @@ class PocketService {
       }
     }
 
-    pockets.splice(index, 1);
-    await SupabaseStorageService.savePockets(pockets);
+    // Delete directly - much faster
+    await SupabaseStorageService.deletePocket(id);
 
-    // Recalculate account balance
-    const accountService = await getAccountService();
-    await accountService.updateAccount(pocket.accountId, {});
+    // Note: Account balance will be recalculated by store when it reloads
   }
 
   // Get the fixed expenses pocket (there should only be one)
