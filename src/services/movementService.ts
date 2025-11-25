@@ -55,32 +55,40 @@ class MovementService {
     return false;
   }
 
-  // Get all orphaned movements
+  // Get all orphaned movements (optimized - batch lookup)
   async getOrphanedMovements(): Promise<Movement[]> {
     const movements = await this.getAllMovements();
-    const orphaned: Movement[] = [];
-
-    for (const movement of movements) {
-      if (await this.isMovementOrphaned(movement)) {
-        orphaned.push(movement);
-      }
-    }
-
-    return orphaned;
+    const accountService = await getAccountService();
+    const pocketService = await getPocketService();
+    
+    // Get all accounts and pockets once
+    const accounts = await accountService.getAllAccounts();
+    const pockets = await pocketService.getAllPockets();
+    
+    // Create lookup sets for O(1) checking
+    const accountIds = new Set(accounts.map((a: Account) => a.id));
+    const pocketIds = new Set(pockets.map((p: Pocket) => p.id));
+    
+    // Filter orphaned movements
+    return movements.filter(m => !accountIds.has(m.accountId) || !pocketIds.has(m.pocketId));
   }
 
-  // Get non-orphaned movements (active movements only)
+  // Get non-orphaned movements (active movements only) - optimized
   async getActiveMovements(): Promise<Movement[]> {
     const movements = await this.getAllMovements();
-    const active: Movement[] = [];
-
-    for (const movement of movements) {
-      if (!(await this.isMovementOrphaned(movement))) {
-        active.push(movement);
-      }
-    }
-
-    return active;
+    const accountService = await getAccountService();
+    const pocketService = await getPocketService();
+    
+    // Get all accounts and pockets once
+    const accounts = await accountService.getAllAccounts();
+    const pockets = await pocketService.getAllPockets();
+    
+    // Create lookup sets for O(1) checking
+    const accountIds = new Set(accounts.map((a: Account) => a.id));
+    const pocketIds = new Set(pockets.map((p: Pocket) => p.id));
+    
+    // Filter active movements (both account AND pocket must exist)
+    return movements.filter(m => accountIds.has(m.accountId) && pocketIds.has(m.pocketId));
   }
 
   // Get movement by ID
