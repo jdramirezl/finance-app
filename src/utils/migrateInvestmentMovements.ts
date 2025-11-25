@@ -1,5 +1,4 @@
 import { StorageService } from '../services/storageService';
-import type { Movement } from '../types';
 
 /**
  * Migration utility to convert old investment movement types to standard types
@@ -29,14 +28,14 @@ export async function migrateInvestmentMovements(): Promise<{
       if (movement.type === 'InvestmentIngreso' || movement.type === 'InvestmentShares') {
         try {
           // Convert to IngresoNormal (income to the pocket)
-          const updatedMovement: Movement = {
-            ...movement,
-            type: 'IngresoNormal',
-          };
-
-          await StorageService.updateMovement(movement.id, { type: 'IngresoNormal' });
-          results.migrated++;
+          const movements = await StorageService.getMovements();
+          const index = movements.findIndex(m => m.id === movement.id);
+          if (index !== -1) {
+            movements[index] = { ...movements[index], type: 'IngresoNormal' };
+            await StorageService.saveMovements(movements);
+          }
           
+          results.migrated++;
           console.log(`✅ Migrated movement ${movement.id}: ${movement.type} → IngresoNormal`);
         } catch (error) {
           const errorMsg = `Failed to migrate movement ${movement.id}: ${error instanceof Error ? error.message : 'Unknown error'}`;

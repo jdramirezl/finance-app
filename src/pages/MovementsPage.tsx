@@ -12,6 +12,7 @@ import { Skeleton, SkeletonTable } from '../components/Skeleton';
 import Select from '../components/Select';
 import Card from '../components/Card';
 import ConfirmDialog from '../components/ConfirmDialog';
+import BatchMovementForm from '../components/BatchMovementForm';
 
 const MovementsPage = () => {
   const {
@@ -32,6 +33,7 @@ const MovementsPage = () => {
   const toast = useToast();
   const { confirm, confirmState, handleClose, handleConfirm } = useConfirm();
   const [showForm, setShowForm] = useState(false);
+  const [showBatchForm, setShowBatchForm] = useState(false);
   const [editingMovement, setEditingMovement] = useState<Movement | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [selectedAccountId, setSelectedAccountId] = useState<string>('');
@@ -196,6 +198,40 @@ const MovementsPage = () => {
     return subPockets.find((sp) => sp.id === id);
   };
 
+  const handleBatchSave = async (rows: Array<{
+    id: string;
+    type: MovementType;
+    accountId: string;
+    pocketId: string;
+    subPocketId?: string;
+    amount: string;
+    notes: string;
+    displayedDate: string;
+  }>) => {
+    try {
+      // Create all movements
+      for (const row of rows) {
+        await createMovement(
+          row.type,
+          row.accountId,
+          row.pocketId,
+          parseFloat(row.amount),
+          row.notes || undefined,
+          row.displayedDate,
+          row.subPocketId,
+          false // Not pending
+        );
+      }
+      
+      setShowBatchForm(false);
+      toast.success(`Successfully created ${rows.length} movements!`);
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to save movements';
+      toast.error(errorMessage);
+      throw err; // Re-throw so form can handle it
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError(null);
@@ -353,19 +389,28 @@ const MovementsPage = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Movements</h1>
-        <Button
-          variant="primary"
-          onClick={() => {
-            setShowForm(true);
-            setEditingMovement(null);
-            setSelectedAccountId('');
-            setSelectedPocketId('');
-            setIsFixedExpense(false);
-          }}
-        >
-          <Plus className="w-5 h-5" />
-          New Movement
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="secondary"
+            onClick={() => setShowBatchForm(true)}
+          >
+            <Plus className="w-5 h-5" />
+            Batch Add
+          </Button>
+          <Button
+            variant="primary"
+            onClick={() => {
+              setShowForm(true);
+              setEditingMovement(null);
+              setSelectedAccountId('');
+              setSelectedPocketId('');
+              setIsFixedExpense(false);
+            }}
+          >
+            <Plus className="w-5 h-5" />
+            New Movement
+          </Button>
+        </div>
       </div>
 
       {error && (
@@ -847,6 +892,17 @@ const MovementsPage = () => {
             </Button>
           </div>
         </form>
+      </Modal>
+
+      {/* Batch Movement Form Modal */}
+      <Modal isOpen={showBatchForm} onClose={() => setShowBatchForm(false)}>
+        <BatchMovementForm
+          accounts={accounts}
+          getPocketsByAccount={getPocketsByAccount}
+          getSubPocketsByPocket={getSubPocketsByPocket}
+          onSave={handleBatchSave}
+          onCancel={() => setShowBatchForm(false)}
+        />
       </Modal>
 
       {/* Confirmation Dialog */}

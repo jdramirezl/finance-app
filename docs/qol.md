@@ -32,11 +32,20 @@
   - Users can now see if price data is fresh or stale
   - Commit: Add last updated timestamp for investment stock prices
 
-- [ ] **5. Bulk/batch movements**
+- [x] **5. Bulk/batch movements** ✅ FIXED
   - Feature: Allow adding multiple movements at once
-  - Current: Must add transactions one by one
-  - Proposed: Modal allows adding multiple movements, only saves when user clicks "Save All"
-  - Benefit: Much faster for entering multiple transactions (e.g., monthly bills)
+  - Implementation:
+    - Added "Batch Add" button on MovementsPage
+    - Opens modal with BatchMovementForm component
+    - Each row has: Type, Account, Pocket, Amount, Notes, Date
+    - "Add Row" button to add more movements
+    - "Save All" button creates all movements at once
+    - Validates all rows before saving
+  - Benefits:
+    - Much faster for entering multiple transactions (e.g., monthly bills)
+    - Single transaction to database
+    - Better UX for bulk data entry
+  - Commit: Implement batch/bulk movements feature
 
 - [x] **8. Visual indicator for disabled fixed expenses on Summary page** ✅ FIXED
   - Added visual indicators for disabled sub-pockets:
@@ -98,8 +107,9 @@
 
 ### 1. Loading Skeletons
 - Added skeleton components for better perceived performance
-- Implemented in all major pages (Summary, Accounts, Movements, Fixed Expenses, Budget Planning)
+- Implemented in all major pages (Summary, Accounts, Movements, Budget Planning)
 - Content-aware skeletons that match the actual layout
+- ⚠️ TODO: FixedExpensesPage still needs skeleton implementation
 
 ### 2. Enhanced Toast Notifications (IMPROVED!)
 - **Smooth animations**: Enter/exit with cubic-bezier easing and scale effects
