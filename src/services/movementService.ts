@@ -55,40 +55,16 @@ class MovementService {
     return false;
   }
 
-  // Get all orphaned movements (optimized - batch lookup)
+  // Get all orphaned movements (INSTANT - just check flag)
   async getOrphanedMovements(): Promise<Movement[]> {
     const movements = await this.getAllMovements();
-    const accountService = await getAccountService();
-    const pocketService = await getPocketService();
-    
-    // Get all accounts and pockets once
-    const accounts = await accountService.getAllAccounts();
-    const pockets = await pocketService.getAllPockets();
-    
-    // Create lookup sets for O(1) checking
-    const accountIds = new Set(accounts.map((a: Account) => a.id));
-    const pocketIds = new Set(pockets.map((p: Pocket) => p.id));
-    
-    // Filter orphaned movements
-    return movements.filter(m => !accountIds.has(m.accountId) || !pocketIds.has(m.pocketId));
+    return movements.filter(m => m.isOrphaned === true);
   }
 
-  // Get non-orphaned movements (active movements only) - optimized
+  // Get non-orphaned movements (active movements only) - INSTANT
   async getActiveMovements(): Promise<Movement[]> {
     const movements = await this.getAllMovements();
-    const accountService = await getAccountService();
-    const pocketService = await getPocketService();
-    
-    // Get all accounts and pockets once
-    const accounts = await accountService.getAllAccounts();
-    const pockets = await pocketService.getAllPockets();
-    
-    // Create lookup sets for O(1) checking
-    const accountIds = new Set(accounts.map((a: Account) => a.id));
-    const pocketIds = new Set(pockets.map((p: Pocket) => p.id));
-    
-    // Filter active movements (both account AND pocket must exist)
-    return movements.filter(m => accountIds.has(m.accountId) && pocketIds.has(m.pocketId));
+    return movements.filter(m => !m.isOrphaned);
   }
 
   // Get movement by ID
@@ -445,6 +421,21 @@ class MovementService {
     }
     
     return pocketMovements.length;
+  }
+
+  // Mark movements as orphaned (soft delete) - FAST, no lookups needed
+  async markMovementsAsOrphaned(id: string, type: 'account' | 'pocket'): Promise<number> {
+    const movements = await this.getAllMovements();
+    const targetMovements = type === 'account' 
+      ? movements.filter(m => m.accountId === id)
+      : movements.filter(m => m.pocketId === id);
+    
+    // Mark all as orphaned
+    for (const movement of targetMovements) {
+      await SupabaseStorageService.updateMovement(movement.id, { isOrphaned: true });
+    }
+    
+    return targetMovements.length;
   }
 }
 

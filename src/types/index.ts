@@ -60,6 +60,7 @@ export interface Movement {
   displayedDate: string; // User-assigned date (ISO string)
   createdAt: string; // Registration date (ISO string)
   isPending?: boolean; // If true, movement is registered but not applied to balances
+  isOrphaned?: boolean; // If true, account or pocket was deleted (soft delete)
 }
 
 // Investment-specific properties (extends Account)

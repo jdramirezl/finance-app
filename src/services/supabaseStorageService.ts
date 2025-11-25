@@ -352,6 +352,7 @@ export class SupabaseStorageService {
       displayedDate: movement.displayed_date,
       createdAt: movement.created_at,
       isPending: movement.is_pending,
+      isOrphaned: movement.is_orphaned || false,
     }));
   }
 
@@ -370,6 +371,7 @@ export class SupabaseStorageService {
         notes: movement.notes,
         displayed_date: movement.displayedDate,
         is_pending: movement.isPending || false,
+        is_orphaned: movement.isOrphaned || false,
         created_at: movement.createdAt,
       }));
 
@@ -416,6 +418,7 @@ export class SupabaseStorageService {
     if (updates.notes !== undefined) updateData.notes = updates.notes;
     if (updates.displayedDate !== undefined) updateData.displayed_date = updates.displayedDate;
     if (updates.isPending !== undefined) updateData.is_pending = updates.isPending;
+    if (updates.isOrphaned !== undefined) updateData.is_orphaned = updates.isOrphaned;
     
     const { error } = await supabase
       .from('movements')

@@ -1,11 +1,17 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useFinanceStore } from '../store/useFinanceStore';
 import { currencyService } from '../services/currencyService';
 import type { Currency } from '../types';
 import Card from '../components/Card';
+import Button from '../components/Button';
+import { RefreshCw } from 'lucide-react';
+import { migrateOrphanedMovements } from '../utils/migrateOrphanedMovements';
+import { useToast } from '../hooks/useToast';
 
 const SettingsPage = () => {
-  const { settings, loadSettings, updateSettings } = useFinanceStore();
+  const { settings, loadSettings, updateSettings, loadMovements } = useFinanceStore();
+  const toast = useToast();
+  const [isMigrating, setIsMigrating] = useState(false);
 
   useEffect(() => {
     const loadData = async () => {
@@ -26,6 +32,20 @@ const SettingsPage = () => {
       await updateSettings({ primaryCurrency: currency });
     } catch (err) {
       console.error('Failed to update settings:', err);
+    }
+  };
+
+  const handleMigrateOrphans = async () => {
+    setIsMigrating(true);
+    try {
+      const result = await migrateOrphanedMovements();
+      await loadMovements(); // Reload to reflect changes
+      toast.success(`Migration complete: ${result.marked} movements updated out of ${result.total} total`);
+    } catch (err) {
+      console.error('Migration failed:', err);
+      toast.error('Failed to migrate orphaned movements');
+    } finally {
+      setIsMigrating(false);
     }
   };
 
@@ -65,6 +85,29 @@ const SettingsPage = () => {
             </label>
           ))}
         </div>
+      </Card>
+
+      <Card className="max-w-2xl">
+        <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">Data Migration</h2>
+        <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+          Run this migration once to mark existing orphaned movements. This will scan all movements and flag any that belong to deleted accounts or pockets.
+        </p>
+        
+        <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg mb-4">
+          <p className="text-sm text-blue-800 dark:text-blue-300">
+            <strong>When to run:</strong> After upgrading to the new orphaned movements system, or if you notice movements that should be hidden but aren't.
+          </p>
+        </div>
+
+        <Button
+          variant="primary"
+          onClick={handleMigrateOrphans}
+          loading={isMigrating}
+          disabled={isMigrating}
+        >
+          <RefreshCw className="w-5 h-5" />
+          Migrate Orphaned Movements
+        </Button>
       </Card>
     </div>
   );

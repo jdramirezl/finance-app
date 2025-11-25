@@ -218,20 +218,30 @@ class AccountService {
         await subPocketService.deleteSubPocket(subPocket.id);
       }
 
-      // Delete movements if requested
+      // Handle movements
       if (deleteMovements) {
+        // Hard delete movements
         const deletedCount = await movementService.deleteMovementsByPocket(pocket.id);
         totalMovements += deletedCount;
+      } else {
+        // Soft delete: mark movements as orphaned
+        const markedCount = await movementService.markMovementsAsOrphaned(pocket.id, 'pocket');
+        totalMovements += markedCount;
       }
 
       // Delete pocket
       await SupabaseStorageService.deletePocket(pocket.id);
     }
 
-    // Delete any remaining movements by account if requested
+    // Handle any remaining movements by account
     if (deleteMovements) {
+      // Hard delete remaining movements
       const remainingCount = await movementService.deleteMovementsByAccount(id);
       totalMovements += remainingCount;
+    } else {
+      // Soft delete: mark remaining movements as orphaned
+      const markedCount = await movementService.markMovementsAsOrphaned(id, 'account');
+      totalMovements += markedCount;
     }
 
     // Delete account
