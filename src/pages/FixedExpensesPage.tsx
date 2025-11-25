@@ -30,6 +30,9 @@ const FixedExpensesPage = () => {
   const [editingSubPocket, setEditingSubPocket] = useState<SubPocket | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false); // Button-level loading
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
 
   useEffect(() => {
     const loadData = async () => {
@@ -76,7 +79,7 @@ const FixedExpensesPage = () => {
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError(null);
-    setIsLoading(true);
+    setIsSaving(true); // Button-level loading only
     const form = e.currentTarget;
     const formData = new FormData(form);
 
@@ -88,33 +91,38 @@ const FixedExpensesPage = () => {
       const errorMsg = 'No fixed expenses pocket found. Please create a fixed expenses pocket first.';
       setError(errorMsg);
       toast.error(errorMsg);
-      setIsLoading(false);
+      setIsSaving(false);
       return;
     }
 
     try {
       if (editingSubPocket) {
+        // Optimistic: close form immediately, store handles optimistic update
+        setEditingSubPocket(null);
+        form.reset();
+        setShowForm(false);
+        
         await updateSubPocket(editingSubPocket.id, {
           name,
           valueTotal,
           periodicityMonths,
         });
         toast.success('Fixed expense updated successfully!');
-        setEditingSubPocket(null);
+      } else {
+        // Optimistic: close form immediately, store handles optimistic update
         form.reset();
         setShowForm(false);
-      } else {
+        
         await createSubPocket(fixedPocket.id, name, valueTotal, periodicityMonths);
         toast.success('Fixed expense created successfully!');
-        form.reset();
-        setShowForm(false);
       }
     } catch (err: any) {
       const errorMsg = err.message || 'Failed to save fixed expense';
       setError(errorMsg);
       toast.error(errorMsg);
+      setShowForm(true); // Reopen on error
     } finally {
-      setIsLoading(false);
+      setIsSaving(false);
     }
   };
 
@@ -132,25 +140,33 @@ const FixedExpensesPage = () => {
     if (!confirmed) return;
 
     setError(null);
+    setDeletingId(id); // Track which item is being deleted
     try {
+      // Optimistic: UI updates immediately via store
       await deleteSubPocket(id);
       toast.success('Fixed expense deleted successfully!');
     } catch (err: any) {
       const errorMsg = err.message || 'Failed to delete fixed expense';
       setError(errorMsg);
       toast.error(errorMsg);
+    } finally {
+      setDeletingId(null);
     }
   };
 
   const handleToggle = async (id: string) => {
     setError(null);
+    setTogglingId(id); // Track which item is being toggled
     try {
+      // Optimistic: UI updates immediately via store
       await toggleSubPocketEnabled(id);
       toast.success('Fixed expense status updated!');
     } catch (err: any) {
       const errorMsg = err.message || 'Failed to toggle fixed expense';
       setError(errorMsg);
       toast.error(errorMsg);
+    } finally {
+      setTogglingId(null);
     }
   };
 
@@ -301,9 +317,13 @@ const FixedExpensesPage = () => {
                       className={subPocket.enabled ? 'hover:bg-gray-50 dark:hover:bg-gray-700/30' : 'opacity-60 hover:bg-gray-50 dark:hover:bg-gray-700/30'}
                     >
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <button
+                        <Button
+                          variant="ghost"
+                          size="sm"
                           onClick={() => handleToggle(subPocket.id)}
-                          className="text-gray-400 dark:text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                          loading={togglingId === subPocket.id}
+                          disabled={togglingId !== null || deletingId !== null}
+                          className="text-gray-400 dark:text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 p-1"
                           title={subPocket.enabled ? 'Disable' : 'Enable'}
                         >
                           {subPocket.enabled ? (
@@ -311,7 +331,7 @@ const FixedExpensesPage = () => {
                           ) : (
                             <ToggleLeft className="w-6 h-6" />
                           )}
-                        </button>
+                        </Button>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm font-medium text-gray-900 dark:text-gray-100">{subPocket.name}</div>
@@ -383,6 +403,8 @@ const FixedExpensesPage = () => {
                             variant="ghost"
                             size="sm"
                             onClick={() => handleDelete(subPocket.id)}
+                            loading={deletingId === subPocket.id}
+                            disabled={deletingId !== null || togglingId !== null}
                             className="text-red-600 dark:text-red-400 hover:text-red-900 dark:hover:text-red-300"
                           >
                             <Trash2 className="w-4 h-4" />
@@ -465,7 +487,7 @@ const FixedExpensesPage = () => {
             <Button
               type="submit"
               variant="primary"
-              loading={isLoading}
+              loading={isSaving}
               className="flex-1"
             >
               {editingSubPocket ? 'Save Changes' : 'Create Fixed Expense'}

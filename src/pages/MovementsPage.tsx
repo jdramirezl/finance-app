@@ -40,6 +40,9 @@ const MovementsPage = () => {
   const [selectedPocketId, setSelectedPocketId] = useState<string>('');
   const [isFixedExpense, setIsFixedExpense] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false); // Button-level loading
+  const [deletingId, setDeletingId] = useState<string | null>(null); // Track which item is being deleted
+  const [applyingId, setApplyingId] = useState<string | null>(null); // Track which item is being applied
   const [showPending, setShowPending] = useState<'all' | 'applied' | 'pending'>('all');
   
   // Advanced filters
@@ -209,7 +212,7 @@ const MovementsPage = () => {
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError(null);
-    setIsLoading(true);
+    setIsSaving(true); // Button-level loading only
     const form = e.currentTarget;
     const formData = new FormData(form);
 
@@ -224,6 +227,13 @@ const MovementsPage = () => {
 
     try {
       if (editingMovement) {
+        // Optimistic: close form immediately, store handles optimistic update
+        setEditingMovement(null);
+        setShowForm(false);
+        setSelectedAccountId('');
+        setSelectedPocketId('');
+        setIsFixedExpense(false);
+        
         await updateMovement(editingMovement.id, {
           type,
           accountId,
@@ -234,26 +244,25 @@ const MovementsPage = () => {
           displayedDate,
         });
         toast.success('Movement updated successfully!');
-        setEditingMovement(null);
-        setShowForm(false);
-        setSelectedAccountId('');
-        setSelectedPocketId('');
-        setIsFixedExpense(false);
       } else {
-        await createMovement(type, accountId, pocketId, amount, notes, displayedDate, subPocketId, isPending);
-        toast.success(isPending ? 'Pending movement created successfully!' : 'Movement created successfully!');
+        // Optimistic: close form immediately, store handles optimistic update
         form.reset();
         setShowForm(false);
         setSelectedAccountId('');
         setSelectedPocketId('');
         setIsFixedExpense(false);
+        
+        await createMovement(type, accountId, pocketId, amount, notes, displayedDate, subPocketId, isPending);
+        toast.success(isPending ? 'Pending movement created successfully!' : 'Movement created successfully!');
       }
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to save movement';
       setError(errorMessage);
       toast.error(errorMessage);
+      // Reopen form on error so user can retry
+      setShowForm(true);
     } finally {
-      setIsLoading(false);
+      setIsSaving(false);
     }
   };
 
@@ -271,13 +280,17 @@ const MovementsPage = () => {
     if (!confirmed) return;
 
     setError(null);
+    setDeletingId(id); // Track which item is being deleted
     try {
+      // Optimistic: UI updates immediately via store
       await deleteMovement(id);
       toast.success('Movement deleted successfully!');
     } catch (err: any) {
       const errorMessage = err.message || 'Failed to delete movement';
       setError(errorMessage);
       toast.error(errorMessage);
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -306,13 +319,17 @@ const MovementsPage = () => {
     if (!confirmed) return;
 
     setError(null);
+    setApplyingId(id); // Track which item is being applied
     try {
+      // Optimistic: UI updates immediately via store
       await applyPendingMovement(id);
       toast.success('Movement applied successfully!');
     } catch (err: any) {
       const errorMessage = err.message || 'Failed to apply movement';
       setError(errorMessage);
       toast.error(errorMessage);
+    } finally {
+      setApplyingId(null);
     }
   };
 
@@ -644,6 +661,8 @@ const MovementsPage = () => {
                                   variant="primary"
                                   size="sm"
                                   onClick={() => handleApplyPending(movement.id)}
+                                  loading={applyingId === movement.id}
+                                  disabled={applyingId !== null}
                                   className="px-3 py-1 text-sm"
                                 >
                                   Apply
@@ -653,6 +672,7 @@ const MovementsPage = () => {
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => handleEdit(movement)}
+                                disabled={deletingId !== null || applyingId !== null}
                                 className="p-2 text-gray-600 hover:text-blue-600 dark:hover:text-blue-400"
                               >
                                 <Edit2 className="w-4 h-4" />
@@ -661,6 +681,8 @@ const MovementsPage = () => {
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => handleDelete(movement.id)}
+                                loading={deletingId === movement.id}
+                                disabled={deletingId !== null || applyingId !== null}
                                 className="p-2 text-gray-600 hover:text-red-600 dark:hover:text-red-400"
                               >
                                 <Trash2 className="w-4 h-4" />
@@ -829,7 +851,7 @@ const MovementsPage = () => {
             <Button
               type="submit"
               variant="primary"
-              loading={isLoading}
+              loading={isSaving}
               className="flex-1"
             >
               {editingMovement ? 'Save Changes' : 'Create Movement'}

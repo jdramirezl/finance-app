@@ -5,6 +5,7 @@ import { useConfirm } from '../hooks/useConfirm';
 import type { Account, Pocket, Currency } from '../types';
 import { Plus, Trash2, Edit2, X } from 'lucide-react';
 import Modal from '../components/Modal';
+import Button from '../components/Button';
 import ConfirmDialog from '../components/ConfirmDialog';
 import SortableList from '../components/SortableList';
 import SortableItem from '../components/SortableItem';
@@ -38,6 +39,9 @@ const AccountsPage = () => {
   const [error, setError] = useState<string | null>(null);
   const [accountType, setAccountType] = useState<'normal' | 'investment'>('normal');
   const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false); // Button-level loading
+  const [_deletingAccountId, setDeletingAccountId] = useState<string | null>(null);
+  const [_deletingPocketId, setDeletingPocketId] = useState<string | null>(null);
 
   useEffect(() => {
     const loadData = async () => {
@@ -64,6 +68,7 @@ const AccountsPage = () => {
   const handleCreateAccount = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError(null);
+    setIsSaving(true);
     const form = e.currentTarget;
     const formData = new FormData(form);
     const name = formData.get('name') as string;
@@ -73,11 +78,18 @@ const AccountsPage = () => {
     const stockSymbol = (formData.get('stockSymbol') as string) || undefined;
 
     try {
-      await createAccount(name, color, currency, type, stockSymbol);
+      // Optimistic: close form immediately, store handles optimistic update
       form.reset();
       setShowAccountForm(false);
+      
+      await createAccount(name, color, currency, type, stockSymbol);
+      toast.success('Account created successfully!');
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to create account');
+      toast.error(err instanceof Error ? err.message : 'Failed to create account');
+      setShowAccountForm(true); // Reopen on error
+    } finally {
+      setIsSaving(false);
     }
   };
   const handleUpdateAccount = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -85,6 +97,7 @@ const AccountsPage = () => {
     setError(null);
     if (!editingAccount) return;
 
+    setIsSaving(true);
     const form = e.currentTarget;
     const formData = new FormData(form);
     const updates = {
@@ -94,11 +107,16 @@ const AccountsPage = () => {
     };
 
     try {
-      await updateAccount(editingAccount.id, updates);
+      // Optimistic: close form immediately, store handles optimistic update
       setEditingAccount(null);
-      // Form will unmount when editingAccount is set to null, so no need to reset
+      
+      await updateAccount(editingAccount.id, updates);
+      toast.success('Account updated successfully!');
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to update account');
+      toast.error(err instanceof Error ? err.message : 'Failed to update account');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -115,16 +133,20 @@ const AccountsPage = () => {
     if (!confirmed) return;
 
     setError(null);
+    setDeletingAccountId(id);
     try {
-      await deleteAccount(id);
+      // Optimistic: UI updates immediately via store
       if (selectedAccountId === id) {
         selectAccount(null);
       }
+      await deleteAccount(id);
       toast.success('Account deleted successfully!');
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to delete account';
       setError(errorMessage);
       toast.error(errorMessage);
+    } finally {
+      setDeletingAccountId(null);
     }
   };
 
@@ -133,6 +155,7 @@ const AccountsPage = () => {
     setError(null);
     if (!selectedAccountId) return;
 
+    setIsSaving(true);
     const form = e.currentTarget;
     const formData = new FormData(form);
     let name: string;
@@ -141,6 +164,7 @@ const AccountsPage = () => {
       const kind = formData.get('investmentKind') as string;
       if (!kind) {
         setError('Please select an investment pocket');
+        setIsSaving(false);
         return;
       }
       name = kind === 'shares' ? 'Shares' : 'Invested Money';
@@ -151,12 +175,18 @@ const AccountsPage = () => {
     }
 
     try {
-      await createPocket(selectedAccountId, name, type);
-      // Reset form synchronously before hiding
+      // Optimistic: close form immediately, store handles optimistic update
       form.reset();
       setShowPocketForm(false);
+      
+      await createPocket(selectedAccountId, name, type);
+      toast.success('Pocket created successfully!');
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to create pocket');
+      toast.error(err instanceof Error ? err.message : 'Failed to create pocket');
+      setShowPocketForm(true); // Reopen on error
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -165,17 +195,23 @@ const AccountsPage = () => {
     setError(null);
     if (!editingPocket) return;
 
+    setIsSaving(true);
     const formData = new FormData(e.currentTarget);
     const updates = {
       name: formData.get('name') as string,
     };
 
     try {
-      await updatePocket(editingPocket.id, updates);
+      // Optimistic: close form immediately, store handles optimistic update
       setEditingPocket(null);
-      // Form will unmount when editingPocket is set to null, so no need to reset
+      
+      await updatePocket(editingPocket.id, updates);
+      toast.success('Pocket updated successfully!');
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to update pocket');
+      toast.error(err instanceof Error ? err.message : 'Failed to update pocket');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -192,13 +228,17 @@ const AccountsPage = () => {
     if (!confirmed) return;
 
     setError(null);
+    setDeletingPocketId(id);
     try {
+      // Optimistic: UI updates immediately via store
       await deletePocket(id);
       toast.success('Pocket deleted successfully!');
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to delete pocket';
       setError(errorMessage);
       toast.error(errorMessage);
+    } finally {
+      setDeletingPocketId(null);
     }
   };
 
@@ -373,19 +413,22 @@ const AccountsPage = () => {
                       </select>
                     </div>
                     <div className="flex gap-2">
-                      <button
+                      <Button
                         type="submit"
-                        className="flex-1 px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600"
+                        variant="primary"
+                        loading={isSaving}
+                        className="flex-1"
                       >
                         Save
-                      </button>
-                      <button
+                      </Button>
+                      <Button
                         type="button"
+                        variant="secondary"
                         onClick={() => setEditingAccount(null)}
-                        className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600"
+                        disabled={isSaving}
                       >
                         Cancel
-                      </button>
+                      </Button>
                     </div>
                   </form>
                 ) : (
@@ -470,19 +513,22 @@ const AccountsPage = () => {
                       </>
                     )}
                     <div className="flex gap-2">
-                      <button
+                      <Button
                         type="submit"
-                        className="flex-1 px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600"
+                        variant="primary"
+                        loading={isSaving}
+                        className="flex-1"
                       >
                         Create
-                      </button>
-                      <button
+                      </Button>
+                      <Button
                         type="button"
+                        variant="secondary"
                         onClick={() => setShowPocketForm(false)}
-                        className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600"
+                        disabled={isSaving}
                       >
                         Cancel
-                      </button>
+                      </Button>
                     </div>
                   </form>
                 )}
@@ -546,19 +592,22 @@ const AccountsPage = () => {
                       />
                     </div>
                     <div className="flex gap-2">
-                      <button
+                      <Button
                         type="submit"
-                        className="flex-1 px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600"
+                        variant="primary"
+                        loading={isSaving}
+                        className="flex-1"
                       >
                         Save
-                      </button>
-                      <button
+                      </Button>
+                      <Button
                         type="button"
+                        variant="secondary"
                         onClick={() => setEditingPocket(null)}
-                        className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600"
+                        disabled={isSaving}
                       >
                         Cancel
-                      </button>
+                      </Button>
                     </div>
                   </form>
                 )}
@@ -643,19 +692,22 @@ const AccountsPage = () => {
               </div>
               )}
               <div className="flex gap-2">
-                <button
+                <Button
                   type="submit"
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  variant="primary"
+                  loading={isSaving}
+                  className="flex-1"
                 >
                   Create
-                </button>
-                <button
+                </Button>
+                <Button
                   type="button"
+                  variant="secondary"
                   onClick={() => setShowAccountForm(false)}
-                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+                  disabled={isSaving}
                 >
                   Cancel
-                </button>
+                </Button>
               </div>
             </form>
         </Modal>

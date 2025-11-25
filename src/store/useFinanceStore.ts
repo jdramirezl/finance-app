@@ -293,19 +293,19 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
       const subPocket = await subPocketService.createSubPocket(pocketId, name, valueTotal, periodicityMonths);
       // Optimistic update
       set((state) => ({ subPockets: [...state.subPockets, subPocket] }));
-      // Selective reload: only reload the affected pocket and its account
+      
+      // Selective reload: batch all updates into a single set() call
       const pocket = await pocketService.getPocket(pocketId);
       if (pocket) {
+        const account = await accountService.getAccount(pocket.accountId);
+        
+        // Single batched update - only one re-render
         set((state) => ({
           pockets: state.pockets.map((p) => (p.id === pocketId ? pocket : p)),
+          accounts: account 
+            ? state.accounts.map((a) => (a.id === pocket.accountId ? account : a))
+            : state.accounts,
         }));
-        // Reload the affected account
-        const account = await accountService.getAccount(pocket.accountId);
-        if (account) {
-          set((state) => ({
-            accounts: state.accounts.map((a) => (a.id === pocket.accountId ? account : a)),
-          }));
-        }
       }
     } catch (error) {
       await get().loadSubPockets();
@@ -320,19 +320,19 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
       set((state) => ({
         subPockets: state.subPockets.map((sp) => (sp.id === id ? updated : sp)),
       }));
-      // Selective reload: only reload the affected pocket and its account
+      
+      // Selective reload: batch all updates into a single set() call
       const pocket = await pocketService.getPocket(updated.pocketId);
       if (pocket) {
+        const account = await accountService.getAccount(pocket.accountId);
+        
+        // Single batched update - only one re-render
         set((state) => ({
           pockets: state.pockets.map((p) => (p.id === updated.pocketId ? pocket : p)),
+          accounts: account 
+            ? state.accounts.map((a) => (a.id === pocket.accountId ? account : a))
+            : state.accounts,
         }));
-        // Reload the affected account
-        const account = await accountService.getAccount(pocket.accountId);
-        if (account) {
-          set((state) => ({
-            accounts: state.accounts.map((a) => (a.id === pocket.accountId ? account : a)),
-          }));
-        }
       }
     } catch (error) {
       await get().loadSubPockets();
@@ -349,20 +349,20 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
       set((state) => ({
         subPockets: state.subPockets.filter((sp) => sp.id !== id),
       }));
-      // Selective reload: only reload the affected pocket and its account
+      
+      // Selective reload: batch all updates into a single set() call
       if (subPocket) {
         const pocket = await pocketService.getPocket(subPocket.pocketId);
         if (pocket) {
+          const account = await accountService.getAccount(pocket.accountId);
+          
+          // Single batched update - only one re-render
           set((state) => ({
             pockets: state.pockets.map((p) => (p.id === subPocket.pocketId ? pocket : p)),
+            accounts: account 
+              ? state.accounts.map((a) => (a.id === pocket.accountId ? account : a))
+              : state.accounts,
           }));
-          // Reload the affected account
-          const account = await accountService.getAccount(pocket.accountId);
-          if (account) {
-            set((state) => ({
-              accounts: state.accounts.map((a) => (a.id === pocket.accountId ? account : a)),
-            }));
-          }
         }
       }
     } catch (error) {

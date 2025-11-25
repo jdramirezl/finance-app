@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useFinanceStore } from '../store/useFinanceStore';
+import { useToast } from '../hooks/useToast';
 import { StorageService } from '../services/storageService';
 import { Plus, Trash2, Edit2, X } from 'lucide-react';
 import Button from '../components/Button';
@@ -33,6 +34,8 @@ const BudgetPlanningPage = () => {
   const [editingEntryName, setEditingEntryName] = useState<string>('');
   const [editingEntryPercentage, setEditingEntryPercentage] = useState<number>(0);
   const [isLoading, setIsLoading] = useState(true);
+
+  const toast = useToast();
 
   useEffect(() => {
     const loadData = async () => {
@@ -114,12 +117,12 @@ const BudgetPlanningPage = () => {
 
   const handleSaveEntry = (id: string) => {
     if (!editingEntryName.trim()) {
-      alert('Please enter a name for this entry');
+      toast.warning('Please enter a name for this entry');
       return;
     }
 
     if (editingEntryPercentage < 0 || editingEntryPercentage > 100) {
-      alert('Percentage must be between 0 and 100');
+      toast.warning('Percentage must be between 0 and 100');
       return;
     }
 

@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { X, CheckCircle, AlertCircle, Info, AlertTriangle } from 'lucide-react';
 
 export type ToastType = 'success' | 'error' | 'info' | 'warning';
@@ -11,12 +11,22 @@ interface ToastProps {
 }
 
 const Toast = ({ message, type = 'info', duration = 5000, onClose }: ToastProps) => {
+  const [isExiting, setIsExiting] = useState(false);
+
   useEffect(() => {
     if (duration > 0) {
-      const timer = setTimeout(onClose, duration);
+      const timer = setTimeout(() => {
+        setIsExiting(true);
+        setTimeout(onClose, 300); // Wait for exit animation
+      }, duration);
       return () => clearTimeout(timer);
     }
   }, [duration, onClose]);
+
+  const handleClose = () => {
+    setIsExiting(true);
+    setTimeout(onClose, 300); // Wait for exit animation
+  };
 
   const icons = {
     success: <CheckCircle className="w-5 h-5" />,
@@ -34,13 +44,15 @@ const Toast = ({ message, type = 'info', duration = 5000, onClose }: ToastProps)
 
   return (
     <div
-      className={`flex items-center gap-3 px-4 py-3 rounded-lg border shadow-lg max-w-md animate-slide-in ${styles[type]}`}
+      className={`flex items-center gap-3 px-4 py-3 rounded-lg border shadow-lg max-w-md transition-all duration-300 ${
+        isExiting ? 'animate-toast-exit' : 'animate-toast-enter'
+      } ${styles[type]}`}
       role="alert"
     >
       <div className="flex-shrink-0">{icons[type]}</div>
       <p className="flex-1 text-sm font-medium">{message}</p>
       <button
-        onClick={onClose}
+        onClick={handleClose}
         className="flex-shrink-0 p-1 rounded hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
         aria-label="Close notification"
       >
