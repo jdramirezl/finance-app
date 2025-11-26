@@ -58,17 +58,13 @@ class MovementService {
   // Get all orphaned movements (INSTANT - just check flag)
   async getOrphanedMovements(): Promise<Movement[]> {
     const movements = await this.getAllMovements();
-    const orphaned = movements.filter(m => m.isOrphaned === true);
-    console.log(`👻 [getOrphanedMovements] Found ${orphaned.length} orphaned movements out of ${movements.length} total`);
-    return orphaned;
+    return movements.filter(m => m.isOrphaned === true);
   }
 
   // Get non-orphaned movements (active movements only) - INSTANT
   async getActiveMovements(): Promise<Movement[]> {
     const movements = await this.getAllMovements();
-    const active = movements.filter(m => !m.isOrphaned);
-    console.log(`✅ [getActiveMovements] Found ${active.length} active movements out of ${movements.length} total`);
-    return active;
+    return movements.filter(m => !m.isOrphaned);
   }
 
   // Get movement by ID

@@ -77,17 +77,12 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
   // NOTE: This now loads accounts, pockets, AND subPockets in one call
   // to avoid duplicate loads and ensure all balances are calculated correctly
   loadAccounts: async () => {
-    const startTime = performance.now();
-    console.log('⏱️ [Store] loadAccounts starting...');
-    
     // OPTIMIZATION: Fetch all data in parallel instead of sequentially
-    const parallelStart = performance.now();
     const [accounts, pockets, subPockets] = await Promise.all([
       accountService.getAllAccounts(),
       pocketService.getAllPockets(),
       SupabaseStorageService.getSubPockets(),
     ]);
-    console.log(`⏱️ [Store] Parallel fetch: ${(performance.now() - parallelStart).toFixed(2)}ms (${accounts.length} accounts, ${pockets.length} pockets, ${subPockets.length} subPockets)`);
     
     // STEP 1: Recalculate fixed pocket balances from sub-pockets
     const updatedPockets = pockets.map((pocket) => {
@@ -126,16 +121,11 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
     const updatedAccounts = await Promise.all(updatedAccountsPromises);
     
     // STEP 3: Update all state in a single set() call to avoid multiple re-renders
-    const setStart = performance.now();
     set({ 
       accounts: updatedAccounts,
       pockets: updatedPockets,
       subPockets: Array.isArray(subPockets) ? subPockets : [],
     });
-    console.log(`⏱️ [Store] set() state: ${(performance.now() - setStart).toFixed(2)}ms`);
-    
-    const totalTime = performance.now() - startTime;
-    console.log(`⏱️ [Store] loadAccounts TOTAL: ${totalTime.toFixed(2)}ms (${(totalTime / 1000).toFixed(2)}s)`);
   },
 
   loadPockets: async () => {
@@ -172,25 +162,16 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
   },
 
   loadMovements: async () => {
-    const startTime = performance.now();
-    console.log('⏱️ [Store] loadMovements starting...');
-    
     // OPTIMIZATION: Load movements and orphan count in parallel
     const [movements, orphanedCount] = await Promise.all([
       movementService.getActiveMovements(),
       movementService.getOrphanedMovements().then(orphaned => orphaned.length),
     ]);
-    console.log(`⏱️ [Store] Parallel fetch: ${(performance.now() - startTime).toFixed(2)}ms (${movements.length} active, ${orphanedCount} orphaned)`);
     
-    const setStart = performance.now();
     set({ 
       movements: Array.isArray(movements) ? movements : [],
       orphanedCount,
     });
-    console.log(`⏱️ [Store] set() movements: ${(performance.now() - setStart).toFixed(2)}ms`);
-    
-    const totalTime = performance.now() - startTime;
-    console.log(`⏱️ [Store] loadMovements TOTAL: ${totalTime.toFixed(2)}ms (${(totalTime / 1000).toFixed(2)}s)`);
   },
 
   loadSettings: async () => {

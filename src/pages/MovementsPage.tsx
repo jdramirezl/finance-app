@@ -71,23 +71,13 @@ const MovementsPage = () => {
   useEffect(() => {
     const loadData = async () => {
       const startTime = performance.now();
-      console.log('⏱️ [MovementsPage] Starting data load...');
       
       setIsLoading(true);
       try {
-        // loadAccounts now loads accounts, pockets, and subPockets in one call
-        const accountsStart = performance.now();
-        await loadAccounts();
-        const accountsEnd = performance.now();
-        console.log(`⏱️ [MovementsPage] loadAccounts took ${(accountsEnd - accountsStart).toFixed(2)}ms`);
-        
-        const movementsStart = performance.now();
-        await loadMovements();
-        const movementsEnd = performance.now();
-        console.log(`⏱️ [MovementsPage] loadMovements took ${(movementsEnd - movementsStart).toFixed(2)}ms`);
+        await Promise.all([loadAccounts(), loadMovements()]);
         
         const totalTime = performance.now() - startTime;
-        console.log(`⏱️ [MovementsPage] Total load time: ${totalTime.toFixed(2)}ms (${(totalTime / 1000).toFixed(2)}s)`);
+        console.log(`⏱️ [MovementsPage] Total load: ${totalTime.toFixed(0)}ms`);
       } catch (err) {
         console.error('Failed to load data:', err);
         toast.error('Failed to load movements data');
@@ -96,7 +86,7 @@ const MovementsPage = () => {
       }
     };
     loadData();
-  }, [loadAccounts, loadMovements]); // Removed toast from dependencies - it shouldn't trigger reloads
+  }, [loadAccounts, loadMovements]);
   
   // OPTIMIZATION: Orphaned count now loaded in store with movements (no extra query needed)
   
@@ -131,9 +121,7 @@ const MovementsPage = () => {
 
   // OPTIMIZATION: Memoize filtered movements to avoid recalculating on every render
   const filteredMovements = useMemo(() => {
-    const startTime = performance.now();
-    
-    const filtered = movements.filter(movement => {
+    return movements.filter(movement => {
       // Pending status filter
       if (showPending === 'pending' && !movement.isPending) return false;
       if (showPending === 'applied' && movement.isPending) return false;
@@ -173,17 +161,10 @@ const MovementsPage = () => {
       
       return true;
     });
-    
-    const endTime = performance.now();
-    console.log(`⏱️ [MovementsPage] Filter calculation: ${(endTime - startTime).toFixed(2)}ms (${filtered.length}/${movements.length} movements)`);
-    
-    return filtered;
   }, [movements, showPending, filterAccount, filterPocket, filterType, filterDateRange, filterDateFrom, filterDateTo, filterSearch, filterMinAmount, filterMaxAmount]);
 
   // OPTIMIZATION: Memoize grouped movements to avoid recalculating on every render
   const movementsByMonth = useMemo(() => {
-    const startTime = performance.now();
-    
     const grouped = Array.from(
       filteredMovements.reduce((acc, movement) => {
         const date = parseISO(movement.displayedDate);
@@ -202,9 +183,6 @@ const MovementsPage = () => {
         (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
       );
     });
-    
-    const endTime = performance.now();
-    console.log(`⏱️ [MovementsPage] Grouping calculation: ${(endTime - startTime).toFixed(2)}ms (${grouped.length} months)`);
     
     return grouped;
   }, [filteredMovements]);
