@@ -227,11 +227,15 @@
 - [ ] **Audit log** - Track all changes with timestamps and user
 - [ ] **Multi-currency conversion display** - Show all amounts in primary currency
 - [x] **Cascade delete for accounts** ✅ FIXED - "Delete All" button to delete account with all pockets and optionally orphan/delete related movements
-- [ ] **Orphaned movements handling** - Currently movements remain when account/pocket deleted (causes errors). Options:
-  - Auto-delete movements when account/pocket deleted (destructive)
-  - Mark movements as "orphaned" and show warning (safer)
-  - Prevent deletion if movements exist (current behavior for accounts with pockets)
-  - Recommended: Prevent deletion + show count of movements that would be affected
+- [x] **Orphaned movements handling** ✅ FIXED - Implemented comprehensive orphaned movements system:
+  - Movements marked as "orphaned" when account/pocket deleted (safe, non-destructive)
+  - Orphaned movements stored with original account/pocket names and currency for restoration
+  - Dedicated "Orphaned Movements" section on MovementsPage with count badge
+  - "Restore All" button automatically recreates account + pockets and links movements
+  - "Delete All" button for permanent cleanup
+  - Instant orphan detection using isOrphaned flag (no expensive lookups)
+  - Detailed logging and error handling for restoration process
+  - Movements properly linked to recreated entities with balance recalculation
 
 ---
 
@@ -330,6 +334,97 @@
 3. **Missing TypeScript types** - Some `any` types still present
 4. **Console.logs in production** - Should use proper logging
 5. **No error boundaries** - App crashes on component errors
+
+---
+
+## 🎯 Recommended Next Features
+
+Based on current state and user value, here are the top priorities:
+
+### 1. **Search/Filter Movements** (30-60 min) 🔥
+- **Why**: With orphaned movements feature, users may have many movements to manage
+- **What**: Full-text search + filters (date range, account, pocket, type, amount range)
+- **Impact**: HIGH - Makes finding specific transactions much easier
+- **Effort**: MEDIUM - Needs filter UI + memoized filtering logic
+
+### 2. **Recurring Movements Automation** (2-3 hours) 🔥
+- **Why**: Fixed expenses are tracked but not automated - users still manually create movements
+- **What**: 
+  - Add "Auto-create movement" toggle to SubPockets
+  - Background job checks for due payments (based on periodicity)
+  - Auto-creates movements on due date or shows "Create Now" button
+  - Integrates with upcoming bills widget
+- **Impact**: VERY HIGH - Eliminates repetitive data entry
+- **Effort**: HIGH - Needs scheduling logic + UI updates
+
+### 3. **Movement Templates** (30-45 min) 🔥
+- **Why**: Users repeat common transactions (groceries, gas, etc.)
+- **What**: 
+  - "Save as Template" button on movement form
+  - Template picker in movement creation
+  - Pre-fills account, pocket, type, notes (user just enters amount)
+- **Impact**: HIGH - Speeds up common data entry
+- **Effort**: MEDIUM - Needs template storage + UI
+
+### 4. **Charts & Visualizations** (3-4 hours) 💎
+- **Why**: Users can't see spending trends or patterns
+- **What**:
+  - Balance over time line chart (last 30/90/365 days)
+  - Spending by pocket pie chart
+  - Income vs expenses bar chart
+  - Monthly comparison chart
+- **Impact**: VERY HIGH - Provides insights into financial health
+- **Effort**: HIGH - Needs charting library (recharts) + data aggregation
+
+### 5. **Export/Import Data** (1-2 hours) 💎
+- **Why**: Users need backups and data portability
+- **What**:
+  - Export all data to JSON/CSV with date range filter
+  - Import with validation and preview
+  - Duplicate detection
+- **Impact**: HIGH - Data safety and migration
+- **Effort**: MEDIUM-HIGH - Needs file handling + validation
+
+### 6. **Budget vs Actual Tracking** (2-3 hours) 💎
+- **Why**: Budget planning exists but no comparison to actual spending
+- **What**:
+  - Show planned vs actual for each pocket
+  - Visual indicators (green = under budget, red = over)
+  - Monthly summary with variance
+  - Alerts when approaching limits
+- **Impact**: VERY HIGH - Core budgeting feature
+- **Effort**: HIGH - Needs comparison logic + UI updates
+
+### 7. **Mobile Optimizations** (2-3 hours) 📱
+- **Why**: App is usable on mobile but not optimized
+- **What**:
+  - Collapsible sidebar/drawer
+  - Bottom navigation bar
+  - Touch-friendly buttons (44x44px)
+  - Responsive tables → cards
+  - Swipe gestures
+- **Impact**: HIGH - Better mobile experience
+- **Effort**: HIGH - Needs responsive redesign
+
+### 8. **Keyboard Shortcuts** (1-2 hours) ⌨️
+- **Why**: Power users want faster navigation
+- **What**:
+  - Enter to submit forms
+  - ESC to close modals
+  - Ctrl+N for new movement
+  - Ctrl+F for search
+  - Arrow keys for navigation
+  - Help panel (Ctrl+?) showing all shortcuts
+- **Impact**: MEDIUM - Power user feature
+- **Effort**: MEDIUM - Needs keyboard event handling
+
+### Quick Wins to Knock Out First (10-30 min each):
+1. ✅ Enter to submit forms
+2. ✅ ESC to close modals  
+3. ✅ Memoize expensive calculations (MovementsPage filters, SummaryPage totals)
+4. ✅ Extract magic numbers to constants
+5. ✅ Relative dates ("2 hours ago")
+6. ✅ Hover tooltips on icons/buttons
 
 ---
 

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useFinanceStore } from '../store/useFinanceStore';
 import { useToast } from '../hooks/useToast';
 import { useConfirm } from '../hooks/useConfirm';
@@ -20,6 +20,7 @@ const MovementsPage = () => {
     pockets,
     subPockets,
     movements,
+    orphanedCount: storeOrphanedCount,
     loadAccounts,
     loadMovements,
     createAccount,
@@ -31,7 +32,6 @@ const MovementsPage = () => {
     getPocketsByAccount,
     getSubPocketsByPocket,
     getOrphanedMovements,
-    getOrphanedMovementsCount,
     restoreOrphanedMovements,
   } = useFinanceStore();
 
@@ -57,7 +57,8 @@ const MovementsPage = () => {
   // Orphaned movements
   const [showOrphaned, setShowOrphaned] = useState(false);
   const [orphanedMovements, setOrphanedMovements] = useState<Movement[]>([]);
-  const [orphanedCount, setOrphanedCount] = useState(0);
+  // Use cached count from store instead of local state
+  const orphanedCount = storeOrphanedCount;
   const [filterType, setFilterType] = useState<'all' | 'income' | 'expense' | 'investment'>('all');
   const [filterDateRange, setFilterDateRange] = useState<'all' | '7days' | '30days' | '3months' | '6months' | 'year' | 'custom'>('all');
   const [filterDateFrom, setFilterDateFrom] = useState<string>('');
@@ -69,13 +70,24 @@ const MovementsPage = () => {
 
   useEffect(() => {
     const loadData = async () => {
+      const startTime = performance.now();
+      console.log('⏱️ [MovementsPage] Starting data load...');
+      
       setIsLoading(true);
       try {
         // loadAccounts now loads accounts, pockets, and subPockets in one call
-        await Promise.all([
-          loadAccounts(),
-          loadMovements(),
-        ]);
+        const accountsStart = performance.now();
+        await loadAccounts();
+        const accountsEnd = performance.now();
+        console.log(`⏱️ [MovementsPage] loadAccounts took ${(accountsEnd - accountsStart).toFixed(2)}ms`);
+        
+        const movementsStart = performance.now();
+        await loadMovements();
+        const movementsEnd = performance.now();
+        console.log(`⏱️ [MovementsPage] loadMovements took ${(movementsEnd - movementsStart).toFixed(2)}ms`);
+        
+        const totalTime = performance.now() - startTime;
+        console.log(`⏱️ [MovementsPage] Total load time: ${totalTime.toFixed(2)}ms (${(totalTime / 1000).toFixed(2)}s)`);
       } catch (err) {
         console.error('Failed to load data:', err);
         toast.error('Failed to load movements data');
@@ -86,19 +98,7 @@ const MovementsPage = () => {
     loadData();
   }, [loadAccounts, loadMovements]); // Removed toast from dependencies - it shouldn't trigger reloads
   
-  // Load orphaned count separately (lazy - only when movements change)
-  useEffect(() => {
-    const loadOrphanedCount = async () => {
-      console.log('🔢 [MovementsPage] Loading orphaned count...');
-      const count = await getOrphanedMovementsCount();
-      console.log(`🔢 [MovementsPage] Orphaned count: ${count}`);
-      setOrphanedCount(count);
-    };
-    if (movements.length > 0 || accounts.length > 0) {
-      console.log(`🔢 [MovementsPage] Triggering orphan count load - movements: ${movements.length}, accounts: ${accounts.length}`);
-      loadOrphanedCount();
-    }
-  }, [movements.length, accounts.length, getOrphanedMovementsCount]);
+  // OPTIMIZATION: Orphaned count now loaded in store with movements (no extra query needed)
   
   // Load orphaned movements when showing orphaned section
   useEffect(() => {
@@ -129,67 +129,85 @@ const MovementsPage = () => {
     return filterDateRange !== 'all' ? ranges[filterDateRange] : null;
   };
 
-  // Filter movements based on all criteria
-  const filteredMovements = movements.filter(movement => {
-    // Pending status filter
-    if (showPending === 'pending' && !movement.isPending) return false;
-    if (showPending === 'applied' && movement.isPending) return false;
+  // OPTIMIZATION: Memoize filtered movements to avoid recalculating on every render
+  const filteredMovements = useMemo(() => {
+    const startTime = performance.now();
     
-    // Account filter
-    if (filterAccount !== 'all' && movement.accountId !== filterAccount) return false;
-    
-    // Pocket filter
-    if (filterPocket !== 'all' && movement.pocketId !== filterPocket) return false;
-    
-    // Type filter (income/expense/investment)
-    if (filterType !== 'all') {
-      const isIncome = movement.type === 'IngresoNormal' || movement.type === 'IngresoFijo';
-      const isExpense = movement.type === 'EgresoNormal' || movement.type === 'EgresoFijo';
+    const filtered = movements.filter(movement => {
+      // Pending status filter
+      if (showPending === 'pending' && !movement.isPending) return false;
+      if (showPending === 'applied' && movement.isPending) return false;
       
-      if (filterType === 'income' && !isIncome) return false;
-      if (filterType === 'expense' && !isExpense) return false;
-    }
+      // Account filter
+      if (filterAccount !== 'all' && movement.accountId !== filterAccount) return false;
+      
+      // Pocket filter
+      if (filterPocket !== 'all' && movement.pocketId !== filterPocket) return false;
+      
+      // Type filter (income/expense/investment)
+      if (filterType !== 'all') {
+        const isIncome = movement.type === 'IngresoNormal' || movement.type === 'IngresoFijo';
+        const isExpense = movement.type === 'EgresoNormal' || movement.type === 'EgresoFijo';
+        
+        if (filterType === 'income' && !isIncome) return false;
+        if (filterType === 'expense' && !isExpense) return false;
+      }
+      
+      // Date range filter
+      const dateRange = getDateRange();
+      if (dateRange) {
+        const movementDate = new Date(movement.displayedDate);
+        if (movementDate < dateRange.from || movementDate > dateRange.to) return false;
+      }
+      
+      // Search filter (notes)
+      if (filterSearch && movement.notes) {
+        if (!movement.notes.toLowerCase().includes(filterSearch.toLowerCase())) return false;
+      } else if (filterSearch && !movement.notes) {
+        return false;
+      }
+      
+      // Amount range filter
+      if (filterMinAmount && movement.amount < parseFloat(filterMinAmount)) return false;
+      if (filterMaxAmount && movement.amount > parseFloat(filterMaxAmount)) return false;
+      
+      return true;
+    });
     
-    // Date range filter
-    const dateRange = getDateRange();
-    if (dateRange) {
-      const movementDate = new Date(movement.displayedDate);
-      if (movementDate < dateRange.from || movementDate > dateRange.to) return false;
-    }
+    const endTime = performance.now();
+    console.log(`⏱️ [MovementsPage] Filter calculation: ${(endTime - startTime).toFixed(2)}ms (${filtered.length}/${movements.length} movements)`);
     
-    // Search filter (notes)
-    if (filterSearch && movement.notes) {
-      if (!movement.notes.toLowerCase().includes(filterSearch.toLowerCase())) return false;
-    } else if (filterSearch && !movement.notes) {
-      return false;
-    }
-    
-    // Amount range filter
-    if (filterMinAmount && movement.amount < parseFloat(filterMinAmount)) return false;
-    if (filterMaxAmount && movement.amount > parseFloat(filterMaxAmount)) return false;
-    
-    return true;
-  });
+    return filtered;
+  }, [movements, showPending, filterAccount, filterPocket, filterType, filterDateRange, filterDateFrom, filterDateTo, filterSearch, filterMinAmount, filterMaxAmount]);
 
-  // Get movements grouped by month
-  const movementsByMonth = Array.from(
-    filteredMovements.reduce((acc, movement) => {
-      const date = parseISO(movement.displayedDate);
-      const monthKey = format(date, 'yyyy-MM');
-      if (!acc.has(monthKey)) {
-        acc.set(monthKey, []);
+  // OPTIMIZATION: Memoize grouped movements to avoid recalculating on every render
+  const movementsByMonth = useMemo(() => {
+    const startTime = performance.now();
+    
+    const grouped = Array.from(
+      filteredMovements.reduce((acc, movement) => {
+        const date = parseISO(movement.displayedDate);
+        const monthKey = format(date, 'yyyy-MM');
+        if (!acc.has(monthKey)) {
+          acc.set(monthKey, []);
       }
       acc.get(monthKey)!.push(movement);
       return acc;
     }, new Map<string, Movement[]>())
   ).sort((a, b) => b[0].localeCompare(a[0])); // Sort months descending
 
-  // Sort movements within each month by createdAt
-  movementsByMonth.forEach(([, monthMovements]) => {
-    monthMovements.sort(
-      (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-    );
-  });
+    // Sort movements within each month by createdAt
+    grouped.forEach(([, monthMovements]) => {
+      monthMovements.sort(
+        (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+      );
+    });
+    
+    const endTime = performance.now();
+    console.log(`⏱️ [MovementsPage] Grouping calculation: ${(endTime - startTime).toFixed(2)}ms (${grouped.length} months)`);
+    
+    return grouped;
+  }, [filteredMovements]);
 
   const getMovementTypeColor = (type: MovementType): string => {
     switch (type) {
@@ -616,7 +634,7 @@ const MovementsPage = () => {
                                 if (restored > 0) {
                                   const updated = await getOrphanedMovements();
                                   setOrphanedMovements(updated);
-                                  setOrphanedCount(updated.length);
+                                  // Count is now in store, will update automatically
                                   toast.success(`✨ Restored ${restored} movement(s)!`);
                                 }
                               } catch (err) {
@@ -642,7 +660,7 @@ const MovementsPage = () => {
                                 }
                                 const updated = await getOrphanedMovements();
                                 setOrphanedMovements(updated);
-                                setOrphanedCount(updated.length);
+                                // Count is now in store, will update automatically
                                 toast.success(`Deleted ${movements.length} movement(s)`);
                               }
                             }}
