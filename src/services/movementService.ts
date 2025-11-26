@@ -58,13 +58,17 @@ class MovementService {
   // Get all orphaned movements (INSTANT - just check flag)
   async getOrphanedMovements(): Promise<Movement[]> {
     const movements = await this.getAllMovements();
-    return movements.filter(m => m.isOrphaned === true);
+    const orphaned = movements.filter(m => m.isOrphaned === true);
+    console.log(`👻 [getOrphanedMovements] Found ${orphaned.length} orphaned movements out of ${movements.length} total`);
+    return orphaned;
   }
 
   // Get non-orphaned movements (active movements only) - INSTANT
   async getActiveMovements(): Promise<Movement[]> {
     const movements = await this.getAllMovements();
-    return movements.filter(m => !m.isOrphaned);
+    const active = movements.filter(m => !m.isOrphaned);
+    console.log(`✅ [getActiveMovements] Found ${active.length} active movements out of ${movements.length} total`);
+    return active;
   }
 
   // Get movement by ID
@@ -425,16 +429,25 @@ class MovementService {
 
   // Mark movements as orphaned (soft delete) - FAST, no lookups needed
   async markMovementsAsOrphaned(id: string, type: 'account' | 'pocket'): Promise<number> {
+    console.log(`🔍 [markMovementsAsOrphaned] Starting - type: ${type}, id: ${id}`);
+    
     const movements = await this.getAllMovements();
+    console.log(`📊 [markMovementsAsOrphaned] Total movements in DB: ${movements.length}`);
+    
     const targetMovements = type === 'account' 
       ? movements.filter(m => m.accountId === id)
       : movements.filter(m => m.pocketId === id);
     
+    console.log(`🎯 [markMovementsAsOrphaned] Found ${targetMovements.length} movements to mark as orphaned`);
+    
     // Mark all as orphaned
     for (const movement of targetMovements) {
+      console.log(`✏️ [markMovementsAsOrphaned] Marking movement ${movement.id} as orphaned`);
       await SupabaseStorageService.updateMovement(movement.id, { isOrphaned: true });
+      console.log(`✅ [markMovementsAsOrphaned] Successfully marked movement ${movement.id}`);
     }
     
+    console.log(`🎉 [markMovementsAsOrphaned] Complete - marked ${targetMovements.length} movements`);
     return targetMovements.length;
   }
 }

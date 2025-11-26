@@ -86,10 +86,13 @@ const MovementsPage = () => {
   // Load orphaned count separately (lazy - only when movements change)
   useEffect(() => {
     const loadOrphanedCount = async () => {
+      console.log('🔢 [MovementsPage] Loading orphaned count...');
       const count = await getOrphanedMovementsCount();
+      console.log(`🔢 [MovementsPage] Orphaned count: ${count}`);
       setOrphanedCount(count);
     };
     if (movements.length > 0 || accounts.length > 0) {
+      console.log(`🔢 [MovementsPage] Triggering orphan count load - movements: ${movements.length}, accounts: ${accounts.length}`);
       loadOrphanedCount();
     }
   }, [movements.length, accounts.length, getOrphanedMovementsCount]);

@@ -194,16 +194,22 @@ class AccountService {
     subPockets: number;
     movements: number;
   }> {
+    console.log(`🗑️ [deleteAccountCascade] Starting - accountId: ${id}, deleteMovements: ${deleteMovements}`);
+    
     const account = await this.getAccount(id);
     if (!account) {
       throw new Error(`Account with id "${id}" not found.`);
     }
+
+    console.log(`📋 [deleteAccountCascade] Account found: ${account.name}`);
 
     const pocketService = await getPocketService();
     const subPocketService = await getSubPocketService();
     const movementService = await getMovementService();
 
     const pockets = await pocketService.getPocketsByAccount(id);
+    console.log(`📦 [deleteAccountCascade] Found ${pockets.length} pockets to delete`);
+    
     let totalSubPockets = 0;
     let totalMovements = 0;
 
@@ -221,11 +227,15 @@ class AccountService {
       // Handle movements
       if (deleteMovements) {
         // Hard delete movements
+        console.log(`💥 [deleteAccountCascade] Hard deleting movements for pocket ${pocket.id}`);
         const deletedCount = await movementService.deleteMovementsByPocket(pocket.id);
+        console.log(`💥 [deleteAccountCascade] Deleted ${deletedCount} movements`);
         totalMovements += deletedCount;
       } else {
         // Soft delete: mark movements as orphaned
+        console.log(`🔖 [deleteAccountCascade] Soft deleting (marking as orphaned) movements for pocket ${pocket.id}`);
         const markedCount = await movementService.markMovementsAsOrphaned(pocket.id, 'pocket');
+        console.log(`🔖 [deleteAccountCascade] Marked ${markedCount} movements as orphaned`);
         totalMovements += markedCount;
       }
 
@@ -236,17 +246,24 @@ class AccountService {
     // Handle any remaining movements by account
     if (deleteMovements) {
       // Hard delete remaining movements
+      console.log(`💥 [deleteAccountCascade] Hard deleting remaining movements for account ${id}`);
       const remainingCount = await movementService.deleteMovementsByAccount(id);
+      console.log(`💥 [deleteAccountCascade] Deleted ${remainingCount} remaining movements`);
       totalMovements += remainingCount;
     } else {
       // Soft delete: mark remaining movements as orphaned
+      console.log(`🔖 [deleteAccountCascade] Soft deleting remaining movements for account ${id}`);
       const markedCount = await movementService.markMovementsAsOrphaned(id, 'account');
+      console.log(`🔖 [deleteAccountCascade] Marked ${markedCount} remaining movements as orphaned`);
       totalMovements += markedCount;
     }
 
     // Delete account
+    console.log(`🗑️ [deleteAccountCascade] Deleting account ${id}`);
     await SupabaseStorageService.deleteAccount(id);
 
+    console.log(`✅ [deleteAccountCascade] Complete - account: ${account.name}, pockets: ${pockets.length}, subPockets: ${totalSubPockets}, movements: ${totalMovements}`);
+    
     return {
       account: account.name,
       pockets: pockets.length,
