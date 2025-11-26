@@ -17,7 +17,7 @@ interface FinanceStore {
   orphanedCount: number;
 
   // Actions - Accounts
-  loadAccounts: () => Promise<void>;
+  loadAccounts: (skipInvestmentPrices?: boolean) => Promise<void>;
   createAccount: (name: string, color: string, currency: Account['currency'], type?: Account['type'], stockSymbol?: string) => Promise<void>;
   updateAccount: (id: string, updates: Partial<Pick<Account, 'name' | 'color' | 'currency'>>) => Promise<void>;
   deleteAccount: (id: string) => Promise<void>;
@@ -76,7 +76,8 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
   // Load data from storage
   // NOTE: This now loads accounts, pockets, AND subPockets in one call
   // to avoid duplicate loads and ensure all balances are calculated correctly
-  loadAccounts: async () => {
+  // OPTIMIZATION: skipInvestmentPrices=true to avoid fetching stock prices when not needed
+  loadAccounts: async (skipInvestmentPrices = false) => {
     // OPTIMIZATION: Fetch all data in parallel instead of sequentially
     const [accounts, pockets, subPockets] = await Promise.all([
       accountService.getAllAccounts(),
@@ -95,10 +96,10 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
     });
     
     // STEP 2: Calculate account balances
-    // - Investment accounts: use market value (shares × current price)
+    // - Investment accounts: use market value (shares × current price) - ONLY if not skipped
     // - Normal accounts: sum pocket balances
     const updatedAccountsPromises = accounts.map(async (account) => {
-      if (account.type === 'investment' && account.stockSymbol) {
+      if (account.type === 'investment' && account.stockSymbol && !skipInvestmentPrices) {
         try {
           const { investmentService } = await import('../services/investmentService');
           const invData = await investmentService.updateInvestmentAccount(account);
@@ -111,7 +112,7 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
           return { ...account, balance: calculatedBalance };
         }
       } else {
-        // Normal account - sum pocket balances
+        // Normal account OR skipping investment prices - sum pocket balances
         const accountPockets = updatedPockets.filter(p => p.accountId === account.id);
         const calculatedBalance = accountPockets.reduce((sum, p) => sum + p.balance, 0);
         return { ...account, balance: calculatedBalance };

@@ -40,7 +40,8 @@ const BudgetPlanningPage = () => {
       setIsLoading(true);
       try {
         // loadAccounts now loads accounts, pockets, and subPockets in one call
-        await loadAccounts();
+        // Skip investment prices - not needed for budget planning
+        await loadAccounts(true);
       } catch (err) {
         console.error('Failed to load data:', err);
       } finally {

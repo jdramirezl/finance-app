@@ -43,7 +43,8 @@ const FixedExpensesPage = () => {
       setIsLoading(true);
       try {
         // loadAccounts now loads accounts, pockets, and subPockets in one call
-        await loadAccounts();
+        // Skip investment prices - not needed for fixed expenses
+        await loadAccounts(true);
       } catch (err) {
         console.error('Failed to load data:', err);
         toast.error('Failed to load fixed expenses data');

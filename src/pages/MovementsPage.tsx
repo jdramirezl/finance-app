@@ -74,7 +74,8 @@ const MovementsPage = () => {
       
       setIsLoading(true);
       try {
-        await Promise.all([loadAccounts(), loadMovements()]);
+        // OPTIMIZATION: Skip investment prices since we don't display account balances here
+        await Promise.all([loadAccounts(true), loadMovements()]);
         
         const totalTime = performance.now() - startTime;
         console.log(`⏱️ [MovementsPage] Total load: ${totalTime.toFixed(0)}ms`);
