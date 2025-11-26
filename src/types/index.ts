@@ -61,6 +61,10 @@ export interface Movement {
   createdAt: string; // Registration date (ISO string)
   isPending?: boolean; // If true, movement is registered but not applied to balances
   isOrphaned?: boolean; // If true, account or pocket was deleted (soft delete)
+  // Orphan restoration fields - store original info for matching (NOT by ID!)
+  orphanedAccountName?: string; // Original account name (for matching + display)
+  orphanedAccountCurrency?: string; // Original account currency (for matching)
+  orphanedPocketName?: string; // Original pocket name (for matching + display)
 }
 
 // Investment-specific properties (extends Account)

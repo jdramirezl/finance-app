@@ -213,7 +213,16 @@ class AccountService {
     let totalSubPockets = 0;
     let totalMovements = 0;
 
-    // Delete in order: movements -> sub-pockets -> pockets -> account
+    // CRITICAL: Mark movements as orphaned FIRST (before deleting anything)
+    // Otherwise CASCADE DELETE will remove movements before we can mark them
+    if (!deleteMovements) {
+      console.log(`🔖 [deleteAccountCascade] STEP 1: Marking all movements as orphaned for account ${id}`);
+      const markedCount = await movementService.markMovementsAsOrphaned(id, 'account');
+      console.log(`🔖 [deleteAccountCascade] Marked ${markedCount} movements as orphaned`);
+      totalMovements += markedCount;
+    }
+
+    // Delete in order: movements (if hard delete) -> sub-pockets -> pockets -> account
     for (const pocket of pockets) {
       // Get sub-pockets for this pocket
       const subPockets = await subPocketService.getSubPocketsByPocket(pocket.id);
@@ -224,43 +233,44 @@ class AccountService {
         await subPocketService.deleteSubPocket(subPocket.id);
       }
 
-      // Handle movements
+      // Handle movements (only if hard delete)
       if (deleteMovements) {
         // Hard delete movements
         console.log(`💥 [deleteAccountCascade] Hard deleting movements for pocket ${pocket.id}`);
         const deletedCount = await movementService.deleteMovementsByPocket(pocket.id);
         console.log(`💥 [deleteAccountCascade] Deleted ${deletedCount} movements`);
         totalMovements += deletedCount;
-      } else {
-        // Soft delete: mark movements as orphaned
-        console.log(`🔖 [deleteAccountCascade] Soft deleting (marking as orphaned) movements for pocket ${pocket.id}`);
-        const markedCount = await movementService.markMovementsAsOrphaned(pocket.id, 'pocket');
-        console.log(`🔖 [deleteAccountCascade] Marked ${markedCount} movements as orphaned`);
-        totalMovements += markedCount;
       }
 
       // Delete pocket
-      await SupabaseStorageService.deletePocket(pocket.id);
+      console.log(`🗑️ [deleteAccountCascade] Deleting pocket ${pocket.id}`);
+      try {
+        await SupabaseStorageService.deletePocket(pocket.id);
+        console.log(`✅ [deleteAccountCascade] Pocket deleted successfully`);
+      } catch (error) {
+        console.error(`❌ [deleteAccountCascade] Failed to delete pocket:`, error);
+        throw error;
+      }
     }
 
-    // Handle any remaining movements by account
+    // Handle any remaining movements by account (only if hard delete)
     if (deleteMovements) {
       // Hard delete remaining movements
       console.log(`💥 [deleteAccountCascade] Hard deleting remaining movements for account ${id}`);
       const remainingCount = await movementService.deleteMovementsByAccount(id);
       console.log(`💥 [deleteAccountCascade] Deleted ${remainingCount} remaining movements`);
       totalMovements += remainingCount;
-    } else {
-      // Soft delete: mark remaining movements as orphaned
-      console.log(`🔖 [deleteAccountCascade] Soft deleting remaining movements for account ${id}`);
-      const markedCount = await movementService.markMovementsAsOrphaned(id, 'account');
-      console.log(`🔖 [deleteAccountCascade] Marked ${markedCount} remaining movements as orphaned`);
-      totalMovements += markedCount;
     }
 
     // Delete account
     console.log(`🗑️ [deleteAccountCascade] Deleting account ${id}`);
-    await SupabaseStorageService.deleteAccount(id);
+    try {
+      await SupabaseStorageService.deleteAccount(id);
+      console.log(`✅ [deleteAccountCascade] Account deleted successfully`);
+    } catch (error) {
+      console.error(`❌ [deleteAccountCascade] Failed to delete account:`, error);
+      throw error;
+    }
 
     console.log(`✅ [deleteAccountCascade] Complete - account: ${account.name}, pockets: ${pockets.length}, subPockets: ${totalSubPockets}, movements: ${totalMovements}`);
     
@@ -270,6 +280,15 @@ class AccountService {
       subPockets: totalSubPockets,
       movements: totalMovements,
     };
+  }
+
+  // Recalculate single account balance
+  async recalculateAccountBalance(accountId: string): Promise<void> {
+    const account = await this.getAccount(accountId);
+    if (account) {
+      account.balance = await this.calculateAccountBalance(accountId);
+      await SupabaseStorageService.updateAccount(accountId, { balance: account.balance });
+    }
   }
 
   // Recalculate all account balances (useful after movements)

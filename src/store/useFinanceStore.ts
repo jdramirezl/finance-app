@@ -50,6 +50,8 @@ interface FinanceStore {
   getAppliedMovements: () => Promise<Movement[]>;
   getOrphanedMovements: () => Promise<Movement[]>;
   getOrphanedMovementsCount: () => Promise<number>;
+  findMatchingOrphanedMovements: (accountName: string, accountCurrency: string, pocketName?: string) => Promise<Movement[]>;
+  restoreOrphanedMovements: (movementIds: string[], accountId: string, pocketId: string) => Promise<number>;
 
   // Actions - Settings
   loadSettings: () => Promise<void>;
@@ -155,7 +157,8 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
   },
 
   loadMovements: async () => {
-    const movements = await SupabaseStorageService.getMovements();
+    // Load only ACTIVE movements (filter out orphaned)
+    const movements = await movementService.getActiveMovements();
     set({ movements: Array.isArray(movements) ? movements : [] });
   },
 
@@ -680,6 +683,26 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
   getOrphanedMovementsCount: async () => {
     const orphaned = await movementService.getOrphanedMovements();
     return orphaned.length;
+  },
+
+  findMatchingOrphanedMovements: async (accountName, accountCurrency, pocketName) => {
+    return await movementService.findMatchingOrphanedMovements(accountName, accountCurrency, pocketName);
+  },
+
+  restoreOrphanedMovements: async (movementIds, accountId, pocketId) => {
+    const count = await movementService.restoreOrphanedMovements(movementIds, accountId, pocketId);
+    
+    // CRITICAL: Recalculate balances after restoration
+    // The movements are now active and need to be counted
+    await movementService.recalculateBalancesForPocket(pocketId);
+    
+    // Reload everything to reflect restoration
+    await Promise.all([
+      get().loadAccounts(),
+      get().loadMovements(),
+    ]);
+    
+    return count;
   },
 
   applyPendingMovement: async (id) => {

@@ -353,6 +353,9 @@ export class SupabaseStorageService {
       createdAt: movement.created_at,
       isPending: movement.is_pending,
       isOrphaned: movement.is_orphaned || false,
+      orphanedAccountName: movement.orphaned_account_name,
+      orphanedAccountCurrency: movement.orphaned_account_currency,
+      orphanedPocketName: movement.orphaned_pocket_name,
     }));
   }
 
@@ -419,6 +422,9 @@ export class SupabaseStorageService {
     if (updates.displayedDate !== undefined) updateData.displayed_date = updates.displayedDate;
     if (updates.isPending !== undefined) updateData.is_pending = updates.isPending;
     if (updates.isOrphaned !== undefined) updateData.is_orphaned = updates.isOrphaned;
+    if (updates.orphanedAccountName !== undefined) updateData.orphaned_account_name = updates.orphanedAccountName;
+    if (updates.orphanedAccountCurrency !== undefined) updateData.orphaned_account_currency = updates.orphanedAccountCurrency;
+    if (updates.orphanedPocketName !== undefined) updateData.orphaned_pocket_name = updates.orphanedPocketName;
     
     const { error } = await supabase
       .from('movements')

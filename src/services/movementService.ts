@@ -427,6 +427,69 @@ class MovementService {
     return pocketMovements.length;
   }
 
+  // Find orphaned movements that match an account/pocket (for restoration)
+  async findMatchingOrphanedMovements(
+    accountName: string, 
+    accountCurrency: string, 
+    pocketName?: string
+  ): Promise<Movement[]> {
+    const orphaned = await this.getOrphanedMovements();
+    
+    return orphaned.filter(m => 
+      m.orphanedAccountName === accountName &&
+      m.orphanedAccountCurrency === accountCurrency &&
+      (!pocketName || m.orphanedPocketName === pocketName)
+    );
+  }
+
+  // Restore orphaned movements to a new account/pocket
+  async restoreOrphanedMovements(
+    movementIds: string[],
+    newAccountId: string,
+    newPocketId: string
+  ): Promise<number> {
+    console.log(`🔄 [restoreOrphanedMovements] Restoring ${movementIds.length} movements`);
+    
+    for (const id of movementIds) {
+      await SupabaseStorageService.updateMovement(id, {
+        accountId: newAccountId,
+        pocketId: newPocketId,
+        isOrphaned: false,
+      });
+      console.log(`✅ [restoreOrphanedMovements] Restored movement ${id}`);
+    }
+    
+    console.log(`🎉 [restoreOrphanedMovements] Complete - restored ${movementIds.length} movements`);
+    return movementIds.length;
+  }
+
+  // Recalculate balances for a pocket after restoration
+  async recalculateBalancesForPocket(pocketId: string): Promise<void> {
+    console.log(`💰 [recalculateBalancesForPocket] Recalculating for pocket ${pocketId}`);
+    
+    const pocketService = await getPocketService();
+    const accountService = await getAccountService();
+    
+    // Get all movements for this pocket
+    const movements = await this.getMovementsByPocket(pocketId);
+    
+    // Calculate balance from movements
+    const balance = movements.reduce((sum, m) => {
+      const isIncome = m.type === 'IngresoNormal' || m.type === 'IngresoFijo';
+      return sum + (isIncome ? m.amount : -m.amount);
+    }, 0);
+    
+    // Update pocket balance
+    const pocket = await pocketService.getPocket(pocketId);
+    if (pocket) {
+      await SupabaseStorageService.updatePocket(pocketId, { balance });
+      console.log(`✅ [recalculateBalancesForPocket] Updated pocket balance to ${balance}`);
+      
+      // Update account balance
+      await accountService.recalculateAccountBalance(pocket.accountId);
+    }
+  }
+
   // Mark movements as orphaned (soft delete) - FAST, no lookups needed
   async markMovementsAsOrphaned(id: string, type: 'account' | 'pocket'): Promise<number> {
     console.log(`🔍 [markMovementsAsOrphaned] Starting - type: ${type}, id: ${id}`);
@@ -440,10 +503,24 @@ class MovementService {
     
     console.log(`🎯 [markMovementsAsOrphaned] Found ${targetMovements.length} movements to mark as orphaned`);
     
-    // Mark all as orphaned
+    // Get account/pocket services for name lookup
+    const accountService = await getAccountService();
+    const pocketService = await getPocketService();
+    
+    // Mark all as orphaned and save original info for restoration
     for (const movement of targetMovements) {
       console.log(`✏️ [markMovementsAsOrphaned] Marking movement ${movement.id} as orphaned`);
-      await SupabaseStorageService.updateMovement(movement.id, { isOrphaned: true });
+      
+      // Get original account and pocket info for MATCHING (not by ID!)
+      const account = await accountService.getAccount(movement.accountId);
+      const pocket = await pocketService.getPocket(movement.pocketId);
+      
+      await SupabaseStorageService.updateMovement(movement.id, { 
+        isOrphaned: true,
+        orphanedAccountName: account?.name || 'Unknown',
+        orphanedAccountCurrency: account?.currency || 'USD',
+        orphanedPocketName: pocket?.name || 'Unknown',
+      });
       console.log(`✅ [markMovementsAsOrphaned] Successfully marked movement ${movement.id}`);
     }
     

@@ -22,6 +22,8 @@ const MovementsPage = () => {
     movements,
     loadAccounts,
     loadMovements,
+    createAccount,
+    createPocket,
     createMovement,
     updateMovement,
     deleteMovement,
@@ -30,6 +32,7 @@ const MovementsPage = () => {
     getSubPocketsByPocket,
     getOrphanedMovements,
     getOrphanedMovementsCount,
+    restoreOrphanedMovements,
   } = useFinanceStore();
 
   const toast = useToast();
@@ -463,14 +466,14 @@ const MovementsPage = () => {
       {/* Orphaned Movements Section */}
       {showOrphaned && (
         <Card padding="md">
-          <div className="space-y-4">
+          <div className="space-y-6">
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
                   Orphaned Movements
                 </h2>
                 <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                  These movements belong to deleted accounts or pockets. They are hidden from the UI but preserved for audit purposes.
+                  Movements from deleted accounts/pockets. Click "Restore All" to automatically recreate the account, pockets, and restore all movements.
                 </p>
               </div>
               <Button
@@ -488,89 +491,196 @@ const MovementsPage = () => {
                 No orphaned movements found
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-gray-200 dark:border-gray-700">
-                      <th className="text-left py-3 px-4 text-sm font-medium text-gray-700 dark:text-gray-300">Date</th>
-                      <th className="text-left py-3 px-4 text-sm font-medium text-gray-700 dark:text-gray-300">Type</th>
-                      <th className="text-left py-3 px-4 text-sm font-medium text-gray-700 dark:text-gray-300">Account ID</th>
-                      <th className="text-left py-3 px-4 text-sm font-medium text-gray-700 dark:text-gray-300">Pocket ID</th>
-                      <th className="text-right py-3 px-4 text-sm font-medium text-gray-700 dark:text-gray-300">Amount</th>
-                      <th className="text-left py-3 px-4 text-sm font-medium text-gray-700 dark:text-gray-300">Notes</th>
-                      <th className="text-right py-3 px-4 text-sm font-medium text-gray-700 dark:text-gray-300">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {orphanedMovements.map((movement) => (
-                      <tr
-                        key={movement.id}
-                        className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50"
-                      >
-                        <td className="py-3 px-4 text-sm text-gray-900 dark:text-gray-100">
-                          {format(parseISO(movement.displayedDate), 'MMM dd, yyyy')}
-                        </td>
-                        <td className="py-3 px-4 text-sm">
-                          <span className={`inline-flex items-center gap-1 ${
-                            movement.type.includes('Ingreso') 
-                              ? 'text-green-600 dark:text-green-400' 
-                              : 'text-red-600 dark:text-red-400'
-                          }`}>
-                            {movement.type.includes('Ingreso') ? (
-                              <ArrowUpCircle className="w-4 h-4" />
-                            ) : (
-                              <ArrowDownCircle className="w-4 h-4" />
-                            )}
-                            {movement.type}
-                          </span>
-                        </td>
-                        <td className="py-3 px-4 text-sm text-gray-600 dark:text-gray-400 font-mono text-xs">
-                          {movement.accountId.substring(0, 8)}...
-                        </td>
-                        <td className="py-3 px-4 text-sm text-gray-600 dark:text-gray-400 font-mono text-xs">
-                          {movement.pocketId.substring(0, 8)}...
-                        </td>
-                        <td className="py-3 px-4 text-sm text-right font-medium text-gray-900 dark:text-gray-100">
-                          ${movement.amount.toFixed(2)}
-                        </td>
-                        <td className="py-3 px-4 text-sm text-gray-600 dark:text-gray-400">
-                          {movement.notes || '-'}
-                        </td>
-                        <td className="py-3 px-4 text-right">
+              <div className="space-y-4">
+                {/* Group orphaned movements by account */}
+                {Object.entries(
+                  orphanedMovements.reduce((groups, movement) => {
+                    const key = `${movement.orphanedAccountName}|${movement.orphanedAccountCurrency}`;
+                    if (!groups[key]) groups[key] = [];
+                    groups[key].push(movement);
+                    return groups;
+                  }, {} as Record<string, typeof orphanedMovements>)
+                ).map(([key, movements]) => {
+                  const [accountName, currency] = key.split('|');
+                  const totalAmount = movements.reduce((sum, m) => {
+                    const isIncome = m.type.includes('Ingreso');
+                    return sum + (isIncome ? m.amount : -m.amount);
+                  }, 0);
+                  
+                  // Check if matching account exists
+                  const matchingAccount = accounts.find(
+                    a => a.name === accountName && a.currency === currency
+                  );
+                  
+                  return (
+                    <div key={key} className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+                      <div className="flex items-center justify-between mb-4">
+                        <div>
+                          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                            {accountName} ({currency})
+                          </h3>
+                          <p className="text-sm text-gray-600 dark:text-gray-400">
+                            {movements.length} movement(s) • Total: ${totalAmount.toFixed(2)}
+                          </p>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="primary"
+                            size="sm"
+                            onClick={async () => {
+                              // Group by pocket to see what we need to create
+                              const pocketGroups = movements.reduce((groups, m) => {
+                                if (!groups[m.orphanedPocketName || '']) groups[m.orphanedPocketName || ''] = [];
+                                groups[m.orphanedPocketName || ''].push(m);
+                                return groups;
+                              }, {} as Record<string, typeof movements>);
+                              
+                              const pocketNames = Object.keys(pocketGroups);
+                              
+                              // Show confirmation with what will be created
+                              const willCreateAccount = !matchingAccount;
+                              const willCreatePockets = pocketNames.filter(name => 
+                                !pockets.find(p => p.accountId === matchingAccount?.id && p.name === name)
+                              );
+                              
+                              const confirmMessage = `This will:\n${
+                                willCreateAccount ? `• Create account "${accountName}" (${currency})\n` : ''
+                              }${
+                                willCreatePockets.length > 0 
+                                  ? `• Create ${willCreatePockets.length} pocket(s): ${willCreatePockets.join(', ')}\n` 
+                                  : ''
+                              }• Restore ${movements.length} movement(s)\n\nContinue?`;
+                              
+                              if (!await confirm({
+                                title: 'Restore Orphaned Movements',
+                                message: confirmMessage,
+                                variant: 'info'
+                              })) {
+                                return;
+                              }
+                              
+                              try {
+                                // Create account if needed
+                                let accountId = matchingAccount?.id;
+                                if (!accountId) {
+                                  console.log(`🏗️ Creating account "${accountName}" (${currency})`);
+                                  await createAccount(accountName, '#3B82F6', currency as any);
+                                  // Wait for store to update
+                                  await new Promise(resolve => setTimeout(resolve, 100));
+                                  // Get fresh account from store
+                                  const freshAccounts = useFinanceStore.getState().accounts;
+                                  const newAccount = freshAccounts.find(a => a.name === accountName && a.currency === currency);
+                                  if (!newAccount) {
+                                    console.error('❌ Failed to find newly created account');
+                                    toast.error('Failed to create account');
+                                    return;
+                                  }
+                                  accountId = newAccount.id;
+                                  console.log(`✅ Created account with ID: ${accountId}`);
+                                }
+                                
+                                // Create pockets and restore movements
+                                let restored = 0;
+                                for (const [pocketName, pocketMovements] of Object.entries(pocketGroups)) {
+                                  // Get fresh pockets from store
+                                  const freshPockets = useFinanceStore.getState().pockets;
+                                  let pocketId = freshPockets.find(p => p.accountId === accountId && p.name === pocketName)?.id;
+                                  
+                                  if (!pocketId) {
+                                    console.log(`🏗️ Creating pocket "${pocketName}"`);
+                                    await createPocket(accountId, pocketName, 'normal');
+                                    // Wait for store to update
+                                    await new Promise(resolve => setTimeout(resolve, 100));
+                                    // Get fresh pocket from store
+                                    const freshPockets2 = useFinanceStore.getState().pockets;
+                                    const newPocket = freshPockets2.find(p => p.accountId === accountId && p.name === pocketName);
+                                    if (!newPocket) {
+                                      console.error(`❌ Failed to find newly created pocket "${pocketName}"`);
+                                      toast.error(`Failed to create pocket "${pocketName}"`);
+                                      continue;
+                                    }
+                                    pocketId = newPocket.id;
+                                    console.log(`✅ Created pocket with ID: ${pocketId}`);
+                                  }
+                                  
+                                  console.log(`🔄 Restoring ${pocketMovements.length} movements to pocket ${pocketId}`);
+                                  await restoreOrphanedMovements(
+                                    pocketMovements.map(m => m.id),
+                                    accountId,
+                                    pocketId
+                                  );
+                                  console.log(`✅ Successfully restored ${pocketMovements.length} movements`);
+                                  restored += pocketMovements.length;
+                                }
+                                
+                                if (restored > 0) {
+                                  const updated = await getOrphanedMovements();
+                                  setOrphanedMovements(updated);
+                                  setOrphanedCount(updated.length);
+                                  toast.success(`✨ Restored ${restored} movement(s)!`);
+                                }
+                              } catch (err) {
+                                const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+                                toast.error(`Failed to restore movements: ${errorMessage}`);
+                                console.error('❌ Restoration error:', err);
+                              }
+                            }}
+                          >
+                            Restore All
+                          </Button>
                           <Button
                             variant="danger"
                             size="sm"
                             onClick={async () => {
                               if (await confirm({
-                                title: 'Delete Orphaned Movement',
-                                message: 'Are you sure you want to permanently delete this orphaned movement? This action cannot be undone.',
+                                title: 'Delete All Orphaned Movements',
+                                message: `Delete all ${movements.length} movement(s) for "${accountName}"? This cannot be undone.`,
                                 variant: 'danger'
                               })) {
-                                try {
-                                  setDeletingId(movement.id);
+                                for (const movement of movements) {
                                   await deleteMovement(movement.id);
-                                  // Reload orphaned movements
-                                  const updated = await getOrphanedMovements();
-                                  setOrphanedMovements(updated);
-                                  setOrphanedCount(updated.length);
-                                  toast.success('Orphaned movement deleted');
-                                } catch (err) {
-                                  toast.error('Failed to delete movement');
-                                } finally {
-                                  setDeletingId(null);
                                 }
+                                const updated = await getOrphanedMovements();
+                                setOrphanedMovements(updated);
+                                setOrphanedCount(updated.length);
+                                toast.success(`Deleted ${movements.length} movement(s)`);
                               }
                             }}
-                            loading={deletingId === movement.id}
-                            disabled={deletingId === movement.id}
                           >
-                            <Trash2 className="w-4 h-4" />
+                            Delete All
                           </Button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                        </div>
+                      </div>
+                      
+                      {/* List movements */}
+                      <div className="space-y-2">
+                        {movements.map((movement) => (
+                          <div
+                            key={movement.id}
+                            className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800/50 rounded"
+                          >
+                            <div className="flex items-center gap-3">
+                              {movement.type.includes('Ingreso') ? (
+                                <ArrowUpCircle className="w-4 h-4 text-green-600 dark:text-green-400" />
+                              ) : (
+                                <ArrowDownCircle className="w-4 h-4 text-red-600 dark:text-red-400" />
+                              )}
+                              <div>
+                                <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                                  {movement.orphanedPocketName} • ${movement.amount.toFixed(2)}
+                                </p>
+                                <p className="text-xs text-gray-600 dark:text-gray-400">
+                                  {format(parseISO(movement.displayedDate), 'MMM dd, yyyy')}
+                                  {movement.notes && ` • ${movement.notes}`}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
