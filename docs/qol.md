@@ -3,26 +3,38 @@
 ## � Higth Priority Issues (From Production Use)
 
 ### Currency Exchange Rate API Integration
-- [ ] **Real-time currency exchange rates** - Implementation plan:
-  - Use FreeCurrencyAPI: `https://api.freecurrencyapi.com/v1/latest?apikey=fca_live_0SYarl3kVk4ivey17UlqQfpMQnC6zg91FND7uVtc`
-  - Rate limits: 5,000 requests/month, 10 req/min
-  - Strategy to stay under limits:
-    - Store exchange rates in Supabase `exchange_rates` table with timestamp
-    - Update rates once per day (30 requests/month per currency pair)
-    - Serverless function checks DB timestamp, only calls API if > 24 hours old
-    - Client reads from DB (no direct API calls)
-    - Client caches rates locally for session
-    - Fallback to DB if cache lost
-  - Benefits: Real exchange rates, minimal API usage (~150 requests/month for 5 currencies)
+- [x] **Real-time currency exchange rates** ✅ FIXED - Implemented with free API
+  - Switched to fawazahmed0/exchange-api (no API key required!)
+  - Full support for all currencies including COP as base currency
+  - Implementation:
+    - Vercel serverless function `/api/exchange-rates.ts`
+    - Stores rates in Supabase `exchange_rates` table with timestamp
+    - 3-tier caching: local cache (24h) → DB (24h) → API
+    - Client uses async `getExchangeRateAsync()` for real rates
+    - SummaryPage consolidated total now uses real-time rates
+  - Benefits: 
+    - No API key management
+    - No rate limits
+    - Accurate COP conversions
+    - Works locally and on Vercel
+  - Commit: Switch to free exchange API with COP support
 
 ### Investment Price Storage & Caching
-- [ ] **Store VOO/stock prices in database** - Current issue: prices only cached locally
+- [x] **Store VOO/stock prices in database** ✅ FIXED - Prices now cached in database
   - Implementation:
-    - Create `stock_prices` table in Supabase (symbol, price, timestamp)
-    - Serverless function updates DB when timestamp > 15 minutes old
-    - Client reads from DB first, falls back to API if stale
-    - Local cache for performance (15 min TTL)
-    - Benefits: Shared prices across devices, reduced API calls, persistent cache
+    - Created `stock_prices` table in Supabase (symbol, price, timestamp, market_state)
+    - 3-tier caching system:
+      1. Local cache (15 min TTL) - fastest
+      2. Database cache (15 min TTL) - shared across devices
+      3. API fetch - only when both caches stale
+    - Automatic cleanup of old prices (30+ days)
+    - RLS policies for authenticated users
+  - Benefits: 
+    - Shared prices across devices
+    - Persistent cache survives page refresh
+    - Reduced API calls
+    - Faster load times
+  - Commit: Implement database caching for stock prices
 
 ### Batch Movements Improvements
 - [x] **Add "Mark as Pending" option to batch add** ✅ FIXED - Currently all batch movements are applied immediately
@@ -51,7 +63,7 @@
   - Persist sort preference in localStorage
 
 ### Lazy Loading Movements with Pagination
-- [ ] **Collapsible months with "Load More" pagination** - Don't load all movements at once
+- [x] **Collapsible months with "Load More" pagination** - Don't load all movements at once
   - Implementation:
     - Each month group starts collapsed (toggle to expand)
     - When expanded, show first 10 movements
@@ -286,11 +298,11 @@
 ### UI/UX
 - [ ] **Recent movements widget** - Show last 5 on summary page with quick actions
 - [ ] **Search/filter movements** - Full-text search with advanced filters
-- [ ] **Bulk selection** - Select multiple movements to delete/edit
+- [x] **Bulk selection** - Select multiple movements to delete/edit
 - [ ] **Inline editing** - Edit movement amounts without opening modal
 - [ ] **Confirmation dialogs** - "Are you sure?" for all destructive actions
 - [ ] **Undo deletions** - 5-second grace period with toast action
-- [ ] **Movement templates** - Save common transactions as templates
+- [x] **Movement templates** - Save common transactions as templates
 - [ ] **Quick transfer** - Fast pocket-to-pocket transfers
 - [ ] **Amount calculator** - Built-in calculator in amount inputs
 - [ ] **Color picker presets** - Common colors for accounts
