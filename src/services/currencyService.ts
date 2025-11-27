@@ -206,7 +206,52 @@ class CurrencyService {
       currency: currency,
     });
   }
+
+  // Test method - call from console to verify API works
+  async testAPI(): Promise<void> {
+    console.log('🧪 Testing Currency API...');
+    console.log('useRealAPI:', this.useRealAPI);
+    
+    try {
+      // Test fetching USD -> MXN
+      console.log('\n1️⃣ Testing USD -> MXN...');
+      const rate = await this.getExchangeRateAsync('USD', 'MXN');
+      console.log('✅ Rate:', rate);
+      
+      // Check cache
+      console.log('\n2️⃣ Checking cache...');
+      const cached = this.cache.get('USD_MXN');
+      console.log('Cache:', cached);
+      
+      // Test conversion
+      console.log('\n3️⃣ Testing conversion...');
+      const converted = await this.convert(100, 'USD', 'MXN');
+      console.log('100 USD =', converted, 'MXN');
+      
+      console.log('\n✅ All tests passed!');
+    } catch (err) {
+      console.error('❌ Test failed:', err);
+    }
+  }
+
+  // Convert amount using async API
+  async convert(amount: number, from: Currency, to: Currency): Promise<number> {
+    const rate = await this.getExchangeRateAsync(from, to);
+    return amount * rate;
+  }
+
+  // Clear cache (useful for testing)
+  clearCache(): void {
+    this.cache.clear();
+    console.log('[Currency] Cache cleared');
+  }
 }
 
 export const currencyService = new CurrencyService();
+
+// Expose to window for console testing
+if (typeof window !== 'undefined') {
+  (window as any).testCurrencyAPI = () => currencyService.testAPI();
+  (window as any).clearCurrencyCache = () => currencyService.clearCache();
+}
 
