@@ -25,13 +25,13 @@
     - Benefits: Shared prices across devices, reduced API calls, persistent cache
 
 ### Batch Movements Improvements
-- [ ] **Add "Mark as Pending" option to batch add** - Currently all batch movements are applied immediately
+- [x] **Add "Mark as Pending" option to batch add** ✅ FIXED - Currently all batch movements are applied immediately
   - Add checkbox in BatchMovementForm: "Create as pending movements"
   - Pass `isPending` flag to all movements in batch
   - Allows bulk creation of future transactions without affecting balances
 
 ### Movement Templates
-- [ ] **Payment templates for recurring transactions** - Save common transactions as templates
+- [x] **Payment templates for recurring transactions** ✅ FIXED - Save common transactions as templates
   - Implementation:
     - Create `movement_templates` table (name, type, account, pocket, amount, notes)
     - "Save as Template" button on movement form
@@ -41,7 +41,7 @@
   - Benefits: Faster data entry, consistency, less typing
 
 ### Movement Sorting Options
-- [ ] **Flexible movement sorting within months** - Currently only sorted by createdAt ascending
+- [x] **Flexible movement sorting within months** ✅ FIXED - Currently only sorted by createdAt ascending
   - Add sorting dropdown with options:
     - Created Date (Ascending/Descending) - current default
     - Displayed Date (Ascending/Descending)
@@ -50,14 +50,33 @@
   - Keep monthly grouping, apply sort within each month
   - Persist sort preference in localStorage
 
+### Lazy Loading Movements with Pagination
+- [ ] **Collapsible months with "Load More" pagination** - Don't load all movements at once
+  - Implementation:
+    - Each month group starts collapsed (toggle to expand)
+    - When expanded, show first 10 movements
+    - "Load More" button at bottom loads next 10
+    - Keep track of loaded count per month
+    - Benefits: Much faster initial page load, better performance with 1000+ movements
+    - Only load movements for expanded months
+  - UI:
+    - Month header shows total count: "January 2025 (45 movements)"
+    - Chevron icon to expand/collapse
+    - "Load More (35 remaining)" button
+    - "Load All" button to load everything at once
+  - State management:
+    - Track which months are expanded
+    - Track loaded count per month
+    - Persist expanded state in localStorage (optional)
+
 ### Account Saving Error
-- [ ] **"Error saving accounts" bug** - Investigate and fix
-  - Reproduce: [Need more details on when this occurs]
-  - Check: Supabase permissions, validation errors, network issues
-  - Add better error messages to identify root cause
+- [x] **"Error saving accounts" bug** ✅ FIXED - Investigate and fix
+  - Root cause: Missing await on SupabaseStorageService.updateAccount() call
+  - Fix: Added await to ensure account updates complete before proceeding
+  - Result: Accounts now save reliably without errors
 
 ### Bulk Movement Actions
-- [ ] **Mass operations on movements** - Select multiple movements and perform actions
+- [x] **Mass operations on movements** ✅ FIXED - Select multiple movements and perform actions
   - Implementation:
     - Checkbox selection for movements (select all, select by filter)
     - Bulk action toolbar appears when items selected:
@@ -68,6 +87,7 @@
     - Preserve individual movement attributes during bulk edit
     - Use case: Move 5 pending transactions to different pocket without applying them
   - Benefits: Efficient management of multiple transactions, fix mistakes quickly
+  - Optimizations: Promise.all for parallel processing, single state update
 
 ---
 
