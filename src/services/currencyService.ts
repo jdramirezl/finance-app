@@ -210,34 +210,38 @@ class CurrencyService {
 
   // Test method - call from console to verify API works
   async testAPI(): Promise<void> {
-    console.log('🧪 Testing Currency API...');
+    console.log('🧪 Testing Currency API (forcing fresh fetch)...');
     console.log('useRealAPI:', this.useRealAPI);
     
     try {
-      // Test fetching USD -> MXN
+      // Clear local cache
+      this.cache.clear();
+      console.log('🗑️  Cleared local cache');
+      
+      // Test fetching USD -> MXN (will hit API since cache is cleared)
       console.log('\n1️⃣ Testing USD -> MXN...');
-      const usdMxnRate = await this.getExchangeRateAsync('USD', 'MXN');
-      console.log('✅ Rate:', usdMxnRate);
+      const usdMxnRate = await this.fetchFromAPI('USD', 'MXN');
+      console.log('✅ Rate from API:', usdMxnRate);
       
-      // Test fetching COP -> MXN
-      console.log('\n2️⃣ Testing COP -> MXN...');
-      const copMxnRate = await this.getExchangeRateAsync('COP', 'MXN');
-      console.log('✅ Rate:', copMxnRate);
+      // Test fetching USD -> COP
+      console.log('\n2️⃣ Testing USD -> COP...');
+      const usdCopRate = await this.fetchFromAPI('USD', 'COP');
+      console.log('✅ Rate from API:', usdCopRate);
       
-      // Check cache
-      console.log('\n3️⃣ Checking cache...');
-      const cachedUsd = this.cache.get('USD_MXN');
-      const cachedCop = this.cache.get('COP_MXN');
-      console.log('USD_MXN cache:', cachedUsd);
-      console.log('COP_MXN cache:', cachedCop);
+      // Now test the full flow with caching
+      console.log('\n3️⃣ Testing full flow with caching...');
+      const cachedMxn = await this.getExchangeRateAsync('USD', 'MXN');
+      const cachedCop = await this.getExchangeRateAsync('USD', 'COP');
+      console.log('USD -> MXN (cached):', cachedMxn);
+      console.log('USD -> COP (cached):', cachedCop);
       
       // Test conversions
       console.log('\n4️⃣ Testing conversions...');
-      const usdConverted = await this.convert(100, 'USD', 'MXN');
-      console.log('100 USD =', usdConverted.toFixed(2), 'MXN');
+      const usdToMxn = await this.convert(100, 'USD', 'MXN');
+      console.log('100 USD =', usdToMxn.toFixed(2), 'MXN');
       
-      const copConverted = await this.convert(1000000, 'COP', 'MXN');
-      console.log('1,000,000 COP =', copConverted.toFixed(2), 'MXN');
+      const usdToCop = await this.convert(100, 'USD', 'COP');
+      console.log('100 USD =', usdToCop.toFixed(2), 'COP');
       
       console.log('\n✅ All tests passed!');
     } catch (err) {
