@@ -37,8 +37,6 @@ const MovementsPage = () => {
     getSubPocketsByPocket,
     getOrphanedMovements,
     restoreOrphanedMovements,
-    getMonthKeysWithCounts,
-    getMovementsByMonthPaginated,
   } = useFinanceStore();
 
   const toast = useToast();
@@ -97,42 +95,18 @@ const MovementsPage = () => {
   const [bulkEditField, setBulkEditField] = useState<'account' | 'pocket' | 'date'>('account');
   const [bulkEditValue, setBulkEditValue] = useState<string>('');
   
-  // Lazy loading state - track expanded months and loaded movements
+  // Collapsible months state - simple UI toggle
   const [expandedMonths, setExpandedMonths] = useState<Set<string>>(() => {
     // Start with current month expanded
     const currentMonth = format(new Date(), 'yyyy-MM');
     return new Set([currentMonth]);
   });
-  const [monthCounts, setMonthCounts] = useState<Map<string, number>>(new Map());
-  const [loadedMovementsByMonth, setLoadedMovementsByMonth] = useState<Map<string, Movement[]>>(new Map());
-  const [isLoadingMonth, setIsLoadingMonth] = useState<Set<string>>(new Set());
-  const ITEMS_PER_PAGE = 10;
   
   // Persist sort preferences
   useEffect(() => {
     localStorage.setItem('movementSortField', sortField);
     localStorage.setItem('movementSortOrder', sortOrder);
   }, [sortField, sortOrder]);
-
-  // Load month metadata (counts only, not movements)
-  useEffect(() => {
-    const loadMonthMetadata = async () => {
-      try {
-        const counts = await getMonthKeysWithCounts();
-        setMonthCounts(counts);
-        
-        // Auto-load current month
-        const currentMonth = format(new Date(), 'yyyy-MM');
-        if (counts.has(currentMonth)) {
-          loadMonthMovements(currentMonth, 0);
-        }
-      } catch (err) {
-        console.error('Failed to load month metadata:', err);
-      }
-    };
-    
-    loadMonthMetadata();
-  }, [movements.length]); // Reload when movements change
 
   useEffect(() => {
     const loadData = async () => {
@@ -141,8 +115,7 @@ const MovementsPage = () => {
       setIsLoading(true);
       try {
         // OPTIMIZATION: Skip investment prices since we don't display account balances here
-        // OPTIMIZATION: Don't load all movements, just metadata
-        await Promise.all([loadAccounts(true), loadMovementTemplates()]);
+        await Promise.all([loadAccounts(true), loadMovements(), loadMovementTemplates()]);
         
         const totalTime = performance.now() - startTime;
         console.log(`⏱️ [MovementsPage] Total load: ${totalTime.toFixed(0)}ms`);
@@ -232,10 +205,48 @@ const MovementsPage = () => {
   }, [movements, showPending, filterAccount, filterPocket, filterType, filterDateRange, filterDateFrom, filterDateTo, filterSearch, filterMinAmount, filterMaxAmount]);
 
   // OPTIMIZATION: Memoize grouped movements to avoid recalculating on every render
-  // Convert month counts to sorted array for rendering (metadata only, no movements yet)
-  const monthKeys = useMemo(() => {
-    return Array.from(monthCounts.keys()).sort((a, b) => b.localeCompare(a)); // Sort descending (newest first)
-  }, [monthCounts]);
+  // OPTIMIZATION: Memoize grouped movements to avoid recalculating on every render
+  const movementsByMonth = useMemo(() => {
+    const grouped = Array.from(
+      filteredMovements.reduce((acc, movement) => {
+        const date = parseISO(movement.displayedDate);
+        const monthKey = format(date, 'yyyy-MM');
+        if (!acc.has(monthKey)) {
+          acc.set(monthKey, []);
+        }
+        acc.get(monthKey)!.push(movement);
+        return acc;
+      }, new Map<string, Movement[]>())
+    ).sort((a, b) => b[0].localeCompare(a[0])); // Sort months descending
+
+    // Sort movements within each month based on selected sort field and order
+    grouped.forEach(([, monthMovements]) => {
+      monthMovements.sort((a, b) => {
+        let comparison = 0;
+        
+        switch (sortField) {
+          case 'createdAt':
+            comparison = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+            break;
+          case 'displayedDate':
+            comparison = new Date(a.displayedDate).getTime() - new Date(b.displayedDate).getTime();
+            break;
+          case 'amount':
+            comparison = a.amount - b.amount;
+            break;
+          case 'type':
+            // Sort by type: Income types first, then expense types
+            const typeOrder = { IngresoNormal: 0, IngresoFijo: 1, EgresoNormal: 2, EgresoFijo: 3 };
+            comparison = typeOrder[a.type] - typeOrder[b.type];
+            break;
+        }
+        
+        return sortOrder === 'asc' ? comparison : -comparison;
+      });
+    });
+    
+    return grouped;
+  }, [filteredMovements, sortField, sortOrder]);
 
   const getMovementTypeColor = (type: MovementType): string => {
     switch (type) {
@@ -460,32 +471,6 @@ const MovementsPage = () => {
       toast.error(errorMessage);
     } finally {
       setDeletingId(null);
-    }
-  };
-
-  // Load movements for a specific month with pagination
-  const loadMonthMovements = async (monthKey: string, offset: number) => {
-    // Mark as loading
-    setIsLoadingMonth(prev => new Set(prev).add(monthKey));
-    
-    try {
-      const newMovements = await getMovementsByMonthPaginated(monthKey, offset, ITEMS_PER_PAGE);
-      
-      setLoadedMovementsByMonth(prev => {
-        const updated = new Map(prev);
-        const existing = updated.get(monthKey) || [];
-        updated.set(monthKey, [...existing, ...newMovements]);
-        return updated;
-      });
-    } catch (err) {
-      console.error(`Failed to load movements for ${monthKey}:`, err);
-      toast.error('Failed to load movements');
-    } finally {
-      setIsLoadingMonth(prev => {
-        const updated = new Set(prev);
-        updated.delete(monthKey);
-        return updated;
-      });
     }
   };
 
@@ -1190,19 +1175,15 @@ const MovementsPage = () => {
       )}
 
       {/* Movements List */}
-      {monthKeys.length === 0 ? (
+      {movementsByMonth.length === 0 ? (
         <Card padding="lg" className="text-center text-gray-500 dark:text-gray-400">
           No movements yet. Create your first movement!
         </Card>
       ) : (
         <div className="space-y-6">
-          {monthKeys.map((monthKey) => {
+          {movementsByMonth.map(([monthKey, monthMovements]) => {
             const date = parseISO(`${monthKey}-01`);
             const isExpanded = expandedMonths.has(monthKey);
-            const totalCount = monthCounts.get(monthKey) || 0;
-            const loadedMovements = loadedMovementsByMonth.get(monthKey) || [];
-            const hasMore = loadedMovements.length < totalCount;
-            const isLoading = isLoadingMonth.has(monthKey);
             
             return (
               <Card key={monthKey} padding="md">
@@ -1215,10 +1196,6 @@ const MovementsPage = () => {
                       newExpanded.delete(monthKey);
                     } else {
                       newExpanded.add(monthKey);
-                      // Load first page if not loaded yet
-                      if (!loadedMovementsByMonth.has(monthKey)) {
-                        loadMonthMovements(monthKey, 0);
-                      }
                     }
                     setExpandedMonths(newExpanded);
                   }}
@@ -1233,16 +1210,16 @@ const MovementsPage = () => {
                       {format(date, 'MMMM yyyy')}
                     </h2>
                     <span className="text-sm text-gray-500 dark:text-gray-400">
-                      ({totalCount} movement{totalCount !== 1 ? 's' : ''})
+                      ({monthMovements.length} movement{monthMovements.length !== 1 ? 's' : ''})
                     </span>
                   </div>
-                  {isExpanded && loadedMovements.length > 0 && (
+                  {isExpanded && (
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={(e) => {
                         e.stopPropagation(); // Prevent collapse
-                        const monthIds = loadedMovements.map(m => m.id);
+                        const monthIds = monthMovements.map(m => m.id);
                         const allSelected = monthIds.every(id => selectedMovementIds.has(id));
                         const newSelection = new Set(selectedMovementIds);
                         if (allSelected) {
@@ -1253,7 +1230,7 @@ const MovementsPage = () => {
                         setSelectedMovementIds(newSelection);
                       }}
                     >
-                      {loadedMovements.every(m => selectedMovementIds.has(m.id)) ? 'Deselect All' : 'Select All'}
+                      {monthMovements.every(m => selectedMovementIds.has(m.id)) ? 'Deselect All' : 'Select All'}
                     </Button>
                   )}
                 </div>
@@ -1261,12 +1238,7 @@ const MovementsPage = () => {
                 {/* Movements List - Only When Expanded */}
                 {isExpanded && (
                   <div className="space-y-2 mt-4">
-                    {isLoading && loadedMovements.length === 0 ? (
-                      <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-                        Loading movements...
-                      </div>
-                    ) : (
-                      loadedMovements.map((movement) => {
+                    {monthMovements.map((movement) => {
                     const account = getAccount(movement.accountId);
                     const pocket = getPocket(movement.pocketId);
                     const subPocket = movement.subPocketId
@@ -1387,38 +1359,8 @@ const MovementsPage = () => {
                         </div>
                       </div>
                     );
-                  }))}
-                  
-                  {/* Load More Button */}
-                  {hasMore && (
-                    <div className="flex gap-2 justify-center pt-4 border-t border-gray-200 dark:border-gray-700">
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          loadMonthMovements(monthKey, loadedMovements.length);
-                        }}
-                        loading={isLoading}
-                        disabled={isLoading}
-                      >
-                        Load More ({totalCount - loadedMovements.length} remaining)
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          // Load all remaining movements
-                          loadMonthMovements(monthKey, loadedMovements.length);
-                        }}
-                        disabled={isLoading}
-                      >
-                        Load All
-                      </Button>
-                    </div>
-                  )}
-                  </div>
+                  })}
+                </div>
                 )}
               </Card>
             );
