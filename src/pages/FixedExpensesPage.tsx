@@ -32,6 +32,7 @@ const FixedExpensesPage = () => {
     updateFixedExpenseGroup,
     deleteFixedExpenseGroup,
     toggleFixedExpenseGroup,
+    moveSubPocketToGroup,
   } = useFinanceStore();
 
   const toast = useToast();
@@ -495,6 +496,7 @@ const FixedExpensesPage = () => {
                 key={group.id}
                 group={group}
                 subPockets={groupExpenses}
+                allGroups={fixedExpenseGroups}
                 currency={fixedAccount?.currency || 'USD'}
                 isDefaultGroup={isDefaultGroup}
                 isCollapsed={collapsedGroups.has(group.id)}
@@ -512,6 +514,14 @@ const FixedExpensesPage = () => {
                 }}
                 onDeleteExpense={handleDelete}
                 onToggleExpense={handleToggle}
+                onMoveToGroup={async (subPocketId, groupId) => {
+                  try {
+                    await moveSubPocketToGroup(subPocketId, groupId);
+                    toast.success('Expense moved to new group!');
+                  } catch (err: any) {
+                    toast.error(err.message || 'Failed to move expense');
+                  }
+                }}
                 deletingId={deletingId}
                 togglingId={togglingId}
               />

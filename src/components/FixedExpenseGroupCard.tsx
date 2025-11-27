@@ -5,6 +5,7 @@ import Button from './Button';
 interface FixedExpenseGroupCardProps {
   group: FixedExpenseGroup;
   subPockets: SubPocket[];
+  allGroups: FixedExpenseGroup[];
   currency: string;
   isDefaultGroup: boolean;
   isCollapsed: boolean;
@@ -16,6 +17,7 @@ interface FixedExpenseGroupCardProps {
   onEditExpense: (subPocket: SubPocket) => void;
   onDeleteExpense: (id: string) => void;
   onToggleExpense: (id: string) => void;
+  onMoveToGroup: (subPocketId: string, groupId: string) => void;
   deletingId: string | null;
   togglingId: string | null;
 }
@@ -23,6 +25,7 @@ interface FixedExpenseGroupCardProps {
 const FixedExpenseGroupCard = ({
   group,
   subPockets,
+  allGroups,
   currency,
   isDefaultGroup,
   isCollapsed,
@@ -34,6 +37,7 @@ const FixedExpenseGroupCard = ({
   onEditExpense,
   onDeleteExpense,
   onToggleExpense,
+  onMoveToGroup,
   deletingId,
   togglingId,
 }: FixedExpenseGroupCardProps) => {
@@ -173,15 +177,31 @@ const FixedExpenseGroupCard = ({
                 >
                   <div className="flex items-center justify-between gap-4">
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-2">
-                        <h4 className={`font-medium text-gray-900 dark:text-gray-100 ${!subPocket.enabled ? 'line-through' : ''}`}>
-                          {subPocket.name}
-                        </h4>
-                        {!subPocket.enabled && (
-                          <span className="px-2 py-0.5 text-xs font-medium bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded">
-                            Disabled
-                          </span>
-                        )}
+                      <div className="flex items-center justify-between gap-2 mb-2">
+                        <div className="flex items-center gap-2">
+                          <h4 className={`font-medium text-gray-900 dark:text-gray-100 ${!subPocket.enabled ? 'line-through' : ''}`}>
+                            {subPocket.name}
+                          </h4>
+                          {!subPocket.enabled && (
+                            <span className="px-2 py-0.5 text-xs font-medium bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded">
+                              Disabled
+                            </span>
+                          )}
+                        </div>
+                        
+                        {/* Group Selector */}
+                        <select
+                          value={subPocket.groupId || ''}
+                          onChange={(e) => onMoveToGroup(subPocket.id, e.target.value)}
+                          className="text-xs px-2 py-1 border dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                          title="Move to group"
+                        >
+                          {allGroups.map(g => (
+                            <option key={g.id} value={g.id}>
+                              {g.name}
+                            </option>
+                          ))}
+                        </select>
                       </div>
                       
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
