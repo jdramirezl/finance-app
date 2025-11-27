@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react';
 import { useFinanceStore } from '../store/useFinanceStore';
 import { useToast } from '../hooks/useToast';
 import { useConfirm } from '../hooks/useConfirm';
-import type { SubPocket } from '../types';
-import { Plus, Edit2, Trash2, ToggleLeft, ToggleRight, Receipt } from 'lucide-react';
+import type { SubPocket, FixedExpenseGroup } from '../types';
+import { Plus, Edit2, Trash2, ToggleLeft, ToggleRight, Receipt, FolderPlus } from 'lucide-react';
 import Modal from '../components/Modal';
 import Button from '../components/Button';
 import Input from '../components/Input';
@@ -11,40 +11,54 @@ import Card from '../components/Card';
 import ConfirmDialog from '../components/ConfirmDialog';
 import { Skeleton } from '../components/Skeleton';
 import BatchMovementForm, { type BatchMovementRow } from '../components/BatchMovementForm';
+import FixedExpenseGroupCard from '../components/FixedExpenseGroupCard';
 
 const FixedExpensesPage = () => {
   const {
     accounts,
     pockets,
+    fixedExpenseGroups,
     loadAccounts,
+    loadFixedExpenseGroups,
     createSubPocket,
     updateSubPocket,
     deleteSubPocket,
     toggleSubPocketEnabled,
     getSubPocketsByPocket,
+    getSubPocketsByGroup,
     createMovement,
     getPocketsByAccount,
+    createFixedExpenseGroup,
+    updateFixedExpenseGroup,
+    deleteFixedExpenseGroup,
+    toggleFixedExpenseGroup,
   } = useFinanceStore();
 
   const toast = useToast();
   const { confirm, confirmState, handleClose, handleConfirm } = useConfirm();
   const [showForm, setShowForm] = useState(false);
   const [showBatchForm, setShowBatchForm] = useState(false);
+  const [showGroupForm, setShowGroupForm] = useState(false);
   const [batchRows, setBatchRows] = useState<BatchMovementRow[]>([]);
   const [editingSubPocket, setEditingSubPocket] = useState<SubPocket | null>(null);
+  const [editingGroup, setEditingGroup] = useState<FixedExpenseGroup | null>(null);
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false); // Button-level loading
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [togglingId, setTogglingId] = useState<string | null>(null);
+  const [togglingGroupId, setTogglingGroupId] = useState<string | null>(null);
 
   useEffect(() => {
     const loadData = async () => {
       setIsLoading(true);
       try {
-        // loadAccounts now loads accounts, pockets, and subPockets in one call
-        // Skip investment prices - not needed for fixed expenses
-        await loadAccounts(true);
+        // Load accounts, pockets, subPockets, and groups
+        await Promise.all([
+          loadAccounts(true), // Skip investment prices
+          loadFixedExpenseGroups(),
+        ]);
       } catch (err) {
         console.error('Failed to load data:', err);
         toast.error('Failed to load fixed expenses data');
@@ -53,7 +67,7 @@ const FixedExpensesPage = () => {
       }
     };
     loadData();
-  }, [loadAccounts]); // Removed toast from dependencies - it shouldn't trigger reloads
+  }, [loadAccounts, loadFixedExpenseGroups]);
 
   // Find the fixed expenses pocket
   const fixedPocket = pockets.find((p) => p.type === 'fixed');
@@ -257,6 +271,77 @@ const FixedExpensesPage = () => {
 
   const totalFijosMes = calculateTotalFijosMes();
 
+  // Group handlers
+  const handleGroupSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setIsSaving(true);
+    const form = e.currentTarget;
+    const formData = new FormData(form);
+
+    const name = formData.get('groupName') as string;
+    const color = formData.get('groupColor') as string;
+
+    try {
+      if (editingGroup) {
+        await updateFixedExpenseGroup(editingGroup.id, name, color);
+        toast.success('Group updated successfully!');
+      } else {
+        await createFixedExpenseGroup(name, color);
+        toast.success('Group created successfully!');
+      }
+      setShowGroupForm(false);
+      setEditingGroup(null);
+      form.reset();
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to save group');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleDeleteGroup = async (group: FixedExpenseGroup) => {
+    const confirmed = await confirm({
+      title: 'Delete Group',
+      message: `Are you sure you want to delete "${group.name}"? All expenses will be moved to the Default group.`,
+      confirmText: 'Delete Group',
+      cancelText: 'Cancel',
+      variant: 'danger',
+    });
+
+    if (!confirmed) return;
+
+    try {
+      await deleteFixedExpenseGroup(group.id);
+      toast.success('Group deleted successfully!');
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to delete group');
+    }
+  };
+
+  const handleToggleGroup = async (groupId: string, enabled: boolean) => {
+    setTogglingGroupId(groupId);
+    try {
+      await toggleFixedExpenseGroup(groupId, enabled);
+      toast.success(`Group ${enabled ? 'enabled' : 'disabled'} successfully!`);
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to toggle group');
+    } finally {
+      setTogglingGroupId(null);
+    }
+  };
+
+  const toggleGroupCollapse = (groupId: string) => {
+    setCollapsedGroups(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(groupId)) {
+        newSet.delete(groupId);
+      } else {
+        newSet.add(groupId);
+      }
+      return newSet;
+    });
+  };
+
   if (!fixedPocket) {
     return (
       <div className="space-y-6">
@@ -378,12 +463,65 @@ const FixedExpensesPage = () => {
         </p>
       </Card>
 
-      {/* Fixed Expenses Table */}
+      {/* Group Management */}
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Expense Groups</h2>
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={() => {
+            setEditingGroup(null);
+            setShowGroupForm(true);
+          }}
+        >
+          <FolderPlus className="w-4 h-4" />
+          New Group
+        </Button>
+      </div>
+
+      {/* Fixed Expenses by Group */}
       {fixedSubPockets.length === 0 ? (
         <Card padding="lg" className="text-center text-gray-500 dark:text-gray-400">
           No fixed expenses yet. Create your first fixed expense!
         </Card>
       ) : (
+        <div className="space-y-4">
+          {fixedExpenseGroups.map((group) => {
+            const groupExpenses = getSubPocketsByGroup(group.id);
+            const isDefaultGroup = group.id === '00000000-0000-0000-0000-000000000001';
+            
+            return (
+              <FixedExpenseGroupCard
+                key={group.id}
+                group={group}
+                subPockets={groupExpenses}
+                currency={fixedAccount?.currency || 'USD'}
+                isDefaultGroup={isDefaultGroup}
+                isCollapsed={collapsedGroups.has(group.id)}
+                isToggling={togglingGroupId === group.id}
+                onToggleCollapse={() => toggleGroupCollapse(group.id)}
+                onToggleGroup={(enabled) => handleToggleGroup(group.id, enabled)}
+                onEditGroup={() => {
+                  setEditingGroup(group);
+                  setShowGroupForm(true);
+                }}
+                onDeleteGroup={() => handleDeleteGroup(group)}
+                onEditExpense={(subPocket) => {
+                  setEditingSubPocket(subPocket);
+                  setShowForm(true);
+                }}
+                onDeleteExpense={handleDelete}
+                onToggleExpense={handleToggle}
+                deletingId={deletingId}
+                togglingId={togglingId}
+              />
+            );
+          })}
+        </div>
+      )}
+
+      {/* Old table view removed - now using grouped cards */}
+      {false && (
         <Card padding="none" className="overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
@@ -642,6 +780,59 @@ const FixedExpensesPage = () => {
           }}
           initialRows={batchRows}
         />
+      </Modal>
+
+      {/* Group Form Modal */}
+      <Modal
+        isOpen={showGroupForm}
+        onClose={() => {
+          setShowGroupForm(false);
+          setEditingGroup(null);
+        }}
+      >
+        <form onSubmit={handleGroupSubmit} className="space-y-4">
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+            {editingGroup ? 'Edit Group' : 'New Group'}
+          </h2>
+
+          <Input
+            label="Group Name"
+            name="groupName"
+            type="text"
+            required
+            autoFocus
+            defaultValue={editingGroup?.name || ''}
+            placeholder="e.g., Payment 1, Utilities"
+          />
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Color
+            </label>
+            <input
+              type="color"
+              name="groupColor"
+              defaultValue={editingGroup?.color || '#3B82F6'}
+              className="w-full h-12 rounded-lg border dark:border-gray-600 cursor-pointer"
+            />
+          </div>
+
+          <div className="flex gap-2 justify-end">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => {
+                setShowGroupForm(false);
+                setEditingGroup(null);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button type="submit" variant="primary" loading={isSaving} disabled={isSaving}>
+              {editingGroup ? 'Update Group' : 'Create Group'}
+            </Button>
+          </div>
+        </form>
       </Modal>
 
       {/* Confirmation Dialog */}

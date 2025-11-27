@@ -1,10 +1,11 @@
 import { create } from 'zustand';
-import type { Account, Pocket, SubPocket, Movement, Settings, MovementType, MovementTemplate } from '../types';
+import type { Account, Pocket, SubPocket, Movement, Settings, MovementType, MovementTemplate, FixedExpenseGroup } from '../types';
 import { accountService } from '../services/accountService';
 import { pocketService } from '../services/pocketService';
 import { subPocketService } from '../services/subPocketService';
 import { movementService } from '../services/movementService';
 import { movementTemplateService } from '../services/movementTemplateService';
+import { fixedExpenseGroupService } from '../services/fixedExpenseGroupService';
 import { SupabaseStorageService } from '../services/supabaseStorageService';
 
 interface FinanceStore {
@@ -14,6 +15,7 @@ interface FinanceStore {
   subPockets: SubPocket[];
   movements: Movement[];
   movementTemplates: MovementTemplate[];
+  fixedExpenseGroups: FixedExpenseGroup[];
   settings: Settings;
   selectedAccountId: string | null;
   orphanedCount: number;
@@ -36,11 +38,19 @@ interface FinanceStore {
 
   // Actions - SubPockets
   loadSubPockets: () => Promise<void>;
-  createSubPocket: (pocketId: string, name: string, valueTotal: number, periodicityMonths: number) => Promise<void>;
-  updateSubPocket: (id: string, updates: Partial<Pick<SubPocket, 'name' | 'valueTotal' | 'periodicityMonths'>>) => Promise<void>;
+  createSubPocket: (pocketId: string, name: string, valueTotal: number, periodicityMonths: number, groupId?: string) => Promise<void>;
+  updateSubPocket: (id: string, updates: Partial<Pick<SubPocket, 'name' | 'valueTotal' | 'periodicityMonths' | 'groupId'>>) => Promise<void>;
   deleteSubPocket: (id: string) => Promise<void>;
   toggleSubPocketEnabled: (id: string) => Promise<void>;
+  moveSubPocketToGroup: (subPocketId: string, groupId: string) => Promise<void>;
   reorderSubPockets: (subPockets: SubPocket[]) => Promise<void>;
+
+  // Actions - Fixed Expense Groups
+  loadFixedExpenseGroups: () => Promise<void>;
+  createFixedExpenseGroup: (name: string, color: string) => Promise<void>;
+  updateFixedExpenseGroup: (id: string, name: string, color: string) => Promise<void>;
+  deleteFixedExpenseGroup: (id: string) => Promise<void>;
+  toggleFixedExpenseGroup: (groupId: string, enabled: boolean) => Promise<void>;
 
   // Actions - Movements
   loadMovements: () => Promise<void>;
@@ -72,6 +82,7 @@ interface FinanceStore {
   // Computed getters (as methods)
   getPocketsByAccount: (accountId: string) => Pocket[];
   getSubPocketsByPocket: (pocketId: string) => SubPocket[];
+  getSubPocketsByGroup: (groupId: string) => SubPocket[];
 }
 
 export const useFinanceStore = create<FinanceStore>((set, get) => ({
@@ -79,6 +90,7 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
   accounts: [],
   pockets: [],
   subPockets: [],
+  fixedExpenseGroups: [],
   movements: [],
   movementTemplates: [],
   settings: { primaryCurrency: 'USD' },
@@ -401,9 +413,9 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
   },
 
   // SubPocket actions
-  createSubPocket: async (pocketId, name, valueTotal, periodicityMonths) => {
+  createSubPocket: async (pocketId, name, valueTotal, periodicityMonths, groupId) => {
     try {
-      const subPocket = await subPocketService.createSubPocket(pocketId, name, valueTotal, periodicityMonths);
+      const subPocket = await subPocketService.createSubPocket(pocketId, name, valueTotal, periodicityMonths, groupId);
       // Optimistic update
       set((state) => ({ subPockets: [...state.subPockets, subPocket] }));
       
@@ -858,6 +870,72 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
     await get().loadMovementTemplates();
   },
 
+  // Move sub-pocket to group
+  moveSubPocketToGroup: async (subPocketId, groupId) => {
+    try {
+      await subPocketService.moveToGroup(subPocketId, groupId);
+      await get().loadSubPockets();
+    } catch (error) {
+      console.error('Error moving sub-pocket to group:', error);
+      throw error;
+    }
+  },
+
+  // Fixed Expense Groups Actions
+  loadFixedExpenseGroups: async () => {
+    try {
+      const groups = await fixedExpenseGroupService.getAll();
+      set({ fixedExpenseGroups: groups });
+    } catch (error) {
+      console.error('Error loading fixed expense groups:', error);
+      throw error;
+    }
+  },
+
+  createFixedExpenseGroup: async (name, color) => {
+    try {
+      await fixedExpenseGroupService.create(name, color);
+      await get().loadFixedExpenseGroups();
+    } catch (error) {
+      console.error('Error creating fixed expense group:', error);
+      throw error;
+    }
+  },
+
+  updateFixedExpenseGroup: async (id, name, color) => {
+    try {
+      await fixedExpenseGroupService.update(id, name, color);
+      await get().loadFixedExpenseGroups();
+    } catch (error) {
+      console.error('Error updating fixed expense group:', error);
+      throw error;
+    }
+  },
+
+  deleteFixedExpenseGroup: async (id) => {
+    try {
+      await fixedExpenseGroupService.delete(id);
+      await Promise.all([
+        get().loadFixedExpenseGroups(),
+        get().loadSubPockets(), // Reload to show moved expenses
+      ]);
+    } catch (error) {
+      console.error('Error deleting fixed expense group:', error);
+      throw error;
+    }
+  },
+
+  toggleFixedExpenseGroup: async (groupId, enabled) => {
+    try {
+      await subPocketService.toggleGroup(groupId, enabled);
+      await get().loadSubPockets();
+      await get().loadPockets(); // Reload to update fixed pocket balance
+    } catch (error) {
+      console.error('Error toggling fixed expense group:', error);
+      throw error;
+    }
+  },
+
   // Computed getters
   getPocketsByAccount: (accountId) => {
     return get().pockets.filter((p) => p.accountId === accountId);
@@ -865,6 +943,10 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
 
   getSubPocketsByPocket: (pocketId) => {
     return get().subPockets.filter((sp) => sp.pocketId === pocketId);
+  },
+
+  getSubPocketsByGroup: (groupId: string) => {
+    return get().subPockets.filter((sp) => sp.groupId === groupId);
   },
 }));
 

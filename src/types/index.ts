@@ -36,6 +36,15 @@ export interface Pocket {
   displayOrder?: number; // For drag & drop reordering
 }
 
+// Fixed Expense Group interface
+export interface FixedExpenseGroup {
+  id: string;
+  name: string;
+  color: string;
+  createdAt: string;
+  updatedAt?: string;
+}
+
 // SubPocket interface (only for fixed expenses)
 export interface SubPocket {
   id: string;
@@ -45,6 +54,7 @@ export interface SubPocket {
   periodicityMonths: number; // How many months to divide
   balance: number; // Current balance
   enabled: boolean; // For toggling in budget planning
+  groupId?: string; // References fixed_expense_groups, NULL = Default group
   displayOrder?: number; // For drag & drop reordering
 }
 
