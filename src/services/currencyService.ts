@@ -176,20 +176,7 @@ class CurrencyService {
 
   // Fetch rate from API
   private async fetchFromAPI(from: string, to: string): Promise<number> {
-    // FreeCurrencyAPI only supports USD, EUR, GBP as base currencies
-    // For other currencies, we need to convert through USD
-    const majorCurrencies = ['USD', 'EUR', 'GBP'];
-    
-    if (!majorCurrencies.includes(from)) {
-      // Convert through USD: COP -> MXN = (USD -> MXN) / (USD -> COP)
-      console.log(`[Currency] ${from} not supported as base, converting through USD`);
-      
-      const usdToTarget = await this.fetchFromAPI('USD', to);
-      const usdToSource = await this.fetchFromAPI('USD', from);
-      
-      return usdToTarget / usdToSource;
-    }
-    
+    // Exchange API supports all currencies as base
     const url = `${this.API_ENDPOINT}?base=${from}&currencies=${to}`;
     
     const response = await fetch(url);
