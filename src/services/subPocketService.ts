@@ -83,7 +83,13 @@ class SubPocketService {
   }
 
   // Create new sub-pocket
-  async createSubPocket(pocketId: string, name: string, valueTotal: number, periodicityMonths: number): Promise<SubPocket> {
+  async createSubPocket(
+    pocketId: string, 
+    name: string, 
+    valueTotal: number, 
+    periodicityMonths: number,
+    groupId?: string
+  ): Promise<SubPocket> {
     // Validate pocket exists and is fixed type (dynamic import to avoid circular dependency)
     const pocketService = await getPocketService();
     const pocket = await pocketService.getPocket(pocketId);
@@ -119,6 +125,7 @@ class SubPocketService {
       periodicityMonths,
       balance: 0,
       enabled: true,
+      groupId, // Assign to group (defaults to Default group in DB if null)
     };
 
     // Insert directly - much faster than fetch-all-save-all
@@ -196,6 +203,37 @@ class SubPocketService {
       allSubPockets.map((sp: SubPocket) => (sp.id === id ? updated : sp))
     );
     return updated;
+  }
+
+  // Move sub-pocket to a different group
+  async moveToGroup(subPocketId: string, groupId: string): Promise<void> {
+    const subPocket = await this.getSubPocket(subPocketId);
+    if (!subPocket) {
+      throw new Error(`Sub-pocket with id "${subPocketId}" not found.`);
+    }
+
+    await SupabaseStorageService.updateSubPocket(subPocketId, { groupId });
+  }
+
+  // Toggle all sub-pockets in a group
+  async toggleGroup(groupId: string, enabled: boolean): Promise<void> {
+    const allSubPockets = await this.getAllSubPockets();
+    const groupSubPockets = allSubPockets.filter(sp => sp.groupId === groupId);
+
+    if (groupSubPockets.length === 0) return;
+
+    // Update all sub-pockets in the group
+    const updated = allSubPockets.map(sp => 
+      sp.groupId === groupId ? { ...sp, enabled } : sp
+    );
+
+    await SupabaseStorageService.saveSubPockets(updated);
+  }
+
+  // Get sub-pockets by group
+  async getSubPocketsByGroup(groupId: string): Promise<SubPocket[]> {
+    const subPockets = await this.getAllSubPockets();
+    return subPockets.filter(sp => sp.groupId === groupId);
   }
 }
 

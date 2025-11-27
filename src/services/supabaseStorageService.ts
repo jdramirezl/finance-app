@@ -248,6 +248,7 @@ export class SupabaseStorageService {
       periodicityMonths: subPocket.periodicity_months,
       balance: parseFloat(subPocket.balance || 0),
       enabled: subPocket.enabled,
+      groupId: subPocket.group_id,
       displayOrder: subPocket.display_order,
     }));
   }
@@ -265,6 +266,7 @@ export class SupabaseStorageService {
         periodicity_months: subPocket.periodicityMonths,
         balance: subPocket.balance,
         enabled: subPocket.enabled,
+        group_id: subPocket.groupId,
         display_order: subPocket.displayOrder || 0,
       }));
 
@@ -290,6 +292,7 @@ export class SupabaseStorageService {
         periodicity_months: subPocket.periodicityMonths,
         balance: subPocket.balance,
         enabled: subPocket.enabled,
+        group_id: subPocket.groupId,
         display_order: subPocket.displayOrder || 0,
       });
     
@@ -306,6 +309,7 @@ export class SupabaseStorageService {
     if (updates.periodicityMonths !== undefined) updateData.periodicity_months = updates.periodicityMonths;
     if (updates.balance !== undefined) updateData.balance = updates.balance;
     if (updates.enabled !== undefined) updateData.enabled = updates.enabled;
+    if (updates.groupId !== undefined) updateData.group_id = updates.groupId;
     if (updates.displayOrder !== undefined) updateData.display_order = updates.displayOrder;
     
     const { error } = await supabase

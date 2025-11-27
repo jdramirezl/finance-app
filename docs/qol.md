@@ -10,12 +10,41 @@
 - [ ] **Concurrent edits handling** - Optimistic locking for simultaneous updates
 
 #### High-Priority Features
-- [ ] **Lazy Loading Movements with Pagination** - Don't load all movements at once
-  - Each month group starts collapsed (toggle to expand)
-  - When expanded, show first 10 movements
-  - "Load More" button at bottom loads next 10
-  - Benefits: Much faster initial page load, better performance with 1000+ movements
-  - UI: Month header shows total count: "January 2025 (45 movements)"
+
+- [ ] **Fixed Expense Groups** - Group fixed expenses for batch enable/disable
+  - **Use Case**: Bi-weekly salary payments with different expense sets
+    - Payment 1: Gas, light, water, rent
+    - Payment 2: All other expenses
+  - **Implementation Plan**:
+    1. **Database Schema**:
+       - Create `fixed_expense_groups` table (id, name, color, created_at)
+       - Add `group_id` column to `sub_pockets` table (nullable, defaults to "Default" group)
+       - Migration to create default group and assign existing expenses
+    2. **UI Components**:
+       - Group management section on FixedExpensesPage
+       - "Create Group" button with modal (name, color picker)
+       - Group cards showing expenses count and total monthly contribution
+       - Drag-and-drop to move expenses between groups
+       - Toggle switch per group to enable/disable all expenses in group
+       - Bulk actions: "Enable Group", "Disable Group", "Delete Group"
+    3. **Features**:
+       - Visual grouping with color-coded cards
+       - Collapsible groups (expand to see individual expenses)
+       - Group statistics: total monthly contribution, enabled count
+       - "Default" group for ungrouped expenses (cannot be deleted)
+       - Confirmation when deleting group (moves expenses to Default)
+       - Group toggle affects all expenses in group atomically
+       - Individual expense toggle still available within groups
+    4. **Budget Planning Integration**:
+       - Show which groups are enabled in calculation
+       - Option to preview calculation with different group combinations
+  - **Benefits**:
+    - Quick toggle between payment scenarios
+    - Better organization of fixed expenses
+    - Visual clarity of expense categories
+    - Faster budget planning workflow
+  - **Effort**: 2-3 hours (database + UI + logic)
+  - **Priority**: HIGH - Directly requested user feature
 
 - [ ] **Search/filter movements** - Full-text search with advanced filters
   - Date range, account, pocket, type, amount range
