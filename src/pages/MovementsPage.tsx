@@ -3,7 +3,7 @@ import { useFinanceStore } from '../store/useFinanceStore';
 import { useToast } from '../hooks/useToast';
 import { useConfirm } from '../hooks/useConfirm';
 import type { Movement, MovementType, Account, Pocket, SubPocket } from '../types';
-import { Plus, Edit2, Trash2, ArrowUpCircle, ArrowDownCircle, Filter, X } from 'lucide-react';
+import { Plus, Edit2, Trash2, ArrowUpCircle, ArrowDownCircle, Filter, X, ChevronDown, ChevronUp } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import Modal from '../components/Modal';
 import Button from '../components/Button';
@@ -94,6 +94,15 @@ const MovementsPage = () => {
   const [showBulkEditModal, setShowBulkEditModal] = useState(false);
   const [bulkEditField, setBulkEditField] = useState<'account' | 'pocket' | 'date'>('account');
   const [bulkEditValue, setBulkEditValue] = useState<string>('');
+  
+  // Lazy loading state - track expanded months and loaded counts
+  const [expandedMonths, setExpandedMonths] = useState<Set<string>>(() => {
+    // Start with current month expanded
+    const currentMonth = format(new Date(), 'yyyy-MM');
+    return new Set([currentMonth]);
+  });
+  const [loadedCounts, setLoadedCounts] = useState<Map<string, number>>(new Map());
+  const ITEMS_PER_PAGE = 10;
   
   // Persist sort preferences
   useEffect(() => {
@@ -1175,32 +1184,69 @@ const MovementsPage = () => {
         <div className="space-y-6">
           {movementsByMonth.map(([monthKey, monthMovements]) => {
             const date = parseISO(`${monthKey}-01`);
+            const isExpanded = expandedMonths.has(monthKey);
+            const loadedCount = loadedCounts.get(monthKey) || ITEMS_PER_PAGE;
+            const visibleMovements = isExpanded ? monthMovements.slice(0, loadedCount) : [];
+            const hasMore = monthMovements.length > loadedCount;
+            
             return (
               <Card key={monthKey} padding="md">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-200">
-                    {format(date, 'MMMM yyyy')}
-                  </h2>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      const monthIds = monthMovements.map(m => m.id);
-                      const allSelected = monthIds.every(id => selectedMovementIds.has(id));
-                      const newSelection = new Set(selectedMovementIds);
-                      if (allSelected) {
-                        monthIds.forEach(id => newSelection.delete(id));
-                      } else {
-                        monthIds.forEach(id => newSelection.add(id));
+                {/* Month Header - Always Visible */}
+                <div 
+                  className="flex items-center justify-between cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 -m-4 p-4 rounded-lg transition-colors"
+                  onClick={() => {
+                    const newExpanded = new Set(expandedMonths);
+                    if (isExpanded) {
+                      newExpanded.delete(monthKey);
+                    } else {
+                      newExpanded.add(monthKey);
+                      // Initialize loaded count if not set
+                      if (!loadedCounts.has(monthKey)) {
+                        setLoadedCounts(new Map(loadedCounts).set(monthKey, ITEMS_PER_PAGE));
                       }
-                      setSelectedMovementIds(newSelection);
-                    }}
-                  >
-                    {monthMovements.every(m => selectedMovementIds.has(m.id)) ? 'Deselect All' : 'Select All'}
-                  </Button>
+                    }
+                    setExpandedMonths(newExpanded);
+                  }}
+                >
+                  <div className="flex items-center gap-3">
+                    {isExpanded ? (
+                      <ChevronDown className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+                    ) : (
+                      <ChevronUp className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+                    )}
+                    <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-200">
+                      {format(date, 'MMMM yyyy')}
+                    </h2>
+                    <span className="text-sm text-gray-500 dark:text-gray-400">
+                      ({monthMovements.length} movement{monthMovements.length !== 1 ? 's' : ''})
+                    </span>
+                  </div>
+                  {isExpanded && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation(); // Prevent collapse
+                        const monthIds = monthMovements.map(m => m.id);
+                        const allSelected = monthIds.every(id => selectedMovementIds.has(id));
+                        const newSelection = new Set(selectedMovementIds);
+                        if (allSelected) {
+                          monthIds.forEach(id => newSelection.delete(id));
+                        } else {
+                          monthIds.forEach(id => newSelection.add(id));
+                        }
+                        setSelectedMovementIds(newSelection);
+                      }}
+                    >
+                      {monthMovements.every(m => selectedMovementIds.has(m.id)) ? 'Deselect All' : 'Select All'}
+                    </Button>
+                  )}
                 </div>
-                <div className="space-y-2">
-                  {monthMovements.map((movement) => {
+
+                {/* Movements List - Only When Expanded */}
+                {isExpanded && (
+                  <div className="space-y-2 mt-4">
+                    {visibleMovements.map((movement) => {
                     const account = getAccount(movement.accountId);
                     const pocket = getPocket(movement.pocketId);
                     const subPocket = movement.subPocketId
@@ -1322,7 +1368,38 @@ const MovementsPage = () => {
                       </div>
                     );
                   })}
+                  
+                  {/* Load More Button */}
+                  {hasMore && (
+                    <div className="flex gap-2 justify-center pt-4 border-t border-gray-200 dark:border-gray-700">
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const newCounts = new Map(loadedCounts);
+                          newCounts.set(monthKey, loadedCount + ITEMS_PER_PAGE);
+                          setLoadedCounts(newCounts);
+                        }}
+                      >
+                        Load More ({monthMovements.length - loadedCount} remaining)
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const newCounts = new Map(loadedCounts);
+                          newCounts.set(monthKey, monthMovements.length);
+                          setLoadedCounts(newCounts);
+                        }}
+                      >
+                        Load All
+                      </Button>
+                    </div>
+                  )}
                 </div>
+                )}
               </Card>
             );
           })}
