@@ -149,7 +149,7 @@ class AccountService {
     // If currency changed, update all pockets' currency
     if (updates.currency) {
       const pocketService = await getPocketService();
-      const pockets = pocketService.getPocketsByAccount(id);
+      const pockets = await pocketService.getPocketsByAccount(id);
       const allPockets = await pocketService.getAllPockets();
       pockets.forEach((pocket: { id: string }) => {
         const pocketIndex = allPockets.findIndex((p: { id: string }) => p.id === pocket.id);
