@@ -1,9 +1,10 @@
 import { create } from 'zustand';
-import type { Account, Pocket, SubPocket, Movement, Settings, MovementType } from '../types';
+import type { Account, Pocket, SubPocket, Movement, Settings, MovementType, MovementTemplate } from '../types';
 import { accountService } from '../services/accountService';
 import { pocketService } from '../services/pocketService';
 import { subPocketService } from '../services/subPocketService';
 import { movementService } from '../services/movementService';
+import { movementTemplateService } from '../services/movementTemplateService';
 import { SupabaseStorageService } from '../services/supabaseStorageService';
 
 interface FinanceStore {
@@ -12,6 +13,7 @@ interface FinanceStore {
   pockets: Pocket[];
   subPockets: SubPocket[];
   movements: Movement[];
+  movementTemplates: MovementTemplate[];
   settings: Settings;
   selectedAccountId: string | null;
   orphanedCount: number;
@@ -58,6 +60,12 @@ interface FinanceStore {
   loadSettings: () => Promise<void>;
   updateSettings: (updates: Partial<Settings>) => Promise<void>;
 
+  // Actions - Movement Templates
+  loadMovementTemplates: () => Promise<void>;
+  createMovementTemplate: (name: string, type: MovementType, accountId: string, pocketId: string, defaultAmount?: number, notes?: string, subPocketId?: string) => Promise<void>;
+  updateMovementTemplate: (id: string, updates: Partial<Pick<MovementTemplate, 'name' | 'type' | 'accountId' | 'pocketId' | 'subPocketId' | 'defaultAmount' | 'notes'>>) => Promise<void>;
+  deleteMovementTemplate: (id: string) => Promise<void>;
+
   // Computed getters (as methods)
   getPocketsByAccount: (accountId: string) => Pocket[];
   getSubPocketsByPocket: (pocketId: string) => SubPocket[];
@@ -69,6 +77,7 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
   pockets: [],
   subPockets: [],
   movements: [],
+  movementTemplates: [],
   settings: { primaryCurrency: 'USD' },
   selectedAccountId: null,
   orphanedCount: 0,
@@ -769,6 +778,27 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
     const newSettings = { ...get().settings, ...updates };
     await SupabaseStorageService.saveSettings(newSettings);
     set({ settings: newSettings });
+  },
+
+  // Movement Template actions
+  loadMovementTemplates: async () => {
+    const templates = await movementTemplateService.getAllTemplates();
+    set({ movementTemplates: templates });
+  },
+
+  createMovementTemplate: async (name, type, accountId, pocketId, defaultAmount, notes, subPocketId) => {
+    await movementTemplateService.createTemplate(name, type, accountId, pocketId, defaultAmount, notes, subPocketId);
+    await get().loadMovementTemplates();
+  },
+
+  updateMovementTemplate: async (id, updates) => {
+    await movementTemplateService.updateTemplate(id, updates);
+    await get().loadMovementTemplates();
+  },
+
+  deleteMovementTemplate: async (id) => {
+    await movementTemplateService.deleteTemplate(id);
+    await get().loadMovementTemplates();
   },
 
   // Computed getters

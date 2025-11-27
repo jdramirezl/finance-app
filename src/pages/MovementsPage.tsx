@@ -20,15 +20,18 @@ const MovementsPage = () => {
     pockets,
     subPockets,
     movements,
+    movementTemplates,
     orphanedCount: storeOrphanedCount,
     loadAccounts,
     loadMovements,
+    loadMovementTemplates,
     createAccount,
     createPocket,
     createMovement,
     updateMovement,
     deleteMovement,
     applyPendingMovement,
+    createMovementTemplate,
     getPocketsByAccount,
     getSubPocketsByPocket,
     getOrphanedMovements,
@@ -49,6 +52,11 @@ const MovementsPage = () => {
   const [deletingId, setDeletingId] = useState<string | null>(null); // Track which item is being deleted
   const [applyingId, setApplyingId] = useState<string | null>(null); // Track which item is being applied
   const [showPending, setShowPending] = useState<'all' | 'applied' | 'pending'>('all');
+  
+  // Template state
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
+  const [saveAsTemplate, setSaveAsTemplate] = useState(false);
+  const [templateName, setTemplateName] = useState('');
   
   // Advanced filters
   const [filterAccount, setFilterAccount] = useState<string>('all');
@@ -93,7 +101,7 @@ const MovementsPage = () => {
       setIsLoading(true);
       try {
         // OPTIMIZATION: Skip investment prices since we don't display account balances here
-        await Promise.all([loadAccounts(true), loadMovements()]);
+        await Promise.all([loadAccounts(true), loadMovements(), loadMovementTemplates()]);
         
         const totalTime = performance.now() - startTime;
         console.log(`⏱️ [MovementsPage] Total load: ${totalTime.toFixed(0)}ms`);
@@ -105,7 +113,7 @@ const MovementsPage = () => {
       }
     };
     loadData();
-  }, [loadAccounts, loadMovements]);
+  }, [loadAccounts, loadMovements, loadMovementTemplates]);
   
   // OPTIMIZATION: Orphaned count now loaded in store with movements (no extra query needed)
   
@@ -303,6 +311,47 @@ const MovementsPage = () => {
     }
   };
 
+  // Handle template selection
+  const handleTemplateSelect = (templateId: string) => {
+    setSelectedTemplateId(templateId);
+    
+    if (!templateId) {
+      // Clear form when "Start from scratch" is selected
+      setSelectedAccountId('');
+      setSelectedPocketId('');
+      setIsFixedExpense(false);
+      return;
+    }
+    
+    const template = movementTemplates.find(t => t.id === templateId);
+    if (!template) return;
+    
+    // Pre-fill form with template data
+    setSelectedAccountId(template.accountId);
+    setSelectedPocketId(template.pocketId);
+    setIsFixedExpense(template.type === 'IngresoFijo' || template.type === 'EgresoFijo');
+    
+    // Use setTimeout to ensure form elements are rendered
+    setTimeout(() => {
+      const form = document.querySelector('form') as HTMLFormElement;
+      if (!form) return;
+      
+      const typeEl = form.elements.namedItem('type') as HTMLSelectElement | null;
+      const accountEl = form.elements.namedItem('accountId') as HTMLSelectElement | null;
+      const pocketEl = form.elements.namedItem('pocketId') as HTMLSelectElement | null;
+      const subPocketEl = form.elements.namedItem('subPocketId') as HTMLSelectElement | null;
+      const amountEl = form.elements.namedItem('amount') as HTMLInputElement | null;
+      const notesEl = form.elements.namedItem('notes') as HTMLInputElement | null;
+      
+      if (typeEl) typeEl.value = template.type;
+      if (accountEl) accountEl.value = template.accountId;
+      if (pocketEl) pocketEl.value = template.pocketId;
+      if (subPocketEl && template.subPocketId) subPocketEl.value = template.subPocketId;
+      if (amountEl && template.defaultAmount) amountEl.value = template.defaultAmount.toString();
+      if (notesEl && template.notes) notesEl.value = template.notes;
+    }, 0);
+  };
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError(null);
@@ -347,7 +396,29 @@ const MovementsPage = () => {
         setIsFixedExpense(false);
         
         await createMovement(type, accountId, pocketId, amount, notes, displayedDate, subPocketId, isPending);
-        toast.success(isPending ? 'Pending movement created successfully!' : 'Movement created successfully!');
+        
+        // Save as template if checkbox is checked
+        if (saveAsTemplate && templateName.trim()) {
+          try {
+            await createMovementTemplate(
+              templateName.trim(),
+              type,
+              accountId,
+              pocketId,
+              amount,
+              notes,
+              subPocketId
+            );
+            toast.success(`Movement created and saved as template "${templateName}"!`);
+            setSaveAsTemplate(false);
+            setTemplateName('');
+          } catch (templateErr) {
+            // Movement was created successfully, just template save failed
+            toast.warning(`Movement created but template save failed: ${templateErr instanceof Error ? templateErr.message : 'Unknown error'}`);
+          }
+        } else {
+          toast.success(isPending ? 'Pending movement created successfully!' : 'Movement created successfully!');
+        }
       }
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to save movement';
@@ -1069,6 +1140,24 @@ const MovementsPage = () => {
             </div>
           )}
 
+          {/* Template Selector - Only show when creating new movement */}
+          {!editingMovement && movementTemplates.length > 0 && (
+            <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+              <Select
+                label="Use Template (optional)"
+                value={selectedTemplateId}
+                onChange={(e) => handleTemplateSelect(e.target.value)}
+                options={[
+                  { value: '', label: 'Start from scratch' },
+                  ...movementTemplates.map(t => ({
+                    value: t.id,
+                    label: `${t.name} - ${t.defaultAmount ? `$${t.defaultAmount}` : 'No amount'}`,
+                  })),
+                ]}
+              />
+            </div>
+          )}
+
           <Select
             label="Type"
             name="type"
@@ -1196,6 +1285,33 @@ const MovementsPage = () => {
               Pending (don't apply to balance yet)
             </label>
           </div>
+
+          {/* Save as Template - Only show when creating new movement and no template selected */}
+          {!editingMovement && !selectedTemplateId && (
+            <div className="space-y-2 p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700">
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="saveAsTemplate"
+                  checked={saveAsTemplate}
+                  onChange={(e) => setSaveAsTemplate(e.target.checked)}
+                  className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                />
+                <label htmlFor="saveAsTemplate" className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                  Save as template for future use
+                </label>
+              </div>
+              {saveAsTemplate && (
+                <Input
+                  label="Template Name"
+                  value={templateName}
+                  onChange={(e) => setTemplateName(e.target.value)}
+                  placeholder="e.g., Monthly Rent, Grocery Shopping"
+                  required={saveAsTemplate}
+                />
+              )}
+            </div>
+          )}
 
           <div className="flex gap-2">
             <Button

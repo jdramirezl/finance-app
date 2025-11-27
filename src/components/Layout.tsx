@@ -5,7 +5,8 @@ import {
   Wallet, 
   Target, 
   Calendar, 
-  TrendingUp, 
+  TrendingUp,
+  FileText,
   Settings,
   Moon,
   Sun,
@@ -35,6 +36,7 @@ const Layout = ({ children }: LayoutProps) => {
     { path: '/fixed-expenses', label: 'Fixed Expenses', icon: Target },
     { path: '/budget-planning', label: 'Budget Planning', icon: Calendar },
     { path: '/movements', label: 'Movements', icon: TrendingUp },
+    { path: '/templates', label: 'Templates', icon: FileText },
     { path: '/settings', label: 'Settings', icon: Settings },
   ];
 
