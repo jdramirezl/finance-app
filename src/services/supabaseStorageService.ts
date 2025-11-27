@@ -518,4 +518,84 @@ export class SupabaseStorageService {
       if (error) throw error;
     }
   }
+
+  // Movement Templates
+  static async getMovementTemplates(): Promise<import('../types').MovementTemplate[]> {
+    const userId = await this.getUserId();
+    const { data, error } = await supabase
+      .from('movement_templates')
+      .select('*')
+      .eq('user_id', userId)
+      .order('name', { ascending: true });
+
+    if (error) throw error;
+
+    return (data || []).map(template => ({
+      id: template.id,
+      name: template.name,
+      type: template.type,
+      accountId: template.account_id,
+      pocketId: template.pocket_id,
+      subPocketId: template.sub_pocket_id,
+      defaultAmount: template.default_amount ? parseFloat(template.default_amount) : undefined,
+      notes: template.notes,
+      createdAt: template.created_at,
+      updatedAt: template.updated_at,
+    }));
+  }
+
+  static async insertMovementTemplate(template: import('../types').MovementTemplate): Promise<void> {
+    const userId = await this.getUserId();
+
+    const { error } = await supabase
+      .from('movement_templates')
+      .insert({
+        id: template.id,
+        user_id: userId,
+        name: template.name,
+        type: template.type,
+        account_id: template.accountId,
+        pocket_id: template.pocketId,
+        sub_pocket_id: template.subPocketId,
+        default_amount: template.defaultAmount,
+        notes: template.notes,
+        created_at: template.createdAt,
+        updated_at: template.updatedAt,
+      });
+
+    if (error) throw error;
+  }
+
+  static async updateMovementTemplate(id: string, template: import('../types').MovementTemplate): Promise<void> {
+    const userId = await this.getUserId();
+
+    const { error } = await supabase
+      .from('movement_templates')
+      .update({
+        name: template.name,
+        type: template.type,
+        account_id: template.accountId,
+        pocket_id: template.pocketId,
+        sub_pocket_id: template.subPocketId,
+        default_amount: template.defaultAmount,
+        notes: template.notes,
+        updated_at: template.updatedAt,
+      })
+      .eq('id', id)
+      .eq('user_id', userId);
+
+    if (error) throw error;
+  }
+
+  static async deleteMovementTemplate(id: string): Promise<void> {
+    const userId = await this.getUserId();
+
+    const { error } = await supabase
+      .from('movement_templates')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', userId);
+
+    if (error) throw error;
+  }
 }

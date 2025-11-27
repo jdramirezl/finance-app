@@ -3,7 +3,7 @@ import { useFinanceStore } from '../store/useFinanceStore';
 import { useToast } from '../hooks/useToast';
 import { useConfirm } from '../hooks/useConfirm';
 import type { Movement, MovementType, Account, Pocket, SubPocket } from '../types';
-import { Plus, Edit2, Trash2, ArrowUpCircle, ArrowDownCircle, Filter, X } from 'lucide-react';
+import { Plus, Edit2, Trash2, ArrowUpCircle, ArrowDownCircle, Filter, X, ChevronDown, ChevronUp } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import Modal from '../components/Modal';
 import Button from '../components/Button';
@@ -20,15 +20,19 @@ const MovementsPage = () => {
     pockets,
     subPockets,
     movements,
+    movementTemplates,
     orphanedCount: storeOrphanedCount,
     loadAccounts,
     loadMovements,
+    loadMovementTemplates,
     createAccount,
     createPocket,
     createMovement,
     updateMovement,
     deleteMovement,
     applyPendingMovement,
+    markAsPending,
+    createMovementTemplate,
     getPocketsByAccount,
     getSubPocketsByPocket,
     getOrphanedMovements,
@@ -50,6 +54,11 @@ const MovementsPage = () => {
   const [applyingId, setApplyingId] = useState<string | null>(null); // Track which item is being applied
   const [showPending, setShowPending] = useState<'all' | 'applied' | 'pending'>('all');
   
+  // Template state
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
+  const [saveAsTemplate, setSaveAsTemplate] = useState(false);
+  const [templateName, setTemplateName] = useState('');
+  
   // Advanced filters
   const [filterAccount, setFilterAccount] = useState<string>('all');
   const [filterPocket, setFilterPocket] = useState<string>('all');
@@ -67,6 +76,37 @@ const MovementsPage = () => {
   const [filterMinAmount, setFilterMinAmount] = useState<string>('');
   const [filterMaxAmount, setFilterMaxAmount] = useState<string>('');
   const [showFilters, setShowFilters] = useState(false);
+  
+  // Sorting state with localStorage persistence
+  type SortField = 'createdAt' | 'displayedDate' | 'amount' | 'type';
+  type SortOrder = 'asc' | 'desc';
+  const [sortField, setSortField] = useState<SortField>(() => {
+    const saved = localStorage.getItem('movementSortField');
+    return (saved as SortField) || 'createdAt';
+  });
+  const [sortOrder, setSortOrder] = useState<SortOrder>(() => {
+    const saved = localStorage.getItem('movementSortOrder');
+    return (saved as SortOrder) || 'asc';
+  });
+  
+  // Bulk selection state
+  const [selectedMovementIds, setSelectedMovementIds] = useState<Set<string>>(new Set());
+  const [showBulkEditModal, setShowBulkEditModal] = useState(false);
+  const [bulkEditField, setBulkEditField] = useState<'account' | 'pocket' | 'date'>('account');
+  const [bulkEditValue, setBulkEditValue] = useState<string>('');
+  
+  // Collapsible months state - simple UI toggle
+  const [expandedMonths, setExpandedMonths] = useState<Set<string>>(() => {
+    // Start with current month expanded
+    const currentMonth = format(new Date(), 'yyyy-MM');
+    return new Set([currentMonth]);
+  });
+  
+  // Persist sort preferences
+  useEffect(() => {
+    localStorage.setItem('movementSortField', sortField);
+    localStorage.setItem('movementSortOrder', sortOrder);
+  }, [sortField, sortOrder]);
 
   useEffect(() => {
     const loadData = async () => {
@@ -75,7 +115,7 @@ const MovementsPage = () => {
       setIsLoading(true);
       try {
         // OPTIMIZATION: Skip investment prices since we don't display account balances here
-        await Promise.all([loadAccounts(true), loadMovements()]);
+        await Promise.all([loadAccounts(true), loadMovements(), loadMovementTemplates()]);
         
         const totalTime = performance.now() - startTime;
         console.log(`⏱️ [MovementsPage] Total load: ${totalTime.toFixed(0)}ms`);
@@ -87,7 +127,7 @@ const MovementsPage = () => {
       }
     };
     loadData();
-  }, [loadAccounts, loadMovements]);
+  }, [loadAccounts, loadMovements, loadMovementTemplates]);
   
   // OPTIMIZATION: Orphaned count now loaded in store with movements (no extra query needed)
   
@@ -165,6 +205,7 @@ const MovementsPage = () => {
   }, [movements, showPending, filterAccount, filterPocket, filterType, filterDateRange, filterDateFrom, filterDateTo, filterSearch, filterMinAmount, filterMaxAmount]);
 
   // OPTIMIZATION: Memoize grouped movements to avoid recalculating on every render
+  // OPTIMIZATION: Memoize grouped movements to avoid recalculating on every render
   const movementsByMonth = useMemo(() => {
     const grouped = Array.from(
       filteredMovements.reduce((acc, movement) => {
@@ -172,21 +213,40 @@ const MovementsPage = () => {
         const monthKey = format(date, 'yyyy-MM');
         if (!acc.has(monthKey)) {
           acc.set(monthKey, []);
-      }
-      acc.get(monthKey)!.push(movement);
-      return acc;
-    }, new Map<string, Movement[]>())
-  ).sort((a, b) => b[0].localeCompare(a[0])); // Sort months descending
+        }
+        acc.get(monthKey)!.push(movement);
+        return acc;
+      }, new Map<string, Movement[]>())
+    ).sort((a, b) => b[0].localeCompare(a[0])); // Sort months descending
 
-    // Sort movements within each month by createdAt
+    // Sort movements within each month based on selected sort field and order
     grouped.forEach(([, monthMovements]) => {
-      monthMovements.sort(
-        (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-      );
+      monthMovements.sort((a, b) => {
+        let comparison = 0;
+        
+        switch (sortField) {
+          case 'createdAt':
+            comparison = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+            break;
+          case 'displayedDate':
+            comparison = new Date(a.displayedDate).getTime() - new Date(b.displayedDate).getTime();
+            break;
+          case 'amount':
+            comparison = a.amount - b.amount;
+            break;
+          case 'type':
+            // Sort by type: Income types first, then expense types
+            const typeOrder = { IngresoNormal: 0, IngresoFijo: 1, EgresoNormal: 2, EgresoFijo: 3 };
+            comparison = typeOrder[a.type] - typeOrder[b.type];
+            break;
+        }
+        
+        return sortOrder === 'asc' ? comparison : -comparison;
+      });
     });
     
     return grouped;
-  }, [filteredMovements]);
+  }, [filteredMovements, sortField, sortOrder]);
 
   const getMovementTypeColor = (type: MovementType): string => {
     switch (type) {
@@ -239,6 +299,7 @@ const MovementsPage = () => {
     amount: string;
     notes: string;
     displayedDate: string;
+    isPending?: boolean;
   }>) => {
     try {
       // Create all movements
@@ -251,17 +312,59 @@ const MovementsPage = () => {
           row.notes || undefined,
           row.displayedDate,
           row.subPocketId,
-          false // Not pending
+          row.isPending || false
         );
       }
       
       setShowBatchForm(false);
-      toast.success(`Successfully created ${rows.length} movements!`);
+      const pendingText = rows[0]?.isPending ? ' as pending' : '';
+      toast.success(`Successfully created ${rows.length} movement${rows.length > 1 ? 's' : ''}${pendingText}!`);
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to save movements';
       toast.error(errorMessage);
       throw err; // Re-throw so form can handle it
     }
+  };
+
+  // Handle template selection
+  const handleTemplateSelect = (templateId: string) => {
+    setSelectedTemplateId(templateId);
+    
+    if (!templateId) {
+      // Clear form when "Start from scratch" is selected
+      setSelectedAccountId('');
+      setSelectedPocketId('');
+      setIsFixedExpense(false);
+      return;
+    }
+    
+    const template = movementTemplates.find(t => t.id === templateId);
+    if (!template) return;
+    
+    // Pre-fill form with template data
+    setSelectedAccountId(template.accountId);
+    setSelectedPocketId(template.pocketId);
+    setIsFixedExpense(template.type === 'IngresoFijo' || template.type === 'EgresoFijo');
+    
+    // Use setTimeout to ensure form elements are rendered
+    setTimeout(() => {
+      const form = document.querySelector('form') as HTMLFormElement;
+      if (!form) return;
+      
+      const typeEl = form.elements.namedItem('type') as HTMLSelectElement | null;
+      const accountEl = form.elements.namedItem('accountId') as HTMLSelectElement | null;
+      const pocketEl = form.elements.namedItem('pocketId') as HTMLSelectElement | null;
+      const subPocketEl = form.elements.namedItem('subPocketId') as HTMLSelectElement | null;
+      const amountEl = form.elements.namedItem('amount') as HTMLInputElement | null;
+      const notesEl = form.elements.namedItem('notes') as HTMLInputElement | null;
+      
+      if (typeEl) typeEl.value = template.type;
+      if (accountEl) accountEl.value = template.accountId;
+      if (pocketEl) pocketEl.value = template.pocketId;
+      if (subPocketEl && template.subPocketId) subPocketEl.value = template.subPocketId;
+      if (amountEl && template.defaultAmount) amountEl.value = template.defaultAmount.toString();
+      if (notesEl && template.notes) notesEl.value = template.notes;
+    }, 0);
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -308,7 +411,29 @@ const MovementsPage = () => {
         setIsFixedExpense(false);
         
         await createMovement(type, accountId, pocketId, amount, notes, displayedDate, subPocketId, isPending);
-        toast.success(isPending ? 'Pending movement created successfully!' : 'Movement created successfully!');
+        
+        // Save as template if checkbox is checked
+        if (saveAsTemplate && templateName.trim()) {
+          try {
+            await createMovementTemplate(
+              templateName.trim(),
+              type,
+              accountId,
+              pocketId,
+              amount,
+              notes,
+              subPocketId
+            );
+            toast.success(`Movement created and saved as template "${templateName}"!`);
+            setSaveAsTemplate(false);
+            setTemplateName('');
+          } catch (templateErr) {
+            // Movement was created successfully, just template save failed
+            toast.warning(`Movement created but template save failed: ${templateErr instanceof Error ? templateErr.message : 'Unknown error'}`);
+          }
+        } else {
+          toast.success(isPending ? 'Pending movement created successfully!' : 'Movement created successfully!');
+        }
       }
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to save movement';
@@ -385,6 +510,118 @@ const MovementsPage = () => {
       toast.error(errorMessage);
     } finally {
       setApplyingId(null);
+    }
+  };
+
+  // Bulk action handlers - optimized to batch operations
+  const handleBulkApplyPending = async () => {
+    const pendingMovements = Array.from(selectedMovementIds)
+      .map(id => movements.find(m => m.id === id))
+      .filter(m => m && m.isPending);
+
+    if (pendingMovements.length === 0) {
+      toast.warning('No pending movements selected');
+      return;
+    }
+
+    try {
+      // Process all movements in parallel
+      await Promise.all(
+        pendingMovements.map(movement => 
+          movement ? applyPendingMovement(movement.id) : Promise.resolve()
+        )
+      );
+      toast.success(`Applied ${pendingMovements.length} pending movement${pendingMovements.length > 1 ? 's' : ''}!`);
+      setSelectedMovementIds(new Set());
+    } catch (err) {
+      toast.error(`Failed to apply movements: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    }
+  };
+
+  const handleBulkMarkPending = async () => {
+    const appliedMovements = Array.from(selectedMovementIds)
+      .map(id => movements.find(m => m.id === id))
+      .filter(m => m && !m.isPending);
+
+    if (appliedMovements.length === 0) {
+      toast.warning('No applied movements selected');
+      return;
+    }
+
+    try {
+      // Process all movements in parallel
+      await Promise.all(
+        appliedMovements.map(movement => 
+          movement ? markAsPending(movement.id) : Promise.resolve()
+        )
+      );
+      toast.success(`Marked ${appliedMovements.length} movement${appliedMovements.length > 1 ? 's' : ''} as pending!`);
+      setSelectedMovementIds(new Set());
+    } catch (err) {
+      toast.error(`Failed to mark movements as pending: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedMovementIds.size === 0) {
+      toast.warning('No movements selected');
+      return;
+    }
+
+    const confirmed = await confirm({
+      title: 'Delete Selected Movements',
+      message: `Are you sure you want to delete ${selectedMovementIds.size} movement${selectedMovementIds.size > 1 ? 's' : ''}? This action cannot be undone.`,
+      confirmText: 'Delete All',
+      cancelText: 'Cancel',
+      variant: 'danger',
+    });
+
+    if (!confirmed) return;
+
+    try {
+      // Process all deletions in parallel
+      await Promise.all(
+        Array.from(selectedMovementIds).map(id => deleteMovement(id))
+      );
+      toast.success(`Deleted ${selectedMovementIds.size} movement${selectedMovementIds.size > 1 ? 's' : ''}!`);
+      setSelectedMovementIds(new Set());
+    } catch (err) {
+      toast.error(`Failed to delete movements: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    }
+  };
+
+  const handleBulkEdit = async (field: 'account' | 'pocket' | 'date', value: string) => {
+    if (selectedMovementIds.size === 0) {
+      toast.warning('No movements selected');
+      return;
+    }
+
+    try {
+      // Process all updates in parallel
+      await Promise.all(
+        Array.from(selectedMovementIds).map(id => {
+          const updates: Partial<Pick<Movement, 'accountId' | 'pocketId' | 'displayedDate'>> = {};
+          
+          if (field === 'account') {
+            updates.accountId = value;
+            // When changing account, also need to update pocket to one from the new account
+            const newAccountPockets = getPocketsByAccount(value);
+            if (newAccountPockets.length > 0) {
+              updates.pocketId = newAccountPockets[0].id;
+            }
+          } else if (field === 'pocket') {
+            updates.pocketId = value;
+          } else if (field === 'date') {
+            updates.displayedDate = value;
+          }
+          
+          return updateMovement(id, updates);
+        })
+      );
+      toast.success(`Updated ${selectedMovementIds.size} movement${selectedMovementIds.size > 1 ? 's' : ''}!`);
+      setSelectedMovementIds(new Set());
+    } catch (err) {
+      toast.error(`Failed to update movements: ${err instanceof Error ? err.message : 'Unknown error'}`);
     }
   };
 
@@ -713,14 +950,39 @@ const MovementsPage = () => {
               </Button>
             </div>
             
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => setShowFilters(!showFilters)}
-            >
-              <Filter className="w-4 h-4" />
-              {showFilters ? 'Hide Filters' : 'More Filters'}
-            </Button>
+            {/* Sort and Filter Controls */}
+            <div className="flex gap-2 items-center">
+              <select
+                value={sortField}
+                onChange={(e) => setSortField(e.target.value as SortField)}
+                className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
+              >
+                <option value="createdAt">Sort: Created Date</option>
+                <option value="displayedDate">Sort: Display Date</option>
+                <option value="amount">Sort: Amount</option>
+                <option value="type">Sort: Type</option>
+              </select>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+                title={sortOrder === 'asc' ? 'Ascending' : 'Descending'}
+              >
+                {sortOrder === 'asc' ? '↑' : '↓'}
+              </Button>
+              
+              {/* Separator */}
+              <div className="h-6 w-px bg-gray-300 dark:bg-gray-600" />
+              
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => setShowFilters(!showFilters)}
+              >
+                <Filter className="w-4 h-4" />
+                {showFilters ? 'Hide Filters' : 'More Filters'}
+              </Button>
+            </div>
           </div>
 
           {/* Advanced Filters */}
@@ -864,6 +1126,54 @@ const MovementsPage = () => {
         </div>
       </Card>
 
+      {/* Bulk Actions Toolbar */}
+      {selectedMovementIds.size > 0 && (
+        <Card padding="md" className="sticky top-4 z-10 bg-blue-50 dark:bg-blue-900/20 border-2 border-blue-500">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-blue-900 dark:text-blue-100">
+                {selectedMovementIds.size} selected
+              </span>
+              <Button
+                variant="danger"
+                size="sm"
+                onClick={handleBulkDelete}
+              >
+                Delete
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={handleBulkApplyPending}
+              >
+                Apply Pending
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={handleBulkMarkPending}
+              >
+                Mark as Pending
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => setShowBulkEditModal(true)}
+              >
+                Edit Attribute
+              </Button>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setSelectedMovementIds(new Set())}
+            >
+              Clear Selection
+            </Button>
+          </div>
+        </Card>
+      )}
+
       {/* Movements List */}
       {movementsByMonth.length === 0 ? (
         <Card padding="lg" className="text-center text-gray-500 dark:text-gray-400">
@@ -873,13 +1183,62 @@ const MovementsPage = () => {
         <div className="space-y-6">
           {movementsByMonth.map(([monthKey, monthMovements]) => {
             const date = parseISO(`${monthKey}-01`);
+            const isExpanded = expandedMonths.has(monthKey);
+            
             return (
               <Card key={monthKey} padding="md">
-                <h2 className="text-xl font-semibold mb-4 text-gray-800 dark:text-gray-200">
-                  {format(date, 'MMMM yyyy')}
-                </h2>
-                <div className="space-y-2">
-                  {monthMovements.map((movement) => {
+                {/* Month Header - Always Visible */}
+                <div 
+                  className="flex items-center justify-between cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 -m-4 p-4 rounded-lg transition-colors"
+                  onClick={() => {
+                    const newExpanded = new Set(expandedMonths);
+                    if (isExpanded) {
+                      newExpanded.delete(monthKey);
+                    } else {
+                      newExpanded.add(monthKey);
+                    }
+                    setExpandedMonths(newExpanded);
+                  }}
+                >
+                  <div className="flex items-center gap-3">
+                    {isExpanded ? (
+                      <ChevronDown className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+                    ) : (
+                      <ChevronUp className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+                    )}
+                    <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-200">
+                      {format(date, 'MMMM yyyy')}
+                    </h2>
+                    <span className="text-sm text-gray-500 dark:text-gray-400">
+                      ({monthMovements.length} movement{monthMovements.length !== 1 ? 's' : ''})
+                    </span>
+                  </div>
+                  {isExpanded && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation(); // Prevent collapse
+                        const monthIds = monthMovements.map(m => m.id);
+                        const allSelected = monthIds.every(id => selectedMovementIds.has(id));
+                        const newSelection = new Set(selectedMovementIds);
+                        if (allSelected) {
+                          monthIds.forEach(id => newSelection.delete(id));
+                        } else {
+                          monthIds.forEach(id => newSelection.add(id));
+                        }
+                        setSelectedMovementIds(newSelection);
+                      }}
+                    >
+                      {monthMovements.every(m => selectedMovementIds.has(m.id)) ? 'Deselect All' : 'Select All'}
+                    </Button>
+                  )}
+                </div>
+
+                {/* Movements List - Only When Expanded */}
+                {isExpanded && (
+                  <div className="space-y-2 mt-4">
+                    {monthMovements.map((movement) => {
                     const account = getAccount(movement.accountId);
                     const pocket = getPocket(movement.pocketId);
                     const subPocket = movement.subPocketId
@@ -893,17 +1252,37 @@ const MovementsPage = () => {
                       <div
                         key={movement.id}
                         className={`p-4 rounded-lg border-2 ${
+                          selectedMovementIds.has(movement.id)
+                            ? 'ring-2 ring-blue-500 ring-offset-2'
+                            : ''
+                        } ${
                           movement.isPending 
                             ? 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-400 dark:border-yellow-600 opacity-75' 
                             : getMovementTypeColor(movement.type)
                         }`}
                       >
-                        <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <input
+                            type="checkbox"
+                            checked={selectedMovementIds.has(movement.id)}
+                            onChange={(e) => {
+                              const newSelection = new Set(selectedMovementIds);
+                              if (e.target.checked) {
+                                newSelection.add(movement.id);
+                              } else {
+                                newSelection.delete(movement.id);
+                              }
+                              setSelectedMovementIds(newSelection);
+                            }}
+                            className="w-5 h-5 text-blue-600 bg-gray-100 dark:bg-gray-700 border-gray-300 dark:border-gray-600 rounded focus:ring-blue-500"
+                          />
                           <div className="flex-1">
-                            <div className="flex items-center gap-3 mb-2">
-                              {isIncome ? (
-                                <ArrowUpCircle className="w-5 h-5" />
-                              ) : (
+                            <div className="flex items-center justify-between">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-3 mb-2">
+                                  {isIncome ? (
+                                    <ArrowUpCircle className="w-5 h-5" />
+                                  ) : (
                                 <ArrowDownCircle className="w-5 h-5" />
                               )}
                               <span className="font-semibold">
@@ -941,38 +1320,40 @@ const MovementsPage = () => {
                                 currency: account?.currency || 'USD',
                               })}
                             </span>
-                            <div className="flex gap-2">
-                              {movement.isPending && (
-                                <Button
-                                  variant="primary"
-                                  size="sm"
-                                  onClick={() => handleApplyPending(movement.id)}
-                                  loading={applyingId === movement.id}
-                                  disabled={applyingId !== null}
-                                  className="px-3 py-1 text-sm"
-                                >
-                                  Apply
-                                </Button>
-                              )}
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleEdit(movement)}
-                                disabled={deletingId !== null || applyingId !== null}
-                                className="p-2 text-gray-600 hover:text-blue-600 dark:hover:text-blue-400"
-                              >
-                                <Edit2 className="w-4 h-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleDelete(movement.id)}
-                                loading={deletingId === movement.id}
-                                disabled={deletingId !== null || applyingId !== null}
-                                className="p-2 text-gray-600 hover:text-red-600 dark:hover:text-red-400"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
+                                <div className="flex gap-2">
+                                  {movement.isPending && (
+                                    <Button
+                                      variant="primary"
+                                      size="sm"
+                                      onClick={() => handleApplyPending(movement.id)}
+                                      loading={applyingId === movement.id}
+                                      disabled={applyingId !== null}
+                                      className="px-3 py-1 text-sm"
+                                    >
+                                      Apply
+                                    </Button>
+                                  )}
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleEdit(movement)}
+                                    disabled={deletingId !== null || applyingId !== null}
+                                    className="p-2 text-gray-600 hover:text-blue-600 dark:hover:text-blue-400"
+                                  >
+                                    <Edit2 className="w-4 h-4" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleDelete(movement.id)}
+                                    loading={deletingId === movement.id}
+                                    disabled={deletingId !== null || applyingId !== null}
+                                    className="p-2 text-gray-600 hover:text-red-600 dark:hover:text-red-400"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                </div>
+                              </div>
                             </div>
                           </div>
                         </div>
@@ -980,6 +1361,7 @@ const MovementsPage = () => {
                     );
                   })}
                 </div>
+                )}
               </Card>
             );
           })}
@@ -1002,6 +1384,24 @@ const MovementsPage = () => {
           {error && (
             <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
               <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+            </div>
+          )}
+
+          {/* Template Selector - Only show when creating new movement */}
+          {!editingMovement && movementTemplates.length > 0 && (
+            <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+              <Select
+                label="Use Template (optional)"
+                value={selectedTemplateId}
+                onChange={(e) => handleTemplateSelect(e.target.value)}
+                options={[
+                  { value: '', label: 'Start from scratch' },
+                  ...movementTemplates.map(t => ({
+                    value: t.id,
+                    label: `${t.name} - ${t.defaultAmount ? `$${t.defaultAmount}` : 'No amount'}`,
+                  })),
+                ]}
+              />
             </div>
           )}
 
@@ -1133,6 +1533,33 @@ const MovementsPage = () => {
             </label>
           </div>
 
+          {/* Save as Template - Only show when creating new movement and no template selected */}
+          {!editingMovement && !selectedTemplateId && (
+            <div className="space-y-2 p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700">
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="saveAsTemplate"
+                  checked={saveAsTemplate}
+                  onChange={(e) => setSaveAsTemplate(e.target.checked)}
+                  className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                />
+                <label htmlFor="saveAsTemplate" className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                  Save as template for future use
+                </label>
+              </div>
+              {saveAsTemplate && (
+                <Input
+                  label="Template Name"
+                  value={templateName}
+                  onChange={(e) => setTemplateName(e.target.value)}
+                  placeholder="e.g., Monthly Rent, Grocery Shopping"
+                  required={saveAsTemplate}
+                />
+              )}
+            </div>
+          )}
+
           <div className="flex gap-2">
             <Button
               type="submit"
@@ -1168,6 +1595,106 @@ const MovementsPage = () => {
           onSave={handleBatchSave}
           onCancel={() => setShowBatchForm(false)}
         />
+      </Modal>
+
+      {/* Bulk Edit Modal */}
+      <Modal
+        isOpen={showBulkEditModal}
+        onClose={() => {
+          setShowBulkEditModal(false);
+          setBulkEditField('account');
+          setBulkEditValue('');
+        }}
+        title="Edit Selected Movements"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            Update a single attribute for {selectedMovementIds.size} selected movement{selectedMovementIds.size > 1 ? 's' : ''}
+          </p>
+
+          <Select
+            label="Field to Edit"
+            value={bulkEditField}
+            onChange={(e) => {
+              setBulkEditField(e.target.value as 'account' | 'pocket' | 'date');
+              setBulkEditValue('');
+            }}
+            options={[
+              { value: 'account', label: 'Account' },
+              { value: 'pocket', label: 'Pocket' },
+              { value: 'date', label: 'Date' },
+            ]}
+          />
+
+          {bulkEditField === 'account' && (
+            <Select
+              label="New Account"
+              value={bulkEditValue}
+              onChange={(e) => setBulkEditValue(e.target.value)}
+              options={[
+                { value: '', label: 'Select account...' },
+                ...accounts.map((account) => ({
+                  value: account.id,
+                  label: `${account.name} (${account.currency})`,
+                })),
+              ]}
+            />
+          )}
+
+          {bulkEditField === 'pocket' && (
+            <Select
+              label="New Pocket"
+              value={bulkEditValue}
+              onChange={(e) => setBulkEditValue(e.target.value)}
+              options={[
+                { value: '', label: 'Select pocket...' },
+                ...pockets.map((pocket) => ({
+                  value: pocket.id,
+                  label: `${pocket.name} (${accounts.find(a => a.id === pocket.accountId)?.name})`,
+                })),
+              ]}
+            />
+          )}
+
+          {bulkEditField === 'date' && (
+            <Input
+              label="New Date"
+              type="datetime-local"
+              value={bulkEditValue}
+              onChange={(e) => setBulkEditValue(e.target.value)}
+              required
+            />
+          )}
+
+          <div className="flex gap-2 justify-end">
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setShowBulkEditModal(false);
+                setBulkEditField('account');
+                setBulkEditValue('');
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              onClick={() => {
+                if (bulkEditValue) {
+                  handleBulkEdit(bulkEditField, bulkEditValue);
+                  setShowBulkEditModal(false);
+                  setBulkEditField('account');
+                  setBulkEditValue('');
+                } else {
+                  toast.warning('Please select a value');
+                }
+              }}
+              disabled={!bulkEditValue}
+            >
+              Update {selectedMovementIds.size} Movement{selectedMovementIds.size > 1 ? 's' : ''}
+            </Button>
+          </div>
+        </div>
       </Modal>
 
       {/* Confirmation Dialog */}

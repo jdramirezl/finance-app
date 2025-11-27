@@ -1,9 +1,10 @@
 import { create } from 'zustand';
-import type { Account, Pocket, SubPocket, Movement, Settings, MovementType } from '../types';
+import type { Account, Pocket, SubPocket, Movement, Settings, MovementType, MovementTemplate } from '../types';
 import { accountService } from '../services/accountService';
 import { pocketService } from '../services/pocketService';
 import { subPocketService } from '../services/subPocketService';
 import { movementService } from '../services/movementService';
+import { movementTemplateService } from '../services/movementTemplateService';
 import { SupabaseStorageService } from '../services/supabaseStorageService';
 
 interface FinanceStore {
@@ -12,6 +13,7 @@ interface FinanceStore {
   pockets: Pocket[];
   subPockets: SubPocket[];
   movements: Movement[];
+  movementTemplates: MovementTemplate[];
   settings: Settings;
   selectedAccountId: string | null;
   orphanedCount: number;
@@ -46,7 +48,10 @@ interface FinanceStore {
   updateMovement: (id: string, updates: Partial<Pick<Movement, 'type' | 'accountId' | 'pocketId' | 'subPocketId' | 'amount' | 'notes' | 'displayedDate'>>) => Promise<void>;
   deleteMovement: (id: string) => Promise<void>;
   applyPendingMovement: (id: string) => Promise<void>;
+  markAsPending: (id: string) => Promise<void>;
   getMovementsGroupedByMonth: () => Promise<Map<string, Movement[]>>;
+  getMonthKeysWithCounts: () => Promise<Map<string, number>>;
+  getMovementsByMonthPaginated: (monthKey: string, offset: number, limit: number) => Promise<Movement[]>;
   getPendingMovements: () => Promise<Movement[]>;
   getAppliedMovements: () => Promise<Movement[]>;
   getOrphanedMovements: () => Promise<Movement[]>;
@@ -57,6 +62,12 @@ interface FinanceStore {
   // Actions - Settings
   loadSettings: () => Promise<void>;
   updateSettings: (updates: Partial<Settings>) => Promise<void>;
+
+  // Actions - Movement Templates
+  loadMovementTemplates: () => Promise<void>;
+  createMovementTemplate: (name: string, type: MovementType, accountId: string, pocketId: string, defaultAmount?: number, notes?: string, subPocketId?: string) => Promise<void>;
+  updateMovementTemplate: (id: string, updates: Partial<Pick<MovementTemplate, 'name' | 'type' | 'accountId' | 'pocketId' | 'subPocketId' | 'defaultAmount' | 'notes'>>) => Promise<void>;
+  deleteMovementTemplate: (id: string) => Promise<void>;
 
   // Computed getters (as methods)
   getPocketsByAccount: (accountId: string) => Pocket[];
@@ -69,6 +80,7 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
   pockets: [],
   subPockets: [],
   movements: [],
+  movementTemplates: [],
   settings: { primaryCurrency: 'USD' },
   selectedAccountId: null,
   orphanedCount: 0,
@@ -681,6 +693,14 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
     return await movementService.getMovementsGroupedByMonth();
   },
 
+  getMonthKeysWithCounts: async () => {
+    return await movementService.getMonthKeysWithCounts();
+  },
+
+  getMovementsByMonthPaginated: async (monthKey: string, offset: number, limit: number) => {
+    return await movementService.getMovementsByMonthPaginated(monthKey, offset, limit);
+  },
+
   getPendingMovements: async () => {
     return await movementService.getPendingMovements();
   },
@@ -764,11 +784,78 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
     }
   },
 
+  markAsPending: async (id) => {
+    try {
+      const pending = await movementService.markAsPending(id);
+      
+      // Selective reload: only reload affected entities
+      const pocket = await pocketService.getPocket(pending.pocketId);
+      
+      // If subPocket is involved, reload it too
+      let subPocket = null;
+      if (pending.subPocketId) {
+        subPocket = await subPocketService.getSubPocket(pending.subPocketId);
+      }
+      
+      // SINGLE set() call: Update movement, pocket, subPocket, and account balance together
+      set((state) => {
+        // Update pocket
+        const updatedPockets = pocket 
+          ? state.pockets.map((p) => (p.id === pending.pocketId ? pocket : p))
+          : state.pockets;
+        
+        // Update subPocket if needed
+        const updatedSubPockets = subPocket
+          ? state.subPockets.map((sp) => (sp.id === pending.subPocketId ? subPocket : sp))
+          : state.subPockets;
+        
+        // Calculate account balance from updated pockets
+        const accountPockets = updatedPockets.filter(p => p.accountId === pending.accountId);
+        const calculatedBalance = accountPockets.reduce((sum, p) => sum + p.balance, 0);
+        
+        // Update account with calculated balance
+        const updatedAccounts = state.accounts.map((a) => 
+          a.id === pending.accountId ? { ...a, balance: calculatedBalance } : a
+        );
+        
+        return {
+          movements: state.movements.map((m) => (m.id === id ? pending : m)),
+          pockets: updatedPockets,
+          subPockets: updatedSubPockets,
+          accounts: updatedAccounts,
+        };
+      });
+    } catch (error) {
+      throw error;
+    }
+  },
+
   // Settings actions
   updateSettings: async (updates) => {
     const newSettings = { ...get().settings, ...updates };
     await SupabaseStorageService.saveSettings(newSettings);
     set({ settings: newSettings });
+  },
+
+  // Movement Template actions
+  loadMovementTemplates: async () => {
+    const templates = await movementTemplateService.getAllTemplates();
+    set({ movementTemplates: templates });
+  },
+
+  createMovementTemplate: async (name, type, accountId, pocketId, defaultAmount, notes, subPocketId) => {
+    await movementTemplateService.createTemplate(name, type, accountId, pocketId, defaultAmount, notes, subPocketId);
+    await get().loadMovementTemplates();
+  },
+
+  updateMovementTemplate: async (id, updates) => {
+    await movementTemplateService.updateTemplate(id, updates);
+    await get().loadMovementTemplates();
+  },
+
+  deleteMovementTemplate: async (id) => {
+    await movementTemplateService.deleteTemplate(id);
+    await get().loadMovementTemplates();
   },
 
   // Computed getters

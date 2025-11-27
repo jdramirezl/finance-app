@@ -10,6 +10,7 @@ import AccountsPage from './pages/AccountsPage';
 import FixedExpensesPage from './pages/FixedExpensesPage';
 import BudgetPlanningPage from './pages/BudgetPlanningPage';
 import MovementsPage from './pages/MovementsPage';
+import TemplatesPage from './pages/TemplatesPage';
 import SettingsPage from './pages/SettingsPage';
 
 function App() {
@@ -34,6 +35,7 @@ function App() {
                     <Route path="/fixed-expenses" element={<FixedExpensesPage />} />
                     <Route path="/budget-planning" element={<BudgetPlanningPage />} />
                     <Route path="/movements" element={<MovementsPage />} />
+                    <Route path="/templates" element={<TemplatesPage />} />
                     <Route path="/settings" element={<SettingsPage />} />
                   </Routes>
                 </Layout>

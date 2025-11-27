@@ -77,6 +77,20 @@ export interface InvestmentAccount extends Account {
   gananciasPct: number; // Percentage gain/loss
 }
 
+// Movement Template interface
+export interface MovementTemplate {
+  id: string;
+  name: string; // User-defined name (e.g., "Monthly Rent", "Grocery Shopping")
+  type: MovementType;
+  accountId: string;
+  pocketId: string;
+  subPocketId?: string;
+  defaultAmount?: number; // Optional default amount (user can override)
+  notes?: string; // Template notes
+  createdAt: string;
+  updatedAt?: string;
+}
+
 // Settings
 export interface Settings {
   primaryCurrency: Currency;
