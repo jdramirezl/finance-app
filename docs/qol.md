@@ -11,41 +11,6 @@
 
 #### High-Priority Features
 
-- [ ] **Fixed Expense Groups** - Group fixed expenses for batch enable/disable
-  - **Use Case**: Bi-weekly salary payments with different expense sets
-    - Payment 1: Gas, light, water, rent
-    - Payment 2: All other expenses
-  - **Implementation Plan**:
-    1. **Database Schema**:
-       - Create `fixed_expense_groups` table (id, name, color, created_at)
-       - Add `group_id` column to `sub_pockets` table (nullable, defaults to "Default" group)
-       - Migration to create default group and assign existing expenses
-    2. **UI Components**:
-       - Group management section on FixedExpensesPage
-       - "Create Group" button with modal (name, color picker)
-       - Group cards showing expenses count and total monthly contribution
-       - Drag-and-drop to move expenses between groups
-       - Toggle switch per group to enable/disable all expenses in group
-       - Bulk actions: "Enable Group", "Disable Group", "Delete Group"
-    3. **Features**:
-       - Visual grouping with color-coded cards
-       - Collapsible groups (expand to see individual expenses)
-       - Group statistics: total monthly contribution, enabled count
-       - "Default" group for ungrouped expenses (cannot be deleted)
-       - Confirmation when deleting group (moves expenses to Default)
-       - Group toggle affects all expenses in group atomically
-       - Individual expense toggle still available within groups
-    4. **Budget Planning Integration**:
-       - Show which groups are enabled in calculation
-       - Option to preview calculation with different group combinations
-  - **Benefits**:
-    - Quick toggle between payment scenarios
-    - Better organization of fixed expenses
-    - Visual clarity of expense categories
-    - Faster budget planning workflow
-  - **Effort**: 2-3 hours (database + UI + logic)
-  - **Priority**: HIGH - Directly requested user feature
-
 - [ ] **Search/filter movements** - Full-text search with advanced filters
   - Date range, account, pocket, type, amount range
   - Memoized filtering logic
@@ -228,6 +193,33 @@
 ## ✅ DONE
 
 ### 🎯 User-Requested Features & Fixes
+
+- [x] **Fixed Expense Groups** ✅ - Group fixed expenses for batch enable/disable
+  - **Use Case**: Bi-weekly salary payments with different expense sets
+    - Payment 1: Gas, light, water, rent
+    - Payment 2: All other expenses
+  - **Implementation**:
+    - Created `fixed_expense_groups` table with RLS policies
+    - Added `group_id` column to `sub_pockets` table
+    - Created fixedExpenseGroupService for CRUD operations
+    - Built FixedExpenseGroupCard component with collapsible groups
+    - Group management UI on FixedExpensesPage:
+      - Create/Edit/Delete groups with color picker
+      - Group toggle switches (enable/disable all expenses)
+      - Dropdown selector to move expenses between groups
+      - Individual expense toggles within groups
+      - Color-coded group cards with statistics
+    - Default group for ungrouped expenses (cannot be deleted)
+    - Confirmation when deleting group (moves expenses to Default)
+  - **Benefits**:
+    - Quick toggle between payment scenarios
+    - Better organization of fixed expenses
+    - Visual clarity with color-coded categories
+    - Faster budget planning workflow
+  - **Commits**: 
+    - feat: implement fixed expense groups
+    - fix: map group_id field in SubPocket database operations
+    - feat: add group selector to move expenses between groups
 
 - [x] **Currency Exchange Rate API Integration** ✅ - Real-time currency exchange rates
   - Switched to fawazahmed0/exchange-api (no API key required!)
@@ -467,121 +459,3 @@
 4. **Console.logs in production** - Should use proper logging
 5. **No error boundaries** - App crashes on component errors
 
----
-
-## 🎯 Recommended Next Features
-
-Based on current state and user value, here are the top priorities:
-
-### 1. **Search/Filter Movements** (30-60 min) 🔥
-- **Why**: With orphaned movements feature, users may have many movements to manage
-- **What**: Full-text search + filters (date range, account, pocket, type, amount range)
-- **Impact**: HIGH - Makes finding specific transactions much easier
-- **Effort**: MEDIUM - Needs filter UI + memoized filtering logic
-
-### 2. **Recurring Movements Automation** (2-3 hours) 🔥
-- **Why**: Fixed expenses are tracked but not automated - users still manually create movements
-- **What**: 
-  - Add "Auto-create movement" toggle to SubPockets
-  - Background job checks for due payments (based on periodicity)
-  - Auto-creates movements on due date or shows "Create Now" button
-  - Integrates with upcoming bills widget
-- **Impact**: VERY HIGH - Eliminates repetitive data entry
-- **Effort**: HIGH - Needs scheduling logic + UI updates
-
-### 3. **Movement Templates** (30-45 min) 🔥
-- **Why**: Users repeat common transactions (groceries, gas, etc.)
-- **What**: 
-  - "Save as Template" button on movement form
-  - Template picker in movement creation
-  - Pre-fills account, pocket, type, notes (user just enters amount)
-- **Impact**: HIGH - Speeds up common data entry
-- **Effort**: MEDIUM - Needs template storage + UI
-
-### 4. **Charts & Visualizations** (3-4 hours) 💎
-- **Why**: Users can't see spending trends or patterns
-- **What**:
-  - Balance over time line chart (last 30/90/365 days)
-  - Spending by pocket pie chart
-  - Income vs expenses bar chart
-  - Monthly comparison chart
-- **Impact**: VERY HIGH - Provides insights into financial health
-- **Effort**: HIGH - Needs charting library (recharts) + data aggregation
-
-### 5. **Export/Import Data** (1-2 hours) 💎
-- **Why**: Users need backups and data portability
-- **What**:
-  - Export all data to JSON/CSV with date range filter
-  - Import with validation and preview
-  - Duplicate detection
-- **Impact**: HIGH - Data safety and migration
-- **Effort**: MEDIUM-HIGH - Needs file handling + validation
-
-### 6. **Budget vs Actual Tracking** (2-3 hours) 💎
-- **Why**: Budget planning exists but no comparison to actual spending
-- **What**:
-  - Show planned vs actual for each pocket
-  - Visual indicators (green = under budget, red = over)
-  - Monthly summary with variance
-  - Alerts when approaching limits
-- **Impact**: VERY HIGH - Core budgeting feature
-- **Effort**: HIGH - Needs comparison logic + UI updates
-
-### 7. **Mobile Optimizations** (2-3 hours) 📱
-- **Why**: App is usable on mobile but not optimized
-- **What**:
-  - Collapsible sidebar/drawer
-  - Bottom navigation bar
-  - Touch-friendly buttons (44x44px)
-  - Responsive tables → cards
-  - Swipe gestures
-- **Impact**: HIGH - Better mobile experience
-- **Effort**: HIGH - Needs responsive redesign
-
-### 8. **Keyboard Shortcuts** (1-2 hours) ⌨️
-- **Why**: Power users want faster navigation
-- **What**:
-  - Enter to submit forms
-  - ESC to close modals
-  - Ctrl+N for new movement
-  - Ctrl+F for search
-  - Arrow keys for navigation
-  - Help panel (Ctrl+?) showing all shortcuts
-- **Impact**: MEDIUM - Power user feature
-- **Effort**: MEDIUM - Needs keyboard event handling
-
-### Quick Wins to Knock Out First (10-30 min each):
-1. ✅ Enter to submit forms
-2. ✅ ESC to close modals  
-3. ✅ Memoize expensive calculations (MovementsPage filters, SummaryPage totals)
-4. ✅ Extract magic numbers to constants
-5. ✅ Relative dates ("2 hours ago")
-6. ✅ Hover tooltips on icons/buttons
-
----
-
-## 📊 Priority Matrix
-
-### High Impact + Low Effort (Do First!)
-1. Memoize expensive calculations
-2. Add loading states to buttons
-3. ESC to close modals
-4. Extract magic numbers to constants
-5. Remove console.logs
-
-### High Impact + High Effort (Plan & Execute)
-1. Charts and visualizations
-2. Recurring movements automation
-3. Offline support
-4. Advanced reporting
-
-### Low Impact + Low Effort (Fill Time)
-1. Hover tooltips
-2. Copy to clipboard
-3. Color picker presets
-4. Relative dates
-
-### Low Impact + High Effort (Avoid)
-1. Over-engineered abstractions
-2. Premature optimizations
-3. Features nobody asked for
