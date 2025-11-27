@@ -215,18 +215,28 @@ class CurrencyService {
     try {
       // Test fetching USD -> MXN
       console.log('\n1️⃣ Testing USD -> MXN...');
-      const rate = await this.getExchangeRateAsync('USD', 'MXN');
-      console.log('✅ Rate:', rate);
+      const usdMxnRate = await this.getExchangeRateAsync('USD', 'MXN');
+      console.log('✅ Rate:', usdMxnRate);
+      
+      // Test fetching COP -> MXN
+      console.log('\n2️⃣ Testing COP -> MXN...');
+      const copMxnRate = await this.getExchangeRateAsync('COP', 'MXN');
+      console.log('✅ Rate:', copMxnRate);
       
       // Check cache
-      console.log('\n2️⃣ Checking cache...');
-      const cached = this.cache.get('USD_MXN');
-      console.log('Cache:', cached);
+      console.log('\n3️⃣ Checking cache...');
+      const cachedUsd = this.cache.get('USD_MXN');
+      const cachedCop = this.cache.get('COP_MXN');
+      console.log('USD_MXN cache:', cachedUsd);
+      console.log('COP_MXN cache:', cachedCop);
       
-      // Test conversion
-      console.log('\n3️⃣ Testing conversion...');
-      const converted = await this.convert(100, 'USD', 'MXN');
-      console.log('100 USD =', converted, 'MXN');
+      // Test conversions
+      console.log('\n4️⃣ Testing conversions...');
+      const usdConverted = await this.convert(100, 'USD', 'MXN');
+      console.log('100 USD =', usdConverted.toFixed(2), 'MXN');
+      
+      const copConverted = await this.convert(1000000, 'COP', 'MXN');
+      console.log('1,000,000 COP =', copConverted.toFixed(2), 'MXN');
       
       console.log('\n✅ All tests passed!');
     } catch (err) {
