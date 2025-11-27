@@ -14,6 +14,7 @@ export interface BatchMovementRow {
   amount: string;
   notes: string;
   displayedDate: string;
+  isPending?: boolean;
 }
 
 interface BatchMovementFormProps {
@@ -49,6 +50,7 @@ const BatchMovementForm = ({
         ]
   );
   const [isSaving, setIsSaving] = useState(false);
+  const [markAsPending, setMarkAsPending] = useState(false);
 
   const movementTypes: { value: MovementType; label: string }[] = [
     { value: 'IngresoNormal', label: 'Normal Income' },
@@ -117,7 +119,12 @@ const BatchMovementForm = ({
 
     setIsSaving(true);
     try {
-      await onSave(rows);
+      // Add isPending flag to all rows if checkbox is checked
+      const rowsWithPending = rows.map(row => ({
+        ...row,
+        isPending: markAsPending,
+      }));
+      await onSave(rowsWithPending);
     } finally {
       setIsSaving(false);
     }
@@ -137,8 +144,22 @@ const BatchMovementForm = ({
         </button>
       </div>
 
-      <div className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-        Add multiple movements at once. All movements will be saved together when you click "Save All".
+      <div className="space-y-3 mb-4">
+        <div className="text-sm text-gray-600 dark:text-gray-400">
+          Add multiple movements at once. All movements will be saved together when you click "Save All".
+        </div>
+        
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={markAsPending}
+            onChange={(e) => setMarkAsPending(e.target.checked)}
+            className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+          />
+          <span className="text-gray-700 dark:text-gray-300">
+            Mark all as pending (won't affect balances until applied)
+          </span>
+        </label>
       </div>
 
       <div className="space-y-3 max-h-[60vh] overflow-y-auto">

@@ -239,6 +239,7 @@ const MovementsPage = () => {
     amount: string;
     notes: string;
     displayedDate: string;
+    isPending?: boolean;
   }>) => {
     try {
       // Create all movements
@@ -251,12 +252,13 @@ const MovementsPage = () => {
           row.notes || undefined,
           row.displayedDate,
           row.subPocketId,
-          false // Not pending
+          row.isPending || false
         );
       }
       
       setShowBatchForm(false);
-      toast.success(`Successfully created ${rows.length} movements!`);
+      const pendingText = rows[0]?.isPending ? ' as pending' : '';
+      toast.success(`Successfully created ${rows.length} movement${rows.length > 1 ? 's' : ''}${pendingText}!`);
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to save movements';
       toast.error(errorMessage);
