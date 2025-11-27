@@ -87,7 +87,7 @@ class InvestmentService {
         }
     }
 
-    // Check if cached price is still valid
+    // Check if cached price is still valid (local cache)
     private isCacheValid(symbol: string): boolean {
         const cached = this.priceCache.get(symbol);
         if (!cached) return false;
@@ -97,13 +97,71 @@ class InvestmentService {
         return age < CACHE_DURATION;
     }
 
-    // Get price from cache
+    // Get price from local cache
     private getCachedPrice(symbol: string): number | null {
         const cached = this.priceCache.get(symbol);
         if (cached && this.isCacheValid(symbol)) {
             return cached.price;
         }
         return null;
+    }
+
+    // Get price from database (shared cache across devices)
+    private async getPriceFromDatabase(symbol: string): Promise<number | null> {
+        try {
+            const { data, error } = await supabase
+                .from('stock_prices')
+                .select('*')
+                .eq('symbol', symbol)
+                .single();
+
+            if (error) throw error;
+            if (!data) return null;
+
+            // Check if price is stale (> 15 minutes old)
+            const lastUpdated = new Date(data.last_updated).getTime();
+            const now = Date.now();
+            if (now - lastUpdated > CACHE_DURATION) {
+                console.log(`[Investment] DB price is stale (${Math.round((now - lastUpdated) / 1000 / 60)}m old)`);
+                return null;
+            }
+
+            // Cache locally for performance
+            this.priceCache.set(symbol, {
+                symbol,
+                price: parseFloat(data.price),
+                timestamp: lastUpdated,
+            });
+            this.savePriceCache();
+
+            return parseFloat(data.price);
+        } catch (err) {
+            console.error('[Investment] Database error:', err);
+            return null;
+        }
+    }
+
+    // Save price to database (shared cache)
+    private async savePriceToDatabase(symbol: string, price: number, marketState?: string): Promise<void> {
+        try {
+            const { error } = await supabase
+                .from('stock_prices')
+                .upsert({
+                    id: symbol,
+                    symbol,
+                    price: price.toString(),
+                    currency: 'USD',
+                    market_state: marketState || 'REGULAR',
+                    last_updated: new Date().toISOString(),
+                }, {
+                    onConflict: 'id',
+                });
+
+            if (error) throw error;
+            console.log(`[Investment] Saved to DB: ${symbol} = ${price}`);
+        } catch (err) {
+            console.error('[Investment] Failed to save to database:', err);
+        }
     }
 
     // Fetch price from our Vercel serverless API (uses yahoo-finance2, no CORS issues!)
@@ -124,13 +182,18 @@ class InvestmentService {
                 throw new Error('Invalid price value from API');
             }
 
-            // Cache the price (local storage for performance)
+            const now = Date.now();
+
+            // Cache the price locally for performance
             this.priceCache.set(symbol, {
                 symbol,
                 price: data.price,
-                timestamp: Date.now(),
+                timestamp: now,
             });
             this.savePriceCache();
+
+            // Save to database for shared cache across devices
+            await this.savePriceToDatabase(symbol, data.price, data.marketState);
 
             // Record API call in Supabase for global rate limiting
             await this.recordAPICall(symbol);
@@ -143,25 +206,36 @@ class InvestmentService {
         }
     }
 
-    // Get current price for a symbol (with caching and rate limiting)
+    // Get current price for a symbol (with 3-tier caching and rate limiting)
     async getCurrentPrice(symbol: string): Promise<number> {
         this.loadPriceCache();
 
-        // Check cache first
+        // 1. Check local cache first (fastest)
         const cachedPrice = this.getCachedPrice(symbol);
         if (cachedPrice !== null) {
-            console.log(`📊 Using cached price for ${symbol}: ${cachedPrice}`);
+            console.log(`📊 Using local cached price for ${symbol}: ${cachedPrice}`);
             return cachedPrice;
         }
 
-        // Check global rate limit before making API call
+        // 2. Check database cache (fast, shared across devices)
+        try {
+            const dbPrice = await this.getPriceFromDatabase(symbol);
+            if (dbPrice !== null) {
+                console.log(`💾 Using DB cached price for ${symbol}: ${dbPrice}`);
+                return dbPrice;
+            }
+        } catch (err) {
+            console.warn('[Investment] DB lookup failed:', err);
+        }
+
+        // 3. Check global rate limit before making API call
         const isRateLimited = await this.checkGlobalRateLimit(symbol);
         if (isRateLimited) {
             console.warn(`⏱️ Rate limited for ${symbol}. Using last cached price or throwing error.`);
             throw new Error(`Rate limited: Please wait ${API_RATE_LIMIT_MINUTES} minutes between price updates`);
         }
 
-        // If cache is invalid and not rate limited, fetch from API
+        // 4. Fetch from API (slowest, updates DB)
         console.log(`🌐 Fetching fresh price for ${symbol} from API...`);
         return await this.fetchPriceFromAPI(symbol);
     }

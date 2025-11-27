@@ -1,399 +1,411 @@
 # Quality of Life Improvements
 
-## � Higth Priority Issues (From Production Use)
+## 📋 PENDING
 
-### Currency Exchange Rate API Integration
-- [ ] **Real-time currency exchange rates** - Implementation plan:
-  - Use FreeCurrencyAPI: `https://api.freecurrencyapi.com/v1/latest?apikey=fca_live_0SYarl3kVk4ivey17UlqQfpMQnC6zg91FND7uVtc`
-  - Rate limits: 5,000 requests/month, 10 req/min
-  - Strategy to stay under limits:
-    - Store exchange rates in Supabase `exchange_rates` table with timestamp
-    - Update rates once per day (30 requests/month per currency pair)
-    - Serverless function checks DB timestamp, only calls API if > 24 hours old
-    - Client reads from DB (no direct API calls)
-    - Client caches rates locally for session
-    - Fallback to DB if cache lost
-  - Benefits: Real exchange rates, minimal API usage (~150 requests/month for 5 currencies)
+### 🎯 User-Requested Features & Fixes
+> **Priority: HIGH** - These are user-driven needs and bug fixes, regardless of difficulty
 
-### Investment Price Storage & Caching
-- [ ] **Store VOO/stock prices in database** - Current issue: prices only cached locally
-  - Implementation:
-    - Create `stock_prices` table in Supabase (symbol, price, timestamp)
-    - Serverless function updates DB when timestamp > 15 minutes old
-    - Client reads from DB first, falls back to API if stale
-    - Local cache for performance (15 min TTL)
-    - Benefits: Shared prices across devices, reduced API calls, persistent cache
+#### Critical Bugs
+- [ ] **Data validation** - Prevent negative balances, invalid dates
+- [ ] **Concurrent edits handling** - Optimistic locking for simultaneous updates
 
-### Batch Movements Improvements
-- [x] **Add "Mark as Pending" option to batch add** ✅ FIXED - Currently all batch movements are applied immediately
-  - Add checkbox in BatchMovementForm: "Create as pending movements"
-  - Pass `isPending` flag to all movements in batch
-  - Allows bulk creation of future transactions without affecting balances
+#### High-Priority Features
+- [ ] **Lazy Loading Movements with Pagination** - Don't load all movements at once
+  - Each month group starts collapsed (toggle to expand)
+  - When expanded, show first 10 movements
+  - "Load More" button at bottom loads next 10
+  - Benefits: Much faster initial page load, better performance with 1000+ movements
+  - UI: Month header shows total count: "January 2025 (45 movements)"
 
-### Movement Templates
-- [x] **Payment templates for recurring transactions** ✅ FIXED - Save common transactions as templates
-  - Implementation:
-    - Create `movement_templates` table (name, type, account, pocket, amount, notes)
-    - "Save as Template" button on movement form
-    - Template picker dropdown in movement creation
-    - Pre-fills all fields except amount (user can override)
-    - Quick access to frequent transactions (groceries, gas, rent, etc.)
-  - Benefits: Faster data entry, consistency, less typing
-
-### Movement Sorting Options
-- [x] **Flexible movement sorting within months** ✅ FIXED - Currently only sorted by createdAt ascending
-  - Add sorting dropdown with options:
-    - Created Date (Ascending/Descending) - current default
-    - Displayed Date (Ascending/Descending)
-    - Amount (Ascending/Descending)
-    - Type (Income first / Expense first)
-  - Keep monthly grouping, apply sort within each month
-  - Persist sort preference in localStorage
-
-### Lazy Loading Movements with Pagination
-- [ ] **Collapsible months with "Load More" pagination** - Don't load all movements at once
-  - Implementation:
-    - Each month group starts collapsed (toggle to expand)
-    - When expanded, show first 10 movements
-    - "Load More" button at bottom loads next 10
-    - Keep track of loaded count per month
-    - Benefits: Much faster initial page load, better performance with 1000+ movements
-    - Only load movements for expanded months
-  - UI:
-    - Month header shows total count: "January 2025 (45 movements)"
-    - Chevron icon to expand/collapse
-    - "Load More (35 remaining)" button
-    - "Load All" button to load everything at once
-  - State management:
-    - Track which months are expanded
-    - Track loaded count per month
-    - Persist expanded state in localStorage (optional)
-
-### Account Saving Error
-- [x] **"Error saving accounts" bug** ✅ FIXED - Investigate and fix
-  - Root cause: Missing await on SupabaseStorageService.updateAccount() call
-  - Fix: Added await to ensure account updates complete before proceeding
-  - Result: Accounts now save reliably without errors
-
-### Bulk Movement Actions
-- [x] **Mass operations on movements** ✅ FIXED - Select multiple movements and perform actions
-  - Implementation:
-    - Checkbox selection for movements (select all, select by filter)
-    - Bulk action toolbar appears when items selected:
-      - Apply Pending (convert multiple pending → applied)
-      - Delete Selected (with confirmation)
-      - Edit Attribute (change account/pocket/date for all selected)
-      - Mark as Pending (convert applied → pending)
-    - Preserve individual movement attributes during bulk edit
-    - Use case: Move 5 pending transactions to different pocket without applying them
-  - Benefits: Efficient management of multiple transactions, fix mistakes quickly
-  - Optimizations: Promise.all for parallel processing, single state update
-
----
-
-## 🐛 Critical Bugs & Features To Fix
-
-### Balance Calculation Issues
-- [x] **1. Account balances reset to 0 on page refresh (F5)** ✅ FIXED
-  - Root cause: Account.balance in storage was stale
-  - Fix: loadAccounts() now always recalculates balances from pockets (source of truth)
-  - Commit: Recalculate account balances on load from pockets
-
-- [x] **2. Account total balances inconsistent loading** ✅ FIXED
-  - Root cause: Same as #1 - stale balance values in storage
-  - Fix: Same as #1 - always recalculate from pockets
-  - Commit: Recalculate account balances on load from pockets
-
-- [x] **3. Fixed pocket not calculating total from sub-pockets** ✅ FIXED
-  - Root cause: Fixed pocket.balance in storage was stale
-  - Fix: loadPockets() now recalculates fixed pocket balances from sub-pockets (source of truth)
-  - Commit: Recalculate fixed pocket balances on load from sub-pockets
-
-- [x] **7. Investment account total excludes gains** ✅ FIXED
-  - Root cause: Same as #1 - account balance wasn't recalculated from pocket with market value
-  - Fix: Same as #1 - always recalculate account balance from pockets
-  - Commit: Recalculate account balances on load from pockets
-
-### UX Improvements
-- [x] **4. Investment stock price - show last updated timestamp** ✅ FIXED
-  - Added "Last updated: X ago" timestamp below current share price
-  - Uses date-fns formatDistanceToNow for human-readable format (e.g., "2 hours ago")
-  - Timestamp comes from investment price cache
-  - Displayed in smaller, italic, gray text for subtle presentation
-  - Users can now see if price data is fresh or stale
-  - Commit: Add last updated timestamp for investment stock prices
-
-- [x] **5. Bulk/batch movements** ✅ FIXED
-  - Feature: Allow adding multiple movements at once
-  - Implementation:
-    - Added "Batch Add" button on MovementsPage
-    - Opens modal with BatchMovementForm component
-    - Each row has: Type, Account, Pocket, Amount, Notes, Date
-    - "Add Row" button to add more movements
-    - "Save All" button creates all movements at once
-    - Validates all rows before saving
-  - Benefits:
-    - Much faster for entering multiple transactions (e.g., monthly bills)
-    - Single transaction to database
-    - Better UX for bulk data entry
-  - Commit: Implement batch/bulk movements feature
-
-- [x] **8. Visual indicator for disabled fixed expenses on Summary page** ✅ FIXED
-  - Added visual indicators for disabled sub-pockets:
-    - Reduced opacity (50%) for entire row
-    - Strikethrough on expense name
-    - "Disabled" badge next to name
-  - Applied to both SummaryPage and FixedExpensesPage for consistency
-  - Users can now see at a glance which fixed expenses are excluded from budget calculations
-  - Commit: Add visual indicators for disabled fixed expenses
-
-### API & External Services
-- [x] **13. Switch from Alpha Vantage to Yahoo Finance API** ✅ FIXED
-  - Problem: Alpha Vantage has strict rate limits (25 calls/day on free tier)
-  - Solution: Created Vercel serverless function using yahoo-finance2 library
-  - Implementation:
-    - `/api/stock-price.ts` - Serverless function that fetches from Yahoo Finance (no CORS!)
-    - Updated `investmentService.ts` to call our API instead of external APIs
-    - Kept Supabase global rate limiting (15 min between calls across all devices)
-    - Kept local caching (15 min) for performance
-  - Benefits:
-    - No CORS issues (server-side API calls)
-    - More reliable than Alpha Vantage
-    - Works on Vercel free tier (100GB bandwidth, 100 hours execution/month)
-    - Better error handling and response formatting
-  - Commit: Implement Yahoo Finance via Vercel serverless function
-
-### Investment Movement Issues
-- [x] **9-12. Investment movement refactor** ✅ FIXED
-  - Removed special "InvestmentIngreso" and "InvestmentShares" movement types
-  - Investment accounts now use standard "IngresoNormal" / "EgresoNormal" types
-  - Pocket selection determines what gets updated:
-    - "Invested Money" pocket → updates montoInvertido
-    - "Shares" pocket → updates shares
-  - Benefits:
-    - Simpler, more consistent UX (same movement types for all accounts)
-    - No special cases in movement type logic
-    - Fixes all 4 issues (#9, #10, #11, #12) at once
-    - Less code to maintain
-  - Implementation:
-    - Removed investment types from MovementType union
-    - Updated movementService to sync investment account fields from pocket balances
-    - Removed conditional movement type rendering in MovementsPage
-    - Created migration utility in src/utils/migrateInvestmentMovements.ts
-  - Migration: Run `window.migrateInvestmentMovements()` in console to convert existing movements
-  - Commit: Refactor investment movements to use standard types
-
-### Performance Issues
-- [x] **6. Duplicate page reloads on CRUD operations** ✅ FIXED
-  - Root cause: Pages were calling loadAccounts(), loadPockets(), and loadSubPockets() separately
-  - Problem: loadAccounts() internally loads pockets and subPockets for balance calculation, causing 2-3x duplicate loads
-  - Fix: Refactored loadAccounts() to load all three (accounts, pockets, subPockets) and update state in single set() call
-  - Pages now only call loadAccounts() once instead of three separate load functions
-  - Result: 66% reduction in load operations (3 loads → 1 load), much faster page loads
-  - Commit: Consolidate data loading to eliminate duplicate reloads
-
----
-
-## ✅ Completed
-
-### 1. Loading Skeletons
-- Added skeleton components for better perceived performance
-- Implemented in all major pages (Summary, Accounts, Movements, Budget Planning, Fixed Expenses)
-- Content-aware skeletons that match the actual layout
-- ✅ All pages now have proper loading states
-
-### 2. Enhanced Toast Notifications (IMPROVED!)
-- **Smooth animations**: Enter/exit with cubic-bezier easing and scale effects
-- **Better stacking**: Flexbox layout with proper gap spacing
-- **Non-intrusive**: Top-right positioning with pointer-events management
-- **Exit animations**: Toasts slide out smoothly instead of disappearing abruptly
-- **Manual close**: X button with hover states
-- **Auto-dismiss**: Configurable duration (default 5s)
-- **Replaced all alerts**: Converted `alert()` calls in BudgetPlanningPage to toasts
-- **No page reloads**: Fixed any issues causing page reloads on interaction
-
-### 3. Empty States
-- Created EmptyState component with helpful guidance
-- Implemented across all pages
-- Provides clear next steps for users
-
-### 4. Auto-focus Inputs
-- Added autoFocus prop support to Input component
-- Implemented in all modal forms
-- Better keyboard navigation UX
-
-### 5. Performance Optimizations
-- Single-record database operations (5-10x faster)
-- Selective reloading (50-90% fewer queries)
-- Fixed account balance calculation bug
-- Optimized movement queries with composite indexes
-
-### 6. SPA Routing Fix
-- Added vercel.json configuration
-- Fixed 404 errors on direct URL access
-- Proper client-side routing support
-
-### 7. Optimistic UI Updates ✨ NEW!
-- **Immediate feedback**: Forms close instantly, UI updates before server confirms
-- **Store-level optimistic updates**: All mutations update state immediately
-- **Error recovery**: Automatic rollback on failure with error toasts
-- **Implemented in**: MovementsPage, AccountsPage, FixedExpensesPage (all CRUD operations)
-- **User experience**: App feels 10x faster and more responsive
-- **Fixed**: FixedExpensesPage no longer reloads entire page on every operation
-- **Batched updates**: Fixed double-reload issue by batching pocket + account updates into single state change
-
-### 8. Loading Button States ✨ NEW!
-- **Button-level loading**: Individual buttons show spinner during operations
-- **Disabled states**: Prevent multiple clicks during async operations
-- **Visual feedback**: Users know exactly which action is processing
-- **Implemented in**: All form submit buttons, delete buttons, apply buttons, toggle buttons
-- **Uses existing Button component**: Already had loading prop support
-- **Per-item tracking**: Each button tracks its own loading state independently
-
----
-
-## 🎯 Quick Wins (10-30 min each)
-
-### UI/UX Improvements
-- [ ] **Enter to submit forms** - Submit on Enter key press
-- [ ] **ESC to close modals** - Keyboard shortcut for closing dialogs
-- [ ] **Relative dates** - "2 hours ago" instead of full timestamps
-- [ ] **Currency symbol shortcuts** - Quick buttons for common amounts ($10, $50, $100)
-- [ ] **Copy to clipboard** - Copy account/pocket balances with one click
-- [ ] **Hover tooltips** - Explain icons and buttons on hover
-- [ ] **Focus visible states** - Better keyboard navigation indicators
-- [x] **Loading button states** - Show spinner on buttons during async operations ✅
-- [x] **Optimistic UI updates** - Show changes immediately before server confirms ✅
-
-### Performance
-- [ ] **Memoize expensive calculations** - useMemo for totalFijosMes, filteredMovements
-- [ ] **Debounce search inputs** - Reduce re-renders on filter changes
-- [ ] **Virtual scrolling** - For long movement lists (100+ items)
-- [ ] **Lazy load modals** - Only render when opened
-- [ ] **Image optimization** - Compress and lazy load any images
-
-### Code Quality
-- [ ] **Extract magic numbers** - Move hardcoded values to constants
-- [ ] **Consistent error handling** - Standardize try/catch patterns
-- [ ] **Remove console.logs** - Replace with proper logging service
-- [ ] **Type safety improvements** - Remove any remaining `any` types
-- [ ] **Extract repeated logic** - DRY up form validation, formatting
-
----
-
-## 💡 Medium Features (30-90 min each)
-
-### UI/UX
-- [ ] **Recent movements widget** - Show last 5 on summary page with quick actions
 - [ ] **Search/filter movements** - Full-text search with advanced filters
-- [ ] **Bulk selection** - Select multiple movements to delete/edit
+  - Date range, account, pocket, type, amount range
+  - Memoized filtering logic
+  - Impact: HIGH - Makes finding specific transactions much easier
+
+- [ ] **Recurring movements automation** - Auto-create movements for fixed expenses
+  - Add "Auto-create movement" toggle to SubPockets
+  - Background job checks for due payments (based on periodicity)
+  - Auto-creates movements on due date or shows "Create Now" button
+  - Impact: VERY HIGH - Eliminates repetitive data entry
+
+- [ ] **Charts and visualizations** - Balance trends, spending by category
+  - Balance over time line chart (last 30/90/365 days)
+  - Spending by pocket pie chart
+  - Income vs expenses bar chart
+  - Monthly comparison chart
+  - Impact: VERY HIGH - Provides insights into financial health
+
+- [ ] **Budget vs actual tracking** - Compare planned vs spent with alerts
+  - Show planned vs actual for each pocket
+  - Visual indicators (green = under budget, red = over)
+  - Monthly summary with variance
+  - Alerts when approaching limits
+  - Impact: VERY HIGH - Core budgeting feature
+
+- [ ] **Export/Import data** - CSV/JSON backup with date range selection
+  - Export all data with date range filter
+  - Import with validation and preview
+  - Duplicate detection
+  - Impact: HIGH - Data safety and migration
+
+- [ ] **Bill reminders & upcoming payments widget** - Never miss a payment
+  - Add optional `dueDate` and `recurringDay` fields to SubPocket
+  - Calculate next due date based on last payment + periodicity
+  - Show "Upcoming Bills" widget on Summary page
+  - Days until due (color-coded: red <3 days, yellow <7 days, green >7 days)
+  - Quick "Mark as Paid" button
+  - Browser notifications for bills due within 3 days
+
+- [ ] **Savings goals** - Track progress toward financial goals
+
+- [ ] **Migrate fixed expenses pocket to different account** - Change account for fixed expenses
+  - Button on FixedExpensesPage to change account
+  - Auto-convert all sub-pocket amounts to new account currency
+  - Update all related movements to new account/pocket
+
+#### Medium-Priority Features
+- [ ] **Recent movements widget** - Show last 5 on summary page with quick actions
 - [ ] **Inline editing** - Edit movement amounts without opening modal
-- [ ] **Confirmation dialogs** - "Are you sure?" for all destructive actions
 - [ ] **Undo deletions** - 5-second grace period with toast action
-- [ ] **Movement templates** - Save common transactions as templates
 - [ ] **Quick transfer** - Fast pocket-to-pocket transfers
 - [ ] **Amount calculator** - Built-in calculator in amount inputs
-- [ ] **Color picker presets** - Common colors for accounts
-- [x] **Fixed expenses to movements** ✅ FIXED - Button to auto-populate batch movements modal with enabled monthly fixed expenses contributions (user can modify before saving)
-- [ ] **Consistent spacing** - Standardize padding/margins across all components
-
-### Performance
-- [ ] **Pagination for movements** - Load 50 at a time instead of all
-- [ ] **Background data sync** - Refresh data without blocking UI (currently loads block UI on page mount)
-- [ ] **Request deduplication** - Prevent duplicate API calls
-- [ ] **Optimistic locking** - Handle concurrent edits gracefully
-- [ ] **Cache invalidation strategy** - Smart cache management
-
-### Code Quality
-- [ ] **Custom hooks extraction** - useMovementFilters, useAccountBalance
-- [ ] **Component composition** - Break down large page components
-- [ ] **Error boundaries** - Catch and display component errors gracefully
-- [ ] **Prop validation** - Add runtime prop type checking
-- [ ] **Accessibility audit** - ARIA labels, keyboard nav, screen readers
-
-### Data & Logic
-- [ ] **Export data** - CSV/JSON backup with date range selection
-- [ ] **Import data** - CSV import with validation and preview
-- [ ] **Data validation** - Prevent negative balances, invalid dates
-- [ ] **Audit log** - Track all changes with timestamps and user
-- [ ] **Multi-currency conversion display** - Show all amounts in primary currency
-- [x] **Cascade delete for accounts** ✅ FIXED - "Delete All" button to delete account with all pockets and optionally orphan/delete related movements
-- [x] **Orphaned movements handling** ✅ FIXED - Implemented comprehensive orphaned movements system:
-  - Movements marked as "orphaned" when account/pocket deleted (safe, non-destructive)
-  - Orphaned movements stored with original account/pocket names and currency for restoration
-  - Dedicated "Orphaned Movements" section on MovementsPage with count badge
-  - "Restore All" button automatically recreates account + pockets and links movements
-  - "Delete All" button for permanent cleanup
-  - Instant orphan detection using isOrphaned flag (no expensive lookups)
-  - Detailed logging and error handling for restoration process
-  - Movements properly linked to recreated entities with balance recalculation
+- [ ] **Tags and categories** - Organize movements with custom tags
+- [ ] **Advanced reporting** - Monthly summaries, year-over-year comparisons
+- [ ] **Multi-user support** - Shared accounts with permissions
 
 ---
 
-## 🚀 Larger Features (2+ hours)
+### 🎨 UI/UX Improvements
 
-### Major UI/UX
-- [ ] **Charts and visualizations** - Balance trends, spending by category
-- [ ] **Budget vs actual tracking** - Compare planned vs spent with alerts
-- [ ] **Dashboard customization** - Drag-and-drop widgets, custom layouts
-- [ ] **Mobile-optimized views** - Improvements needed:
+- [ ] **Mobile optimizations** - Better mobile experience
   - Collapsible/drawer sidebar (currently always visible)
   - Touch-friendly button sizes (44x44px minimum)
   - Swipe gestures for navigation
   - Bottom navigation bar for main actions
   - Responsive table layouts (cards on mobile)
   - Larger tap targets for form inputs
+
 - [ ] **Dark mode improvements** - Better contrast ratios, smooth theme transitions, respect system preference
-- [ ] **Keyboard shortcuts panel** - Help overlay showing all shortcuts
-- [ ] **Onboarding flow** - Guided tour for new users
-- [ ] **Settings page expansion** - More customization options:
+
+- [ ] **Keyboard shortcuts panel** - Help overlay showing all shortcuts (Ctrl+?)
+
+- [ ] **Settings page expansion** - More customization options
   - Date format preferences
   - Number format (1,000.00 vs 1.000,00)
   - Default movement type
   - Auto-save preferences
   - Notification settings
 
-### Advanced Features
-- [ ] **Recurring movements** - Automation for fixed expenses and income
-- [ ] **Budget alerts** - Notifications when approaching limits
-- [ ] **Multi-user support** - Shared accounts with permissions
-- [ ] **Tags and categories** - Organize movements with custom tags
-- [ ] **Advanced reporting** - Monthly summaries, year-over-year comparisons
-- [ ] **Investment tracking** - Real-time stock prices, portfolio performance (partially done)
-- [ ] **Bill reminders & upcoming payments widget** - Implementation plan:
-  - Add optional `dueDate` field to SubPocket (fixed expenses)
-  - Add optional `recurringDay` field (1-31 for monthly bills)
-  - Calculate next due date based on last payment + periodicity
-  - Show "Upcoming Bills" widget on Summary page with:
-    - Next 5 bills to pay (sorted by due date)
-    - Days until due (color-coded: red <3 days, yellow <7 days, green >7 days)
-    - Quick "Mark as Paid" button (creates movement + updates last payment date)
-  - Browser notifications for bills due within 3 days (requires permission)
-- [ ] **Savings goals** - Track progress toward financial goals
-- [ ] **Migrate fixed expenses pocket to different account** - Implementation:
-  - Button on FixedExpensesPage to change account
-  - Select new account from dropdown
-  - Auto-convert all sub-pocket amounts to new account currency
-  - Update all related movements to new account/pocket
-  - Preserve balance history and calculations
+- [ ] **Onboarding flow** - Guided tour for new users
 
-### Performance & Architecture
+- [ ] **Dashboard customization** - Drag-and-drop widgets, custom layouts
+
+- [ ] **Enter to submit forms** - Submit on Enter key press
+
+- [ ] **ESC to close modals** - Keyboard shortcut for closing dialogs
+
+- [ ] **Relative dates** - "2 hours ago" instead of full timestamps
+
+- [ ] **Currency symbol shortcuts** - Quick buttons for common amounts ($10, $50, $100)
+
+- [ ] **Copy to clipboard** - Copy account/pocket balances with one click
+
+- [ ] **Hover tooltips** - Explain icons and buttons on hover
+
+- [ ] **Focus visible states** - Better keyboard navigation indicators
+
+- [ ] **Confirmation dialogs** - "Are you sure?" for all destructive actions
+
+- [ ] **Color picker presets** - Common colors for accounts
+
+- [ ] **Consistent spacing** - Standardize padding/margins across all components
+
+---
+
+### ⚡ Performance Improvements
+
+- [ ] **Pagination for movements** - Load 50 at a time instead of all
+
+- [ ] **Background data sync** - Refresh data without blocking UI (currently loads block UI on page mount)
+
+- [ ] **Memoize expensive calculations** - useMemo for totalFijosMes, filteredMovements
+
+- [ ] **Debounce search inputs** - Reduce re-renders on filter changes
+
+- [ ] **Virtual scrolling** - For long movement lists (100+ items)
+
+- [ ] **Lazy load modals** - Only render when opened
+
+- [ ] **Image optimization** - Compress and lazy load any images
+
+- [ ] **Request deduplication** - Prevent duplicate API calls
+
+- [ ] **Cache invalidation strategy** - Smart cache management
+
 - [ ] **Offline support** - Service worker + IndexedDB sync
+
 - [ ] **Real-time updates** - WebSocket for multi-device sync
-- [ ] **Database migrations** - Version control for schema changes
-- [ ] **Background jobs** - Scheduled tasks for data cleanup, reports
-- [ ] **Performance monitoring** - Track load times, errors, user flows
+
 - [ ] **Code splitting** - Lazy load routes and heavy components
+
 - [ ] **PWA features** - Install prompt, push notifications
 
-### Code Quality & Testing
+---
+
+### 🧹 Code Quality Improvements
+
+- [ ] **Extract magic numbers** - Move hardcoded values to constants
+
+- [ ] **Consistent error handling** - Standardize try/catch patterns
+
+- [ ] **Remove console.logs** - Replace with proper logging service
+
+- [ ] **Type safety improvements** - Remove any remaining `any` types
+
+- [ ] **Extract repeated logic** - DRY up form validation, formatting
+
+- [ ] **Custom hooks extraction** - useMovementFilters, useAccountBalance
+
+- [ ] **Component composition** - Break down large page components
+
+- [ ] **Error boundaries** - Catch and display component errors gracefully
+
+- [ ] **Prop validation** - Add runtime prop type checking
+
+- [ ] **Accessibility audit** - ARIA labels, keyboard nav, screen readers
+
 - [ ] **E2E tests** - Playwright/Cypress for critical user flows
+
 - [ ] **Visual regression tests** - Catch UI changes automatically
+
 - [ ] **Performance tests** - Benchmark critical operations
+
 - [ ] **Accessibility tests** - Automated a11y checks in CI
+
 - [ ] **Documentation** - Component storybook, API docs
+
 - [ ] **Refactor store** - Split into domain-specific stores
+
 - [ ] **Error tracking** - Sentry or similar for production errors
+
+- [ ] **Database migrations** - Version control for schema changes
+
+- [ ] **Background jobs** - Scheduled tasks for data cleanup, reports
+
+- [ ] **Performance monitoring** - Track load times, errors, user flows
+
+---
+
+## ✅ DONE
+
+### 🎯 User-Requested Features & Fixes
+
+- [x] **Currency Exchange Rate API Integration** ✅ - Real-time currency exchange rates
+  - Switched to fawazahmed0/exchange-api (no API key required!)
+  - Full support for all currencies including COP as base currency
+  - Vercel serverless function `/api/exchange-rates.ts`
+  - 3-tier caching: local cache (24h) → DB (24h) → API
+  - SummaryPage consolidated total now uses real-time rates
+  - Commit: Switch to free exchange API with COP support
+
+- [x] **Investment Price Storage & Caching** ✅ - Store VOO/stock prices in database
+  - Created `stock_prices` table in Supabase
+  - 3-tier caching: local (15 min) → database (15 min) → API
+  - Shared prices across devices
+  - Persistent cache survives page refresh
+  - Automatic cleanup of old prices (30+ days)
+  - Commit: Implement database caching for stock prices
+
+- [x] **Batch movements with "Mark as Pending" option** ✅ - Create multiple movements at once
+  - Added "Batch Add" button on MovementsPage
+  - Opens modal with BatchMovementForm component
+  - Each row has: Type, Account, Pocket, Amount, Notes, Date
+  - Checkbox: "Create as pending movements"
+  - Validates all rows before saving
+  - Commit: Implement batch/bulk movements feature
+
+- [x] **Payment templates for recurring transactions** ✅ - Save common transactions as templates
+  - Created `movement_templates` table
+  - "Save as Template" button on movement form
+  - Template picker dropdown in movement creation
+  - Pre-fills all fields except amount (user can override)
+  - Commit: Implement movement templates feature
+
+- [x] **Flexible movement sorting within months** ✅ - Sort movements by different criteria
+  - Added sorting dropdown with options:
+    - Created Date (Ascending/Descending)
+    - Displayed Date (Ascending/Descending)
+    - Amount (Ascending/Descending)
+    - Type (Income first / Expense first)
+  - Keep monthly grouping, apply sort within each month
+  - Persist sort preference in localStorage
+  - Commit: Add flexible movement sorting options
+
+- [x] **Account saving error bug** ✅ - Fixed "Error saving accounts"
+  - Root cause: Missing await on SupabaseStorageService.updateAccount()
+  - Added await to ensure account updates complete
+  - Commit: Fix account saving error
+
+- [x] **Bulk movement actions** ✅ - Mass operations on movements
+  - Checkbox selection for movements (select all, select by filter)
+  - Bulk action toolbar:
+    - Apply Pending (convert multiple pending → applied)
+    - Delete Selected (with confirmation)
+    - Edit Attribute (change account/pocket/date for all selected)
+    - Mark as Pending (convert applied → pending)
+  - Promise.all for parallel processing
+  - Commit: Implement bulk movement actions
+
+- [x] **Balance calculation issues** ✅ - Fixed multiple balance bugs
+  - Account balances reset to 0 on page refresh
+  - Account total balances inconsistent loading
+  - Fixed pocket not calculating total from sub-pockets
+  - Investment account total excludes gains
+  - Root cause: Stale balance values in storage
+  - Fix: Always recalculate balances from source of truth (pockets/sub-pockets)
+  - Commit: Recalculate balances on load from source of truth
+
+- [x] **Investment stock price - show last updated timestamp** ✅
+  - Added "Last updated: X ago" timestamp below current share price
+  - Uses date-fns formatDistanceToNow for human-readable format
+  - Commit: Add last updated timestamp for investment stock prices
+
+- [x] **Visual indicator for disabled fixed expenses** ✅
+  - Reduced opacity (50%) for entire row
+  - Strikethrough on expense name
+  - "Disabled" badge next to name
+  - Applied to both SummaryPage and FixedExpensesPage
+  - Commit: Add visual indicators for disabled fixed expenses
+
+- [x] **Switch from Alpha Vantage to Yahoo Finance API** ✅
+  - Created Vercel serverless function using yahoo-finance2 library
+  - `/api/stock-price.ts` - no CORS issues!
+  - Kept Supabase global rate limiting (15 min between calls)
+  - Kept local caching (15 min) for performance
+  - Commit: Implement Yahoo Finance via Vercel serverless function
+
+- [x] **Investment movement refactor** ✅ - Simplified investment movements
+  - Removed special "InvestmentIngreso" and "InvestmentShares" types
+  - Investment accounts now use standard "IngresoNormal" / "EgresoNormal" types
+  - Pocket selection determines what gets updated:
+    - "Invested Money" pocket → updates montoInvertido
+    - "Shares" pocket → updates shares
+  - Migration utility in src/utils/migrateInvestmentMovements.ts
+  - Commit: Refactor investment movements to use standard types
+
+- [x] **Cascade delete for accounts** ✅ - Delete account with all related data
+  - "Delete All" button to delete account with all pockets
+  - Option to orphan or delete related movements
+  - Commit: Implement cascade delete for accounts
+
+- [x] **Orphaned movements handling** ✅ - Comprehensive orphaned movements system
+  - Movements marked as "orphaned" when account/pocket deleted
+  - Stored with original account/pocket names and currency for restoration
+  - Dedicated "Orphaned Movements" section on MovementsPage
+  - "Restore All" button recreates account + pockets and links movements
+  - "Delete All" button for permanent cleanup
+  - Instant orphan detection using isOrphaned flag
+  - Commit: Implement orphaned movements system
+
+- [x] **Fixed expenses to movements** ✅ - Auto-populate batch movements
+  - Button to auto-populate batch movements modal with enabled monthly fixed expenses
+  - User can modify before saving
+  - Commit: Add fixed expenses to batch movements feature
+
+---
+
+### 🎨 UI/UX Improvements
+
+- [x] **Loading skeletons** ✅ - Better perceived performance
+  - Implemented in all major pages (Summary, Accounts, Movements, Budget Planning, Fixed Expenses)
+  - Content-aware skeletons that match actual layout
+  - Commit: Add loading skeletons to all pages
+
+- [x] **Enhanced toast notifications** ✅ - Smooth animations and better UX
+  - Smooth animations with cubic-bezier easing and scale effects
+  - Better stacking with flexbox layout
+  - Non-intrusive top-right positioning
+  - Exit animations (slide out smoothly)
+  - Manual close with X button
+  - Auto-dismiss with configurable duration (default 5s)
+  - Replaced all alerts with toasts
+  - Commit: Enhance toast notifications
+
+- [x] **Empty states** ✅ - Helpful guidance for empty pages
+  - Created EmptyState component
+  - Implemented across all pages
+  - Provides clear next steps for users
+  - Commit: Add empty states to all pages
+
+- [x] **Auto-focus inputs** ✅ - Better keyboard navigation
+  - Added autoFocus prop support to Input component
+  - Implemented in all modal forms
+  - Commit: Add auto-focus to form inputs
+
+- [x] **Optimistic UI updates** ✅ - Immediate feedback
+  - Forms close instantly, UI updates before server confirms
+  - Store-level optimistic updates for all mutations
+  - Automatic rollback on failure with error toasts
+  - Implemented in MovementsPage, AccountsPage, FixedExpensesPage
+  - Batched updates to prevent double-reloads
+  - Commit: Implement optimistic UI updates
+
+- [x] **Loading button states** ✅ - Visual feedback during operations
+  - Individual buttons show spinner during operations
+  - Disabled states prevent multiple clicks
+  - Per-item tracking for independent loading states
+  - Implemented in all form submit buttons, delete buttons, apply buttons
+  - Commit: Add loading button states
+
+---
+
+### ⚡ Performance Improvements
+
+- [x] **Single-record database operations** ✅ - 5-10x faster
+  - Optimized database queries
+  - Commit: Optimize database operations
+
+- [x] **Selective reloading** ✅ - 50-90% fewer queries
+  - Only reload affected data after mutations
+  - Commit: Implement selective reloading
+
+- [x] **Fixed account balance calculation bug** ✅
+  - Always recalculate from source of truth
+  - Commit: Fix account balance calculation
+
+- [x] **Optimized movement queries with composite indexes** ✅
+  - Added database indexes for faster queries
+  - Commit: Add composite indexes for movements
+
+- [x] **Duplicate page reloads on CRUD operations** ✅ - 66% reduction
+  - Root cause: Pages calling loadAccounts(), loadPockets(), loadSubPockets() separately
+  - Fix: Refactored loadAccounts() to load all three in single set() call
+  - Result: 3 loads → 1 load
+  - Commit: Consolidate data loading to eliminate duplicate reloads
+
+---
+
+### 🧹 Code Quality Improvements
+
+- [x] **SPA routing fix** ✅ - Fixed 404 errors on direct URL access
+  - Added vercel.json configuration
+  - Proper client-side routing support
+  - Commit: Fix SPA routing with vercel.json
+
+---
+
+## 📊 Notes
+
+### Priority Guidelines
+- **User-Requested Features & Fixes**: Always highest priority, regardless of difficulty
+- **UI/UX**: Focus on user experience and accessibility
+- **Performance**: Optimize for speed and scalability
+- **Code Quality**: Maintain clean, testable, documented code
+
+### Effort Estimates
+- Quick wins: 10-30 minutes
+- Medium features: 30-90 minutes
+- Large features: 2+ hours
 
 ---
 

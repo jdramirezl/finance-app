@@ -2,11 +2,13 @@ import { useEffect, useState } from 'react';
 import { useFinanceStore } from '../store/useFinanceStore';
 import { useToast } from '../hooks/useToast';
 import { StorageService } from '../services/storageService';
+import { currencyService } from '../services/currencyService';
 import { Plus, Trash2, Edit2, X } from 'lucide-react';
 import Button from '../components/Button';
 import Input from '../components/Input';
 import Card from '../components/Card';
 import { Skeleton, SkeletonCard, SkeletonList } from '../components/Skeleton';
+import type { Currency } from '../types';
 
 interface DistributionEntry {
   id: string;
@@ -18,7 +20,9 @@ const BudgetPlanningPage = () => {
   const {
     accounts,
     pockets,
+    settings,
     loadAccounts,
+    loadSettings,
     getSubPocketsByPocket,
   } = useFinanceStore();
 
@@ -32,6 +36,7 @@ const BudgetPlanningPage = () => {
   const [editingEntryName, setEditingEntryName] = useState<string>('');
   const [editingEntryPercentage, setEditingEntryPercentage] = useState<number>(0);
   const [isLoading, setIsLoading] = useState(true);
+  const [convertedAmounts, setConvertedAmounts] = useState<Map<string, number>>(new Map());
 
   const toast = useToast();
 
@@ -41,7 +46,10 @@ const BudgetPlanningPage = () => {
       try {
         // loadAccounts now loads accounts, pockets, and subPockets in one call
         // Skip investment prices - not needed for budget planning
-        await loadAccounts(true);
+        await Promise.all([
+          loadAccounts(true),
+          loadSettings(),
+        ]);
       } catch (err) {
         console.error('Failed to load data:', err);
       } finally {
@@ -49,7 +57,7 @@ const BudgetPlanningPage = () => {
       }
     };
     loadData();
-  }, [loadAccounts]);
+  }, [loadAccounts, loadSettings]);
 
   // Persist data whenever it changes
   useEffect(() => {
@@ -65,6 +73,10 @@ const BudgetPlanningPage = () => {
   const fixedAccount = fixedPocket
     ? accounts.find((acc) => acc.id === fixedPocket.accountId)
     : null;
+
+  const primaryCurrency = settings.primaryCurrency || 'USD';
+  const budgetCurrency = fixedAccount?.currency || 'USD';
+  const showConversion = primaryCurrency !== budgetCurrency;
 
   // Calculate total monthly fixed expenses (using next payment logic for negative balances)
   const calculateTotalFijosMes = (): number => {
@@ -98,6 +110,35 @@ const BudgetPlanningPage = () => {
     if (remaining <= 0) return 0;
     return (remaining * percentage) / 100;
   };
+
+  // Convert amounts to primary currency when needed
+  useEffect(() => {
+    const convertAmounts = async () => {
+      if (!showConversion || distributionEntries.length === 0) return;
+
+      const newConversions = new Map<string, number>();
+      
+      for (const entry of distributionEntries) {
+        const amount = calculateEntryAmount(entry.percentage);
+        if (amount > 0) {
+          try {
+            const converted = await currencyService.convert(
+              amount,
+              budgetCurrency as Currency,
+              primaryCurrency as Currency
+            );
+            newConversions.set(entry.id, converted);
+          } catch (err) {
+            console.error('Failed to convert currency:', err);
+          }
+        }
+      }
+
+      setConvertedAmounts(newConversions);
+    };
+
+    convertAmounts();
+  }, [distributionEntries, remaining, showConversion, budgetCurrency, primaryCurrency]);
 
   const generateId = (): string => {
     return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
@@ -252,11 +293,12 @@ const BudgetPlanningPage = () => {
           ) : (
             <div className="space-y-3">
               {/* Header */}
-              <div className="grid grid-cols-12 gap-4 pb-2 border-b dark:border-gray-700 font-semibold text-sm text-gray-600 dark:text-gray-400">
-                <div className="col-span-4">Name</div>
-                <div className="col-span-3">Percentage</div>
-                <div className="col-span-3">Amount</div>
-                <div className="col-span-2 text-right">Actions</div>
+              <div className={`grid ${showConversion ? 'grid-cols-[2fr_1fr_1.5fr_1.5fr_1fr]' : 'grid-cols-12'} gap-4 pb-2 border-b dark:border-gray-700 font-semibold text-sm text-gray-600 dark:text-gray-400`}>
+                <div className={showConversion ? '' : 'col-span-4'}>Name</div>
+                <div className={showConversion ? '' : 'col-span-3'}>Percentage</div>
+                <div className={showConversion ? '' : 'col-span-3'}>Amount ({budgetCurrency})</div>
+                {showConversion && <div>Amount ({primaryCurrency})</div>}
+                <div className={`text-right ${showConversion ? '' : 'col-span-2'}`}>Actions</div>
               </div>
 
               {/* Entries */}
@@ -264,14 +306,16 @@ const BudgetPlanningPage = () => {
                 const isEditing = editingEntryId === entry.id;
                 const amount = calculateEntryAmount(entry.percentage);
 
+                const convertedAmount = convertedAmounts.get(entry.id);
+
                 return (
                   <div
                     key={entry.id}
-                    className="grid grid-cols-12 gap-4 items-center p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                    className={`grid ${showConversion ? 'grid-cols-[2fr_1fr_1.5fr_1.5fr_1fr]' : 'grid-cols-12'} gap-4 items-center p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors`}
                   >
                     {isEditing ? (
                       <>
-                        <div className="col-span-4">
+                        <div className={showConversion ? '' : 'col-span-4'}>
                           <input
                             type="text"
                             value={editingEntryName}
@@ -281,7 +325,7 @@ const BudgetPlanningPage = () => {
                             autoFocus
                           />
                         </div>
-                        <div className="col-span-3">
+                        <div className={showConversion ? '' : 'col-span-3'}>
                           <input
                             type="number"
                             step="0.1"
@@ -295,7 +339,7 @@ const BudgetPlanningPage = () => {
                             className="w-full px-3 py-2 border dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                           />
                         </div>
-                        <div className="col-span-3">
+                        <div className={showConversion ? '' : 'col-span-3'}>
                           <div className="text-sm font-medium text-gray-700 dark:text-gray-300">
                             {amount.toLocaleString(undefined, {
                               style: 'currency',
@@ -303,7 +347,17 @@ const BudgetPlanningPage = () => {
                             })}
                           </div>
                         </div>
-                        <div className="col-span-2 flex justify-end gap-2">
+                        {showConversion && (
+                          <div className="text-sm font-medium text-blue-700 dark:text-blue-300">
+                            {convertedAmount !== undefined
+                              ? convertedAmount.toLocaleString(undefined, {
+                                  style: 'currency',
+                                  currency: primaryCurrency,
+                                })
+                              : '...'}
+                          </div>
+                        )}
+                        <div className={`flex justify-end gap-2 ${showConversion ? '' : 'col-span-2'}`}>
                           <Button
                             variant="ghost"
                             size="sm"
@@ -326,17 +380,27 @@ const BudgetPlanningPage = () => {
                       </>
                     ) : (
                       <>
-                        <div className="col-span-4 font-medium text-gray-900 dark:text-gray-100">
+                        <div className={`font-medium text-gray-900 dark:text-gray-100 ${showConversion ? '' : 'col-span-4'}`}>
                           {entry.name || <span className="text-gray-400 dark:text-gray-500 italic">Unnamed</span>}
                         </div>
-                        <div className="col-span-3 text-gray-700 dark:text-gray-300">{entry.percentage}%</div>
-                        <div className="col-span-3 font-semibold text-gray-900 dark:text-gray-100">
+                        <div className={`text-gray-700 dark:text-gray-300 ${showConversion ? '' : 'col-span-3'}`}>{entry.percentage}%</div>
+                        <div className={`font-semibold text-gray-900 dark:text-gray-100 ${showConversion ? '' : 'col-span-3'}`}>
                           {amount.toLocaleString(undefined, {
                             style: 'currency',
                             currency: fixedAccount?.currency || 'USD',
                           })}
                         </div>
-                        <div className="col-span-2 flex justify-end gap-2">
+                        {showConversion && (
+                          <div className="font-semibold text-blue-700 dark:text-blue-300">
+                            {convertedAmount !== undefined
+                              ? convertedAmount.toLocaleString(undefined, {
+                                  style: 'currency',
+                                  currency: primaryCurrency,
+                                })
+                              : '...'}
+                          </div>
+                        )}
+                        <div className={`flex justify-end gap-2 ${showConversion ? '' : 'col-span-2'}`}>
                           <Button
                             variant="ghost"
                             size="sm"
