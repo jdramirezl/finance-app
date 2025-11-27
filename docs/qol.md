@@ -1,5 +1,76 @@
 # Quality of Life Improvements
 
+## � Higth Priority Issues (From Production Use)
+
+### Currency Exchange Rate API Integration
+- [ ] **Real-time currency exchange rates** - Implementation plan:
+  - Use FreeCurrencyAPI: `https://api.freecurrencyapi.com/v1/latest?apikey=fca_live_0SYarl3kVk4ivey17UlqQfpMQnC6zg91FND7uVtc`
+  - Rate limits: 5,000 requests/month, 10 req/min
+  - Strategy to stay under limits:
+    - Store exchange rates in Supabase `exchange_rates` table with timestamp
+    - Update rates once per day (30 requests/month per currency pair)
+    - Serverless function checks DB timestamp, only calls API if > 24 hours old
+    - Client reads from DB (no direct API calls)
+    - Client caches rates locally for session
+    - Fallback to DB if cache lost
+  - Benefits: Real exchange rates, minimal API usage (~150 requests/month for 5 currencies)
+
+### Investment Price Storage & Caching
+- [ ] **Store VOO/stock prices in database** - Current issue: prices only cached locally
+  - Implementation:
+    - Create `stock_prices` table in Supabase (symbol, price, timestamp)
+    - Serverless function updates DB when timestamp > 15 minutes old
+    - Client reads from DB first, falls back to API if stale
+    - Local cache for performance (15 min TTL)
+    - Benefits: Shared prices across devices, reduced API calls, persistent cache
+
+### Batch Movements Improvements
+- [ ] **Add "Mark as Pending" option to batch add** - Currently all batch movements are applied immediately
+  - Add checkbox in BatchMovementForm: "Create as pending movements"
+  - Pass `isPending` flag to all movements in batch
+  - Allows bulk creation of future transactions without affecting balances
+
+### Movement Templates
+- [ ] **Payment templates for recurring transactions** - Save common transactions as templates
+  - Implementation:
+    - Create `movement_templates` table (name, type, account, pocket, amount, notes)
+    - "Save as Template" button on movement form
+    - Template picker dropdown in movement creation
+    - Pre-fills all fields except amount (user can override)
+    - Quick access to frequent transactions (groceries, gas, rent, etc.)
+  - Benefits: Faster data entry, consistency, less typing
+
+### Movement Sorting Options
+- [ ] **Flexible movement sorting within months** - Currently only sorted by createdAt ascending
+  - Add sorting dropdown with options:
+    - Created Date (Ascending/Descending) - current default
+    - Displayed Date (Ascending/Descending)
+    - Amount (Ascending/Descending)
+    - Type (Income first / Expense first)
+  - Keep monthly grouping, apply sort within each month
+  - Persist sort preference in localStorage
+
+### Account Saving Error
+- [ ] **"Error saving accounts" bug** - Investigate and fix
+  - Reproduce: [Need more details on when this occurs]
+  - Check: Supabase permissions, validation errors, network issues
+  - Add better error messages to identify root cause
+
+### Bulk Movement Actions
+- [ ] **Mass operations on movements** - Select multiple movements and perform actions
+  - Implementation:
+    - Checkbox selection for movements (select all, select by filter)
+    - Bulk action toolbar appears when items selected:
+      - Apply Pending (convert multiple pending → applied)
+      - Delete Selected (with confirmation)
+      - Edit Attribute (change account/pocket/date for all selected)
+      - Mark as Pending (convert applied → pending)
+    - Preserve individual movement attributes during bulk edit
+    - Use case: Move 5 pending transactions to different pocket without applying them
+  - Benefits: Efficient management of multiple transactions, fix mistakes quickly
+
+---
+
 ## 🐛 Critical Bugs & Features To Fix
 
 ### Balance Calculation Issues
