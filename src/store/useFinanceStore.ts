@@ -50,6 +50,8 @@ interface FinanceStore {
   applyPendingMovement: (id: string) => Promise<void>;
   markAsPending: (id: string) => Promise<void>;
   getMovementsGroupedByMonth: () => Promise<Map<string, Movement[]>>;
+  getMonthKeysWithCounts: () => Promise<Map<string, number>>;
+  getMovementsByMonthPaginated: (monthKey: string, offset: number, limit: number) => Promise<Movement[]>;
   getPendingMovements: () => Promise<Movement[]>;
   getAppliedMovements: () => Promise<Movement[]>;
   getOrphanedMovements: () => Promise<Movement[]>;
@@ -689,6 +691,14 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
 
   getMovementsGroupedByMonth: async () => {
     return await movementService.getMovementsGroupedByMonth();
+  },
+
+  getMonthKeysWithCounts: async () => {
+    return await movementService.getMonthKeysWithCounts();
+  },
+
+  getMovementsByMonthPaginated: async (monthKey: string, offset: number, limit: number) => {
+    return await movementService.getMovementsByMonthPaginated(monthKey, offset, limit);
   },
 
   getPendingMovements: async () => {

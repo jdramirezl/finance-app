@@ -120,6 +120,44 @@ class MovementService {
     return grouped;
   }
 
+  // Get month keys with movement counts (for lazy loading) - ACTIVE ONLY
+  async getMonthKeysWithCounts(): Promise<Map<string, number>> {
+    const movements = await this.getActiveMovements();
+    const counts = new Map<string, number>();
+
+    movements.forEach(movement => {
+      const date = new Date(movement.displayedDate);
+      const monthKey = format(date, 'yyyy-MM');
+      counts.set(monthKey, (counts.get(monthKey) || 0) + 1);
+    });
+
+    return counts;
+  }
+
+  // Get movements for a specific month with pagination - ACTIVE ONLY
+  async getMovementsByMonthPaginated(
+    monthKey: string, 
+    offset: number = 0, 
+    limit: number = 10
+  ): Promise<Movement[]> {
+    const movements = await this.getActiveMovements();
+    
+    // Filter by month
+    const monthMovements = movements.filter(m => {
+      const date = new Date(m.displayedDate);
+      const key = format(date, 'yyyy-MM');
+      return key === monthKey;
+    });
+
+    // Sort by createdAt (or could use displayedDate)
+    monthMovements.sort((a, b) => 
+      new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+    );
+
+    // Return paginated slice
+    return monthMovements.slice(offset, offset + limit);
+  }
+
   // Update pocket balance based on movement
   private async updatePocketBalance(
     pocketId: string,
