@@ -91,6 +91,9 @@ const MovementsPage = () => {
   
   // Bulk selection state
   const [selectedMovementIds, setSelectedMovementIds] = useState<Set<string>>(new Set());
+  const [showBulkEditModal, setShowBulkEditModal] = useState(false);
+  const [bulkEditField, setBulkEditField] = useState<'account' | 'pocket' | 'date'>('account');
+  const [bulkEditValue, setBulkEditValue] = useState<string>('');
   
   // Persist sort preferences
   useEffect(() => {
@@ -502,7 +505,7 @@ const MovementsPage = () => {
     }
   };
 
-  // Bulk action handlers
+  // Bulk action handlers - optimized to batch operations
   const handleBulkApplyPending = async () => {
     const pendingMovements = Array.from(selectedMovementIds)
       .map(id => movements.find(m => m.id === id))
@@ -514,11 +517,12 @@ const MovementsPage = () => {
     }
 
     try {
-      for (const movement of pendingMovements) {
-        if (movement) {
-          await applyPendingMovement(movement.id);
-        }
-      }
+      // Process all movements in parallel
+      await Promise.all(
+        pendingMovements.map(movement => 
+          movement ? applyPendingMovement(movement.id) : Promise.resolve()
+        )
+      );
       toast.success(`Applied ${pendingMovements.length} pending movement${pendingMovements.length > 1 ? 's' : ''}!`);
       setSelectedMovementIds(new Set());
     } catch (err) {
@@ -537,15 +541,79 @@ const MovementsPage = () => {
     }
 
     try {
-      for (const movement of appliedMovements) {
-        if (movement) {
-          await markAsPending(movement.id);
-        }
-      }
+      // Process all movements in parallel
+      await Promise.all(
+        appliedMovements.map(movement => 
+          movement ? markAsPending(movement.id) : Promise.resolve()
+        )
+      );
       toast.success(`Marked ${appliedMovements.length} movement${appliedMovements.length > 1 ? 's' : ''} as pending!`);
       setSelectedMovementIds(new Set());
     } catch (err) {
       toast.error(`Failed to mark movements as pending: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedMovementIds.size === 0) {
+      toast.warning('No movements selected');
+      return;
+    }
+
+    const confirmed = await confirm({
+      title: 'Delete Selected Movements',
+      message: `Are you sure you want to delete ${selectedMovementIds.size} movement${selectedMovementIds.size > 1 ? 's' : ''}? This action cannot be undone.`,
+      confirmText: 'Delete All',
+      cancelText: 'Cancel',
+      variant: 'danger',
+    });
+
+    if (!confirmed) return;
+
+    try {
+      // Process all deletions in parallel
+      await Promise.all(
+        Array.from(selectedMovementIds).map(id => deleteMovement(id))
+      );
+      toast.success(`Deleted ${selectedMovementIds.size} movement${selectedMovementIds.size > 1 ? 's' : ''}!`);
+      setSelectedMovementIds(new Set());
+    } catch (err) {
+      toast.error(`Failed to delete movements: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    }
+  };
+
+  const handleBulkEdit = async (field: 'account' | 'pocket' | 'date', value: string) => {
+    if (selectedMovementIds.size === 0) {
+      toast.warning('No movements selected');
+      return;
+    }
+
+    try {
+      // Process all updates in parallel
+      await Promise.all(
+        Array.from(selectedMovementIds).map(id => {
+          const updates: Partial<Pick<Movement, 'accountId' | 'pocketId' | 'displayedDate'>> = {};
+          
+          if (field === 'account') {
+            updates.accountId = value;
+            // When changing account, also need to update pocket to one from the new account
+            const newAccountPockets = getPocketsByAccount(value);
+            if (newAccountPockets.length > 0) {
+              updates.pocketId = newAccountPockets[0].id;
+            }
+          } else if (field === 'pocket') {
+            updates.pocketId = value;
+          } else if (field === 'date') {
+            updates.displayedDate = value;
+          }
+          
+          return updateMovement(id, updates);
+        })
+      );
+      toast.success(`Updated ${selectedMovementIds.size} movement${selectedMovementIds.size > 1 ? 's' : ''}!`);
+      setSelectedMovementIds(new Set());
+    } catch (err) {
+      toast.error(`Failed to update movements: ${err instanceof Error ? err.message : 'Unknown error'}`);
     }
   };
 
@@ -1054,12 +1122,19 @@ const MovementsPage = () => {
       {selectedMovementIds.size > 0 && (
         <Card padding="md" className="sticky top-4 z-10 bg-blue-50 dark:bg-blue-900/20 border-2 border-blue-500">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
               <span className="font-semibold text-blue-900 dark:text-blue-100">
                 {selectedMovementIds.size} selected
               </span>
               <Button
-                variant="secondary"
+                variant="danger"
+                size="sm"
+                onClick={handleBulkDelete}
+              >
+                Delete
+              </Button>
+              <Button
+                variant="primary"
                 size="sm"
                 onClick={handleBulkApplyPending}
               >
@@ -1071,6 +1146,13 @@ const MovementsPage = () => {
                 onClick={handleBulkMarkPending}
               >
                 Mark as Pending
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => setShowBulkEditModal(true)}
+              >
+                Edit Attribute
               </Button>
             </div>
             <Button
@@ -1474,6 +1556,106 @@ const MovementsPage = () => {
           onSave={handleBatchSave}
           onCancel={() => setShowBatchForm(false)}
         />
+      </Modal>
+
+      {/* Bulk Edit Modal */}
+      <Modal
+        isOpen={showBulkEditModal}
+        onClose={() => {
+          setShowBulkEditModal(false);
+          setBulkEditField('account');
+          setBulkEditValue('');
+        }}
+        title="Edit Selected Movements"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            Update a single attribute for {selectedMovementIds.size} selected movement{selectedMovementIds.size > 1 ? 's' : ''}
+          </p>
+
+          <Select
+            label="Field to Edit"
+            value={bulkEditField}
+            onChange={(e) => {
+              setBulkEditField(e.target.value as 'account' | 'pocket' | 'date');
+              setBulkEditValue('');
+            }}
+            options={[
+              { value: 'account', label: 'Account' },
+              { value: 'pocket', label: 'Pocket' },
+              { value: 'date', label: 'Date' },
+            ]}
+          />
+
+          {bulkEditField === 'account' && (
+            <Select
+              label="New Account"
+              value={bulkEditValue}
+              onChange={(e) => setBulkEditValue(e.target.value)}
+              options={[
+                { value: '', label: 'Select account...' },
+                ...accounts.map((account) => ({
+                  value: account.id,
+                  label: `${account.name} (${account.currency})`,
+                })),
+              ]}
+            />
+          )}
+
+          {bulkEditField === 'pocket' && (
+            <Select
+              label="New Pocket"
+              value={bulkEditValue}
+              onChange={(e) => setBulkEditValue(e.target.value)}
+              options={[
+                { value: '', label: 'Select pocket...' },
+                ...pockets.map((pocket) => ({
+                  value: pocket.id,
+                  label: `${pocket.name} (${accounts.find(a => a.id === pocket.accountId)?.name})`,
+                })),
+              ]}
+            />
+          )}
+
+          {bulkEditField === 'date' && (
+            <Input
+              label="New Date"
+              type="datetime-local"
+              value={bulkEditValue}
+              onChange={(e) => setBulkEditValue(e.target.value)}
+              required
+            />
+          )}
+
+          <div className="flex gap-2 justify-end">
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setShowBulkEditModal(false);
+                setBulkEditField('account');
+                setBulkEditValue('');
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              onClick={() => {
+                if (bulkEditValue) {
+                  handleBulkEdit(bulkEditField, bulkEditValue);
+                  setShowBulkEditModal(false);
+                  setBulkEditField('account');
+                  setBulkEditValue('');
+                } else {
+                  toast.warning('Please select a value');
+                }
+              }}
+              disabled={!bulkEditValue}
+            >
+              Update {selectedMovementIds.size} Movement{selectedMovementIds.size > 1 ? 's' : ''}
+            </Button>
+          </div>
+        </div>
       </Modal>
 
       {/* Confirmation Dialog */}
