@@ -1,16 +1,17 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
-// FreeCurrencyAPI configuration
-const API_KEY = process.env.FREECURRENCY_API_KEY || "";
-const API_URL = 'https://api.freecurrencyapi.com/v1/latest';
+// Exchange API configuration (https://github.com/fawazahmed0/exchange-api)
+const API_BASE_URL = 'https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1';
 
 // Supported currencies
 const SUPPORTED_CURRENCIES = ['USD', 'MXN', 'COP', 'EUR', 'GBP'];
 
+// Currency code mapping (API uses lowercase)
+const toCurrencyCode = (currency: string) => currency.toLowerCase();
+
 interface ExchangeRatesResponse {
-  data: {
-    [key: string]: number;
-  };
+  date: string;
+  [key: string]: string | number | { [key: string]: number };
 }
 
 export default async function handler(
@@ -48,31 +49,40 @@ export default async function handler(
       });
     }
 
-    // Build API URL
-    const url = new URL(API_URL);
-    url.searchParams.set('apikey', API_KEY);
-    url.searchParams.set('base_currency', base);
-    url.searchParams.set('currencies', targetCurrencies.join(','));
+    // Build API URL - format: /currencies/{base_currency}.json
+    const baseCode = toCurrencyCode(base);
+    const url = `${API_BASE_URL}/currencies/${baseCode}.json`;
 
     console.log(`[Exchange Rates] Fetching rates: ${base} -> ${targetCurrencies.join(', ')}`);
 
-    // Fetch from FreeCurrencyAPI
-    const response = await fetch(url.toString());
+    // Fetch from Exchange API
+    const response = await fetch(url);
     
     if (!response.ok) {
-      throw new Error(`FreeCurrencyAPI error: ${response.status} ${response.statusText}`);
+      throw new Error(`Exchange API error: ${response.status} ${response.statusText}`);
     }
 
     const data: ExchangeRatesResponse = await response.json();
 
+    // Extract rates for requested currencies
+    const ratesData = data[baseCode] as { [key: string]: number };
+    const filteredRates: { [key: string]: number } = {};
+    
+    targetCurrencies.forEach(currency => {
+      const currencyCode = toCurrencyCode(currency);
+      if (ratesData[currencyCode] !== undefined) {
+        filteredRates[currency] = ratesData[currencyCode];
+      }
+    });
+
     // Format response
     const rates = {
       base,
-      rates: data.data,
+      rates: filteredRates,
       timestamp: new Date().toISOString(),
     };
 
-    console.log(`[Exchange Rates] Success: ${Object.keys(data.data).length} rates fetched`);
+    console.log(`[Exchange Rates] Success: ${Object.keys(filteredRates).length} rates fetched`);
 
     // Cache for 24 hours
     res.setHeader('Cache-Control', 's-maxage=86400, stale-while-revalidate');
