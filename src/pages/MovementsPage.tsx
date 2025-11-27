@@ -67,6 +67,24 @@ const MovementsPage = () => {
   const [filterMinAmount, setFilterMinAmount] = useState<string>('');
   const [filterMaxAmount, setFilterMaxAmount] = useState<string>('');
   const [showFilters, setShowFilters] = useState(false);
+  
+  // Sorting state with localStorage persistence
+  type SortField = 'createdAt' | 'displayedDate' | 'amount' | 'type';
+  type SortOrder = 'asc' | 'desc';
+  const [sortField, setSortField] = useState<SortField>(() => {
+    const saved = localStorage.getItem('movementSortField');
+    return (saved as SortField) || 'createdAt';
+  });
+  const [sortOrder, setSortOrder] = useState<SortOrder>(() => {
+    const saved = localStorage.getItem('movementSortOrder');
+    return (saved as SortOrder) || 'asc';
+  });
+  
+  // Persist sort preferences
+  useEffect(() => {
+    localStorage.setItem('movementSortField', sortField);
+    localStorage.setItem('movementSortOrder', sortOrder);
+  }, [sortField, sortOrder]);
 
   useEffect(() => {
     const loadData = async () => {
@@ -178,15 +196,34 @@ const MovementsPage = () => {
     }, new Map<string, Movement[]>())
   ).sort((a, b) => b[0].localeCompare(a[0])); // Sort months descending
 
-    // Sort movements within each month by createdAt
+    // Sort movements within each month based on selected sort field and order
     grouped.forEach(([, monthMovements]) => {
-      monthMovements.sort(
-        (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-      );
+      monthMovements.sort((a, b) => {
+        let comparison = 0;
+        
+        switch (sortField) {
+          case 'createdAt':
+            comparison = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+            break;
+          case 'displayedDate':
+            comparison = new Date(a.displayedDate).getTime() - new Date(b.displayedDate).getTime();
+            break;
+          case 'amount':
+            comparison = a.amount - b.amount;
+            break;
+          case 'type':
+            // Sort by type: Income types first, then expense types
+            const typeOrder = { IngresoNormal: 0, IngresoFijo: 1, EgresoNormal: 2, EgresoFijo: 3 };
+            comparison = typeOrder[a.type] - typeOrder[b.type];
+            break;
+        }
+        
+        return sortOrder === 'asc' ? comparison : -comparison;
+      });
     });
     
     return grouped;
-  }, [filteredMovements]);
+  }, [filteredMovements, sortField, sortOrder]);
 
   const getMovementTypeColor = (type: MovementType): string => {
     switch (type) {
@@ -715,14 +752,39 @@ const MovementsPage = () => {
               </Button>
             </div>
             
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => setShowFilters(!showFilters)}
-            >
-              <Filter className="w-4 h-4" />
-              {showFilters ? 'Hide Filters' : 'More Filters'}
-            </Button>
+            {/* Sort and Filter Controls */}
+            <div className="flex gap-2 items-center">
+              <select
+                value={sortField}
+                onChange={(e) => setSortField(e.target.value as SortField)}
+                className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
+              >
+                <option value="createdAt">Sort: Created Date</option>
+                <option value="displayedDate">Sort: Display Date</option>
+                <option value="amount">Sort: Amount</option>
+                <option value="type">Sort: Type</option>
+              </select>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+                title={sortOrder === 'asc' ? 'Ascending' : 'Descending'}
+              >
+                {sortOrder === 'asc' ? '↑' : '↓'}
+              </Button>
+              
+              {/* Separator */}
+              <div className="h-6 w-px bg-gray-300 dark:bg-gray-600" />
+              
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => setShowFilters(!showFilters)}
+              >
+                <Filter className="w-4 h-4" />
+                {showFilters ? 'Hide Filters' : 'More Filters'}
+              </Button>
+            </div>
           </div>
 
           {/* Advanced Filters */}
