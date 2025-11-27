@@ -48,6 +48,7 @@ interface FinanceStore {
   updateMovement: (id: string, updates: Partial<Pick<Movement, 'type' | 'accountId' | 'pocketId' | 'subPocketId' | 'amount' | 'notes' | 'displayedDate'>>) => Promise<void>;
   deleteMovement: (id: string) => Promise<void>;
   applyPendingMovement: (id: string) => Promise<void>;
+  markAsPending: (id: string) => Promise<void>;
   getMovementsGroupedByMonth: () => Promise<Map<string, Movement[]>>;
   getPendingMovements: () => Promise<Movement[]>;
   getAppliedMovements: () => Promise<Movement[]>;
@@ -763,6 +764,52 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
         
         return {
           movements: state.movements.map((m) => (m.id === id ? applied : m)),
+          pockets: updatedPockets,
+          subPockets: updatedSubPockets,
+          accounts: updatedAccounts,
+        };
+      });
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  markAsPending: async (id) => {
+    try {
+      const pending = await movementService.markAsPending(id);
+      
+      // Selective reload: only reload affected entities
+      const pocket = await pocketService.getPocket(pending.pocketId);
+      
+      // If subPocket is involved, reload it too
+      let subPocket = null;
+      if (pending.subPocketId) {
+        subPocket = await subPocketService.getSubPocket(pending.subPocketId);
+      }
+      
+      // SINGLE set() call: Update movement, pocket, subPocket, and account balance together
+      set((state) => {
+        // Update pocket
+        const updatedPockets = pocket 
+          ? state.pockets.map((p) => (p.id === pending.pocketId ? pocket : p))
+          : state.pockets;
+        
+        // Update subPocket if needed
+        const updatedSubPockets = subPocket
+          ? state.subPockets.map((sp) => (sp.id === pending.subPocketId ? subPocket : sp))
+          : state.subPockets;
+        
+        // Calculate account balance from updated pockets
+        const accountPockets = updatedPockets.filter(p => p.accountId === pending.accountId);
+        const calculatedBalance = accountPockets.reduce((sum, p) => sum + p.balance, 0);
+        
+        // Update account with calculated balance
+        const updatedAccounts = state.accounts.map((a) => 
+          a.id === pending.accountId ? { ...a, balance: calculatedBalance } : a
+        );
+        
+        return {
+          movements: state.movements.map((m) => (m.id === id ? pending : m)),
           pockets: updatedPockets,
           subPockets: updatedSubPockets,
           accounts: updatedAccounts,

@@ -31,6 +31,7 @@ const MovementsPage = () => {
     updateMovement,
     deleteMovement,
     applyPendingMovement,
+    markAsPending,
     createMovementTemplate,
     getPocketsByAccount,
     getSubPocketsByPocket,
@@ -87,6 +88,9 @@ const MovementsPage = () => {
     const saved = localStorage.getItem('movementSortOrder');
     return (saved as SortOrder) || 'asc';
   });
+  
+  // Bulk selection state
+  const [selectedMovementIds, setSelectedMovementIds] = useState<Set<string>>(new Set());
   
   // Persist sort preferences
   useEffect(() => {
@@ -495,6 +499,53 @@ const MovementsPage = () => {
       toast.error(errorMessage);
     } finally {
       setApplyingId(null);
+    }
+  };
+
+  // Bulk action handlers
+  const handleBulkApplyPending = async () => {
+    const pendingMovements = Array.from(selectedMovementIds)
+      .map(id => movements.find(m => m.id === id))
+      .filter(m => m && m.isPending);
+
+    if (pendingMovements.length === 0) {
+      toast.warning('No pending movements selected');
+      return;
+    }
+
+    try {
+      for (const movement of pendingMovements) {
+        if (movement) {
+          await applyPendingMovement(movement.id);
+        }
+      }
+      toast.success(`Applied ${pendingMovements.length} pending movement${pendingMovements.length > 1 ? 's' : ''}!`);
+      setSelectedMovementIds(new Set());
+    } catch (err) {
+      toast.error(`Failed to apply movements: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    }
+  };
+
+  const handleBulkMarkPending = async () => {
+    const appliedMovements = Array.from(selectedMovementIds)
+      .map(id => movements.find(m => m.id === id))
+      .filter(m => m && !m.isPending);
+
+    if (appliedMovements.length === 0) {
+      toast.warning('No applied movements selected');
+      return;
+    }
+
+    try {
+      for (const movement of appliedMovements) {
+        if (movement) {
+          await markAsPending(movement.id);
+        }
+      }
+      toast.success(`Marked ${appliedMovements.length} movement${appliedMovements.length > 1 ? 's' : ''} as pending!`);
+      setSelectedMovementIds(new Set());
+    } catch (err) {
+      toast.error(`Failed to mark movements as pending: ${err instanceof Error ? err.message : 'Unknown error'}`);
     }
   };
 
@@ -999,6 +1050,40 @@ const MovementsPage = () => {
         </div>
       </Card>
 
+      {/* Bulk Actions Toolbar */}
+      {selectedMovementIds.size > 0 && (
+        <Card padding="md" className="sticky top-4 z-10 bg-blue-50 dark:bg-blue-900/20 border-2 border-blue-500">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <span className="font-semibold text-blue-900 dark:text-blue-100">
+                {selectedMovementIds.size} selected
+              </span>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={handleBulkApplyPending}
+              >
+                Apply Pending
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={handleBulkMarkPending}
+              >
+                Mark as Pending
+              </Button>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setSelectedMovementIds(new Set())}
+            >
+              Clear Selection
+            </Button>
+          </div>
+        </Card>
+      )}
+
       {/* Movements List */}
       {movementsByMonth.length === 0 ? (
         <Card padding="lg" className="text-center text-gray-500 dark:text-gray-400">
@@ -1010,9 +1095,28 @@ const MovementsPage = () => {
             const date = parseISO(`${monthKey}-01`);
             return (
               <Card key={monthKey} padding="md">
-                <h2 className="text-xl font-semibold mb-4 text-gray-800 dark:text-gray-200">
-                  {format(date, 'MMMM yyyy')}
-                </h2>
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-200">
+                    {format(date, 'MMMM yyyy')}
+                  </h2>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      const monthIds = monthMovements.map(m => m.id);
+                      const allSelected = monthIds.every(id => selectedMovementIds.has(id));
+                      const newSelection = new Set(selectedMovementIds);
+                      if (allSelected) {
+                        monthIds.forEach(id => newSelection.delete(id));
+                      } else {
+                        monthIds.forEach(id => newSelection.add(id));
+                      }
+                      setSelectedMovementIds(newSelection);
+                    }}
+                  >
+                    {monthMovements.every(m => selectedMovementIds.has(m.id)) ? 'Deselect All' : 'Select All'}
+                  </Button>
+                </div>
                 <div className="space-y-2">
                   {monthMovements.map((movement) => {
                     const account = getAccount(movement.accountId);
@@ -1028,17 +1132,37 @@ const MovementsPage = () => {
                       <div
                         key={movement.id}
                         className={`p-4 rounded-lg border-2 ${
+                          selectedMovementIds.has(movement.id)
+                            ? 'ring-2 ring-blue-500 ring-offset-2'
+                            : ''
+                        } ${
                           movement.isPending 
                             ? 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-400 dark:border-yellow-600 opacity-75' 
                             : getMovementTypeColor(movement.type)
                         }`}
                       >
-                        <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <input
+                            type="checkbox"
+                            checked={selectedMovementIds.has(movement.id)}
+                            onChange={(e) => {
+                              const newSelection = new Set(selectedMovementIds);
+                              if (e.target.checked) {
+                                newSelection.add(movement.id);
+                              } else {
+                                newSelection.delete(movement.id);
+                              }
+                              setSelectedMovementIds(newSelection);
+                            }}
+                            className="w-5 h-5 text-blue-600 bg-gray-100 dark:bg-gray-700 border-gray-300 dark:border-gray-600 rounded focus:ring-blue-500"
+                          />
                           <div className="flex-1">
-                            <div className="flex items-center gap-3 mb-2">
-                              {isIncome ? (
-                                <ArrowUpCircle className="w-5 h-5" />
-                              ) : (
+                            <div className="flex items-center justify-between">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-3 mb-2">
+                                  {isIncome ? (
+                                    <ArrowUpCircle className="w-5 h-5" />
+                                  ) : (
                                 <ArrowDownCircle className="w-5 h-5" />
                               )}
                               <span className="font-semibold">
@@ -1076,38 +1200,40 @@ const MovementsPage = () => {
                                 currency: account?.currency || 'USD',
                               })}
                             </span>
-                            <div className="flex gap-2">
-                              {movement.isPending && (
-                                <Button
-                                  variant="primary"
-                                  size="sm"
-                                  onClick={() => handleApplyPending(movement.id)}
-                                  loading={applyingId === movement.id}
-                                  disabled={applyingId !== null}
-                                  className="px-3 py-1 text-sm"
-                                >
-                                  Apply
-                                </Button>
-                              )}
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleEdit(movement)}
-                                disabled={deletingId !== null || applyingId !== null}
-                                className="p-2 text-gray-600 hover:text-blue-600 dark:hover:text-blue-400"
-                              >
-                                <Edit2 className="w-4 h-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleDelete(movement.id)}
-                                loading={deletingId === movement.id}
-                                disabled={deletingId !== null || applyingId !== null}
-                                className="p-2 text-gray-600 hover:text-red-600 dark:hover:text-red-400"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
+                                <div className="flex gap-2">
+                                  {movement.isPending && (
+                                    <Button
+                                      variant="primary"
+                                      size="sm"
+                                      onClick={() => handleApplyPending(movement.id)}
+                                      loading={applyingId === movement.id}
+                                      disabled={applyingId !== null}
+                                      className="px-3 py-1 text-sm"
+                                    >
+                                      Apply
+                                    </Button>
+                                  )}
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleEdit(movement)}
+                                    disabled={deletingId !== null || applyingId !== null}
+                                    className="p-2 text-gray-600 hover:text-blue-600 dark:hover:text-blue-400"
+                                  >
+                                    <Edit2 className="w-4 h-4" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleDelete(movement.id)}
+                                    loading={deletingId === movement.id}
+                                    disabled={deletingId !== null || applyingId !== null}
+                                    className="p-2 text-gray-600 hover:text-red-600 dark:hover:text-red-400"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                </div>
+                              </div>
                             </div>
                           </div>
                         </div>

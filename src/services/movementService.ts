@@ -387,6 +387,41 @@ class MovementService {
     return { ...movement, isPending: false };
   }
 
+  // Mark an applied movement as pending (reverse of applyPendingMovement)
+  async markAsPending(id: string): Promise<Movement> {
+    const movement = await this.getMovement(id);
+    if (!movement) {
+      throw new Error(`Movement with id "${id}" not found.`);
+    }
+
+    if (movement.isPending) {
+      throw new Error('Movement is already pending.');
+    }
+
+    // Revert the balance changes (opposite of apply)
+    const isIncome = movement.type === 'IngresoNormal' || movement.type === 'IngresoFijo';
+    const accountService = await getAccountService();
+    const account = await accountService.getAccount(movement.accountId);
+
+    if (movement.subPocketId) {
+      // Fixed expense movement - revert by doing opposite
+      await this.updateSubPocketBalance(movement.subPocketId, movement.amount, !isIncome);
+    } else {
+      // Normal pocket movement - revert by doing opposite
+      await this.updatePocketBalance(movement.pocketId, movement.amount, !isIncome);
+    }
+
+    // Sync investment account if needed
+    if (account && account.type === 'investment') {
+      await this.syncInvestmentAccount(movement.accountId);
+    }
+
+    // Mark as pending
+    await SupabaseStorageService.updateMovement(id, { isPending: true });
+
+    return { ...movement, isPending: true };
+  }
+
   // Get count of movements by account
   async getMovementCountByAccount(accountId: string): Promise<number> {
     const movements = await this.getAllMovements();
