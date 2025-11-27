@@ -151,17 +151,27 @@ const SummaryPage = () => {
   };
 
   // Calculate consolidated total (all currencies converted to primary)
-  const getConsolidatedTotal = (): number => {
-    return Object.keys(accountsByCurrency).reduce((total, currency) => {
-      const currencyTotal = getTotalByCurrency(currency as Currency);
-      const converted = currencyService.convertAmount(
-        currencyTotal,
-        currency as Currency,
-        primaryCurrency
-      );
-      return total + converted;
-    }, 0);
-  };
+  const [consolidatedTotal, setConsolidatedTotal] = useState<number>(0);
+
+  useEffect(() => {
+    const calculateTotal = async () => {
+      let total = 0;
+      for (const currency of Object.keys(accountsByCurrency)) {
+        const currencyTotal = getTotalByCurrency(currency as Currency);
+        const converted = await currencyService.convert(
+          currencyTotal,
+          currency as Currency,
+          primaryCurrency
+        );
+        total += converted;
+      }
+      setConsolidatedTotal(total);
+    };
+    
+    if (accounts.length > 0) {
+      calculateTotal();
+    }
+  }, [accounts, primaryCurrency]);
 
   // Get progress color for fixed expenses
   const getProgressColor = (progress: number): string => {
@@ -238,7 +248,7 @@ const SummaryPage = () => {
             Total ({primaryCurrency})
           </div>
           <div className="text-3xl font-bold text-blue-900 dark:text-blue-100">
-            {currencyService.formatCurrency(getConsolidatedTotal(), primaryCurrency)}
+            {currencyService.formatCurrency(consolidatedTotal, primaryCurrency)}
           </div>
           <div className="text-xs text-blue-600 dark:text-blue-400 mt-1">
             All currencies converted
