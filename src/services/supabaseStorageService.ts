@@ -206,6 +206,8 @@ export class SupabaseStorageService {
     if (updates.name !== undefined) updateData.name = updates.name;
     if (updates.balance !== undefined) updateData.balance = updates.balance;
     if (updates.displayOrder !== undefined) updateData.display_order = updates.displayOrder;
+    if (updates.accountId !== undefined) updateData.account_id = updates.accountId;
+    if (updates.currency !== undefined) updateData.currency = updates.currency;
     
     const { error } = await supabase
       .from('pockets')

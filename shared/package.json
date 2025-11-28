@@ -1,0 +1,11 @@
+{
+  "name": "finance-app-shared",
+  "version": "1.0.0",
+  "description": "Shared types and contracts between frontend and backend",
+  "main": "types/index.ts",
+  "types": "types/index.ts",
+  "scripts": {},
+  "keywords": ["types", "shared"],
+  "author": "",
+  "license": "MIT"
+}

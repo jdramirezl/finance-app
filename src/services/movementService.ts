@@ -596,6 +596,23 @@ class MovementService {
     console.log(`🎉 [markMovementsAsOrphaned] Complete - marked ${targetMovements.length} movements`);
     return targetMovements.length;
   }
+
+  // Update movements' accountId when migrating a pocket to another account
+  async updateMovementsAccountForPocket(pocketId: string, newAccountId: string): Promise<number> {
+    console.log(`🔄 [updateMovementsAccountForPocket] Starting - pocketId: ${pocketId}, newAccountId: ${newAccountId}`);
+    const movements = await this.getMovementsByPocket(pocketId);
+    console.log(`📊 [updateMovementsAccountForPocket] Found ${movements.length} movements to update`);
+    
+    for (const movement of movements) {
+      console.log(`💾 [updateMovementsAccountForPocket] Updating movement ${movement.id} from account ${movement.accountId} to ${newAccountId}`);
+      await SupabaseStorageService.updateMovement(movement.id, {
+        accountId: newAccountId,
+      });
+    }
+    
+    console.log(`✅ [updateMovementsAccountForPocket] Complete - updated ${movements.length} movements`);
+    return movements.length;
+  }
 }
 
 export const movementService = new MovementService();

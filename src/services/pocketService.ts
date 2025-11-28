@@ -197,6 +197,60 @@ class PocketService {
     const pockets = await this.getAllPockets();
     return pockets.find(p => p.type === 'fixed') || null;
   }
+
+  // Migrate fixed pocket to another account (maintaining all movements and sub-pockets)
+  async migrateFixedPocketToAccount(pocketId: string, targetAccountId: string): Promise<Pocket> {
+    console.log(`🔄 [migrateFixedPocketToAccount] Starting migration - pocketId: ${pocketId}, targetAccountId: ${targetAccountId}`);
+    
+    const pocket = await this.getPocket(pocketId);
+    if (!pocket) {
+      throw new Error(`Pocket with id "${pocketId}" not found.`);
+    }
+    console.log(`✅ [migrateFixedPocketToAccount] Found pocket:`, pocket);
+
+    if (pocket.type !== 'fixed') {
+      throw new Error('Only fixed pockets can be migrated using this method.');
+    }
+
+    // Validate target account exists
+    const accountService = await getAccountService();
+    const targetAccount = await accountService.getAccount(targetAccountId);
+    if (!targetAccount) {
+      throw new Error(`Target account with id "${targetAccountId}" not found.`);
+    }
+    console.log(`✅ [migrateFixedPocketToAccount] Found target account:`, targetAccount);
+
+    // Investment accounts cannot have fixed pockets
+    if (targetAccount.type === 'investment') {
+      throw new Error('Investment accounts cannot have fixed expenses pockets.');
+    }
+
+    // Check if target account already has a pocket with the same name
+    if (!(await this.validatePocketUniqueness(targetAccountId, pocket.name, pocketId))) {
+      throw new Error(`A pocket with name "${pocket.name}" already exists in the target account.`);
+    }
+    console.log(`✅ [migrateFixedPocketToAccount] Pocket name is unique in target account`);
+
+    // Update pocket's accountId and currency
+    const updatedPocket = {
+      ...pocket,
+      accountId: targetAccountId,
+      currency: targetAccount.currency,
+    };
+
+    console.log(`💾 [migrateFixedPocketToAccount] Updating pocket in storage:`, updatedPocket);
+    await SupabaseStorageService.updatePocket(pocketId, updatedPocket);
+    console.log(`✅ [migrateFixedPocketToAccount] Pocket updated in storage`);
+
+    // Update all movements associated with this pocket to the new account
+    const { movementService } = await import('./movementService');
+    console.log(`🔄 [migrateFixedPocketToAccount] Updating movements for pocket`);
+    const movementCount = await movementService.updateMovementsAccountForPocket(pocketId, targetAccountId);
+    console.log(`✅ [migrateFixedPocketToAccount] Updated ${movementCount} movements`);
+
+    console.log(`🎉 [migrateFixedPocketToAccount] Migration complete!`);
+    return updatedPocket;
+  }
 }
 
 export const pocketService = new PocketService();
