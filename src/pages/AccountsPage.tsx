@@ -3,7 +3,7 @@ import { useFinanceStore } from '../store/useFinanceStore';
 import { useToast } from '../hooks/useToast';
 import { useConfirm } from '../hooks/useConfirm';
 import type { Account, Pocket, Currency } from '../types';
-import { Plus, Trash2, Edit2, X } from 'lucide-react';
+import { Plus, Trash2, Edit2, X, ArrowRightLeft } from 'lucide-react';
 import Modal from '../components/Modal';
 import Button from '../components/Button';
 import ConfirmDialog from '../components/ConfirmDialog';
@@ -27,6 +27,7 @@ const AccountsPage = () => {
     deletePocket,
     reorderPockets,
     getPocketsByAccount,
+    migrateFixedPocketToAccount,
   } = useFinanceStore();
 
   const toast = useToast();
@@ -35,6 +36,9 @@ const AccountsPage = () => {
   const [showAccountForm, setShowAccountForm] = useState(false);
   const [showPocketForm, setShowPocketForm] = useState(false);
   const [showCascadeDialog, setShowCascadeDialog] = useState(false);
+  const [showMigrationDialog, setShowMigrationDialog] = useState(false);
+  const [migrationPocketId, setMigrationPocketId] = useState<string | null>(null);
+  const [migrationTargetAccountId, setMigrationTargetAccountId] = useState<string>('');
   const [cascadeAccountId, setCascadeAccountId] = useState<string | null>(null);
   const [cascadeDeleteMovements, setCascadeDeleteMovements] = useState(false);
   const [editingAccount, setEditingAccount] = useState<Account | null>(null);
@@ -43,6 +47,7 @@ const AccountsPage = () => {
   const [accountType, setAccountType] = useState<'normal' | 'investment'>('normal');
   const [isLoading, setIsLoading] = useState(true);
   const [isCascadeDeleting, setIsCascadeDeleting] = useState(false);
+  const [isMigrating, setIsMigrating] = useState(false);
   const [isSaving, setIsSaving] = useState(false); // Button-level loading
   const [_deletingAccountId, setDeletingAccountId] = useState<string | null>(null);
   const [_deletingPocketId, setDeletingPocketId] = useState<string | null>(null);
@@ -278,6 +283,39 @@ const AccountsPage = () => {
       toast.error(errorMessage);
     } finally {
       setDeletingPocketId(null);
+    }
+  };
+
+  const handleMigratePocket = (pocketId: string) => {
+    setMigrationPocketId(pocketId);
+    setMigrationTargetAccountId('');
+    setShowMigrationDialog(true);
+  };
+
+  const handleConfirmMigration = async () => {
+    if (!migrationPocketId || !migrationTargetAccountId) return;
+
+    setIsMigrating(true);
+    setError(null);
+    try {
+      const pocket = selectedAccountPockets.find(p => p.id === migrationPocketId);
+      const targetAccount = accounts.find(a => a.id === migrationTargetAccountId);
+      
+      await migrateFixedPocketToAccount(migrationPocketId, migrationTargetAccountId);
+      
+      setShowMigrationDialog(false);
+      setMigrationPocketId(null);
+      setMigrationTargetAccountId('');
+      
+      toast.success(
+        `Successfully migrated "${pocket?.name}" to "${targetAccount?.name}". All movements have been transferred.`
+      );
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to migrate pocket';
+      setError(errorMessage);
+      toast.error(errorMessage);
+    } finally {
+      setIsMigrating(false);
     }
   };
 
@@ -601,6 +639,15 @@ const AccountsPage = () => {
                             </p>
                           </div>
                           <div className="flex gap-2">
+                            {pocket.type === 'fixed' && (
+                              <button
+                                onClick={() => handleMigratePocket(pocket.id)}
+                                className="p-1 text-gray-400 dark:text-gray-500 hover:text-purple-600 dark:hover:text-purple-400"
+                                title="Migrate to another account"
+                              >
+                                <ArrowRightLeft className="w-4 h-4" />
+                              </button>
+                            )}
                             <button
                               onClick={() => {
                                 setEditingPocket(pocket);
@@ -815,6 +862,66 @@ const AccountsPage = () => {
               disabled={isCascadeDeleting}
             >
               Delete Everything
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Migration Dialog */}
+      <Modal isOpen={showMigrationDialog} onClose={() => !isMigrating && setShowMigrationDialog(false)}>
+        <div className="space-y-4">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+            Migrate Fixed Pocket to Another Account
+          </h3>
+          
+          <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+            <p className="text-blue-800 dark:text-blue-300 font-medium mb-2">
+              ℹ️ What will happen:
+            </p>
+            <ul className="list-disc list-inside text-blue-700 dark:text-blue-400 text-sm space-y-1">
+              <li>The fixed pocket will be moved to the target account</li>
+              <li>All sub-pockets will remain intact</li>
+              <li>All movements will be transferred to the new account</li>
+              <li>Balances will be recalculated automatically</li>
+            </ul>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-2 text-gray-900 dark:text-gray-100">
+              Select target account:
+            </label>
+            <select
+              value={migrationTargetAccountId}
+              onChange={(e) => setMigrationTargetAccountId(e.target.value)}
+              className="w-full px-3 py-2 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+              disabled={isMigrating}
+            >
+              <option value="">-- Select an account --</option>
+              {accounts
+                .filter(a => a.id !== selectedAccountId && a.type !== 'investment')
+                .map(account => (
+                  <option key={account.id} value={account.id}>
+                    {account.name} ({account.currency})
+                  </option>
+                ))}
+            </select>
+          </div>
+
+          <div className="flex gap-2 justify-end">
+            <Button
+              variant="secondary"
+              onClick={() => setShowMigrationDialog(false)}
+              disabled={isMigrating}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              onClick={handleConfirmMigration}
+              loading={isMigrating}
+              disabled={isMigrating || !migrationTargetAccountId}
+            >
+              Migrate Pocket
             </Button>
           </div>
         </div>

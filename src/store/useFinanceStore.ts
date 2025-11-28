@@ -35,6 +35,7 @@ interface FinanceStore {
   updatePocket: (id: string, updates: Partial<Pick<Pocket, 'name'>>) => Promise<void>;
   deletePocket: (id: string) => Promise<void>;
   reorderPockets: (pockets: Pocket[]) => Promise<void>;
+  migrateFixedPocketToAccount: (pocketId: string, targetAccountId: string) => Promise<void>;
 
   // Actions - SubPockets
   loadSubPockets: () => Promise<void>;
@@ -409,6 +410,36 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
           accounts: state.accounts.map((a) => (a.id === accountId ? account : a)),
         }));
       }
+    }
+  },
+
+  migrateFixedPocketToAccount: async (pocketId, targetAccountId) => {
+    console.log(`🏪 [Store] migrateFixedPocketToAccount called - pocketId: ${pocketId}, targetAccountId: ${targetAccountId}`);
+    try {
+      // Migrate pocket and all movements
+      console.log(`🏪 [Store] Calling pocketService.migrateFixedPocketToAccount`);
+      await pocketService.migrateFixedPocketToAccount(pocketId, targetAccountId);
+      console.log(`🏪 [Store] Migration service call complete`);
+      
+      // Reload everything to reflect changes
+      console.log(`🏪 [Store] Reloading accounts and movements`);
+      await Promise.all([
+        get().loadAccounts(),
+        get().loadMovements(),
+      ]);
+      console.log(`🏪 [Store] Reload complete`);
+      
+      // Select the target account to show the migrated pocket
+      console.log(`🏪 [Store] Selecting target account: ${targetAccountId}`);
+      set({ selectedAccountId: targetAccountId });
+      console.log(`🏪 [Store] Migration complete!`);
+    } catch (error) {
+      console.error(`❌ [Store] Migration failed:`, error);
+      await Promise.all([
+        get().loadAccounts(),
+        get().loadMovements(),
+      ]);
+      throw error;
     }
   },
 
