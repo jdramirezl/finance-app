@@ -39,13 +39,23 @@ class AccountService {
   // Feature flag to control backend usage
   private useBackend = import.meta.env.VITE_USE_BACKEND_ACCOUNTS === 'true';
 
+  constructor() {
+    // Log which mode we're in
+    if (this.useBackend) {
+      console.log('🚀 AccountService: Using BACKEND API at', import.meta.env.VITE_API_URL);
+    } else {
+      console.log('📦 AccountService: Using DIRECT Supabase calls');
+    }
+  }
+
   // Get all accounts
   async getAllAccounts(): Promise<Account[]> {
     if (this.useBackend) {
       try {
+        console.log('🔵 Backend API: GET /api/accounts');
         return await apiClient.get<Account[]>('/api/accounts');
       } catch (error) {
-        console.error('Backend API failed, falling back to Supabase:', error);
+        console.error('❌ Backend API failed, falling back to Supabase:', error);
         return await this.getAllAccountsDirect();
       }
     }
@@ -106,6 +116,7 @@ class AccountService {
   ): Promise<Account> {
     if (this.useBackend) {
       try {
+        console.log('🔵 Backend API: POST /api/accounts', { name, currency, type });
         return await apiClient.post<Account>('/api/accounts', {
           name,
           color,
