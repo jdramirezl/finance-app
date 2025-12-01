@@ -17,11 +17,11 @@
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
     "types": ["node", "jest"],
-    "baseUrl": ".",
+    "baseUrl": "./src",
     "paths": {
       "@shared/*": ["../shared/*"],
-      "@modules/*": ["./src/modules/*"],
-      "@shared-backend/*": ["./src/shared/*"]
+      "@modules/*": ["modules/*"],
+      "@shared-backend/*": ["shared/*"]
     }
   },
   "include": ["src/**/*"],

@@ -1,6 +1,7 @@
 import type { Account } from '../types';
 import { SupabaseStorageService } from './supabaseStorageService';
 import { generateId } from '../utils/idGenerator';
+import { apiClient } from './apiClient';
 
 // Lazy getters to avoid circular dependencies - using dynamic import
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -35,14 +36,43 @@ const getMovementService = async () => {
 };
 
 class AccountService {
+  // Feature flag to control backend usage
+  private useBackend = import.meta.env.VITE_USE_BACKEND_ACCOUNTS === 'true';
+
   // Get all accounts
   async getAllAccounts(): Promise<Account[]> {
+    if (this.useBackend) {
+      try {
+        return await apiClient.get<Account[]>('/api/accounts');
+      } catch (error) {
+        console.error('Backend API failed, falling back to Supabase:', error);
+        return await this.getAllAccountsDirect();
+      }
+    }
+    return await this.getAllAccountsDirect();
+  }
+
+  // Direct Supabase implementation (fallback)
+  private async getAllAccountsDirect(): Promise<Account[]> {
     return await SupabaseStorageService.getAccounts();
   }
 
   // Get account by ID
   async getAccount(id: string): Promise<Account | null> {
-    const accounts = await this.getAllAccounts();
+    if (this.useBackend) {
+      try {
+        return await apiClient.get<Account>(`/api/accounts/${id}`);
+      } catch (error) {
+        console.error('Backend API failed, falling back to Supabase:', error);
+        return await this.getAccountDirect(id);
+      }
+    }
+    return await this.getAccountDirect(id);
+  }
+
+  // Direct Supabase implementation (fallback)
+  private async getAccountDirect(id: string): Promise<Account | null> {
+    const accounts = await this.getAllAccountsDirect();
     return accounts.find(acc => acc.id === id) || null;
   }
 
@@ -68,6 +98,31 @@ class AccountService {
 
   // Create new account
   async createAccount(
+    name: string,
+    color: string,
+    currency: Account['currency'],
+    type: Account['type'] = 'normal',
+    stockSymbol?: string
+  ): Promise<Account> {
+    if (this.useBackend) {
+      try {
+        return await apiClient.post<Account>('/api/accounts', {
+          name,
+          color,
+          currency,
+          type,
+          stockSymbol,
+        });
+      } catch (error) {
+        console.error('Backend API failed, falling back to Supabase:', error);
+        return await this.createAccountDirect(name, color, currency, type, stockSymbol);
+      }
+    }
+    return await this.createAccountDirect(name, color, currency, type, stockSymbol);
+  }
+
+  // Direct Supabase implementation (fallback)
+  private async createAccountDirect(
     name: string,
     color: string,
     currency: Account['currency'],
@@ -110,7 +165,20 @@ class AccountService {
 
   // Update account
   async updateAccount(id: string, updates: Partial<Pick<Account, 'name' | 'color' | 'currency'>>): Promise<Account> {
-    const accounts = await this.getAllAccounts();
+    if (this.useBackend) {
+      try {
+        return await apiClient.put<Account>(`/api/accounts/${id}`, updates);
+      } catch (error) {
+        console.error('Backend API failed, falling back to Supabase:', error);
+        return await this.updateAccountDirect(id, updates);
+      }
+    }
+    return await this.updateAccountDirect(id, updates);
+  }
+
+  // Direct Supabase implementation (fallback)
+  private async updateAccountDirect(id: string, updates: Partial<Pick<Account, 'name' | 'color' | 'currency'>>): Promise<Account> {
+    const accounts = await this.getAllAccountsDirect();
     const index = accounts.findIndex(acc => acc.id === id);
 
     if (index === -1) {
@@ -171,7 +239,21 @@ class AccountService {
 
   // Delete account
   async deleteAccount(id: string): Promise<void> {
-    const account = await this.getAccount(id);
+    if (this.useBackend) {
+      try {
+        await apiClient.delete(`/api/accounts/${id}`);
+        return;
+      } catch (error) {
+        console.error('Backend API failed, falling back to Supabase:', error);
+        return await this.deleteAccountDirect(id);
+      }
+    }
+    return await this.deleteAccountDirect(id);
+  }
+
+  // Direct Supabase implementation (fallback)
+  private async deleteAccountDirect(id: string): Promise<void> {
+    const account = await this.getAccountDirect(id);
     if (!account) {
       throw new Error(`Account with id "${id}" not found.`);
     }
@@ -194,9 +276,32 @@ class AccountService {
     subPockets: number;
     movements: number;
   }> {
+    if (this.useBackend) {
+      try {
+        return await apiClient.post<{
+          account: string;
+          pockets: number;
+          subPockets: number;
+          movements: number;
+        }>(`/api/accounts/${id}/cascade`, { deleteMovements });
+      } catch (error) {
+        console.error('Backend API failed, falling back to Supabase:', error);
+        return await this.deleteAccountCascadeDirect(id, deleteMovements);
+      }
+    }
+    return await this.deleteAccountCascadeDirect(id, deleteMovements);
+  }
+
+  // Direct Supabase implementation (fallback)
+  private async deleteAccountCascadeDirect(id: string, deleteMovements: boolean = false): Promise<{
+    account: string;
+    pockets: number;
+    subPockets: number;
+    movements: number;
+  }> {
     console.log(`🗑️ [deleteAccountCascade] Starting - accountId: ${id}, deleteMovements: ${deleteMovements}`);
     
-    const account = await this.getAccount(id);
+    const account = await this.getAccountDirect(id);
     if (!account) {
       throw new Error(`Account with id "${id}" not found.`);
     }
@@ -280,6 +385,36 @@ class AccountService {
       subPockets: totalSubPockets,
       movements: totalMovements,
     };
+  }
+
+  // Reorder accounts
+  async reorderAccounts(accountIds: string[]): Promise<void> {
+    if (this.useBackend) {
+      try {
+        await apiClient.post('/api/accounts/reorder', { accountIds });
+        return;
+      } catch (error) {
+        console.error('Backend API failed, falling back to Supabase:', error);
+        return await this.reorderAccountsDirect(accountIds);
+      }
+    }
+    return await this.reorderAccountsDirect(accountIds);
+  }
+
+  // Direct Supabase implementation (fallback)
+  private async reorderAccountsDirect(accountIds: string[]): Promise<void> {
+    const accounts = await this.getAllAccountsDirect();
+    
+    // Update display order for each account based on position in array
+    const updatedAccounts = accounts.map(account => {
+      const newIndex = accountIds.indexOf(account.id);
+      if (newIndex !== -1) {
+        return { ...account, displayOrder: newIndex };
+      }
+      return account;
+    });
+    
+    await SupabaseStorageService.saveAccounts(updatedAccounts);
   }
 
   // Recalculate single account balance

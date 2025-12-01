@@ -4,9 +4,15 @@ import cors from 'cors';
 import helmet from 'helmet';
 import compression from 'compression';
 import dotenv from 'dotenv';
+import { errorHandler } from './shared/middleware/errorHandler';
+import { initializeContainer } from './shared/container';
+import accountRoutes from './modules/accounts/presentation/routes';
 
 // Load environment variables
 dotenv.config();
+
+// Initialize dependency injection container
+initializeContainer();
 
 const app = express();
 const PORT = process.env.BACKEND_PORT || 3001;
@@ -36,7 +42,7 @@ app.get('/health', (req: Request, res: Response) => {
   });
 });
 
-// API routes will be added here
+// API routes
 app.get('/api', (req: Request, res: Response) => {
   res.json({
     message: 'Finance App Backend API',
@@ -44,9 +50,13 @@ app.get('/api', (req: Request, res: Response) => {
     endpoints: {
       health: '/health',
       api: '/api',
+      accounts: '/api/accounts',
     },
   });
 });
+
+// Mount account routes
+app.use('/api/accounts', accountRoutes);
 
 // 404 handler
 app.use((req: Request, res: Response) => {
@@ -56,14 +66,8 @@ app.use((req: Request, res: Response) => {
   });
 });
 
-// Error handler
-app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
-  console.error('Error:', err);
-  res.status(500).json({
-    error: 'Internal Server Error',
-    message: process.env.NODE_ENV === 'development' ? err.message : 'Something went wrong',
-  });
-});
+// Global error handler (must be last)
+app.use(errorHandler);
 
 // Start server
 app.listen(PORT, () => {
