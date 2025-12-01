@@ -60,7 +60,7 @@ describe('Account Property-Based Tests', () => {
             fc.string().filter(s => !s.match(/^#[0-9A-Fa-f]{6}$/))
           ),
           fc.constantFrom(...validCurrencies),
-          fc.string({ minLength: 1 }),
+          fc.string({ minLength: 1 }).filter(s => s.trim().length > 0), // Ensure valid name
           (invalidColor: string, currency: Currency, name: string) => {
             expect(() => {
               new Account('test-id', name, invalidColor, currency, 0);
@@ -80,7 +80,7 @@ describe('Account Property-Based Tests', () => {
             fc.constant('CNY' as Currency),
             fc.string().filter(s => !validCurrencies.includes(s as Currency)) as fc.Arbitrary<Currency>
           ),
-          fc.string({ minLength: 1 }),
+          fc.string({ minLength: 1 }).filter(s => s.trim().length > 0), // Ensure valid name
           validHexColor(),
           (invalidCurrency: Currency, name: string, color: string) => {
             expect(() => {
@@ -95,7 +95,7 @@ describe('Account Property-Based Tests', () => {
     it('should reject investment accounts without stock symbol', () => {
       fc.assert(
         fc.property(
-          fc.string({ minLength: 1 }),
+          fc.string({ minLength: 1 }).filter(s => s.trim().length > 0), // Ensure valid name
           validHexColor(),
           fc.constantFrom(...validCurrencies),
           (name: string, color: string, currency: Currency) => {
@@ -219,7 +219,7 @@ describe('Account Property-Based Tests', () => {
           validHexColor(),
           fc.constantFrom(...validCurrencies),
           fc.constantFrom('normal' as const, 'investment' as const),
-          fc.option(fc.string({ minLength: 1 }), { nil: undefined }),
+          fc.option(fc.string({ minLength: 1 }).filter(s => s.trim().length > 0), { nil: undefined }), // Ensure valid stock symbol
           fc.option(fc.integer({ min: 0 }), { nil: undefined }),
           fc.option(fc.integer({ min: 0 }), { nil: undefined }),
           fc.option(fc.integer({ min: 0 }), { nil: undefined }),
@@ -234,7 +234,7 @@ describe('Account Property-Based Tests', () => {
             displayOrder: number | undefined
           ) => {
             // Skip invalid combinations
-            if (type === 'investment' && !stockSymbol) {
+            if (type === 'investment' && (!stockSymbol || !stockSymbol.trim())) {
               return; // This would be invalid, skip
             }
 
