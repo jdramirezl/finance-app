@@ -9,9 +9,10 @@ import { migrateOrphanedMovements } from '../utils/migrateOrphanedMovements';
 import { useToast } from '../hooks/useToast';
 
 const SettingsPage = () => {
-  const { settings, loadSettings, updateSettings, loadMovements } = useFinanceStore();
+  const { settings, loadSettings, updateSettings, loadMovements, recalculateAllBalances } = useFinanceStore();
   const toast = useToast();
   const [isMigrating, setIsMigrating] = useState(false);
+  const [isRecalculating, setIsRecalculating] = useState(false);
 
   useEffect(() => {
     const loadData = async () => {
@@ -46,6 +47,19 @@ const SettingsPage = () => {
       toast.error('Failed to migrate orphaned movements');
     } finally {
       setIsMigrating(false);
+    }
+  };
+
+  const handleRecalculateBalances = async () => {
+    setIsRecalculating(true);
+    try {
+      await recalculateAllBalances();
+      toast.success('All balances recalculated successfully! Pending movements excluded.');
+    } catch (err) {
+      console.error('Recalculation failed:', err);
+      toast.error('Failed to recalculate balances');
+    } finally {
+      setIsRecalculating(false);
     }
   };
 
@@ -85,6 +99,29 @@ const SettingsPage = () => {
             </label>
           ))}
         </div>
+      </Card>
+
+      <Card className="max-w-2xl">
+        <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">Balance Recalculation</h2>
+        <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+          Recalculate all account and pocket balances from movements. This will fix any incorrect balances caused by pending movements being included.
+        </p>
+        
+        <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg mb-4">
+          <p className="text-sm text-yellow-800 dark:text-yellow-300">
+            <strong>When to run:</strong> If you see incorrect balances in your accounts or pockets, especially negative balances where they shouldn't be. This will exclude pending movements from calculations.
+          </p>
+        </div>
+
+        <Button
+          variant="primary"
+          onClick={handleRecalculateBalances}
+          loading={isRecalculating}
+          disabled={isRecalculating}
+        >
+          <RefreshCw className="w-5 h-5" />
+          Recalculate All Balances
+        </Button>
       </Card>
 
       <Card className="max-w-2xl">
