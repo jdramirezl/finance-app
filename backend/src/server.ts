@@ -1,18 +1,42 @@
+// CRITICAL: Load environment variables FIRST, before any other imports
+import dotenv from 'dotenv';
+import path from 'path';
+
+const envPath = path.resolve(__dirname, '../.env');
+const result = dotenv.config({ path: envPath });
+
+if (result.error) {
+  console.error('❌ Error loading .env file:', result.error);
+  console.error('   Tried to load from:', envPath);
+} else {
+  console.log('✅ Environment variables loaded from:', envPath);
+}
+
+// Verify critical environment variables
+if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_KEY) {
+  console.error('❌ Missing required environment variables:');
+  console.error('   SUPABASE_URL:', process.env.SUPABASE_URL ? '✓' : '✗');
+  console.error('   SUPABASE_SERVICE_KEY:', process.env.SUPABASE_SERVICE_KEY ? '✓' : '✗');
+  console.error('\n   Make sure backend/.env file exists and contains:');
+  console.error('   - SUPABASE_URL');
+  console.error('   - SUPABASE_SERVICE_KEY');
+  process.exit(1);
+}
+
+// NOW import everything else (after env vars are loaded)
 import 'reflect-metadata';
 import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import compression from 'compression';
-import dotenv from 'dotenv';
 import { errorHandler } from './shared/middleware/errorHandler';
 import { initializeContainer } from './shared/container';
-import accountRoutes from './modules/accounts/presentation/routes';
 
-// Load environment variables
-dotenv.config();
-
-// Initialize dependency injection container
+// Initialize dependency injection container BEFORE importing routes
 initializeContainer();
+
+// Import routes AFTER container is initialized
+import accountRoutes from './modules/accounts/presentation/routes';
 
 const app = express();
 const PORT = process.env.BACKEND_PORT || 3001;

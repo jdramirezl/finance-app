@@ -26,11 +26,15 @@ declare global {
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_KEY;
 
-if (!supabaseUrl || !supabaseKey) {
+// Only throw error in non-test environments
+if ((!supabaseUrl || !supabaseKey) && process.env.NODE_ENV !== 'test') {
   throw new Error('Supabase configuration missing: SUPABASE_URL and SUPABASE_SERVICE_KEY required');
 }
 
-const supabase = createClient(supabaseUrl, supabaseKey);
+// Create client only if credentials are available
+const supabase = supabaseUrl && supabaseKey 
+  ? createClient(supabaseUrl, supabaseKey)
+  : null;
 
 /**
  * Authentication middleware
@@ -46,6 +50,11 @@ export async function authMiddleware(
   next: NextFunction
 ): Promise<void> {
   try {
+    // Check if Supabase client is available
+    if (!supabase) {
+      throw new UnauthorizedError('Authentication service not configured');
+    }
+
     // Extract token from Authorization header
     const authHeader = req.headers.authorization;
     
