@@ -10,11 +10,18 @@
  * - Tests use a test user ID to isolate test data
  */
 
+import 'reflect-metadata';
 import request from 'supertest';
 import { createClient } from '@supabase/supabase-js';
-import app from '../../../server';
 import type { CreateAccountDTO, UpdateAccountDTO } from '../application/dtos/AccountDTO';
 import { setupTestContainer } from './test-setup';
+
+// Setup test container BEFORE importing server
+// This ensures the DI container is properly initialized
+setupTestContainer();
+
+// Import server after container setup
+import app from '../../../server';
 
 // Skip integration tests if environment variables are not set
 const describeIntegration = process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_KEY
@@ -28,8 +35,6 @@ describeIntegration('AccountController Integration Tests', () => {
 
   // Setup: Create Supabase client and test user
   beforeAll(async () => {
-    // Setup test container with mock dependencies
-    setupTestContainer();
 
     supabase = createClient(
       process.env.SUPABASE_URL!,

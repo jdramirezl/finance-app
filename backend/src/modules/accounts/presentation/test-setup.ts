@@ -7,6 +7,7 @@
 import 'reflect-metadata';
 import { container } from 'tsyringe';
 import { createClient } from '@supabase/supabase-js';
+import { initializeContainer } from '../../../shared/container';
 
 /**
  * Mock Pocket Repository for testing
@@ -18,13 +19,20 @@ class MockPocketRepository {
   private supabase: any;
 
   constructor() {
-    this.supabase = createClient(
-      process.env.SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_KEY!
-    );
+    // Only create Supabase client if credentials are available
+    if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_KEY) {
+      this.supabase = createClient(
+        process.env.SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_KEY!
+      );
+    }
   }
 
   async findByAccountId(accountId: string, userId: string): Promise<Array<{ id: string; accountId: string; balance: number }>> {
+    if (!this.supabase) {
+      return [];
+    }
+
     const { data, error } = await this.supabase
       .from('pockets')
       .select('id, account_id, balance')
@@ -43,6 +51,9 @@ class MockPocketRepository {
  * Register mock dependencies for testing
  */
 export function setupTestContainer(): void {
+  // Initialize the main container first
+  initializeContainer();
+
   // Register mock PocketRepository
   container.register('PocketRepository', {
     useClass: MockPocketRepository,

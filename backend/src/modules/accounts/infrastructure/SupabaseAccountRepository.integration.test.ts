@@ -10,6 +10,7 @@
  * - Tests use a test user ID to isolate test data
  */
 
+import 'reflect-metadata';
 import { SupabaseAccountRepository } from './SupabaseAccountRepository';
 import { Account } from '../domain/Account';
 import { DatabaseError } from '../../../shared/errors/AppError';

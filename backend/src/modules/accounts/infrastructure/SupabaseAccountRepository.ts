@@ -14,17 +14,28 @@ import type { Currency } from '@shared-backend/types';
 
 @injectable()
 export class SupabaseAccountRepository implements IAccountRepository {
-  private supabase: SupabaseClient;
+  private supabase: SupabaseClient | null;
 
   constructor() {
     const supabaseUrl = process.env.SUPABASE_URL;
     const supabaseKey = process.env.SUPABASE_SERVICE_KEY;
 
-    if (!supabaseUrl || !supabaseKey) {
+    // Only throw error in non-test environments
+    if ((!supabaseUrl || !supabaseKey) && process.env.NODE_ENV !== 'test') {
       throw new Error('Supabase configuration missing: SUPABASE_URL and SUPABASE_SERVICE_KEY required');
     }
 
-    this.supabase = createClient(supabaseUrl, supabaseKey);
+    // Create client only if credentials are available
+    this.supabase = supabaseUrl && supabaseKey 
+      ? createClient(supabaseUrl, supabaseKey)
+      : null;
+  }
+
+  private ensureClient(): SupabaseClient {
+    if (!this.supabase) {
+      throw new DatabaseError('Supabase client not configured');
+    }
+    return this.supabase;
   }
 
   /**
@@ -33,7 +44,7 @@ export class SupabaseAccountRepository implements IAccountRepository {
   async save(account: Account, userId: string): Promise<void> {
     const data = AccountMapper.toPersistence(account, userId);
     
-    const { error } = await this.supabase
+    const { error } = await this.ensureClient()
       .from('accounts')
       .insert(data);
 
@@ -46,7 +57,7 @@ export class SupabaseAccountRepository implements IAccountRepository {
    * Find account by ID
    */
   async findById(id: string, userId: string): Promise<Account | null> {
-    const { data, error } = await this.supabase
+    const { data, error } = await this.ensureClient()
       .from('accounts')
       .select('*')
       .eq('id', id)
@@ -72,7 +83,7 @@ export class SupabaseAccountRepository implements IAccountRepository {
    * Find all accounts for a user, sorted by display order
    */
   async findAllByUserId(userId: string): Promise<Account[]> {
-    const { data, error } = await this.supabase
+    const { data, error } = await this.ensureClient()
       .from('accounts')
       .select('*')
       .eq('user_id', userId)
@@ -97,7 +108,7 @@ export class SupabaseAccountRepository implements IAccountRepository {
     currency: Currency,
     userId: string
   ): Promise<boolean> {
-    const { data, error } = await this.supabase
+    const { data, error } = await this.ensureClient()
       .from('accounts')
       .select('id')
       .eq('user_id', userId)
@@ -121,7 +132,7 @@ export class SupabaseAccountRepository implements IAccountRepository {
     userId: string,
     excludeId: string
   ): Promise<boolean> {
-    const { data, error } = await this.supabase
+    const { data, error } = await this.ensureClient()
       .from('accounts')
       .select('id')
       .eq('user_id', userId)
@@ -146,7 +157,7 @@ export class SupabaseAccountRepository implements IAccountRepository {
     // Remove id from update data (can't update primary key)
     const { id, ...updateData } = data;
 
-    const { error } = await this.supabase
+    const { error } = await this.ensureClient()
       .from('accounts')
       .update(updateData)
       .eq('id', account.id)
@@ -161,7 +172,7 @@ export class SupabaseAccountRepository implements IAccountRepository {
    * Delete an account
    */
   async delete(id: string, userId: string): Promise<void> {
-    const { error } = await this.supabase
+    const { error } = await this.ensureClient()
       .from('accounts')
       .delete()
       .eq('id', id)
@@ -185,7 +196,7 @@ export class SupabaseAccountRepository implements IAccountRepository {
     }));
 
     // Perform batch update using upsert
-    const { error } = await this.supabase
+    const { error } = await this.ensureClient()
       .from('accounts')
       .upsert(updates, {
         onConflict: 'id',
