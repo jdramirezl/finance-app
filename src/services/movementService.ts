@@ -542,11 +542,13 @@ class MovementService {
     // Get all movements for this pocket
     const movements = await this.getMovementsByPocket(pocketId);
     
-    // Calculate balance from movements
-    const balance = movements.reduce((sum, m) => {
-      const isIncome = m.type === 'IngresoNormal' || m.type === 'IngresoFijo';
-      return sum + (isIncome ? m.amount : -m.amount);
-    }, 0);
+    // Calculate balance from movements (EXCLUDING PENDING)
+    const balance = movements
+      .filter(m => !m.isPending) // Only include applied movements
+      .reduce((sum, m) => {
+        const isIncome = m.type === 'IngresoNormal' || m.type === 'IngresoFijo';
+        return sum + (isIncome ? m.amount : -m.amount);
+      }, 0);
     
     // Update pocket balance
     const pocket = await pocketService.getPocket(pocketId);
