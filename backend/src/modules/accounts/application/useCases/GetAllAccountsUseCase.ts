@@ -27,7 +27,7 @@ interface IPocketRepository {
  * For now, we define the minimal interface needed
  */
 interface IStockPriceService {
-  getCurrentPrice(symbol: string): Promise<number>;
+  execute(symbol: string): Promise<{ symbol: string; price: number; lastUpdated: Date }>;
 }
 
 @injectable()
@@ -60,8 +60,8 @@ export class GetAllAccountsUseCase {
           // For investment accounts: fetch current price and calculate balance
           if (!skipInvestmentPrices && account.stockSymbol) {
             try {
-              const currentPrice = await this.stockPriceService.getCurrentPrice(account.stockSymbol);
-              this.domainService.updateAccountBalance(account, undefined, currentPrice);
+              const stockPrice = await this.stockPriceService.execute(account.stockSymbol);
+              this.domainService.updateAccountBalance(account, undefined, stockPrice.price);
             } catch (error) {
               // If price fetch fails, keep existing balance
               console.error(`Failed to fetch price for ${account.stockSymbol}:`, error);

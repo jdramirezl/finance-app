@@ -1,115 +1,71 @@
-# Account Repository Integration Tests
+# Repository Integration Tests
 
 ## Overview
 
-The `SupabaseAccountRepository.integration.test.ts` file contains integration tests that verify the repository's interaction with a real Supabase database. These tests are different from unit tests because they:
+This directory contains integration tests for the repository layer that interact with a **real Supabase database**.
 
-- Connect to an actual database
-- Perform real CRUD operations
-- Test data persistence and retrieval
-- Verify database constraints and behavior
+## Why These Tests Exist
 
-## Running Integration Tests
+While unit tests and mocked integration tests verify business logic, these tests verify:
+- ✅ SQL queries are syntactically correct
+- ✅ Table and column names match the database schema
+- ✅ Database constraints work as expected
+- ✅ Row Level Security (RLS) policies function correctly
+- ✅ Transactions and concurrency handling work
 
-### Prerequisites
+## Running These Tests
 
-1. **Supabase Instance**: You need access to a Supabase project (can be a test/development instance)
-2. **Environment Variables**: Set the following in your `.env` file:
-   ```bash
-   SUPABASE_URL=your_supabase_project_url
-   SUPABASE_SERVICE_KEY=your_supabase_service_role_key
-   ```
+**By default, these tests are SKIPPED** because they require:
+1. A Supabase test database
+2. Proper environment variables
+3. Network connectivity
 
-3. **Database Schema**: Ensure the `accounts` table exists with the proper schema (see `sql/supabase-schema.sql`)
-
-### Running the Tests
+### To Run Locally:
 
 ```bash
-# Run all tests (integration tests will be skipped if env vars not set)
+# Set up environment variables
+export RUN_INTEGRATION_TESTS=true
+export SUPABASE_URL=your-test-supabase-url
+export SUPABASE_SERVICE_KEY=your-test-service-key
+
+# Run tests
 npm test
-
-# Run only integration tests
-npm test -- SupabaseAccountRepository.integration.test.ts
-
-# Run with coverage
-npm test -- --coverage SupabaseAccountRepository.integration.test.ts
 ```
 
-### Test Behavior
+### When to Run:
 
-- **Without Environment Variables**: Tests are automatically skipped with a clear message
-- **With Environment Variables**: Tests run against the real database
-- **Test Isolation**: Each test uses a unique user ID to avoid conflicts
-- **Cleanup**: All test data is automatically cleaned up after each test
+- ✅ **Before major releases** - Verify database interactions work
+- ✅ **In CI/CD pipeline** - Automated testing with test database
+- ✅ **After schema changes** - Ensure queries still work
+- ❌ **During development** - Too slow, use mocked tests instead
 
-## Test Coverage
+## Alternative: Docker Test Database
 
-The integration tests cover:
+For a better developer experience, consider setting up a local test database:
 
-### Save Operation
-- ✅ Save normal accounts
-- ✅ Save investment accounts with all fields
-- ✅ Handle duplicate ID errors
+```yaml
+# docker-compose.test.yml
+services:
+  postgres:
+    image: supabase/postgres
+    environment:
+      POSTGRES_PASSWORD: test
+    ports:
+      - "54322:5432"
+```
 
-### Find By ID Operation
-- ✅ Find existing accounts
-- ✅ Return null for non-existent accounts
-- ✅ Respect user ownership (multi-tenancy)
+Then run: `docker-compose -f docker-compose.test.yml up -d`
 
-### Find All By User ID Operation
-- ✅ Return empty array for users with no accounts
-- ✅ Return all accounts for a user
-- ✅ Sort by display order (ascending)
-- ✅ Place null display orders last
-- ✅ Filter by user ID (multi-tenancy)
+## Should You Delete These Tests?
 
-### Exists By Name And Currency Operation
-- ✅ Return true when account exists
-- ✅ Return false when account doesn't exist
-- ✅ Check both name and currency (not just one)
-- ✅ Case-sensitive name matching
-- ✅ Respect user ownership
+**Keep them if:**
+- You want confidence that SQL queries work
+- You have CI/CD that can run them
+- You're working on a production system
 
-### Update Operation
-- ✅ Update account name
-- ✅ Update account color
-- ✅ Update account currency
-- ✅ Update account balance
-- ✅ Update investment account fields
-- ✅ Update display order
-- ✅ Respect user ownership
+**Delete them if:**
+- You prefer simpler codebase
+- You rely on manual testing
+- You're prototyping/learning
 
-### Delete Operation
-- ✅ Delete existing accounts
-- ✅ Handle non-existent accounts gracefully
-- ✅ Respect user ownership
-- ✅ Allow re-creating accounts with same ID
-
-## Best Practices
-
-1. **Use Test Database**: Never run integration tests against production
-2. **Unique Test Data**: Tests use unique IDs to avoid conflicts
-3. **Cleanup**: Always clean up test data in `afterEach`
-4. **Isolation**: Each test should be independent
-5. **Environment Check**: Tests skip gracefully when env vars missing
-
-## Troubleshooting
-
-### Tests Are Skipped
-- Check that `SUPABASE_URL` and `SUPABASE_SERVICE_KEY` are set in `.env`
-- Verify the `.env` file is in the `backend/` directory
-
-### Connection Errors
-- Verify Supabase URL is correct
-- Check that service key has proper permissions
-- Ensure network connectivity to Supabase
-
-### Schema Errors
-- Run the schema migration: `sql/supabase-schema.sql`
-- Verify the `accounts` table exists
-- Check that all columns match the expected schema
-
-### Test Failures
-- Check database state (may have leftover data)
-- Verify Supabase RLS policies allow service key access
-- Review error messages for specific issues
+For this project, they're kept but skipped by default as a safety net.

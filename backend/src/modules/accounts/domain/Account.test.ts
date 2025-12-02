@@ -181,6 +181,50 @@ describe('Account Entity', () => {
         account.updateInvestmentDetails(undefined, -1000);
       }).toThrow('Investment amount cannot be negative');
     });
+
+    it('should calculate investment balance from stock price', () => {
+      const account = new Account('id', 'Test', '#3b82f6', 'USD', 0, 'investment', 'VOO', 10000, 50);
+      const balance = account.calculateInvestmentBalance(450.25);
+      expect(balance).toBe(22512.5); // 50 shares * $450.25
+    });
+
+    it('should return zero balance for zero shares', () => {
+      const account = new Account('id', 'Test', '#3b82f6', 'USD', 0, 'investment', 'VOO', 10000, 0);
+      const balance = account.calculateInvestmentBalance(450.25);
+      expect(balance).toBe(0);
+    });
+
+    it('should return zero balance for undefined shares', () => {
+      const account = new Account('id', 'Test', '#3b82f6', 'USD', 0, 'investment', 'VOO', 10000);
+      const balance = account.calculateInvestmentBalance(450.25);
+      expect(balance).toBe(0);
+    });
+
+    it('should reject calculating investment balance on normal account', () => {
+      const account = new Account('id', 'Test', '#3b82f6', 'USD', 0, 'normal');
+      expect(() => {
+        account.calculateInvestmentBalance(450.25);
+      }).toThrow('Cannot calculate investment balance for non-investment account');
+    });
+
+    it('should reject negative stock price in calculation', () => {
+      const account = new Account('id', 'Test', '#3b82f6', 'USD', 0, 'investment', 'VOO', 10000, 50);
+      expect(() => {
+        account.calculateInvestmentBalance(-10);
+      }).toThrow('Stock price cannot be negative');
+    });
+
+    it('should update balance from stock price', () => {
+      const account = new Account('id', 'Test', '#3b82f6', 'USD', 0, 'investment', 'VOO', 10000, 50);
+      account.updateBalanceFromStockPrice(450.25);
+      expect(account.balance).toBe(22512.5);
+    });
+
+    it('should handle zero stock price', () => {
+      const account = new Account('id', 'Test', '#3b82f6', 'USD', 0, 'investment', 'VOO', 10000, 50);
+      const balance = account.calculateInvestmentBalance(0);
+      expect(balance).toBe(0);
+    });
   });
 
   describe('Type Checking', () => {

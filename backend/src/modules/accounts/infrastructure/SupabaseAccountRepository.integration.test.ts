@@ -17,10 +17,14 @@ import { DatabaseError } from '../../../shared/errors/AppError';
 import type { Currency } from '@shared-backend/types';
 import { createClient } from '@supabase/supabase-js';
 
-// Skip integration tests if environment variables are not set
-const describeIntegration = process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_KEY
-  ? describe
-  : describe.skip;
+// Skip integration tests by default (they require real database)
+// To run these tests, set RUN_INTEGRATION_TESTS=true in addition to Supabase credentials
+const describeIntegration = 
+  process.env.RUN_INTEGRATION_TESTS === 'true' && 
+  process.env.SUPABASE_URL && 
+  process.env.SUPABASE_SERVICE_KEY
+    ? describe
+    : describe.skip;
 
 describeIntegration('SupabaseAccountRepository Integration Tests', () => {
   let repository: SupabaseAccountRepository;

@@ -41,9 +41,8 @@ interface ISubPocketRepository {
  * For now, we define the minimal interface needed for cascade delete.
  */
 interface IMovementRepository {
-  findByAccountId(accountId: string, userId: string): Promise<Array<{ id: string; accountId: string }>>;
-  markAsOrphaned(movementId: string, accountName: string, accountCurrency: string, pocketName: string, userId: string): Promise<void>;
-  delete(movementId: string, userId: string): Promise<void>;
+  markAsOrphanedByAccountId(accountId: string, accountName: string, accountCurrency: any, userId: string): Promise<number>;
+  deleteByAccountId(accountId: string, userId: string): Promise<number>;
 }
 
 export interface DeleteAccountCascadeDTO {
@@ -107,25 +106,17 @@ export class DeleteAccountCascadeUseCase {
     }
 
     // Handle movements (Requirement 5.1 and 5.2)
-    const movements = await this.movementRepo.findByAccountId(accountId, userId);
-
-    for (const movement of movements) {
-      if (dto.deleteMovements) {
-        // Hard delete movements (Requirement 5.2)
-        await this.movementRepo.delete(movement.id, userId);
-      } else {
-        // Mark movements as orphaned (Requirement 5.1)
-        // We need to get pocket name for orphaned data, but for now we'll use a placeholder
-        // This will be properly implemented when we have full pocket data
-        await this.movementRepo.markAsOrphaned(
-          movement.id,
-          account.name,
-          account.currency,
-          '', // Pocket name - will be properly retrieved in Phase 4
-          userId
-        );
-      }
-      movementsAffected++;
+    if (dto.deleteMovements) {
+      // Hard delete all movements for this account (Requirement 5.2)
+      movementsAffected = await this.movementRepo.deleteByAccountId(accountId, userId);
+    } else {
+      // Mark all movements as orphaned (Requirement 5.1)
+      movementsAffected = await this.movementRepo.markAsOrphanedByAccountId(
+        accountId,
+        account.name,
+        account.currency,
+        userId
+      );
     }
 
     // Delete the account itself

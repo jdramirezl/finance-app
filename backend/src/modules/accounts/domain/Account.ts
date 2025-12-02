@@ -135,6 +135,40 @@ export class Account {
   }
 
   /**
+   * Calculate investment account balance from shares and current price
+   * For investment accounts: balance = shares * currentPrice
+   * 
+   * @param currentPrice - Current stock price
+   * @returns Calculated balance
+   */
+  calculateInvestmentBalance(currentPrice: number): number {
+    if (!this.isInvestment()) {
+      throw new Error('Cannot calculate investment balance for non-investment account');
+    }
+
+    if (currentPrice < 0) {
+      throw new Error('Stock price cannot be negative');
+    }
+
+    if (!this.shares || this.shares === 0) {
+      return 0;
+    }
+
+    return this.shares * currentPrice;
+  }
+
+  /**
+   * Update balance with investment calculation
+   * This is a convenience method that combines calculation and update
+   * 
+   * @param currentPrice - Current stock price
+   */
+  updateBalanceFromStockPrice(currentPrice: number): void {
+    const calculatedBalance = this.calculateInvestmentBalance(currentPrice);
+    this.updateBalance(calculatedBalance);
+  }
+
+  /**
    * Update display order
    */
   updateDisplayOrder(order: number): void {
