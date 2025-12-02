@@ -2,12 +2,17 @@
 import dotenv from 'dotenv';
 import path from 'path';
 
+// Try to load .env file (for local development)
+// In production (Vercel, etc.), environment variables are provided directly
 const envPath = path.resolve(__dirname, '../.env');
 const result = dotenv.config({ path: envPath });
 
 if (result.error) {
-  console.error('❌ Error loading .env file:', result.error);
-  console.error('   Tried to load from:', envPath);
+  // Only warn in development, not an error in production
+  if (process.env.NODE_ENV !== 'production') {
+    console.warn('⚠️  No .env file found:', envPath);
+    console.warn('   Using environment variables from system');
+  }
 } else {
   console.log('✅ Environment variables loaded from:', envPath);
 }
@@ -17,9 +22,9 @@ if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_KEY) {
   console.error('❌ Missing required environment variables:');
   console.error('   SUPABASE_URL:', process.env.SUPABASE_URL ? '✓' : '✗');
   console.error('   SUPABASE_SERVICE_KEY:', process.env.SUPABASE_SERVICE_KEY ? '✓' : '✗');
-  console.error('\n   Make sure backend/.env file exists and contains:');
-  console.error('   - SUPABASE_URL');
-  console.error('   - SUPABASE_SERVICE_KEY');
+  console.error('\n   Make sure environment variables are set in:');
+  console.error('   - Local: backend/.env file');
+  console.error('   - Production: Vercel/hosting platform dashboard');
   process.exit(1);
 }
 
@@ -46,7 +51,7 @@ import settingsRoutes from './modules/settings/presentation/settingsRoutes';
 import currencyRoutes from './modules/settings/presentation/currencyRoutes';
 
 const app = express();
-const PORT = process.env.BACKEND_PORT || 3001;
+const PORT = process.env.PORT || process.env.BACKEND_PORT || 3001;
 
 // Middleware
 app.use(helmet());

@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { currencyService } from './currencyService';
 import { apiClient } from './apiClient';
-import type { Currency } from '../types';
+// import type { Currency } from '../types';
 
 /**
  * Feature Flag Tests for Currency Service
