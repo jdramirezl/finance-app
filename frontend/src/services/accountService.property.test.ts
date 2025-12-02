@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import fc from 'fast-check';
+// import fc from 'fast-check';
 import { accountService } from './accountService';
 import { apiClient } from './apiClient';
 import { SupabaseStorageService } from './supabaseStorageService';

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { apiClient } from './apiClient';
-import { supabase } from '../lib/supabase';
+// import { supabase } from '../lib/supabase';
 
 /**
  * Feature Flag Tests for Investment Service
