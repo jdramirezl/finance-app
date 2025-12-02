@@ -1,15 +1,57 @@
+// CRITICAL: Load environment variables FIRST, before any other imports
+import dotenv from 'dotenv';
+import path from 'path';
+
+// Try to load .env file (for local development)
+// In production (Vercel, etc.), environment variables are provided directly
+const envPath = path.resolve(__dirname, '../.env');
+const result = dotenv.config({ path: envPath });
+
+if (result.error) {
+  // Only warn in development, not an error in production
+  if (process.env.NODE_ENV !== 'production') {
+    console.warn('⚠️  No .env file found:', envPath);
+    console.warn('   Using environment variables from system');
+  }
+} else {
+  console.log('✅ Environment variables loaded from:', envPath);
+}
+
+// Verify critical environment variables
+if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_KEY) {
+  console.error('❌ Missing required environment variables:');
+  console.error('   SUPABASE_URL:', process.env.SUPABASE_URL ? '✓' : '✗');
+  console.error('   SUPABASE_SERVICE_KEY:', process.env.SUPABASE_SERVICE_KEY ? '✓' : '✗');
+  console.error('\n   Make sure environment variables are set in:');
+  console.error('   - Local: backend/.env file');
+  console.error('   - Production: Vercel/hosting platform dashboard');
+  process.exit(1);
+}
+
+// NOW import everything else (after env vars are loaded)
 import 'reflect-metadata';
 import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import compression from 'compression';
-import dotenv from 'dotenv';
+import { errorHandler } from './shared/middleware/errorHandler';
+import { initializeContainer } from './shared/container';
 
-// Load environment variables
-dotenv.config();
+// Initialize dependency injection container BEFORE importing routes
+initializeContainer();
+
+// Import routes AFTER container is initialized
+import accountRoutes from './modules/accounts/presentation/routes';
+import investmentRoutes from './modules/accounts/presentation/investmentRoutes';
+import pocketRoutes from './modules/pockets/presentation/routes';
+import subPocketRoutes from './modules/sub-pockets/presentation/subPocketRoutes';
+import groupRoutes from './modules/sub-pockets/presentation/groupRoutes';
+import movementRoutes from './modules/movements/presentation/routes';
+import settingsRoutes from './modules/settings/presentation/settingsRoutes';
+import currencyRoutes from './modules/settings/presentation/currencyRoutes';
 
 const app = express();
-const PORT = process.env.BACKEND_PORT || 3001;
+const PORT = process.env.PORT || process.env.BACKEND_PORT || 3001;
 
 // Middleware
 app.use(helmet());
@@ -36,7 +78,7 @@ app.get('/health', (req: Request, res: Response) => {
   });
 });
 
-// API routes will be added here
+// API routes
 app.get('/api', (req: Request, res: Response) => {
   res.json({
     message: 'Finance App Backend API',
@@ -44,9 +86,41 @@ app.get('/api', (req: Request, res: Response) => {
     endpoints: {
       health: '/health',
       api: '/api',
+      accounts: '/api/accounts',
+      investments: '/api/investments',
+      pockets: '/api/pockets',
+      subPockets: '/api/sub-pockets',
+      fixedExpenseGroups: '/api/fixed-expense-groups',
+      movements: '/api/movements',
+      settings: '/api/settings',
+      currency: '/api/currency',
     },
   });
 });
+
+// Mount account routes
+app.use('/api/accounts', accountRoutes);
+
+// Mount investment routes
+app.use('/api/investments', investmentRoutes);
+
+// Mount pocket routes
+app.use('/api/pockets', pocketRoutes);
+
+// Mount sub-pocket routes
+app.use('/api/sub-pockets', subPocketRoutes);
+
+// Mount fixed expense group routes
+app.use('/api/fixed-expense-groups', groupRoutes);
+
+// Mount movement routes
+app.use('/api/movements', movementRoutes);
+
+// Mount settings routes
+app.use('/api/settings', settingsRoutes);
+
+// Mount currency routes
+app.use('/api/currency', currencyRoutes);
 
 // 404 handler
 app.use((req: Request, res: Response) => {
@@ -56,14 +130,8 @@ app.use((req: Request, res: Response) => {
   });
 });
 
-// Error handler
-app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
-  console.error('Error:', err);
-  res.status(500).json({
-    error: 'Internal Server Error',
-    message: process.env.NODE_ENV === 'development' ? err.message : 'Something went wrong',
-  });
-});
+// Global error handler (must be last)
+app.use(errorHandler);
 
 // Start server
 app.listen(PORT, () => {
