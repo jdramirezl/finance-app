@@ -69,6 +69,7 @@ interface FinanceStore {
   getOrphanedMovementsCount: () => Promise<number>;
   findMatchingOrphanedMovements: (accountName: string, accountCurrency: string, pocketName?: string) => Promise<Movement[]>;
   restoreOrphanedMovements: (movementIds: string[], accountId: string, pocketId: string) => Promise<number>;
+  recalculateAllBalances: () => Promise<void>;
 
   // Actions - Settings
   loadSettings: () => Promise<void>;
@@ -784,6 +785,20 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
     ]);
     
     return count;
+  },
+
+  recalculateAllBalances: async () => {
+    console.log('🔄 Starting full balance recalculation...');
+    await movementService.recalculateAllPocketBalances();
+    
+    // Reload everything to reflect new balances
+    await Promise.all([
+      get().loadAccounts(),
+      get().loadPockets(),
+      get().loadSubPockets(),
+    ]);
+    
+    console.log('✅ Balance recalculation complete!');
   },
 
   applyPendingMovement: async (id) => {

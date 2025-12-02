@@ -721,11 +721,13 @@ class MovementService {
     // Get all movements for this pocket
     const movements = await this.getMovementsByPocket(pocketId);
     
-    // Calculate balance from movements
-    const balance = movements.reduce((sum, m) => {
-      const isIncome = m.type === 'IngresoNormal' || m.type === 'IngresoFijo';
-      return sum + (isIncome ? m.amount : -m.amount);
-    }, 0);
+    // Calculate balance from movements (EXCLUDING PENDING)
+    const balance = movements
+      .filter(m => !m.isPending) // Only include applied movements
+      .reduce((sum, m) => {
+        const isIncome = m.type === 'IngresoNormal' || m.type === 'IngresoFijo';
+        return sum + (isIncome ? m.amount : -m.amount);
+      }, 0);
     
     // Update pocket balance
     const pocket = await pocketService.getPocket(pocketId);
@@ -735,6 +737,66 @@ class MovementService {
       // Update account balance
       await accountService.recalculateAccountBalance(pocket.accountId);
     }
+  }
+
+  // Recalculate ALL pocket balances from movements (excluding pending)
+  async recalculateAllPocketBalances(): Promise<void> {
+    console.log(`🔄 [recalculateAllPocketBalances] Starting full recalculation`);
+    
+    const pocketService = await getPocketService();
+    const accountService = await getAccountService();
+    
+    const pockets = await pocketService.getAllPockets();
+    console.log(`📦 [recalculateAllPocketBalances] Found ${pockets.length} pockets`);
+    
+    for (const pocket of pockets) {
+      if (pocket.type === 'fixed') {
+        // Fixed pockets: calculate from sub-pockets
+        const subPocketService = await getSubPocketService();
+        const subPockets = await subPocketService.getSubPocketsByPocket(pocket.id);
+        
+        // Recalculate each sub-pocket balance from movements
+        for (const subPocket of subPockets) {
+          const movements = await this.getAllMovements();
+          const subPocketMovements = movements.filter(m => m.subPocketId === subPocket.id);
+          
+          const balance = subPocketMovements
+            .filter(m => !m.isPending) // Exclude pending
+            .reduce((sum, m) => {
+              const isIncome = m.type === 'IngresoFijo';
+              return sum + (isIncome ? m.amount : -m.amount);
+            }, 0);
+          
+          await SupabaseStorageService.updateSubPocket(subPocket.id, { balance });
+          console.log(`  ✅ SubPocket ${subPocket.name}: ${balance}`);
+        }
+        
+        // Now sum sub-pocket balances for the fixed pocket
+        const updatedSubPockets = await subPocketService.getSubPocketsByPocket(pocket.id);
+        const pocketBalance = updatedSubPockets.reduce((sum: number, sp: { balance: number }) => sum + sp.balance, 0);
+        await SupabaseStorageService.updatePocket(pocket.id, { balance: pocketBalance });
+        console.log(`✅ Fixed Pocket ${pocket.name}: ${pocketBalance}`);
+      } else {
+        // Normal pockets: calculate from movements
+        const movements = await this.getMovementsByPocket(pocket.id);
+        
+        const balance = movements
+          .filter(m => !m.isPending) // Exclude pending
+          .reduce((sum, m) => {
+            const isIncome = m.type === 'IngresoNormal';
+            return sum + (isIncome ? m.amount : -m.amount);
+          }, 0);
+        
+        await SupabaseStorageService.updatePocket(pocket.id, { balance });
+        console.log(`✅ Pocket ${pocket.name}: ${balance}`);
+      }
+    }
+    
+    // Recalculate all account balances
+    console.log(`🏦 [recalculateAllPocketBalances] Recalculating account balances`);
+    await accountService.recalculateAllBalances();
+    
+    console.log(`🎉 [recalculateAllPocketBalances] Complete!`);
   }
 
   // Mark movements as orphaned (soft delete) - FAST, no lookups needed
