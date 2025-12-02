@@ -156,14 +156,18 @@ const SummaryPage = () => {
   useEffect(() => {
     const calculateTotal = async () => {
       let total = 0;
-      for (const currency of Object.keys(accountsByCurrency)) {
+      const validCurrencies = Object.keys(accountsByCurrency).filter(c => c && c.trim());
+      
+      for (const currency of validCurrencies) {
         const currencyTotal = getTotalByCurrency(currency as Currency);
-        const converted = await currencyService.convert(
-          currencyTotal,
-          currency as Currency,
-          primaryCurrency
-        );
-        total += converted;
+        if (currencyTotal && currency) {
+          const converted = await currencyService.convert(
+            currencyTotal,
+            currency as Currency,
+            primaryCurrency
+          );
+          total += converted;
+        }
       }
       setConsolidatedTotal(total);
     };

@@ -686,10 +686,15 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
       if (movement) {
         const pocket = await pocketService.getPocket(movement.pocketId);
         
-        // If subPocket was involved, reload it too
+        // If subPocket was involved, reload it too (handle case where it might not exist)
         let subPocket = null;
         if (movement.subPocketId) {
-          subPocket = await subPocketService.getSubPocket(movement.subPocketId);
+          try {
+            subPocket = await subPocketService.getSubPocket(movement.subPocketId);
+          } catch (err) {
+            // Sub-pocket might not exist (deleted or invalid ID), that's okay
+            console.warn(`Sub-pocket ${movement.subPocketId} not found, skipping reload`);
+          }
         }
         
         // SINGLE set() call: Update movement, pocket, subPocket, and account balance together

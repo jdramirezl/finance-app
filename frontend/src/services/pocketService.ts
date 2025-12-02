@@ -1,6 +1,7 @@
 import type { Pocket } from '../types';
 import { SupabaseStorageService } from './supabaseStorageService';
 import { generateId } from '../utils/idGenerator';
+import { apiClient } from './apiClient';
 
 // Lazy getters to avoid circular dependencies - using dynamic imports
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -25,20 +26,66 @@ const getSubPocketService = async () => {
 };
 
 class PocketService {
+  // Feature flag to control backend usage
+  private useBackend = import.meta.env.VITE_USE_BACKEND_POCKETS === 'true';
+
+  constructor() {
+    // Log which mode we're in
+    if (this.useBackend) {
+      console.log('🚀 PocketService: Using BACKEND API at', import.meta.env.VITE_API_URL);
+    } else {
+      console.log('📦 PocketService: Using DIRECT Supabase calls');
+    }
+  }
   // Get all pockets
   async getAllPockets(): Promise<Pocket[]> {
+    // Note: Backend doesn't have a "get all pockets" endpoint
+    // This is only used internally, so we always use direct Supabase
+    return await this.getAllPocketsDirect();
+  }
+
+  // Direct Supabase implementation (fallback)
+  private async getAllPocketsDirect(): Promise<Pocket[]> {
     return await SupabaseStorageService.getPockets();
   }
 
   // Get pocket by ID
   async getPocket(id: string): Promise<Pocket | null> {
-    const pockets = await this.getAllPockets();
+    if (this.useBackend) {
+      try {
+        console.log('🔵 Backend API: GET /api/pockets/' + id);
+        return await apiClient.get<Pocket>(`/api/pockets/${id}`);
+      } catch (error) {
+        console.error('❌ Backend API failed, falling back to Supabase:', error);
+        return await this.getPocketDirect(id);
+      }
+    }
+    return await this.getPocketDirect(id);
+  }
+
+  // Direct Supabase implementation (fallback)
+  private async getPocketDirect(id: string): Promise<Pocket | null> {
+    const pockets = await this.getAllPocketsDirect();
     return pockets.find(p => p.id === id) || null;
   }
 
   // Get pockets by account
   async getPocketsByAccount(accountId: string): Promise<Pocket[]> {
-    const pockets = await this.getAllPockets();
+    if (this.useBackend) {
+      try {
+        console.log('🔵 Backend API: GET /api/pockets?accountId=' + accountId);
+        return await apiClient.get<Pocket[]>(`/api/pockets?accountId=${accountId}`);
+      } catch (error) {
+        console.error('❌ Backend API failed, falling back to Supabase:', error);
+        return await this.getPocketsByAccountDirect(accountId);
+      }
+    }
+    return await this.getPocketsByAccountDirect(accountId);
+  }
+
+  // Direct Supabase implementation (fallback)
+  private async getPocketsByAccountDirect(accountId: string): Promise<Pocket[]> {
+    const pockets = await this.getAllPocketsDirect();
     return pockets.filter(p => p.accountId === accountId);
   }
 
@@ -79,6 +126,24 @@ class PocketService {
 
   // Create new pocket
   async createPocket(accountId: string, name: string, type: Pocket['type']): Promise<Pocket> {
+    if (this.useBackend) {
+      try {
+        console.log('🔵 Backend API: POST /api/pockets', { accountId, name, type });
+        return await apiClient.post<Pocket>('/api/pockets', {
+          accountId,
+          name,
+          type,
+        });
+      } catch (error) {
+        console.error('❌ Backend API failed, falling back to Supabase:', error);
+        return await this.createPocketDirect(accountId, name, type);
+      }
+    }
+    return await this.createPocketDirect(accountId, name, type);
+  }
+
+  // Direct Supabase implementation (fallback)
+  private async createPocketDirect(accountId: string, name: string, type: Pocket['type']): Promise<Pocket> {
     // Validate and sanitize input
     const trimmedName = name.trim();
     if (!trimmedName) {
@@ -133,7 +198,21 @@ class PocketService {
 
   // Update pocket
   async updatePocket(id: string, updates: Partial<Pick<Pocket, 'name'>>): Promise<Pocket> {
-    const pockets = await this.getAllPockets();
+    if (this.useBackend) {
+      try {
+        console.log('🔵 Backend API: PUT /api/pockets/' + id, updates);
+        return await apiClient.put<Pocket>(`/api/pockets/${id}`, updates);
+      } catch (error) {
+        console.error('❌ Backend API failed, falling back to Supabase:', error);
+        return await this.updatePocketDirect(id, updates);
+      }
+    }
+    return await this.updatePocketDirect(id, updates);
+  }
+
+  // Direct Supabase implementation (fallback)
+  private async updatePocketDirect(id: string, updates: Partial<Pick<Pocket, 'name'>>): Promise<Pocket> {
+    const pockets = await this.getAllPocketsDirect();
     const index = pockets.findIndex(p => p.id === id);
 
     if (index === -1) {
@@ -172,7 +251,22 @@ class PocketService {
 
   // Delete pocket
   async deletePocket(id: string): Promise<void> {
-    const pocket = await this.getPocket(id);
+    if (this.useBackend) {
+      try {
+        console.log('🔵 Backend API: DELETE /api/pockets/' + id);
+        await apiClient.delete(`/api/pockets/${id}`);
+        return;
+      } catch (error) {
+        console.error('❌ Backend API failed, falling back to Supabase:', error);
+        return await this.deletePocketDirect(id);
+      }
+    }
+    return await this.deletePocketDirect(id);
+  }
+
+  // Direct Supabase implementation (fallback)
+  private async deletePocketDirect(id: string): Promise<void> {
+    const pocket = await this.getPocketDirect(id);
     if (!pocket) {
       throw new Error(`Pocket with id "${id}" not found.`);
     }
@@ -200,9 +294,25 @@ class PocketService {
 
   // Migrate fixed pocket to another account (maintaining all movements and sub-pockets)
   async migrateFixedPocketToAccount(pocketId: string, targetAccountId: string): Promise<Pocket> {
+    if (this.useBackend) {
+      try {
+        console.log('🔵 Backend API: POST /api/pockets/' + pocketId + '/migrate', { targetAccountId });
+        return await apiClient.post<Pocket>(`/api/pockets/${pocketId}/migrate`, {
+          targetAccountId,
+        });
+      } catch (error) {
+        console.error('❌ Backend API failed, falling back to Supabase:', error);
+        return await this.migrateFixedPocketToAccountDirect(pocketId, targetAccountId);
+      }
+    }
+    return await this.migrateFixedPocketToAccountDirect(pocketId, targetAccountId);
+  }
+
+  // Direct Supabase implementation (fallback)
+  private async migrateFixedPocketToAccountDirect(pocketId: string, targetAccountId: string): Promise<Pocket> {
     console.log(`🔄 [migrateFixedPocketToAccount] Starting migration - pocketId: ${pocketId}, targetAccountId: ${targetAccountId}`);
     
-    const pocket = await this.getPocket(pocketId);
+    const pocket = await this.getPocketDirect(pocketId);
     if (!pocket) {
       throw new Error(`Pocket with id "${pocketId}" not found.`);
     }
@@ -250,6 +360,37 @@ class PocketService {
 
     console.log(`🎉 [migrateFixedPocketToAccount] Migration complete!`);
     return updatedPocket;
+  }
+
+  // Reorder pockets within an account
+  async reorderPockets(pocketIds: string[]): Promise<void> {
+    if (this.useBackend) {
+      try {
+        console.log('🔵 Backend API: POST /api/pockets/reorder', { pocketIds });
+        await apiClient.post('/api/pockets/reorder', { pocketIds });
+        return;
+      } catch (error) {
+        console.error('❌ Backend API failed, falling back to Supabase:', error);
+        return await this.reorderPocketsDirect(pocketIds);
+      }
+    }
+    return await this.reorderPocketsDirect(pocketIds);
+  }
+
+  // Direct Supabase implementation (fallback)
+  private async reorderPocketsDirect(pocketIds: string[]): Promise<void> {
+    const pockets = await this.getAllPocketsDirect();
+    
+    // Update display order for each pocket based on position in array
+    const updatedPockets = pockets.map(pocket => {
+      const newIndex = pocketIds.indexOf(pocket.id);
+      if (newIndex !== -1) {
+        return { ...pocket, displayOrder: newIndex };
+      }
+      return pocket;
+    });
+    
+    await SupabaseStorageService.savePockets(updatedPockets);
   }
 }
 

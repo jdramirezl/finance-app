@@ -1,11 +1,37 @@
 import type { FixedExpenseGroup } from '../types';
 import { supabase } from '../lib/supabase';
+import { apiClient } from './apiClient';
 
 const DEFAULT_GROUP_ID = '00000000-0000-0000-0000-000000000001';
 
 class FixedExpenseGroupService {
+  // Feature flag to control backend usage
+  private useBackend = import.meta.env.VITE_USE_BACKEND_FIXED_EXPENSE_GROUPS === 'true';
+
+  constructor() {
+    // Log which mode we're in
+    if (this.useBackend) {
+      console.log('🚀 FixedExpenseGroupService: Using BACKEND API at', import.meta.env.VITE_API_URL);
+    } else {
+      console.log('📦 FixedExpenseGroupService: Using DIRECT Supabase calls');
+    }
+  }
   // Get all groups
   async getAll(): Promise<FixedExpenseGroup[]> {
+    if (this.useBackend) {
+      try {
+        console.log('🔵 Backend API: GET /api/fixed-expense-groups');
+        return await apiClient.get<FixedExpenseGroup[]>('/api/fixed-expense-groups');
+      } catch (error) {
+        console.error('❌ Backend API failed, falling back to Supabase:', error);
+        return await this.getAllDirect();
+      }
+    }
+    return await this.getAllDirect();
+  }
+
+  // Direct Supabase implementation (fallback)
+  private async getAllDirect(): Promise<FixedExpenseGroup[]> {
     try {
       const { data, error } = await supabase
         .from('fixed_expense_groups')
@@ -29,6 +55,20 @@ class FixedExpenseGroupService {
 
   // Get group by ID
   async getById(id: string): Promise<FixedExpenseGroup | null> {
+    if (this.useBackend) {
+      try {
+        console.log('🔵 Backend API: GET /api/fixed-expense-groups/' + id);
+        return await apiClient.get<FixedExpenseGroup>(`/api/fixed-expense-groups/${id}`);
+      } catch (error) {
+        console.error('❌ Backend API failed, falling back to Supabase:', error);
+        return await this.getByIdDirect(id);
+      }
+    }
+    return await this.getByIdDirect(id);
+  }
+
+  // Direct Supabase implementation (fallback)
+  private async getByIdDirect(id: string): Promise<FixedExpenseGroup | null> {
     try {
       const { data, error } = await supabase
         .from('fixed_expense_groups')
@@ -54,6 +94,23 @@ class FixedExpenseGroupService {
 
   // Create new group
   async create(name: string, color: string): Promise<FixedExpenseGroup> {
+    if (this.useBackend) {
+      try {
+        console.log('🔵 Backend API: POST /api/fixed-expense-groups', { name, color });
+        return await apiClient.post<FixedExpenseGroup>('/api/fixed-expense-groups', {
+          name,
+          color,
+        });
+      } catch (error) {
+        console.error('❌ Backend API failed, falling back to Supabase:', error);
+        return await this.createDirect(name, color);
+      }
+    }
+    return await this.createDirect(name, color);
+  }
+
+  // Direct Supabase implementation (fallback)
+  private async createDirect(name: string, color: string): Promise<FixedExpenseGroup> {
     try {
       const now = new Date().toISOString();
 
@@ -85,6 +142,24 @@ class FixedExpenseGroupService {
 
   // Update group
   async update(id: string, name: string, color: string): Promise<void> {
+    if (this.useBackend) {
+      try {
+        console.log('🔵 Backend API: PUT /api/fixed-expense-groups/' + id, { name, color });
+        await apiClient.put(`/api/fixed-expense-groups/${id}`, {
+          name,
+          color,
+        });
+        return;
+      } catch (error) {
+        console.error('❌ Backend API failed, falling back to Supabase:', error);
+        return await this.updateDirect(id, name, color);
+      }
+    }
+    return await this.updateDirect(id, name, color);
+  }
+
+  // Direct Supabase implementation (fallback)
+  private async updateDirect(id: string, name: string, color: string): Promise<void> {
     try {
       // Prevent updating default group name
       if (id === DEFAULT_GROUP_ID) {
@@ -109,6 +184,21 @@ class FixedExpenseGroupService {
 
   // Delete group (moves expenses to Default group)
   async delete(id: string): Promise<void> {
+    if (this.useBackend) {
+      try {
+        console.log('🔵 Backend API: DELETE /api/fixed-expense-groups/' + id);
+        await apiClient.delete(`/api/fixed-expense-groups/${id}`);
+        return;
+      } catch (error) {
+        console.error('❌ Backend API failed, falling back to Supabase:', error);
+        return await this.deleteDirect(id);
+      }
+    }
+    return await this.deleteDirect(id);
+  }
+
+  // Direct Supabase implementation (fallback)
+  private async deleteDirect(id: string): Promise<void> {
     try {
       // Prevent deleting default group
       if (id === DEFAULT_GROUP_ID) {

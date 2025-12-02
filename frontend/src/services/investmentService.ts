@@ -1,5 +1,6 @@
 import type { Account } from '../types';
 import { supabase } from '../lib/supabase';
+import { apiClient } from './apiClient';
 
 interface PriceCache {
     symbol: string;
@@ -15,11 +16,29 @@ interface StockPriceAPIResponse {
     lastUpdated: string;
 }
 
+interface BackendStockPriceResponse {
+    symbol: string;
+    price: number;
+    cachedAt: string;
+}
+
 const CACHE_DURATION = 15 * 60 * 1000; // 15 minutes in milliseconds
 const API_RATE_LIMIT_MINUTES = 15; // Global rate limit across all devices
 
 class InvestmentService {
+    // Feature flag to control backend usage
+    private useBackend = import.meta.env.VITE_USE_BACKEND_INVESTMENTS === 'true';
+    
     private priceCache: Map<string, PriceCache> = new Map();
+
+    constructor() {
+        // Log which mode we're in
+        if (this.useBackend) {
+            console.log('🚀 InvestmentService: Using BACKEND API at', import.meta.env.VITE_API_URL);
+        } else {
+            console.log('📦 InvestmentService: Using DIRECT Supabase calls');
+        }
+    }
 
     // Load price cache from localStorage (cache stays local for performance)
     private loadPriceCache(): void {
@@ -208,6 +227,31 @@ class InvestmentService {
 
     // Get current price for a symbol (with 3-tier caching and rate limiting)
     async getCurrentPrice(symbol: string): Promise<number> {
+        if (this.useBackend) {
+            try {
+                console.log('🔵 Backend API: GET /api/investments/prices/' + symbol);
+                const response = await apiClient.get<BackendStockPriceResponse>(`/api/investments/prices/${symbol}`);
+                
+                // Cache the price locally for performance
+                const cachedAt = new Date(response.cachedAt).getTime();
+                this.priceCache.set(symbol, {
+                    symbol: response.symbol,
+                    price: response.price,
+                    timestamp: cachedAt,
+                });
+                this.savePriceCache();
+                
+                return response.price;
+            } catch (error) {
+                console.error('❌ Backend API failed, falling back to direct implementation:', error);
+                return await this.getCurrentPriceDirect(symbol);
+            }
+        }
+        return await this.getCurrentPriceDirect(symbol);
+    }
+
+    // Direct implementation (fallback)
+    private async getCurrentPriceDirect(symbol: string): Promise<number> {
         this.loadPriceCache();
 
         // 1. Check local cache first (fastest)
@@ -317,6 +361,8 @@ class InvestmentService {
         this.savePriceCache();
         
         // Fetch fresh price (will check rate limit)
+        // Note: Backend doesn't have a force refresh endpoint, so we just call getCurrentPrice
+        // which will use cached data if available
         return await this.getCurrentPrice(symbol);
     }
 }

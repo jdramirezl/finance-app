@@ -2,6 +2,7 @@ import type { Movement, MovementType, Pocket, Account } from '../types';
 import { SupabaseStorageService } from './supabaseStorageService';
 import { generateId } from '../utils/idGenerator';
 import { format } from 'date-fns';
+import { apiClient } from './apiClient';
 
 // Lazy getters to avoid circular dependencies
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -36,8 +37,25 @@ const getAccountService = async () => {
 };
 
 class MovementService {
+  // Feature flag to control backend usage
+  private useBackend = import.meta.env.VITE_USE_BACKEND_MOVEMENTS === 'true';
+
+  constructor() {
+    // Log which mode we're in
+    if (this.useBackend) {
+      console.log('🚀 MovementService: Using BACKEND API at', import.meta.env.VITE_API_URL);
+    } else {
+      console.log('📦 MovementService: Using DIRECT Supabase calls');
+    }
+  }
+
   // Get all movements (including orphaned)
   async getAllMovements(): Promise<Movement[]> {
+    return await this.getAllMovementsDirect();
+  }
+
+  // Direct Supabase implementation (fallback)
+  private async getAllMovementsDirect(): Promise<Movement[]> {
     return await SupabaseStorageService.getMovements();
   }
 
@@ -57,7 +75,20 @@ class MovementService {
 
   // Get all orphaned movements (INSTANT - just check flag)
   async getOrphanedMovements(): Promise<Movement[]> {
-    const movements = await this.getAllMovements();
+    if (this.useBackend) {
+      try {
+        return await apiClient.get<Movement[]>('/api/movements/orphaned');
+      } catch (error) {
+        console.error('Backend API failed, falling back to Supabase:', error);
+        return await this.getOrphanedMovementsDirect();
+      }
+    }
+    return await this.getOrphanedMovementsDirect();
+  }
+
+  // Direct Supabase implementation (fallback)
+  private async getOrphanedMovementsDirect(): Promise<Movement[]> {
+    const movements = await this.getAllMovementsDirect();
     return movements.filter(m => m.isOrphaned === true);
   }
 
@@ -83,18 +114,57 @@ class MovementService {
 
   // Get movements by account - ACTIVE ONLY
   async getMovementsByAccount(accountId: string): Promise<Movement[]> {
+    if (this.useBackend) {
+      try {
+        return await apiClient.get<Movement[]>(`/api/movements?accountId=${accountId}`);
+      } catch (error) {
+        console.error('Backend API failed, falling back to Supabase:', error);
+        return await this.getMovementsByAccountDirect(accountId);
+      }
+    }
+    return await this.getMovementsByAccountDirect(accountId);
+  }
+
+  // Direct Supabase implementation (fallback)
+  private async getMovementsByAccountDirect(accountId: string): Promise<Movement[]> {
     const movements = await this.getActiveMovements(); // Filter orphaned
     return movements.filter(m => m.accountId === accountId);
   }
 
   // Get movements by pocket - ACTIVE ONLY
   async getMovementsByPocket(pocketId: string): Promise<Movement[]> {
+    if (this.useBackend) {
+      try {
+        return await apiClient.get<Movement[]>(`/api/movements?pocketId=${pocketId}`);
+      } catch (error) {
+        console.error('Backend API failed, falling back to Supabase:', error);
+        return await this.getMovementsByPocketDirect(pocketId);
+      }
+    }
+    return await this.getMovementsByPocketDirect(pocketId);
+  }
+
+  // Direct Supabase implementation (fallback)
+  private async getMovementsByPocketDirect(pocketId: string): Promise<Movement[]> {
     const movements = await this.getActiveMovements(); // Filter orphaned
     return movements.filter(m => m.pocketId === pocketId);
   }
 
   // Get movements grouped by month (based on displayedDate) - ACTIVE ONLY
   async getMovementsByMonth(year: number, month: number): Promise<Movement[]> {
+    if (this.useBackend) {
+      try {
+        return await apiClient.get<Movement[]>(`/api/movements?year=${year}&month=${month}`);
+      } catch (error) {
+        console.error('Backend API failed, falling back to Supabase:', error);
+        return await this.getMovementsByMonthDirect(year, month);
+      }
+    }
+    return await this.getMovementsByMonthDirect(year, month);
+  }
+
+  // Direct Supabase implementation (fallback)
+  private async getMovementsByMonthDirect(year: number, month: number): Promise<Movement[]> {
     const movements = await this.getActiveMovements(); // Filter orphaned
     return movements.filter(m => {
       const date = new Date(m.displayedDate);
@@ -229,6 +299,38 @@ class MovementService {
     subPocketId?: string,
     isPending?: boolean
   ): Promise<Movement> {
+    if (this.useBackend) {
+      try {
+        console.log('🔵 Backend API: POST /api/movements');
+        return await apiClient.post<Movement>('/api/movements', {
+          type,
+          accountId,
+          pocketId,
+          amount,
+          notes,
+          displayedDate,
+          subPocketId,
+          isPending,
+        });
+      } catch (error) {
+        console.error('❌ Backend API failed, falling back to Supabase:', error);
+        return await this.createMovementDirect(type, accountId, pocketId, amount, notes, displayedDate, subPocketId, isPending);
+      }
+    }
+    return await this.createMovementDirect(type, accountId, pocketId, amount, notes, displayedDate, subPocketId, isPending);
+  }
+
+  // Direct Supabase implementation (fallback)
+  private async createMovementDirect(
+    type: MovementType,
+    accountId: string,
+    pocketId: string,
+    amount: number,
+    notes?: string,
+    displayedDate?: string,
+    subPocketId?: string,
+    isPending?: boolean
+  ): Promise<Movement> {
     // Validate amount
     if (amount <= 0) {
       throw new Error('Movement amount must be greater than zero.');
@@ -307,7 +409,23 @@ class MovementService {
     id: string,
     updates: Partial<Pick<Movement, 'type' | 'accountId' | 'pocketId' | 'subPocketId' | 'amount' | 'notes' | 'displayedDate'>>
   ): Promise<Movement> {
-    const movements = await this.getAllMovements();
+    if (this.useBackend) {
+      try {
+        return await apiClient.put<Movement>(`/api/movements/${id}`, updates);
+      } catch (error) {
+        console.error('Backend API failed, falling back to Supabase:', error);
+        return await this.updateMovementDirect(id, updates);
+      }
+    }
+    return await this.updateMovementDirect(id, updates);
+  }
+
+  // Direct Supabase implementation (fallback)
+  private async updateMovementDirect(
+    id: string,
+    updates: Partial<Pick<Movement, 'type' | 'accountId' | 'pocketId' | 'subPocketId' | 'amount' | 'notes' | 'displayedDate'>>
+  ): Promise<Movement> {
+    const movements = await this.getAllMovementsDirect();
     const index = movements.findIndex(m => m.id === id);
 
     if (index === -1) {
@@ -353,6 +471,20 @@ class MovementService {
 
   // Delete movement
   async deleteMovement(id: string): Promise<void> {
+    if (this.useBackend) {
+      try {
+        await apiClient.delete(`/api/movements/${id}`);
+        return;
+      } catch (error) {
+        console.error('Backend API failed, falling back to Supabase:', error);
+        return await this.deleteMovementDirect(id);
+      }
+    }
+    return await this.deleteMovementDirect(id);
+  }
+
+  // Direct Supabase implementation (fallback)
+  private async deleteMovementDirect(id: string): Promise<void> {
     const movement = await this.getMovement(id);
     if (!movement) {
       throw new Error(`Movement with id "${id}" not found.`);
@@ -380,7 +512,20 @@ class MovementService {
 
   // Get pending movements
   async getPendingMovements(): Promise<Movement[]> {
-    const movements = await this.getAllMovements();
+    if (this.useBackend) {
+      try {
+        return await apiClient.get<Movement[]>('/api/movements/pending');
+      } catch (error) {
+        console.error('Backend API failed, falling back to Supabase:', error);
+        return await this.getPendingMovementsDirect();
+      }
+    }
+    return await this.getPendingMovementsDirect();
+  }
+
+  // Direct Supabase implementation (fallback)
+  private async getPendingMovementsDirect(): Promise<Movement[]> {
+    const movements = await this.getAllMovementsDirect();
     return movements.filter(m => m.isPending === true);
   }
 
@@ -392,6 +537,19 @@ class MovementService {
 
   // Apply a pending movement (convert to applied)
   async applyPendingMovement(id: string): Promise<Movement> {
+    if (this.useBackend) {
+      try {
+        return await apiClient.post<Movement>(`/api/movements/${id}/apply`, {});
+      } catch (error) {
+        console.error('Backend API failed, falling back to Supabase:', error);
+        return await this.applyPendingMovementDirect(id);
+      }
+    }
+    return await this.applyPendingMovementDirect(id);
+  }
+
+  // Direct Supabase implementation (fallback)
+  private async applyPendingMovementDirect(id: string): Promise<Movement> {
     const movement = await this.getMovement(id);
     if (!movement) {
       throw new Error(`Movement with id "${id}" not found.`);
@@ -427,6 +585,19 @@ class MovementService {
 
   // Mark an applied movement as pending (reverse of applyPendingMovement)
   async markAsPending(id: string): Promise<Movement> {
+    if (this.useBackend) {
+      try {
+        return await apiClient.post<Movement>(`/api/movements/${id}/mark-pending`, {});
+      } catch (error) {
+        console.error('Backend API failed, falling back to Supabase:', error);
+        return await this.markAsPendingDirect(id);
+      }
+    }
+    return await this.markAsPendingDirect(id);
+  }
+
+  // Direct Supabase implementation (fallback)
+  private async markAsPendingDirect(id: string): Promise<Movement> {
     const movement = await this.getMovement(id);
     if (!movement) {
       throw new Error(`Movement with id "${id}" not found.`);
@@ -511,31 +682,39 @@ class MovementService {
     );
   }
 
-  // Restore orphaned movements to a new account/pocket
+  // Restore all orphaned movements automatically (backend API)
+  async restoreAllOrphanedMovements(): Promise<{ restored: number; failed: number }> {
+    if (this.useBackend) {
+      try {
+        return await apiClient.post<{ restored: number; failed: number }>('/api/movements/restore-orphaned', {});
+      } catch (error) {
+        console.error('Backend API failed, falling back to Supabase:', error);
+        // For fallback, we'll need to implement the matching logic
+        throw new Error('Automatic orphaned movement restoration requires backend API');
+      }
+    }
+    throw new Error('Automatic orphaned movement restoration requires backend API');
+  }
+
+  // Restore orphaned movements to a new account/pocket (manual restoration)
   async restoreOrphanedMovements(
     movementIds: string[],
     newAccountId: string,
     newPocketId: string
   ): Promise<number> {
-    console.log(`🔄 [restoreOrphanedMovements] Restoring ${movementIds.length} movements`);
-    
     for (const id of movementIds) {
       await SupabaseStorageService.updateMovement(id, {
         accountId: newAccountId,
         pocketId: newPocketId,
         isOrphaned: false,
       });
-      console.log(`✅ [restoreOrphanedMovements] Restored movement ${id}`);
     }
     
-    console.log(`🎉 [restoreOrphanedMovements] Complete - restored ${movementIds.length} movements`);
     return movementIds.length;
   }
 
   // Recalculate balances for a pocket after restoration
   async recalculateBalancesForPocket(pocketId: string): Promise<void> {
-    console.log(`💰 [recalculateBalancesForPocket] Recalculating for pocket ${pocketId}`);
-    
     const pocketService = await getPocketService();
     const accountService = await getAccountService();
     
@@ -552,7 +731,6 @@ class MovementService {
     const pocket = await pocketService.getPocket(pocketId);
     if (pocket) {
       await SupabaseStorageService.updatePocket(pocketId, { balance });
-      console.log(`✅ [recalculateBalancesForPocket] Updated pocket balance to ${balance}`);
       
       // Update account balance
       await accountService.recalculateAccountBalance(pocket.accountId);
@@ -561,16 +739,11 @@ class MovementService {
 
   // Mark movements as orphaned (soft delete) - FAST, no lookups needed
   async markMovementsAsOrphaned(id: string, type: 'account' | 'pocket'): Promise<number> {
-    console.log(`🔍 [markMovementsAsOrphaned] Starting - type: ${type}, id: ${id}`);
-    
     const movements = await this.getAllMovements();
-    console.log(`📊 [markMovementsAsOrphaned] Total movements in DB: ${movements.length}`);
     
     const targetMovements = type === 'account' 
       ? movements.filter(m => m.accountId === id)
       : movements.filter(m => m.pocketId === id);
-    
-    console.log(`🎯 [markMovementsAsOrphaned] Found ${targetMovements.length} movements to mark as orphaned`);
     
     // Get account/pocket services for name lookup
     const accountService = await getAccountService();
@@ -578,11 +751,10 @@ class MovementService {
     
     // Mark all as orphaned and save original info for restoration
     for (const movement of targetMovements) {
-      console.log(`✏️ [markMovementsAsOrphaned] Marking movement ${movement.id} as orphaned`);
-      
       // Get original account and pocket info for MATCHING (not by ID!)
       const account = await accountService.getAccount(movement.accountId);
-      const pocket = await pocketService.getPocket(movement.pocketId);
+      // Only fetch pocket if pocketId exists (not null/undefined)
+      const pocket = movement.pocketId ? await pocketService.getPocket(movement.pocketId) : null;
       
       await SupabaseStorageService.updateMovement(movement.id, { 
         isOrphaned: true,
@@ -590,27 +762,21 @@ class MovementService {
         orphanedAccountCurrency: account?.currency || 'USD',
         orphanedPocketName: pocket?.name || 'Unknown',
       });
-      console.log(`✅ [markMovementsAsOrphaned] Successfully marked movement ${movement.id}`);
     }
     
-    console.log(`🎉 [markMovementsAsOrphaned] Complete - marked ${targetMovements.length} movements`);
     return targetMovements.length;
   }
 
   // Update movements' accountId when migrating a pocket to another account
   async updateMovementsAccountForPocket(pocketId: string, newAccountId: string): Promise<number> {
-    console.log(`🔄 [updateMovementsAccountForPocket] Starting - pocketId: ${pocketId}, newAccountId: ${newAccountId}`);
     const movements = await this.getMovementsByPocket(pocketId);
-    console.log(`📊 [updateMovementsAccountForPocket] Found ${movements.length} movements to update`);
     
     for (const movement of movements) {
-      console.log(`💾 [updateMovementsAccountForPocket] Updating movement ${movement.id} from account ${movement.accountId} to ${newAccountId}`);
       await SupabaseStorageService.updateMovement(movement.id, {
         accountId: newAccountId,
       });
     }
     
-    console.log(`✅ [updateMovementsAccountForPocket] Complete - updated ${movements.length} movements`);
     return movements.length;
   }
 }

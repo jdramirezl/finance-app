@@ -93,6 +93,11 @@ class ApiClient {
         throw new Error(error.message || `HTTP ${response.status}`);
       }
 
+      // 204 No Content responses have no body
+      if (response.status === 204) {
+        return undefined as T;
+      }
+
       return await response.json();
     } catch (error) {
       return this.handleError(error);
@@ -136,6 +141,11 @@ class ApiClient {
       if (!response.ok) {
         const error = await response.json();
         throw new Error(error.message || `HTTP ${response.status}`);
+      }
+
+      // 204 No Content responses have no body
+      if (response.status === 204) {
+        return undefined as T;
       }
 
       return await response.json();

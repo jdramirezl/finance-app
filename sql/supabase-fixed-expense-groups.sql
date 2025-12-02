@@ -5,11 +5,16 @@
 -- Create fixed_expense_groups table
 CREATE TABLE IF NOT EXISTS fixed_expense_groups (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
   color TEXT NOT NULL DEFAULT '#3B82F6', -- Default blue color
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- Create index for user_id lookups
+CREATE INDEX IF NOT EXISTS idx_fixed_expense_groups_user_id 
+  ON fixed_expense_groups(user_id);
 
 -- Add group_id column to sub_pockets (nullable, defaults to Default group)
 ALTER TABLE sub_pockets 
@@ -22,33 +27,33 @@ CREATE INDEX IF NOT EXISTS idx_sub_pockets_group_id
 -- RLS Policies
 ALTER TABLE fixed_expense_groups ENABLE ROW LEVEL SECURITY;
 
--- Allow authenticated users to read groups
-CREATE POLICY "Allow authenticated users to read fixed expense groups"
+-- Allow users to read their own groups
+CREATE POLICY "Users can read their own fixed expense groups"
   ON fixed_expense_groups
   FOR SELECT
   TO authenticated
-  USING (true);
+  USING (auth.uid() = user_id);
 
--- Allow authenticated users to insert groups
-CREATE POLICY "Allow authenticated users to insert fixed expense groups"
+-- Allow users to insert their own groups
+CREATE POLICY "Users can insert their own fixed expense groups"
   ON fixed_expense_groups
   FOR INSERT
   TO authenticated
-  WITH CHECK (true);
+  WITH CHECK (auth.uid() = user_id);
 
--- Allow authenticated users to update groups
-CREATE POLICY "Allow authenticated users to update fixed expense groups"
+-- Allow users to update their own groups
+CREATE POLICY "Users can update their own fixed expense groups"
   ON fixed_expense_groups
   FOR UPDATE
   TO authenticated
-  USING (true);
+  USING (auth.uid() = user_id);
 
--- Allow authenticated users to delete groups
-CREATE POLICY "Allow authenticated users to delete fixed expense groups"
+-- Allow users to delete their own groups
+CREATE POLICY "Users can delete their own fixed expense groups"
   ON fixed_expense_groups
   FOR DELETE
   TO authenticated
-  USING (true);
+  USING (auth.uid() = user_id);
 
 -- Function to automatically update updated_at timestamp
 CREATE OR REPLACE FUNCTION update_fixed_expense_groups_updated_at()
@@ -65,15 +70,8 @@ CREATE TRIGGER update_fixed_expense_groups_timestamp
   FOR EACH ROW
   EXECUTE FUNCTION update_fixed_expense_groups_updated_at();
 
--- Create default group (cannot be deleted via UI)
-INSERT INTO fixed_expense_groups (id, name, color)
-VALUES ('00000000-0000-0000-0000-000000000001', 'Default', '#6B7280')
-ON CONFLICT (id) DO NOTHING;
-
--- Assign all existing sub_pockets to default group
-UPDATE sub_pockets
-SET group_id = '00000000-0000-0000-0000-000000000001'
-WHERE group_id IS NULL;
+-- Note: Default group will be created per user by the application
+-- when they first access the fixed expenses page
 
 COMMENT ON TABLE fixed_expense_groups IS 'Groups for organizing fixed expenses with batch enable/disable';
 COMMENT ON COLUMN fixed_expense_groups.name IS 'Group name (e.g., "Payment 1", "Utilities")';

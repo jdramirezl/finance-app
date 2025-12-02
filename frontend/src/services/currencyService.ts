@@ -1,6 +1,7 @@
 import type { Currency } from '../types';
 import { StorageService } from './storageService';
 import { supabase } from '../lib/supabase';
+import { apiClient } from './apiClient';
 
 // Mock exchange rates (fallback if API fails)
 const MOCK_EXCHANGE_RATES: Record<string, number> = {
@@ -32,10 +33,38 @@ interface CachedRate {
 }
 
 class CurrencyService {
+  // Feature flag to control backend usage
+  private useBackend = import.meta.env.VITE_USE_BACKEND_CURRENCY === 'true';
   private cache: Map<string, CachedRate> = new Map();
   private readonly CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours in ms
   private readonly API_ENDPOINT = '/api/exchange-rates';
   private useRealAPI = true; // Toggle to use real API vs mock
+
+  constructor() {
+    // Log which mode we're in
+    if (this.useBackend) {
+      console.log('🚀 CurrencyService: Using BACKEND API at', import.meta.env.VITE_API_URL);
+    } else {
+      console.log('📦 CurrencyService: Using DIRECT Supabase calls');
+    }
+    
+    // Test conversion rates on initialization
+    this.testConversionRates();
+  }
+
+  private async testConversionRates() {
+    try {
+      console.log('💱 Testing currency conversion rates (1 USD to other currencies):');
+      const testCurrencies: Currency[] = ['MXN', 'COP', 'EUR', 'GBP'];
+      
+      for (const currency of testCurrencies) {
+        const converted = await this.convert(1, 'USD', currency);
+        console.log(`  1 USD = ${converted.toFixed(4)} ${currency}`);
+      }
+    } catch (error) {
+      console.error('❌ Failed to test conversion rates:', error);
+    }
+  }
   // Get primary currency from settings
   getPrimaryCurrency(): Currency {
     const settings = StorageService.getSettings();
@@ -66,6 +95,31 @@ class CurrencyService {
 
   // Get exchange rate with real API (async version)
   async getExchangeRateAsync(from: Currency, to: Currency): Promise<number> {
+    if (from === to) return 1;
+    
+    if (this.useBackend) {
+      try {
+        console.log('🔵 Backend API: GET /api/currency/rates', { from, to });
+        return await this.getExchangeRateFromBackend(from, to);
+      } catch (error) {
+        console.error('❌ Backend API failed, falling back to direct implementation:', error);
+        return await this.getExchangeRateAsyncDirect(from, to);
+      }
+    }
+    
+    return await this.getExchangeRateAsyncDirect(from, to);
+  }
+
+  // Backend API implementation
+  private async getExchangeRateFromBackend(from: Currency, to: Currency): Promise<number> {
+    const response = await apiClient.get<{ from: string; to: string; rate: number; cachedAt: string }>(
+      `/api/currency/rates?from=${from}&to=${to}`
+    );
+    return response.rate;
+  }
+
+  // Direct implementation (fallback)
+  private async getExchangeRateAsyncDirect(from: Currency, to: Currency): Promise<number> {
     if (from === to) return 1;
     
     if (!this.useRealAPI) {
@@ -251,6 +305,40 @@ class CurrencyService {
 
   // Convert amount using async API
   async convert(amount: number, from: Currency, to: Currency): Promise<number> {
+    // Validate inputs
+    if (!amount || !from || !to) {
+      console.warn('⚠️ Invalid convert parameters:', { amount, from, to });
+      return amount || 0;
+    }
+    
+    if (this.useBackend) {
+      try {
+        console.log('🔵 Backend API: POST /api/currency/convert', { amount, from, to });
+        return await this.convertFromBackend(amount, from, to);
+      } catch (error) {
+        console.error('❌ Backend API failed, falling back to direct implementation:', error);
+        return await this.convertDirect(amount, from, to);
+      }
+    }
+    
+    return await this.convertDirect(amount, from, to);
+  }
+
+  // Backend API implementation
+  private async convertFromBackend(amount: number, from: Currency, to: Currency): Promise<number> {
+    const response = await apiClient.post<{ amount: number; convertedAmount: number; rate: number }>(
+      '/api/currency/convert',
+      {
+        amount,
+        fromCurrency: from,
+        toCurrency: to,
+      }
+    );
+    return response.convertedAmount;
+  }
+
+  // Direct implementation (fallback)
+  private async convertDirect(amount: number, from: Currency, to: Currency): Promise<number> {
     const rate = await this.getExchangeRateAsync(from, to);
     return amount * rate;
   }

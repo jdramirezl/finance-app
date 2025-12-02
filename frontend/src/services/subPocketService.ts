@@ -1,6 +1,7 @@
 import type { SubPocket } from '../types';
 import { SupabaseStorageService } from './supabaseStorageService';
 import { generateId } from '../utils/idGenerator';
+import { apiClient } from './apiClient';
 
 // Lazy getter to avoid circular dependency - using dynamic import
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -14,20 +15,66 @@ const getPocketService = async () => {
 };
 
 class SubPocketService {
+  // Feature flag to control backend usage
+  private useBackend = import.meta.env.VITE_USE_BACKEND_SUBPOCKETS === 'true';
+
+  constructor() {
+    // Log which mode we're in
+    if (this.useBackend) {
+      console.log('🚀 SubPocketService: Using BACKEND API at', import.meta.env.VITE_API_URL);
+    } else {
+      console.log('📦 SubPocketService: Using DIRECT Supabase calls');
+    }
+  }
   // Get all sub-pockets
   async getAllSubPockets(): Promise<SubPocket[]> {
+    // Note: Backend doesn't have a "get all sub-pockets" endpoint
+    // This is only used internally, so we always use direct Supabase
+    return await this.getAllSubPocketsDirect();
+  }
+
+  // Direct Supabase implementation (fallback)
+  private async getAllSubPocketsDirect(): Promise<SubPocket[]> {
     return await SupabaseStorageService.getSubPockets();
   }
 
   // Get sub-pocket by ID
   async getSubPocket(id: string): Promise<SubPocket | null> {
-    const subPockets = await this.getAllSubPockets();
+    if (this.useBackend) {
+      try {
+        console.log('🔵 Backend API: GET /api/sub-pockets/' + id);
+        return await apiClient.get<SubPocket>(`/api/sub-pockets/${id}`);
+      } catch (error) {
+        console.error('❌ Backend API failed, falling back to Supabase:', error);
+        return await this.getSubPocketDirect(id);
+      }
+    }
+    return await this.getSubPocketDirect(id);
+  }
+
+  // Direct Supabase implementation (fallback)
+  private async getSubPocketDirect(id: string): Promise<SubPocket | null> {
+    const subPockets = await this.getAllSubPocketsDirect();
     return subPockets.find(sp => sp.id === id) || null;
   }
 
   // Get sub-pockets by pocket (fixed expenses pocket)
   async getSubPocketsByPocket(pocketId: string): Promise<SubPocket[]> {
-    const subPockets = await this.getAllSubPockets();
+    if (this.useBackend) {
+      try {
+        console.log('🔵 Backend API: GET /api/sub-pockets?pocketId=' + pocketId);
+        return await apiClient.get<SubPocket[]>(`/api/sub-pockets?pocketId=${pocketId}`);
+      } catch (error) {
+        console.error('❌ Backend API failed, falling back to Supabase:', error);
+        return await this.getSubPocketsByPocketDirect(pocketId);
+      }
+    }
+    return await this.getSubPocketsByPocketDirect(pocketId);
+  }
+
+  // Direct Supabase implementation (fallback)
+  private async getSubPocketsByPocketDirect(pocketId: string): Promise<SubPocket[]> {
+    const subPockets = await this.getAllSubPocketsDirect();
     return subPockets.filter(sp => sp.pocketId === pocketId);
   }
 
@@ -90,6 +137,32 @@ class SubPocketService {
     periodicityMonths: number,
     groupId?: string
   ): Promise<SubPocket> {
+    if (this.useBackend) {
+      try {
+        console.log('🔵 Backend API: POST /api/sub-pockets', { pocketId, name, valueTotal, periodicityMonths, groupId });
+        return await apiClient.post<SubPocket>('/api/sub-pockets', {
+          pocketId,
+          name,
+          valueTotal,
+          periodicityMonths,
+          groupId,
+        });
+      } catch (error) {
+        console.error('❌ Backend API failed, falling back to Supabase:', error);
+        return await this.createSubPocketDirect(pocketId, name, valueTotal, periodicityMonths, groupId);
+      }
+    }
+    return await this.createSubPocketDirect(pocketId, name, valueTotal, periodicityMonths, groupId);
+  }
+
+  // Direct Supabase implementation (fallback)
+  private async createSubPocketDirect(
+    pocketId: string, 
+    name: string, 
+    valueTotal: number, 
+    periodicityMonths: number,
+    groupId?: string
+  ): Promise<SubPocket> {
     // Validate pocket exists and is fixed type (dynamic import to avoid circular dependency)
     const pocketService = await getPocketService();
     const pocket = await pocketService.getPocket(pocketId);
@@ -139,7 +212,21 @@ class SubPocketService {
 
   // Update sub-pocket
   async updateSubPocket(id: string, updates: Partial<Pick<SubPocket, 'name' | 'valueTotal' | 'periodicityMonths'>>): Promise<SubPocket> {
-    const subPockets = await this.getAllSubPockets();
+    if (this.useBackend) {
+      try {
+        console.log('🔵 Backend API: PUT /api/sub-pockets/' + id, updates);
+        return await apiClient.put<SubPocket>(`/api/sub-pockets/${id}`, updates);
+      } catch (error) {
+        console.error('❌ Backend API failed, falling back to Supabase:', error);
+        return await this.updateSubPocketDirect(id, updates);
+      }
+    }
+    return await this.updateSubPocketDirect(id, updates);
+  }
+
+  // Direct Supabase implementation (fallback)
+  private async updateSubPocketDirect(id: string, updates: Partial<Pick<SubPocket, 'name' | 'valueTotal' | 'periodicityMonths'>>): Promise<SubPocket> {
+    const subPockets = await this.getAllSubPocketsDirect();
     const index = subPockets.findIndex(sp => sp.id === id);
 
     if (index === -1) {
@@ -179,7 +266,22 @@ class SubPocketService {
 
   // Delete sub-pocket
   async deleteSubPocket(id: string): Promise<void> {
-    const subPockets = await this.getAllSubPockets();
+    if (this.useBackend) {
+      try {
+        console.log('🔵 Backend API: DELETE /api/sub-pockets/' + id);
+        await apiClient.delete(`/api/sub-pockets/${id}`);
+        return;
+      } catch (error) {
+        console.error('❌ Backend API failed, falling back to Supabase:', error);
+        return await this.deleteSubPocketDirect(id);
+      }
+    }
+    return await this.deleteSubPocketDirect(id);
+  }
+
+  // Direct Supabase implementation (fallback)
+  private async deleteSubPocketDirect(id: string): Promise<void> {
+    const subPockets = await this.getAllSubPocketsDirect();
     const index = subPockets.findIndex(sp => sp.id === id);
 
     if (index === -1) {
@@ -192,12 +294,26 @@ class SubPocketService {
 
   // Toggle enabled state
   async toggleSubPocketEnabled(id: string): Promise<SubPocket> {
-    const subPocket = await this.getSubPocket(id);
+    if (this.useBackend) {
+      try {
+        console.log('🔵 Backend API: POST /api/sub-pockets/' + id + '/toggle');
+        return await apiClient.post<SubPocket>(`/api/sub-pockets/${id}/toggle`);
+      } catch (error) {
+        console.error('❌ Backend API failed, falling back to Supabase:', error);
+        return await this.toggleSubPocketEnabledDirect(id);
+      }
+    }
+    return await this.toggleSubPocketEnabledDirect(id);
+  }
+
+  // Direct Supabase implementation (fallback)
+  private async toggleSubPocketEnabledDirect(id: string): Promise<SubPocket> {
+    const subPocket = await this.getSubPocketDirect(id);
     if (!subPocket) {
       throw new Error(`Sub-pocket with id "${id}" not found.`);
     }
 
-    const allSubPockets = await this.getAllSubPockets();
+    const allSubPockets = await this.getAllSubPocketsDirect();
     const updated = { ...subPocket, enabled: !subPocket.enabled };
     await SupabaseStorageService.saveSubPockets(
       allSubPockets.map((sp: SubPocket) => (sp.id === id ? updated : sp))
@@ -207,7 +323,22 @@ class SubPocketService {
 
   // Move sub-pocket to a different group
   async moveToGroup(subPocketId: string, groupId: string): Promise<void> {
-    const subPocket = await this.getSubPocket(subPocketId);
+    if (this.useBackend) {
+      try {
+        console.log('🔵 Backend API: POST /api/sub-pockets/' + subPocketId + '/move-to-group', { groupId });
+        await apiClient.post(`/api/sub-pockets/${subPocketId}/move-to-group`, { groupId });
+        return;
+      } catch (error) {
+        console.error('❌ Backend API failed, falling back to Supabase:', error);
+        return await this.moveToGroupDirect(subPocketId, groupId);
+      }
+    }
+    return await this.moveToGroupDirect(subPocketId, groupId);
+  }
+
+  // Direct Supabase implementation (fallback)
+  private async moveToGroupDirect(subPocketId: string, groupId: string): Promise<void> {
+    const subPocket = await this.getSubPocketDirect(subPocketId);
     if (!subPocket) {
       throw new Error(`Sub-pocket with id "${subPocketId}" not found.`);
     }
@@ -217,7 +348,14 @@ class SubPocketService {
 
   // Toggle all sub-pockets in a group
   async toggleGroup(groupId: string, enabled: boolean): Promise<void> {
-    const allSubPockets = await this.getAllSubPockets();
+    // Note: This is called by fixedExpenseGroupService, not directly exposed
+    // Always use direct Supabase for now
+    return await this.toggleGroupDirect(groupId, enabled);
+  }
+
+  // Direct Supabase implementation (fallback)
+  private async toggleGroupDirect(groupId: string, enabled: boolean): Promise<void> {
+    const allSubPockets = await this.getAllSubPocketsDirect();
     const groupSubPockets = allSubPockets.filter(sp => sp.groupId === groupId);
 
     if (groupSubPockets.length === 0) return;
@@ -232,7 +370,21 @@ class SubPocketService {
 
   // Get sub-pockets by group
   async getSubPocketsByGroup(groupId: string): Promise<SubPocket[]> {
-    const subPockets = await this.getAllSubPockets();
+    if (this.useBackend) {
+      try {
+        console.log('🔵 Backend API: GET /api/sub-pockets?groupId=' + groupId);
+        return await apiClient.get<SubPocket[]>(`/api/sub-pockets?groupId=${groupId}`);
+      } catch (error) {
+        console.error('❌ Backend API failed, falling back to Supabase:', error);
+        return await this.getSubPocketsByGroupDirect(groupId);
+      }
+    }
+    return await this.getSubPocketsByGroupDirect(groupId);
+  }
+
+  // Direct Supabase implementation (fallback)
+  private async getSubPocketsByGroupDirect(groupId: string): Promise<SubPocket[]> {
+    const subPockets = await this.getAllSubPocketsDirect();
     return subPockets.filter(sp => sp.groupId === groupId);
   }
 }

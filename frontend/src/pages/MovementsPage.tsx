@@ -380,7 +380,9 @@ const MovementsPage = () => {
     const subPocketId = formData.get('subPocketId') as string || undefined;
     const amount = parseFloat(formData.get('amount') as string);
     const notes = formData.get('notes') as string || undefined;
-    const displayedDate = formData.get('displayedDate') as string;
+    // Convert date string to ISO format with local timezone to avoid date shifting
+    const dateStr = formData.get('displayedDate') as string;
+    const displayedDate = new Date(dateStr + 'T00:00:00').toISOString();
     const isPending = formData.get('isPending') === 'on';
 
     try {
