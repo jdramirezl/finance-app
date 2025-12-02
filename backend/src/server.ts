@@ -3,7 +3,7 @@ import dotenv from 'dotenv';
 import path from 'path';
 
 // Try to load .env file (for local development)
-// In production (Railway, etc.), environment variables are provided directly
+// In production (Vercel, etc.), environment variables are provided directly
 const envPath = path.resolve(__dirname, '../.env');
 const result = dotenv.config({ path: envPath });
 
@@ -24,7 +24,7 @@ if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_KEY) {
   console.error('   SUPABASE_SERVICE_KEY:', process.env.SUPABASE_SERVICE_KEY ? '✓' : '✗');
   console.error('\n   Make sure environment variables are set in:');
   console.error('   - Local: backend/.env file');
-  console.error('   - Production: Railway/hosting platform dashboard');
+  console.error('   - Production: Vercel/hosting platform dashboard');
   process.exit(1);
 }
 
