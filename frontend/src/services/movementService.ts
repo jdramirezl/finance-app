@@ -50,13 +50,18 @@ class MovementService {
   }
 
   // Get all movements (including orphaned)
-  async getAllMovements(): Promise<Movement[]> {
-    return await this.getAllMovementsDirect();
+  async getAllMovements(page?: number, limit?: number): Promise<Movement[]> {
+    return await this.getAllMovementsDirect(page, limit);
   }
 
   // Direct Supabase implementation (fallback)
-  private async getAllMovementsDirect(): Promise<Movement[]> {
-    return await SupabaseStorageService.getMovements();
+  private async getAllMovementsDirect(page?: number, limit?: number): Promise<Movement[]> {
+    const movements = await SupabaseStorageService.getMovements();
+    if (page && limit) {
+      const start = (page - 1) * limit;
+      return movements.slice(start, start + limit);
+    }
+    return movements;
   }
 
   // Check if a movement is orphaned (account or pocket no longer exists)
@@ -113,41 +118,59 @@ class MovementService {
   }
 
   // Get movements by account - ACTIVE ONLY
-  async getMovementsByAccount(accountId: string): Promise<Movement[]> {
+  async getMovementsByAccount(accountId: string, page?: number, limit?: number): Promise<Movement[]> {
     if (this.useBackend) {
       try {
-        return await apiClient.get<Movement[]>(`/api/movements?accountId=${accountId}`);
+        let url = `/api/movements?accountId=${accountId}`;
+        if (page && limit) {
+          url += `&page=${page}&limit=${limit}`;
+        }
+        return await apiClient.get<Movement[]>(url);
       } catch (error) {
         console.error('Backend API failed, falling back to Supabase:', error);
-        return await this.getMovementsByAccountDirect(accountId);
+        return await this.getMovementsByAccountDirect(accountId, page, limit);
       }
     }
-    return await this.getMovementsByAccountDirect(accountId);
+    return await this.getMovementsByAccountDirect(accountId, page, limit);
   }
 
   // Direct Supabase implementation (fallback)
-  private async getMovementsByAccountDirect(accountId: string): Promise<Movement[]> {
+  private async getMovementsByAccountDirect(accountId: string, page?: number, limit?: number): Promise<Movement[]> {
     const movements = await this.getActiveMovements(); // Filter orphaned
-    return movements.filter(m => m.accountId === accountId);
+    const filtered = movements.filter(m => m.accountId === accountId);
+    if (page && limit) {
+      const start = (page - 1) * limit;
+      return filtered.slice(start, start + limit);
+    }
+    return filtered;
   }
 
   // Get movements by pocket - ACTIVE ONLY
-  async getMovementsByPocket(pocketId: string): Promise<Movement[]> {
+  async getMovementsByPocket(pocketId: string, page?: number, limit?: number): Promise<Movement[]> {
     if (this.useBackend) {
       try {
-        return await apiClient.get<Movement[]>(`/api/movements?pocketId=${pocketId}`);
+        let url = `/api/movements?pocketId=${pocketId}`;
+        if (page && limit) {
+          url += `&page=${page}&limit=${limit}`;
+        }
+        return await apiClient.get<Movement[]>(url);
       } catch (error) {
         console.error('Backend API failed, falling back to Supabase:', error);
-        return await this.getMovementsByPocketDirect(pocketId);
+        return await this.getMovementsByPocketDirect(pocketId, page, limit);
       }
     }
-    return await this.getMovementsByPocketDirect(pocketId);
+    return await this.getMovementsByPocketDirect(pocketId, page, limit);
   }
 
   // Direct Supabase implementation (fallback)
-  private async getMovementsByPocketDirect(pocketId: string): Promise<Movement[]> {
+  private async getMovementsByPocketDirect(pocketId: string, page?: number, limit?: number): Promise<Movement[]> {
     const movements = await this.getActiveMovements(); // Filter orphaned
-    return movements.filter(m => m.pocketId === pocketId);
+    const filtered = movements.filter(m => m.pocketId === pocketId);
+    if (page && limit) {
+      const start = (page - 1) * limit;
+      return filtered.slice(start, start + limit);
+    }
+    return filtered;
   }
 
   // Get movements grouped by month (based on displayedDate) - ACTIVE ONLY
@@ -206,12 +229,12 @@ class MovementService {
 
   // Get movements for a specific month with pagination - ACTIVE ONLY
   async getMovementsByMonthPaginated(
-    monthKey: string, 
-    offset: number = 0, 
+    monthKey: string,
+    offset: number = 0,
     limit: number = 10
   ): Promise<Movement[]> {
     const movements = await this.getActiveMovements();
-    
+
     // Filter by month
     const monthMovements = movements.filter(m => {
       const date = new Date(m.displayedDate);
@@ -220,7 +243,7 @@ class MovementService {
     });
 
     // Sort by createdAt (or could use displayedDate)
-    monthMovements.sort((a, b) => 
+    monthMovements.sort((a, b) =>
       new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
     );
 
@@ -272,10 +295,10 @@ class MovementService {
 
     const pocketService = await getPocketService();
     const pockets = await pocketService.getPocketsByAccount(accountId);
-    
+
     const investedPocket = pockets.find((p: Pocket) => p.name === 'Invested Money');
     const sharesPocket = pockets.find((p: Pocket) => p.name === 'Shares');
-    
+
     const updates: Partial<Account> = {};
     if (investedPocket) {
       updates.montoInvertido = investedPocket.balance;
@@ -283,7 +306,7 @@ class MovementService {
     if (sharesPocket) {
       updates.shares = sharesPocket.balance;
     }
-    
+
     // Update directly - much faster
     await SupabaseStorageService.updateAccount(accountId, updates);
   }
@@ -647,11 +670,11 @@ class MovementService {
   async deleteMovementsByAccount(accountId: string): Promise<number> {
     const movements = await this.getAllMovements();
     const accountMovements = movements.filter(m => m.accountId === accountId);
-    
+
     for (const movement of accountMovements) {
       await SupabaseStorageService.deleteMovement(movement.id);
     }
-    
+
     return accountMovements.length;
   }
 
@@ -659,23 +682,23 @@ class MovementService {
   async deleteMovementsByPocket(pocketId: string): Promise<number> {
     const movements = await this.getAllMovements();
     const pocketMovements = movements.filter(m => m.pocketId === pocketId);
-    
+
     for (const movement of pocketMovements) {
       await SupabaseStorageService.deleteMovement(movement.id);
     }
-    
+
     return pocketMovements.length;
   }
 
   // Find orphaned movements that match an account/pocket (for restoration)
   async findMatchingOrphanedMovements(
-    accountName: string, 
-    accountCurrency: string, 
+    accountName: string,
+    accountCurrency: string,
     pocketName?: string
   ): Promise<Movement[]> {
     const orphaned = await this.getOrphanedMovements();
-    
-    return orphaned.filter(m => 
+
+    return orphaned.filter(m =>
       m.orphanedAccountName === accountName &&
       m.orphanedAccountCurrency === accountCurrency &&
       (!pocketName || m.orphanedPocketName === pocketName)
@@ -709,7 +732,7 @@ class MovementService {
         isOrphaned: false,
       });
     }
-    
+
     return movementIds.length;
   }
 
@@ -717,10 +740,10 @@ class MovementService {
   async recalculateBalancesForPocket(pocketId: string): Promise<void> {
     const pocketService = await getPocketService();
     const accountService = await getAccountService();
-    
+
     // Get all movements for this pocket
     const movements = await this.getMovementsByPocket(pocketId);
-    
+
     // Calculate balance from movements (EXCLUDING PENDING)
     const balance = movements
       .filter(m => !m.isPending) // Only include applied movements
@@ -728,12 +751,12 @@ class MovementService {
         const isIncome = m.type === 'IngresoNormal' || m.type === 'IngresoFijo';
         return sum + (isIncome ? m.amount : -m.amount);
       }, 0);
-    
+
     // Update pocket balance
     const pocket = await pocketService.getPocket(pocketId);
     if (pocket) {
       await SupabaseStorageService.updatePocket(pocketId, { balance });
-      
+
       // Update account balance
       await accountService.recalculateAccountBalance(pocket.accountId);
     }
@@ -742,35 +765,35 @@ class MovementService {
   // Recalculate ALL pocket balances from movements (excluding pending)
   async recalculateAllPocketBalances(): Promise<void> {
     console.log(`🔄 [recalculateAllPocketBalances] Starting full recalculation`);
-    
+
     const pocketService = await getPocketService();
     const accountService = await getAccountService();
-    
+
     const pockets = await pocketService.getAllPockets();
     console.log(`📦 [recalculateAllPocketBalances] Found ${pockets.length} pockets`);
-    
+
     for (const pocket of pockets) {
       if (pocket.type === 'fixed') {
         // Fixed pockets: calculate from sub-pockets
         const subPocketService = await getSubPocketService();
         const subPockets = await subPocketService.getSubPocketsByPocket(pocket.id);
-        
+
         // Recalculate each sub-pocket balance from movements
         for (const subPocket of subPockets) {
           const movements = await this.getAllMovements();
           const subPocketMovements = movements.filter(m => m.subPocketId === subPocket.id);
-          
+
           const balance = subPocketMovements
             .filter(m => !m.isPending) // Exclude pending
             .reduce((sum, m) => {
               const isIncome = m.type === 'IngresoFijo';
               return sum + (isIncome ? m.amount : -m.amount);
             }, 0);
-          
+
           await SupabaseStorageService.updateSubPocket(subPocket.id, { balance });
           console.log(`  ✅ SubPocket ${subPocket.name}: ${balance}`);
         }
-        
+
         // Now sum sub-pocket balances for the fixed pocket
         const updatedSubPockets = await subPocketService.getSubPocketsByPocket(pocket.id);
         const pocketBalance = updatedSubPockets.reduce((sum: number, sp: { balance: number }) => sum + sp.balance, 0);
@@ -779,66 +802,66 @@ class MovementService {
       } else {
         // Normal pockets: calculate from movements
         const movements = await this.getMovementsByPocket(pocket.id);
-        
+
         const balance = movements
           .filter(m => !m.isPending) // Exclude pending
           .reduce((sum, m) => {
             const isIncome = m.type === 'IngresoNormal';
             return sum + (isIncome ? m.amount : -m.amount);
           }, 0);
-        
+
         await SupabaseStorageService.updatePocket(pocket.id, { balance });
         console.log(`✅ Pocket ${pocket.name}: ${balance}`);
       }
     }
-    
+
     // Recalculate all account balances
     console.log(`🏦 [recalculateAllPocketBalances] Recalculating account balances`);
     await accountService.recalculateAllBalances();
-    
+
     console.log(`🎉 [recalculateAllPocketBalances] Complete!`);
   }
 
   // Mark movements as orphaned (soft delete) - FAST, no lookups needed
   async markMovementsAsOrphaned(id: string, type: 'account' | 'pocket'): Promise<number> {
     const movements = await this.getAllMovements();
-    
-    const targetMovements = type === 'account' 
+
+    const targetMovements = type === 'account'
       ? movements.filter(m => m.accountId === id)
       : movements.filter(m => m.pocketId === id);
-    
+
     // Get account/pocket services for name lookup
     const accountService = await getAccountService();
     const pocketService = await getPocketService();
-    
+
     // Mark all as orphaned and save original info for restoration
     for (const movement of targetMovements) {
       // Get original account and pocket info for MATCHING (not by ID!)
       const account = await accountService.getAccount(movement.accountId);
       // Only fetch pocket if pocketId exists (not null/undefined)
       const pocket = movement.pocketId ? await pocketService.getPocket(movement.pocketId) : null;
-      
-      await SupabaseStorageService.updateMovement(movement.id, { 
+
+      await SupabaseStorageService.updateMovement(movement.id, {
         isOrphaned: true,
         orphanedAccountName: account?.name || 'Unknown',
         orphanedAccountCurrency: account?.currency || 'USD',
         orphanedPocketName: pocket?.name || 'Unknown',
       });
     }
-    
+
     return targetMovements.length;
   }
 
   // Update movements' accountId when migrating a pocket to another account
   async updateMovementsAccountForPocket(pocketId: string, newAccountId: string): Promise<number> {
     const movements = await this.getMovementsByPocket(pocketId);
-    
+
     for (const movement of movements) {
       await SupabaseStorageService.updateMovement(movement.id, {
         accountId: newAccountId,
       });
     }
-    
+
     return movements.length;
   }
 }
