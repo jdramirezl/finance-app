@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { useFinanceStore } from '../store/useFinanceStore';
+import { useAccountsQuery, usePocketsQuery, useSubPocketsQuery, useSettingsQuery } from '../hooks/queries';
+// Removed useFinanceStore import
 import { useToast } from '../hooks/useToast';
 import { StorageService } from '../services/storageService';
 import { currencyService } from '../services/currencyService';
@@ -17,14 +18,11 @@ interface DistributionEntry {
 }
 
 const BudgetPlanningPage = () => {
-  const {
-    accounts,
-    pockets,
-    settings,
-    loadAccounts,
-    loadSettings,
-    getSubPocketsByPocket,
-  } = useFinanceStore();
+  // Queries
+  const { data: accounts = [] } = useAccountsQuery();
+  const { data: pockets = [] } = usePocketsQuery();
+  const { data: subPockets = [] } = useSubPocketsQuery();
+  const { data: settings = { primaryCurrency: 'USD' }, isLoading: isSettingsLoading } = useSettingsQuery();
 
   // Load persisted data on mount
   const savedData = StorageService.getBudgetPlanning();
@@ -35,29 +33,13 @@ const BudgetPlanningPage = () => {
   const [editingEntryId, setEditingEntryId] = useState<string | null>(null);
   const [editingEntryName, setEditingEntryName] = useState<string>('');
   const [editingEntryPercentage, setEditingEntryPercentage] = useState<number>(0);
-  const [isLoading, setIsLoading] = useState(true);
+  // Removed duplicate isLoading state
   const [convertedAmounts, setConvertedAmounts] = useState<Map<string, number>>(new Map());
 
   const toast = useToast();
 
-  useEffect(() => {
-    const loadData = async () => {
-      setIsLoading(true);
-      try {
-        // loadAccounts now loads accounts, pockets, and subPockets in one call
-        // Skip investment prices - not needed for budget planning
-        await Promise.all([
-          loadAccounts(true),
-          loadSettings(),
-        ]);
-      } catch (err) {
-        console.error('Failed to load data:', err);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    loadData();
-  }, [loadAccounts, loadSettings]);
+  // Derived loading state
+  const isLoading = isSettingsLoading;
 
   // Persist data whenever it changes
   useEffect(() => {
@@ -69,12 +51,12 @@ const BudgetPlanningPage = () => {
 
   // Find fixed expenses pocket and calculate total monthly fixed expenses
   const fixedPocket = pockets.find((p) => p.type === 'fixed');
-  const fixedSubPockets = fixedPocket ? getSubPocketsByPocket(fixedPocket.id) : [];
+  const fixedSubPockets = fixedPocket ? subPockets.filter(sp => sp.pocketId === fixedPocket.id) : [];
   const fixedAccount = fixedPocket
     ? accounts.find((acc) => acc.id === fixedPocket.accountId)
     : null;
 
-  const primaryCurrency = settings.primaryCurrency || 'USD';
+  const primaryCurrency = settings?.primaryCurrency || 'USD';
   const budgetCurrency = fixedAccount?.currency || 'USD';
   const showConversion = primaryCurrency !== budgetCurrency;
 
@@ -117,7 +99,7 @@ const BudgetPlanningPage = () => {
       if (!showConversion || distributionEntries.length === 0) return;
 
       const newConversions = new Map<string, number>();
-      
+
       for (const entry of distributionEntries) {
         const amount = calculateEntryAmount(entry.percentage);
         if (amount > 0) {
@@ -258,9 +240,8 @@ const BudgetPlanningPage = () => {
             <div className="flex items-center justify-between">
               <span className="text-gray-800 dark:text-gray-200 font-bold text-lg">Remaining:</span>
               <span
-                className={`text-2xl font-bold ${
-                  remaining < 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'
-                }`}
+                className={`text-2xl font-bold ${remaining < 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'
+                  }`}
               >
                 {remaining.toLocaleString(undefined, {
                   style: 'currency',
@@ -351,9 +332,9 @@ const BudgetPlanningPage = () => {
                           <div className="text-sm font-medium text-blue-700 dark:text-blue-300">
                             {convertedAmount !== undefined
                               ? convertedAmount.toLocaleString(undefined, {
-                                  style: 'currency',
-                                  currency: primaryCurrency,
-                                })
+                                style: 'currency',
+                                currency: primaryCurrency,
+                              })
                               : '...'}
                           </div>
                         )}
@@ -394,9 +375,9 @@ const BudgetPlanningPage = () => {
                           <div className="font-semibold text-blue-700 dark:text-blue-300">
                             {convertedAmount !== undefined
                               ? convertedAmount.toLocaleString(undefined, {
-                                  style: 'currency',
-                                  currency: primaryCurrency,
-                                })
+                                style: 'currency',
+                                currency: primaryCurrency,
+                              })
                               : '...'}
                           </div>
                         )}
@@ -429,11 +410,10 @@ const BudgetPlanningPage = () => {
               {/* Total Percentage Warning */}
               {totalPercentage !== 100 && distributionEntries.length > 0 && (
                 <div
-                  className={`mt-4 p-3 rounded-lg ${
-                    totalPercentage > 100
-                      ? 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400'
-                      : 'bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 text-yellow-700 dark:text-yellow-400'
-                  }`}
+                  className={`mt-4 p-3 rounded-lg ${totalPercentage > 100
+                    ? 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400'
+                    : 'bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 text-yellow-700 dark:text-yellow-400'
+                    }`}
                 >
                   <p className="text-sm font-medium">
                     Total percentage: {totalPercentage.toFixed(1)}%
