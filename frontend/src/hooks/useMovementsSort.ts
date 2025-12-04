@@ -13,8 +13,8 @@ interface UseMovementsSortProps {
 
 export const useMovementsSort = ({
     movements,
-    initialSortField = 'createdAt',
-    initialSortOrder = 'asc'
+    initialSortField = 'displayedDate',
+    initialSortOrder = 'desc'
 }: UseMovementsSortProps) => {
 
     const [sortField, setSortField] = useState<SortField>(() => {
@@ -66,6 +66,11 @@ export const useMovementsSort = ({
                         const typeOrder = { IngresoNormal: 0, IngresoFijo: 1, EgresoNormal: 2, EgresoFijo: 3 };
                         comparison = typeOrder[a.type] - typeOrder[b.type];
                         break;
+                }
+
+                // Tie-breaker: always use createdAt for stability if values are equal
+                if (comparison === 0) {
+                    comparison = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
                 }
 
                 return sortOrder === 'asc' ? comparison : -comparison;
