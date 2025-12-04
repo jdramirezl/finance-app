@@ -1,10 +1,11 @@
 import { format, parseISO } from 'date-fns';
-import { ChevronDown, ChevronUp, Edit2, Trash2, ArrowUpCircle, ArrowDownCircle } from 'lucide-react';
+import { ChevronDown, ChevronUp, Edit2, Trash2 } from 'lucide-react';
 import Button from '../Button';
 import Card from '../Card';
 import { useAccountsQuery, usePocketsQuery } from '../../hooks/queries';
 import type { Movement, MovementType } from '../../types';
 import type { SortField, SortOrder } from '../../hooks/useMovementsSort';
+import { getSmartIcon, getDefaultIcon } from '../../utils/smartIcons';
 
 interface MovementListProps {
     movementsByMonth: [string, Movement[]][];
@@ -151,7 +152,7 @@ const MovementList = ({
                     <div key={monthKey} className="space-y-2">
                         <button
                             onClick={() => toggleMonth(monthKey)}
-                            className="w-full flex items-center justify-between p-4 bg-white dark:bg-gray-800 rounded-lg shadow-sm hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors"
+                            className="sticky top-0 z-10 w-full flex items-center justify-between p-4 bg-white/90 dark:bg-gray-800/90 backdrop-blur-lg rounded-lg shadow-md hover:shadow-lg border border-gray-200 dark:border-gray-700 transition-all"
                         >
                             <div className="flex items-center gap-4">
                                 {isExpanded ? <ChevronUp className="w-5 h-5 text-gray-500" /> : <ChevronDown className="w-5 h-5 text-gray-500" />}
@@ -200,9 +201,17 @@ const MovementList = ({
                                                     className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
                                                 />
 
-                                                <div className={`p-2 rounded-full ${isIncome ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
-                                                    {isIncome ? <ArrowUpCircle className="w-6 h-6" /> : <ArrowDownCircle className="w-6 h-6" />}
-                                                </div>
+                                                {(() => {
+                                                    const smartIcon = getSmartIcon(movement.notes);
+                                                    const iconData = smartIcon || getDefaultIcon(isIncome);
+                                                    const IconComponent = iconData.icon;
+
+                                                    return (
+                                                        <div className={`p-2.5 rounded-xl bg-gradient-to-br ${isIncome ? 'from-green-50 to-emerald-100 dark:from-green-900/20 dark:to-emerald-900/30' : 'from-red-50 to-rose-100 dark:from-red-900/20 dark:to-rose-900/30'} shadow-sm`}>
+                                                            <IconComponent className={`w-5 h-5 ${smartIcon ? iconData.color : (isIncome ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400')}`} />
+                                                        </div>
+                                                    );
+                                                })()}
 
                                                 <div>
                                                     <div className="flex items-center gap-2">

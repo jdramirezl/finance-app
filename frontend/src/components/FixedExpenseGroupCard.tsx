@@ -1,7 +1,8 @@
 import type { FixedExpenseGroup, SubPocket } from '../types';
 import { ChevronDown, ChevronRight, Edit2, Trash2, ToggleLeft, ToggleRight } from 'lucide-react';
 import Button from './Button';
-import { calculateAporteMensual, calculateProgress, getProgressColor } from '../utils/fixedExpenseUtils';
+import AnimatedProgressBar from './AnimatedProgressBar';
+import { calculateAporteMensual, calculateProgress } from '../utils/fixedExpenseUtils';
 
 interface FixedExpenseGroupCardProps {
   group: FixedExpenseGroup;
@@ -52,7 +53,7 @@ const FixedExpenseGroupCard = ({
 
   return (
     <div
-      className="border dark:border-gray-700 rounded-lg overflow-hidden"
+      className="border dark:border-gray-700 rounded-xl overflow-hidden transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5"
       style={{ borderLeftWidth: '4px', borderLeftColor: group.color }}
     >
       {/* Group Header */}
@@ -94,10 +95,10 @@ const FixedExpenseGroupCard = ({
               loading={isToggling}
               disabled={isToggling || subPockets.length === 0}
               className={`p-2 ${allEnabled
-                  ? 'text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/30'
-                  : someEnabled
-                    ? 'text-yellow-600 dark:text-yellow-400 hover:bg-yellow-50 dark:hover:bg-yellow-900/30'
-                    : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+                ? 'text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/30'
+                : someEnabled
+                  ? 'text-yellow-600 dark:text-yellow-400 hover:bg-yellow-50 dark:hover:bg-yellow-900/30'
+                  : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
                 }`}
               title={allEnabled ? 'Disable all in group' : 'Enable all in group'}
             >
@@ -148,14 +149,13 @@ const FixedExpenseGroupCard = ({
             subPockets.map((subPocket) => {
               const aporteMensual = calculateAporteMensual(subPocket.valueTotal, subPocket.periodicityMonths);
               const progress = calculateProgress(subPocket.balance, subPocket.valueTotal);
-              const progressColor = getProgressColor(progress);
               const isDeleting = deletingId === subPocket.id;
               const isTogglingExpense = togglingId === subPocket.id;
 
               return (
                 <div
                   key={subPocket.id}
-                  className={`p-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors ${!subPocket.enabled ? 'opacity-50' : ''
+                  className={`p-4 hover:bg-gradient-to-r hover:from-gray-50 hover:to-transparent dark:hover:from-gray-800/50 dark:hover:to-transparent transition-all duration-200 ${!subPocket.enabled ? 'opacity-50' : ''
                     }`}
                 >
                   <div className="flex items-center justify-between gap-4">
@@ -215,16 +215,14 @@ const FixedExpenseGroupCard = ({
                       </div>
 
                       {/* Progress Bar */}
-                      <div className="mt-2 flex items-center gap-2">
-                        <div className="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                          <div
-                            className={`h-2 rounded-full transition-all ${progressColor}`}
-                            style={{ width: `${Math.min(progress, 100)}%` }}
-                          />
-                        </div>
-                        <span className="text-xs text-gray-600 dark:text-gray-400 min-w-[40px] text-right">
-                          {progress.toFixed(0)}%
-                        </span>
+                      <div className="mt-3">
+                        <AnimatedProgressBar
+                          value={subPocket.balance}
+                          max={subPocket.valueTotal}
+                          color={progress >= 100 ? 'green' : progress >= 75 ? 'blue' : progress >= 50 ? 'orange' : 'red'}
+                          showPercentage={true}
+                          height="md"
+                        />
                       </div>
                     </div>
 
@@ -237,8 +235,8 @@ const FixedExpenseGroupCard = ({
                         loading={isTogglingExpense}
                         disabled={isTogglingExpense}
                         className={`p-2 ${subPocket.enabled
-                            ? 'text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/30'
-                            : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+                          ? 'text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/30'
+                          : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
                           }`}
                         title={subPocket.enabled ? 'Disable' : 'Enable'}
                       >

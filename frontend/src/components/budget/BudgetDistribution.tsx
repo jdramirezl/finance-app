@@ -3,6 +3,7 @@ import { Plus } from 'lucide-react';
 import Button from '../Button';
 import Card from '../Card';
 import BudgetEntryRow, { type DistributionEntry } from './BudgetEntryRow';
+import DonutChart from './DonutChart';
 import { useToast } from '../../hooks/useToast';
 
 interface BudgetDistributionProps {
@@ -96,6 +97,20 @@ const BudgetDistribution = ({
         setEditingEntryPercentage(0);
     };
 
+    // Prepare data for donut chart
+    const chartColors = [
+        '#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981',
+        '#06b6d4', '#6366f1', '#f97316', '#14b8a6', '#a855f7'
+    ];
+
+    const chartEntries = entries
+        .filter(e => e.percentage > 0)
+        .map((entry, index) => ({
+            name: entry.name || 'Unnamed',
+            percentage: entry.percentage,
+            color: chartColors[index % chartColors.length]
+        }));
+
     return (
         <Card padding="md">
             <div className="flex items-center justify-between mb-4">
@@ -114,53 +129,78 @@ const BudgetDistribution = ({
                     No distribution entries yet. Click "Add Entry" to start planning your budget.
                 </div>
             ) : (
-                <div className="space-y-3">
-                    {/* Header */}
-                    <div className={`grid ${showConversion ? 'grid-cols-[2fr_1fr_1.5fr_1.5fr_1fr]' : 'grid-cols-12'} gap-4 pb-2 border-b dark:border-gray-700 font-semibold text-sm text-gray-600 dark:text-gray-400`}>
-                        <div className={showConversion ? '' : 'col-span-4'}>Name</div>
-                        <div className={showConversion ? '' : 'col-span-3'}>Percentage</div>
-                        <div className={showConversion ? '' : 'col-span-3'}>Amount ({currency})</div>
-                        {showConversion && <div>Amount ({primaryCurrency})</div>}
-                        <div className={`text-right ${showConversion ? '' : 'col-span-2'}`}>Actions</div>
-                    </div>
-
-                    {/* Entries */}
-                    {entries.map((entry) => (
-                        <BudgetEntryRow
-                            key={entry.id}
-                            entry={entry}
-                            amount={calculateEntryAmount(entry.percentage)}
-                            convertedAmount={convertedAmounts.get(entry.id)}
-                            currency={currency}
-                            primaryCurrency={primaryCurrency}
-                            showConversion={showConversion}
-                            isEditing={editingEntryId === entry.id}
-                            editName={editingEntryName}
-                            editPercentage={editingEntryPercentage}
-                            onEditNameChange={setEditingEntryName}
-                            onEditPercentageChange={setEditingEntryPercentage}
-                            onStartEdit={() => handleStartEdit(entry)}
-                            onSave={() => handleSaveEntry(entry.id)}
-                            onCancel={handleCancelEdit}
-                            onDelete={() => handleDeleteEntry(entry.id)}
-                        />
-                    ))}
-
-                    {/* Total Percentage Warning */}
-                    {totalPercentage !== 100 && entries.length > 0 && (
-                        <div
-                            className={`mt-4 p-3 rounded-lg ${totalPercentage > 100
-                                ? 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400'
-                                : 'bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 text-yellow-700 dark:text-yellow-400'
-                                }`}
-                        >
-                            <p className="text-sm font-medium">
-                                Total percentage: {totalPercentage.toFixed(1)}%
-                                {totalPercentage > 100 && ' (exceeds 100%)'}
-                                {totalPercentage < 100 && ` (${(100 - totalPercentage).toFixed(1)}% unallocated)`}
-                            </p>
+                <div>
+                    {/* Donut Chart Visualization */}
+                    {chartEntries.length > 0 && (
+                        <div className="flex justify-center mb-6">
+                            <div className="relative">
+                                <DonutChart entries={chartEntries} size={220} strokeWidth={35} />
+                                {/* Legend */}
+                                <div className="mt-4 grid grid-cols-2 gap-2 max-w-md mx-auto">
+                                    {chartEntries.map((entry, index) => (
+                                        <div key={index} className="flex items-center gap-2 text-sm">
+                                            <div
+                                                className="w-3 h-3 rounded-full flex-shrink-0"
+                                                style={{ backgroundColor: entry.color }}
+                                            />
+                                            <span className="text-gray-700 dark:text-gray-300 truncate">
+                                                {entry.name} ({entry.percentage.toFixed(0)}%)
+                                            </span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
                         </div>
                     )}
+
+                    <div className="space-y-3">
+                        {/* Header */}
+                        <div className={`grid ${showConversion ? 'grid-cols-[2fr_1fr_1.5fr_1.5fr_1fr]' : 'grid-cols-12'} gap-4 pb-2 border-b dark:border-gray-700 font-semibold text-sm text-gray-600 dark:text-gray-400`}>
+                            <div className={showConversion ? '' : 'col-span-4'}>Name</div>
+                            <div className={showConversion ? '' : 'col-span-3'}>Percentage</div>
+                            <div className={showConversion ? '' : 'col-span-3'}>Amount ({currency})</div>
+                            {showConversion && <div>Amount ({primaryCurrency})</div>}
+                            <div className={`text-right ${showConversion ? '' : 'col-span-2'}`}>Actions</div>
+                        </div>
+
+                        {/* Entries */}
+                        {entries.map((entry) => (
+                            <BudgetEntryRow
+                                key={entry.id}
+                                entry={entry}
+                                amount={calculateEntryAmount(entry.percentage)}
+                                convertedAmount={convertedAmounts.get(entry.id)}
+                                currency={currency}
+                                primaryCurrency={primaryCurrency}
+                                showConversion={showConversion}
+                                isEditing={editingEntryId === entry.id}
+                                editName={editingEntryName}
+                                editPercentage={editingEntryPercentage}
+                                onEditNameChange={setEditingEntryName}
+                                onEditPercentageChange={setEditingEntryPercentage}
+                                onStartEdit={() => handleStartEdit(entry)}
+                                onSave={() => handleSaveEntry(entry.id)}
+                                onCancel={handleCancelEdit}
+                                onDelete={() => handleDeleteEntry(entry.id)}
+                            />
+                        ))}
+
+                        {/* Total Percentage Warning */}
+                        {totalPercentage !== 100 && entries.length > 0 && (
+                            <div
+                                className={`mt-4 p-3 rounded-lg ${totalPercentage > 100
+                                    ? 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400'
+                                    : 'bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 text-yellow-700 dark:text-yellow-400'
+                                    }`}
+                            >
+                                <p className="text-sm font-medium">
+                                    Total percentage: {totalPercentage.toFixed(1)}%
+                                    {totalPercentage > 100 && ' (exceeds 100%)'}
+                                    {totalPercentage < 100 && ` (${(100 - totalPercentage).toFixed(1)}% unallocated)`}
+                                </p>
+                            </div>
+                        )}
+                    </div>
                 </div>
             )}
         </Card>
