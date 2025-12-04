@@ -62,6 +62,12 @@ const FixedExpensesPage = () => {
     ? accounts.find((acc) => acc.id === fixedPocket.accountId)
     : null;
 
+  // Helper function to get sub-pockets for a specific group
+  const getSubPocketsByGroup = (groupId: string) => {
+    return fixedSubPockets.filter(sp => sp.groupId === groupId);
+  };
+
+
   const handleCreateMovementsFromFixedExpenses = () => {
     if (!fixedAccount || !fixedPocket) {
       toast.error('No fixed expenses account found');
@@ -367,7 +373,7 @@ const FixedExpensesPage = () => {
           {fixedExpenseGroups.map((group) => {
             const groupExpenses = getSubPocketsByGroup(group.id);
             const isDefaultGroup = group.name === 'Default';
-            
+
             return (
               <FixedExpenseGroupCard
                 key={group.id}
