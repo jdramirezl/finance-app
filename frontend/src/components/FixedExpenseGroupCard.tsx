@@ -1,6 +1,7 @@
 import type { FixedExpenseGroup, SubPocket } from '../types';
 import { ChevronDown, ChevronRight, Edit2, Trash2, ToggleLeft, ToggleRight } from 'lucide-react';
 import Button from './Button';
+import { calculateAporteMensual, calculateProgress, getProgressColor } from '../utils/fixedExpenseUtils';
 
 interface FixedExpenseGroupCardProps {
   group: FixedExpenseGroup;
@@ -41,22 +42,6 @@ const FixedExpenseGroupCard = ({
   deletingId,
   togglingId,
 }: FixedExpenseGroupCardProps) => {
-  const calculateAporteMensual = (valueTotal: number, periodicityMonths: number): number => {
-    if (periodicityMonths <= 0) return 0;
-    return valueTotal / periodicityMonths;
-  };
-
-  const calculateProgress = (balance: number, valueTotal: number): number => {
-    if (valueTotal <= 0) return 0;
-    return Math.min((balance / valueTotal) * 100, 100);
-  };
-
-  const getProgressColor = (progress: number): string => {
-    if (progress === 0) return 'bg-red-500';
-    if (progress < 50) return 'bg-orange-500';
-    if (progress < 100) return 'bg-yellow-500';
-    return 'bg-green-500';
-  };
 
   const enabledCount = subPockets.filter(sp => sp.enabled).length;
   const totalMonthly = subPockets
@@ -66,7 +51,7 @@ const FixedExpenseGroupCard = ({
   const someEnabled = enabledCount > 0 && enabledCount < subPockets.length;
 
   return (
-    <div 
+    <div
       className="border dark:border-gray-700 rounded-lg overflow-hidden"
       style={{ borderLeftWidth: '4px', borderLeftColor: group.color }}
     >
@@ -84,7 +69,7 @@ const FixedExpenseGroupCard = ({
                 <ChevronDown className="w-5 h-5 text-gray-600 dark:text-gray-400" />
               )}
             </button>
-            
+
             <div className="flex-1">
               <div className="flex items-center gap-2">
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
@@ -108,13 +93,12 @@ const FixedExpenseGroupCard = ({
               onClick={() => onToggleGroup(!allEnabled)}
               loading={isToggling}
               disabled={isToggling || subPockets.length === 0}
-              className={`p-2 ${
-                allEnabled
+              className={`p-2 ${allEnabled
                   ? 'text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/30'
                   : someEnabled
-                  ? 'text-yellow-600 dark:text-yellow-400 hover:bg-yellow-50 dark:hover:bg-yellow-900/30'
-                  : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
-              }`}
+                    ? 'text-yellow-600 dark:text-yellow-400 hover:bg-yellow-50 dark:hover:bg-yellow-900/30'
+                    : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+                }`}
               title={allEnabled ? 'Disable all in group' : 'Enable all in group'}
             >
               {allEnabled ? (
@@ -171,9 +155,8 @@ const FixedExpenseGroupCard = ({
               return (
                 <div
                   key={subPocket.id}
-                  className={`p-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors ${
-                    !subPocket.enabled ? 'opacity-50' : ''
-                  }`}
+                  className={`p-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors ${!subPocket.enabled ? 'opacity-50' : ''
+                    }`}
                 >
                   <div className="flex items-center justify-between gap-4">
                     <div className="flex-1 min-w-0">
@@ -188,7 +171,7 @@ const FixedExpenseGroupCard = ({
                             </span>
                           )}
                         </div>
-                        
+
                         {/* Group Selector */}
                         <select
                           value={subPocket.groupId || ''}
@@ -203,7 +186,7 @@ const FixedExpenseGroupCard = ({
                           ))}
                         </select>
                       </div>
-                      
+
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                         <div>
                           <span className="text-gray-500 dark:text-gray-400">Total:</span>
@@ -253,11 +236,10 @@ const FixedExpenseGroupCard = ({
                         onClick={() => onToggleExpense(subPocket.id)}
                         loading={isTogglingExpense}
                         disabled={isTogglingExpense}
-                        className={`p-2 ${
-                          subPocket.enabled
+                        className={`p-2 ${subPocket.enabled
                             ? 'text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/30'
                             : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
-                        }`}
+                          }`}
                         title={subPocket.enabled ? 'Disable' : 'Enable'}
                       >
                         {subPocket.enabled ? (
