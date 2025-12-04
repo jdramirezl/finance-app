@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
-import { useFinanceStore } from '../store/useFinanceStore';
+import { useState } from 'react';
+import { useAccountsQuery, usePocketsQuery, useAccountMutations, usePocketMutations } from '../hooks/queries';
+// Removed useFinanceStore import
 import { useToast } from '../hooks/useToast';
 import { useConfirm } from '../hooks/useConfirm';
 import type { Account, Pocket, Currency } from '../types';
@@ -12,23 +13,29 @@ import SortableItem from '../components/SortableItem';
 import { Skeleton, SkeletonList } from '../components/Skeleton';
 
 const AccountsPage = () => {
+  // Queries
+  const { data: accounts = [], isLoading: accountsLoading } = useAccountsQuery();
+  const { data: pockets = [], isLoading: pocketsLoading } = usePocketsQuery();
+
+  // Mutations
   const {
-    accounts,
-    selectedAccountId,
-    loadAccounts,
     createAccount,
     updateAccount,
     deleteAccount,
     deleteAccountCascade,
-    selectAccount,
-    reorderAccounts,
+    reorderAccounts
+  } = useAccountMutations();
+
+  const {
     createPocket,
     updatePocket,
     deletePocket,
     reorderPockets,
-    getPocketsByAccount,
-    migrateFixedPocketToAccount,
-  } = useFinanceStore();
+    migrateFixedPocketToAccount
+  } = usePocketMutations();
+
+  // Local State
+  const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
 
   const toast = useToast();
   const { confirm, confirmState, handleClose, handleConfirm } = useConfirm();
@@ -45,34 +52,20 @@ const AccountsPage = () => {
   const [editingPocket, setEditingPocket] = useState<Pocket | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [accountType, setAccountType] = useState<'normal' | 'investment'>('normal');
-  const [isLoading, setIsLoading] = useState(true);
+
+  // UI State
+  const [isSaving, setIsSaving] = useState(false);
   const [isCascadeDeleting, setIsCascadeDeleting] = useState(false);
   const [isMigrating, setIsMigrating] = useState(false);
-  const [isSaving, setIsSaving] = useState(false); // Button-level loading
-  const [_deletingAccountId, setDeletingAccountId] = useState<string | null>(null);
-  const [_deletingPocketId, setDeletingPocketId] = useState<string | null>(null);
 
-  useEffect(() => {
-    const loadData = async () => {
-      setIsLoading(true);
-      try {
-        // loadAccounts now loads accounts, pockets, and subPockets in one call
-        await loadAccounts();
-      } catch (err) {
-        console.error('Failed to load data:', err);
-        toast.error('Failed to load accounts and pockets');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    loadData();
-  }, [loadAccounts]); // Removed toast from dependencies - it shouldn't trigger reloads
+  // Combined loading state
+  const isLoading = accountsLoading || pocketsLoading;
 
   const selectedAccount = selectedAccountId
     ? accounts.find((acc) => acc.id === selectedAccountId) || null
     : null;
   const selectedAccountPockets = selectedAccountId
-    ? getPocketsByAccount(selectedAccountId)
+    ? pockets.filter(p => p.accountId === selectedAccountId)
     : [];
 
   const handleCreateAccount = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -91,8 +84,8 @@ const AccountsPage = () => {
       // Optimistic: close form immediately, store handles optimistic update
       form.reset();
       setShowAccountForm(false);
-      
-      await createAccount(name, color, currency, type, stockSymbol);
+
+      await createAccount.mutateAsync({ name, color, currency, type, stockSymbol });
       toast.success('Account created successfully!');
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to create account');
@@ -119,8 +112,8 @@ const AccountsPage = () => {
     try {
       // Optimistic: close form immediately, store handles optimistic update
       setEditingAccount(null);
-      
-      await updateAccount(editingAccount.id, updates);
+
+      await updateAccount.mutateAsync({ id: editingAccount.id, updates });
       toast.success('Account updated successfully!');
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to update account');
@@ -143,20 +136,17 @@ const AccountsPage = () => {
     if (!confirmed) return;
 
     setError(null);
-    setDeletingAccountId(id);
     try {
       // Optimistic: UI updates immediately via store
       if (selectedAccountId === id) {
-        selectAccount(null);
+        setSelectedAccountId(null);
       }
-      await deleteAccount(id);
+      await deleteAccount.mutateAsync(id);
       toast.success('Account deleted successfully!');
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to delete account';
       setError(errorMessage);
       toast.error(errorMessage);
-    } finally {
-      setDeletingAccountId(null);
     }
   };
 
@@ -172,15 +162,15 @@ const AccountsPage = () => {
     setIsCascadeDeleting(true);
     setError(null);
     try {
-      const result = await deleteAccountCascade(cascadeAccountId, cascadeDeleteMovements);
-      
+      const result = await deleteAccountCascade.mutateAsync({ id: cascadeAccountId, deleteMovements: cascadeDeleteMovements });
+
       if (selectedAccountId === cascadeAccountId) {
-        selectAccount(null);
+        setSelectedAccountId(null);
       }
-      
+
       setShowCascadeDialog(false);
       setCascadeAccountId(null);
-      
+
       toast.success(
         `Deleted account "${result.account}" with ${result.pockets} pocket(s), ${result.subPockets} sub-pocket(s)` +
         (result.movements > 0 ? `, and ${result.movements} movement(s)` : '')
@@ -222,8 +212,8 @@ const AccountsPage = () => {
       // Optimistic: close form immediately, store handles optimistic update
       form.reset();
       setShowPocketForm(false);
-      
-      await createPocket(selectedAccountId, name, type);
+
+      await createPocket.mutateAsync({ accountId: selectedAccountId, name, type });
       toast.success('Pocket created successfully!');
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to create pocket');
@@ -248,8 +238,8 @@ const AccountsPage = () => {
     try {
       // Optimistic: close form immediately, store handles optimistic update
       setEditingPocket(null);
-      
-      await updatePocket(editingPocket.id, updates);
+
+      await updatePocket.mutateAsync({ id: editingPocket.id, updates });
       toast.success('Pocket updated successfully!');
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to update pocket');
@@ -272,17 +262,14 @@ const AccountsPage = () => {
     if (!confirmed) return;
 
     setError(null);
-    setDeletingPocketId(id);
     try {
       // Optimistic: UI updates immediately via store
-      await deletePocket(id);
+      await deletePocket.mutateAsync(id);
       toast.success('Pocket deleted successfully!');
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to delete pocket';
       setError(errorMessage);
       toast.error(errorMessage);
-    } finally {
-      setDeletingPocketId(null);
     }
   };
 
@@ -300,13 +287,13 @@ const AccountsPage = () => {
     try {
       const pocket = selectedAccountPockets.find(p => p.id === migrationPocketId);
       const targetAccount = accounts.find(a => a.id === migrationTargetAccountId);
-      
-      await migrateFixedPocketToAccount(migrationPocketId, migrationTargetAccountId);
-      
+
+      await migrateFixedPocketToAccount.mutateAsync({ pocketId: migrationPocketId, targetAccountId: migrationTargetAccountId });
+
       setShowMigrationDialog(false);
       setMigrationPocketId(null);
       setMigrationTargetAccountId('');
-      
+
       toast.success(
         `Successfully migrated "${pocket?.name}" to "${targetAccount?.name}". All movements have been transferred.`
       );
@@ -378,17 +365,16 @@ const AccountsPage = () => {
           ) : (
             <SortableList
               items={[...accounts].sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0))}
-              onReorder={reorderAccounts}
+              onReorder={(items) => reorderAccounts.mutate(items)}
               getId={(account) => account.id}
               renderItem={(account) => (
                 <SortableItem key={account.id} id={account.id}>
                   <div
-                    onClick={() => selectAccount(account.id)}
-                    className={`p-4 bg-white dark:bg-gray-800 rounded-lg border-2 cursor-pointer transition-all ${
-                      selectedAccountId === account.id
-                        ? 'border-blue-500 dark:border-blue-400 shadow-md'
-                        : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
-                    }`}
+                    onClick={() => setSelectedAccountId(account.id)}
+                    className={`p-4 bg-white dark:bg-gray-800 rounded-lg border-2 cursor-pointer transition-all ${selectedAccountId === account.id
+                      ? 'border-blue-500 dark:border-blue-400 shadow-md'
+                      : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+                      }`}
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
@@ -446,7 +432,7 @@ const AccountsPage = () => {
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Account Details</h2>
                   <button
-                    onClick={() => selectAccount(null)}
+                    onClick={() => setSelectedAccountId(null)}
                     className="p-1 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
                   >
                     <X className="w-5 h-5" />
@@ -623,7 +609,7 @@ const AccountsPage = () => {
                 ) : (
                   <SortableList
                     items={[...selectedAccountPockets].sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0))}
-                    onReorder={reorderPockets}
+                    onReorder={(items) => reorderPockets.mutate(items)}
                     getId={(pocket) => pocket.id}
                     renderItem={(pocket) => (
                       <SortableItem key={pocket.id} id={pocket.id}>
@@ -723,54 +709,54 @@ const AccountsPage = () => {
           title="Create New Account"
         >
           <form onSubmit={handleCreateAccount} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">Name</label>
-                <input
-                  type="text"
-                  name="name"
-                  required
-                  className="w-full px-3 py-2 border rounded-lg"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Color</label>
-                <input
-                  type="color"
-                  name="color"
-                  defaultValue="#3b82f6"
-                  required
-                  className="w-full h-10 border rounded-lg"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Currency</label>
-                <select
-                  name="currency"
-                  defaultValue="USD"
-                  required
-                  className="w-full px-3 py-2 border rounded-lg"
-                >
-                  {currencies.map((curr) => (
-                    <option key={curr} value={curr}>
-                      {curr}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1 text-gray-900 dark:text-gray-100">Type</label>
-                <select
-                  name="type"
-                  id="accountType"
-                  value={accountType}
-                  onChange={(e) => setAccountType(e.target.value as 'normal' | 'investment')}
-                  className="w-full px-3 py-2 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                >
-                  <option value="normal">Normal</option>
-                  <option value="investment">Investment</option>
-                </select>
-              </div>
-              {accountType === 'investment' && (
+            <div>
+              <label className="block text-sm font-medium mb-1">Name</label>
+              <input
+                type="text"
+                name="name"
+                required
+                className="w-full px-3 py-2 border rounded-lg"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Color</label>
+              <input
+                type="color"
+                name="color"
+                defaultValue="#3b82f6"
+                required
+                className="w-full h-10 border rounded-lg"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Currency</label>
+              <select
+                name="currency"
+                defaultValue="USD"
+                required
+                className="w-full px-3 py-2 border rounded-lg"
+              >
+                {currencies.map((curr) => (
+                  <option key={curr} value={curr}>
+                    {curr}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1 text-gray-900 dark:text-gray-100">Type</label>
+              <select
+                name="type"
+                id="accountType"
+                value={accountType}
+                onChange={(e) => setAccountType(e.target.value as 'normal' | 'investment')}
+                className="w-full px-3 py-2 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+              >
+                <option value="normal">Normal</option>
+                <option value="investment">Investment</option>
+              </select>
+            </div>
+            {accountType === 'investment' && (
               <div>
                 <label className="block text-sm font-medium mb-1 text-gray-900 dark:text-gray-100">Stock Symbol (e.g., VOO)</label>
                 <input
@@ -784,26 +770,26 @@ const AccountsPage = () => {
                   The stock/ETF symbol for this investment account
                 </p>
               </div>
-              )}
-              <div className="flex gap-2">
-                <Button
-                  type="submit"
-                  variant="primary"
-                  loading={isSaving}
-                  className="flex-1"
-                >
-                  Create
-                </Button>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={() => setShowAccountForm(false)}
-                  disabled={isSaving}
-                >
-                  Cancel
-                </Button>
-              </div>
-            </form>
+            )}
+            <div className="flex gap-2">
+              <Button
+                type="submit"
+                variant="primary"
+                loading={isSaving}
+                className="flex-1"
+              >
+                Create
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => setShowAccountForm(false)}
+                disabled={isSaving}
+              >
+                Cancel
+              </Button>
+            </div>
+          </form>
         </Modal>
       )}
 
@@ -813,7 +799,7 @@ const AccountsPage = () => {
           <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
             Delete Account & All Data
           </h3>
-          
+
           <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
             <p className="text-yellow-800 dark:text-yellow-300 font-medium mb-2">
               ⚠️ Warning: This action cannot be undone!
@@ -840,8 +826,8 @@ const AccountsPage = () => {
             <label htmlFor="deleteMovements" className="text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
               <span className="font-medium">Also delete all movements (not recommended)</span>
               <p className="text-gray-600 dark:text-gray-400 mt-1">
-                💡 <strong>Recommended:</strong> Leave unchecked to preserve transaction history. 
-                Movements will be hidden from the UI but preserved for audit purposes. 
+                💡 <strong>Recommended:</strong> Leave unchecked to preserve transaction history.
+                Movements will be hidden from the UI but preserved for audit purposes.
                 If you recreate an account with the same name, movements will automatically reappear.
               </p>
             </label>
@@ -873,7 +859,7 @@ const AccountsPage = () => {
           <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
             Migrate Fixed Pocket to Another Account
           </h3>
-          
+
           <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
             <p className="text-blue-800 dark:text-blue-300 font-medium mb-2">
               ℹ️ What will happen:
