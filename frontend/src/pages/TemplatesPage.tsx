@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { useMovementTemplatesQuery, useAccountsQuery, usePocketsQuery, useMovementTemplateMutations } from '../hooks/queries';
-// Removed useFinanceStore import
 import { useToast } from '../hooks/useToast';
 import { useConfirm } from '../hooks/useConfirm';
 import { Trash2, Plus } from 'lucide-react';
