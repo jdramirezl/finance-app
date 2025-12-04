@@ -2,12 +2,14 @@ import { useQuery, useInfiniteQuery } from '@tanstack/react-query';
 import { movementService } from '../../services/movementService';
 
 /**
- * Query hook for fetching movements with pagination
+ * Query hook for fetching ALL active movements (excludes orphaned)
+ * Movements are grouped by month on the client side
  */
-export const useMovementsQuery = (page = 1, limit = 20) => {
+export const useMovementsQuery = () => {
     return useQuery({
-        queryKey: ['movements', { page, limit }],
-        queryFn: () => movementService.getAllMovements(page, limit),
+        queryKey: ['movements'],
+        queryFn: () => movementService.getActiveMovements(),
+        staleTime: 1000 * 60 * 5, // 5 minutes
     });
 };
 

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import {
   useAccountsQuery,
   usePocketsQuery,
-  useInfiniteMovementsQuery,
+  useMovementsQuery,
   useMovementTemplatesQuery,
   useOrphanedMovementsQuery,
   useSubPocketsQuery,
@@ -32,13 +32,8 @@ const MovementsPage = () => {
   const { data: accounts = [] } = useAccountsQuery();
   const { data: pockets = [] } = usePocketsQuery();
   const { data: subPockets = [] } = useSubPocketsQuery();
-  const {
-    data: movementsData,
-    fetchNextPage,
-    hasNextPage,
-    isFetchingNextPage,
-    isLoading: movementsLoading
-  } = useInfiniteMovementsQuery();
+  // Load ALL movements (no pagination) - grouping by month happens client-side
+  const { data: movements = [], isLoading: movementsLoading } = useMovementsQuery();
   const { data: movementTemplates = [] } = useMovementTemplatesQuery();
   const { data: orphanedMovementsData = [] } = useOrphanedMovementsQuery();
 
@@ -55,7 +50,6 @@ const MovementsPage = () => {
   const { createMovementTemplate } = useMovementTemplateMutations();
 
   // Derived State
-  const movements = movementsData?.pages.flat() || [];
   const orphanedCount = orphanedMovementsData.length;
   const orphanedMovements = orphanedMovementsData;
 
@@ -573,18 +567,6 @@ const MovementsPage = () => {
         deletingId={deletingId}
         applyingId={applyingId}
       />
-
-      {hasNextPage && (
-        <div className="flex justify-center pt-4 pb-8">
-          <Button
-            variant="secondary"
-            onClick={() => fetchNextPage()}
-            disabled={isFetchingNextPage}
-          >
-            {isFetchingNextPage ? 'Loading...' : 'Load More Movements'}
-          </Button>
-        </div>
-      )}
 
       <Modal
         isOpen={showForm}
