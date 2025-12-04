@@ -2,8 +2,6 @@ import type { FixedExpenseGroup } from '../types';
 import { supabase } from '../lib/supabase';
 import { apiClient } from './apiClient';
 
-const DEFAULT_GROUP_ID = '00000000-0000-0000-0000-000000000001';
-
 class FixedExpenseGroupService {
   // Feature flag to control backend usage
   private useBackend = import.meta.env.VITE_USE_BACKEND_FIXED_EXPENSE_GROUPS === 'true';
@@ -161,8 +159,9 @@ class FixedExpenseGroupService {
   // Direct Supabase implementation (fallback)
   private async updateDirect(id: string, name: string, color: string): Promise<void> {
     try {
-      // Prevent updating default group name
-      if (id === DEFAULT_GROUP_ID) {
+      // Prevent renaming the Default group (check by name, not hardcoded ID)
+      const group = await this.getByIdDirect(id);
+      if (group && group.name === 'Default' && name !== 'Default') {
         throw new Error('Cannot rename the Default group');
       }
 
@@ -200,15 +199,24 @@ class FixedExpenseGroupService {
   // Direct Supabase implementation (fallback)
   private async deleteDirect(id: string): Promise<void> {
     try {
-      // Prevent deleting default group
-      if (id === DEFAULT_GROUP_ID) {
+      // Prevent deleting default group (check by name, not hardcoded ID)
+      const group = await this.getByIdDirect(id);
+      if (group && group.name === 'Default') {
         throw new Error('Cannot delete the Default group');
       }
 
-      // Move all expenses in this group to Default group
+      // Find user's default group to move expenses to
+      const allGroups = await this.getAllDirect();
+      const defaultGroup = allGroups.find(g => g.name === 'Default');
+      
+      if (!defaultGroup) {
+        throw new Error('Default group not found. Cannot delete group.');
+      }
+
+      // Move all expenses in this group to user's Default group
       const { error: moveError } = await supabase
         .from('sub_pockets')
-        .update({ group_id: DEFAULT_GROUP_ID })
+        .update({ group_id: defaultGroup.id })
         .eq('group_id', id);
 
       if (moveError) throw moveError;
@@ -226,14 +234,15 @@ class FixedExpenseGroupService {
     }
   }
 
-  // Check if group is default
-  isDefaultGroup(id: string): boolean {
-    return id === DEFAULT_GROUP_ID;
+  // Check if group is default (by name)
+  isDefaultGroup(group: FixedExpenseGroup): boolean {
+    return group.name === 'Default';
   }
 
-  // Get default group ID
-  getDefaultGroupId(): string {
-    return DEFAULT_GROUP_ID;
+  // Get user's default group
+  async getDefaultGroup(): Promise<FixedExpenseGroup | null> {
+    const groups = await this.getAll();
+    return groups.find(g => g.name === 'Default') || null;
   }
 }
 

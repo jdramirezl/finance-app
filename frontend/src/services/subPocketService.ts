@@ -190,6 +190,23 @@ class SubPocketService {
       throw new Error(`A sub-pocket with name "${trimmedName}" already exists in this pocket.`);
     }
 
+    // CRITICAL FIX: Ensure user has a default group, create if needed
+    let finalGroupId = groupId;
+    
+    if (!finalGroupId) {
+      // No group specified - find or create user's default group
+      const { fixedExpenseGroupService } = await import('./fixedExpenseGroupService');
+      const allGroups = await fixedExpenseGroupService.getAll();
+      let defaultGroup = allGroups.find(g => g.name === 'Default');
+      
+      if (!defaultGroup) {
+        // Create default group for this user
+        defaultGroup = await fixedExpenseGroupService.create('Default', '#6B7280');
+      }
+      
+      finalGroupId = defaultGroup.id;
+    }
+
     const subPocket: SubPocket = {
       id: generateId(),
       pocketId,
@@ -198,7 +215,7 @@ class SubPocketService {
       periodicityMonths,
       balance: 0,
       enabled: true,
-      groupId, // Assign to group (defaults to Default group in DB if null)
+      groupId: finalGroupId, // Always assign to a group (user's default if not specified)
     };
 
     // Insert directly - much faster than fetch-all-save-all
