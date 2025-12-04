@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { useFinanceStore } from '../store/useFinanceStore';
+import { useAccountsQuery, usePocketsQuery, useSettingsQuery, useSubPocketsQuery } from '../hooks/queries';
+// Removed useFinanceStore import
 import { currencyService } from '../services/currencyService';
 import { investmentService } from '../services/investmentService';
 import type { Currency, Account } from '../types';
@@ -18,42 +19,20 @@ interface InvestmentData {
 }
 
 const SummaryPage = () => {
-  const {
-    accounts,
-    pockets,
-    loadAccounts,
-    getPocketsByAccount,
-    getSubPocketsByPocket,
-    settings,
-    loadSettings,
-  } = useFinanceStore();
+  // TanStack Query hooks
+  const { data: accounts = [], isLoading: accountsLoading } = useAccountsQuery();
+  const { data: pockets = [], isLoading: pocketsLoading } = usePocketsQuery();
+  const { data: settings, isLoading: settingsLoading } = useSettingsQuery();
+  const { data: subPockets = [], isLoading: subPocketsLoading } = useSubPocketsQuery();
 
   const [investmentData, setInvestmentData] = useState<Map<string, InvestmentData>>(new Map());
   const [, setLoadingInvestments] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [refreshingPrices, setRefreshingPrices] = useState<Set<string>>(new Set());
   const toast = useToast();
 
-  useEffect(() => {
-    const loadData = async () => {
-      setIsLoading(true);
-      setError(null);
-      try {
-        // loadAccounts now loads accounts, pockets, and subPockets in one call
-        await Promise.all([
-          loadAccounts(),
-          loadSettings(),
-        ]);
-      } catch (err) {
-        console.error('Failed to load data:', err);
-        setError('Failed to load data. Please refresh the page.');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    loadData();
-  }, [loadAccounts, loadSettings]);
+  // Combine loading states
+  const isLoading = accountsLoading || pocketsLoading || settingsLoading || subPocketsLoading;
+  const error = null; // TanStack Query handles errors internally
 
   // Load investment prices
   useEffect(() => {
@@ -125,7 +104,7 @@ const SummaryPage = () => {
     }
   };
 
-  const primaryCurrency = settings.primaryCurrency || 'USD';
+  const primaryCurrency = settings?.primaryCurrency || 'USD';
 
   // Group accounts by currency
   const accountsByCurrency = accounts.reduce((acc, account) => {
@@ -157,7 +136,7 @@ const SummaryPage = () => {
     const calculateTotal = async () => {
       let total = 0;
       const validCurrencies = Object.keys(accountsByCurrency).filter(c => c && c.trim());
-      
+
       for (const currency of validCurrencies) {
         const currencyTotal = getTotalByCurrency(currency as Currency);
         if (currencyTotal && currency) {
@@ -171,7 +150,7 @@ const SummaryPage = () => {
       }
       setConsolidatedTotal(total);
     };
-    
+
     if (accounts.length > 0) {
       calculateTotal();
     }
@@ -187,7 +166,9 @@ const SummaryPage = () => {
 
   // Find fixed expenses pocket
   const fixedPocket = pockets.find((p) => p.type === 'fixed');
-  const fixedSubPockets = fixedPocket ? getSubPocketsByPocket(fixedPocket.id) : [];
+  const fixedSubPockets = fixedPocket
+    ? subPockets.filter(sp => sp.pocketId === fixedPocket.id)
+    : [];
   const fixedAccount = fixedPocket
     ? accounts.find((acc) => acc.id === fixedPocket.accountId)
     : null;
@@ -303,7 +284,7 @@ const SummaryPage = () => {
                     </div>
                     <div className="space-y-4">
                       {sortedAccounts.map((account) => {
-                        const accountPockets = getPocketsByAccount(account.id);
+                        const accountPockets = pockets.filter(p => p.accountId === account.id);
 
                         return (
                           <div key={account.id} className="border-l-4 pl-4" style={{ borderColor: account.color }}>
@@ -335,7 +316,7 @@ const SummaryPage = () => {
                                   const shares = account.shares || 0;
                                   const stockSymbol = account.stockSymbol || 'N/A';
                                   const isRefreshing = refreshingPrices.has(account.id);
-                                  
+
                                   if (!invData) {
                                     return (
                                       <div className="text-gray-500 dark:text-gray-400 italic">
@@ -487,11 +468,10 @@ const SummaryPage = () => {
                       const isDisabled = !subPocket.enabled;
 
                       return (
-                        <tr 
-                          key={subPocket.id} 
-                          className={`hover:bg-gray-50 dark:hover:bg-gray-700/30 ${
-                            isDisabled ? 'opacity-50' : ''
-                          }`}
+                        <tr
+                          key={subPocket.id}
+                          className={`hover:bg-gray-50 dark:hover:bg-gray-700/30 ${isDisabled ? 'opacity-50' : ''
+                            }`}
                         >
                           <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-gray-100">
                             <div className="flex items-center gap-2">
