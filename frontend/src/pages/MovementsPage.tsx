@@ -9,7 +9,6 @@ import {
   useMovementMutations,
   useMovementTemplateMutations
 } from '../hooks/queries';
-// Removed useFinanceStore import
 import { useToast } from '../hooks/useToast';
 import { useConfirm } from '../hooks/useConfirm';
 import type { Movement, MovementType } from '../types';
