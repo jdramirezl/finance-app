@@ -1,5 +1,14 @@
-import { useEffect, useState } from 'react';
-import { useFinanceStore } from '../store/useFinanceStore';
+import { useState } from 'react';
+import {
+  useAccountsQuery,
+  usePocketsQuery,
+  useSubPocketsQuery,
+  useFixedExpenseGroupsQuery,
+  useMovementMutations,
+  useFixedExpenseGroupMutations,
+  useSubPocketMutations
+} from '../hooks/queries';
+// Removed useFinanceStore import
 import { useToast } from '../hooks/useToast';
 import { useConfirm } from '../hooks/useConfirm';
 import type { SubPocket, FixedExpenseGroup } from '../types';
@@ -14,26 +23,29 @@ import BatchMovementForm, { type BatchMovementRow } from '../components/BatchMov
 import FixedExpenseGroupCard from '../components/FixedExpenseGroupCard';
 
 const FixedExpensesPage = () => {
+  // Queries
+  const { data: accounts = [] } = useAccountsQuery();
+  const { data: pockets = [] } = usePocketsQuery();
+  const { data: subPockets = [] } = useSubPocketsQuery();
+  const { data: fixedExpenseGroups = [], isLoading: groupsLoading } = useFixedExpenseGroupsQuery();
+
+  // Mutations
+  const { createMovement } = useMovementMutations();
+
   const {
-    accounts,
-    pockets,
-    fixedExpenseGroups,
-    loadAccounts,
-    loadFixedExpenseGroups,
+    createFixedExpenseGroup,
+    updateFixedExpenseGroup,
+    deleteFixedExpenseGroup,
+    toggleFixedExpenseGroup
+  } = useFixedExpenseGroupMutations();
+
+  const {
     createSubPocket,
     updateSubPocket,
     deleteSubPocket,
     toggleSubPocketEnabled,
-    getSubPocketsByPocket,
-    getSubPocketsByGroup,
-    createMovement,
-    getPocketsByAccount,
-    createFixedExpenseGroup,
-    updateFixedExpenseGroup,
-    deleteFixedExpenseGroup,
-    toggleFixedExpenseGroup,
-    moveSubPocketToGroup,
-  } = useFinanceStore();
+    moveSubPocketToGroup
+  } = useSubPocketMutations();
 
   const toast = useToast();
   const { confirm, confirmState, handleClose, handleConfirm } = useConfirm();
@@ -45,34 +57,19 @@ const FixedExpensesPage = () => {
   const [editingGroup, setEditingGroup] = useState<FixedExpenseGroup | null>(null);
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false); // Button-level loading
+
+  // UI State
+  const [isSaving, setIsSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [togglingGroupId, setTogglingGroupId] = useState<string | null>(null);
 
-  useEffect(() => {
-    const loadData = async () => {
-      setIsLoading(true);
-      try {
-        // Load accounts, pockets, subPockets, and groups
-        await Promise.all([
-          loadAccounts(true), // Skip investment prices
-          loadFixedExpenseGroups(),
-        ]);
-      } catch (err) {
-        console.error('Failed to load data:', err);
-        toast.error('Failed to load fixed expenses data');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    loadData();
-  }, [loadAccounts, loadFixedExpenseGroups]);
+  // Derived loading state
+  const isLoading = groupsLoading;
 
   // Find the fixed expenses pocket
   const fixedPocket = pockets.find((p) => p.type === 'fixed');
-  const fixedSubPockets = fixedPocket ? getSubPocketsByPocket(fixedPocket.id) : [];
+  const fixedSubPockets = fixedPocket ? subPockets.filter(sp => sp.pocketId === fixedPocket.id) : [];
   const fixedAccount = fixedPocket
     ? accounts.find((acc) => acc.id === fixedPocket.accountId)
     : null;
@@ -104,7 +101,7 @@ const FixedExpensesPage = () => {
     }
 
     const enabledSubPockets = fixedSubPockets.filter(sp => sp.enabled);
-    
+
     if (enabledSubPockets.length === 0) {
       toast.error('No enabled fixed expenses found');
       return;
@@ -131,18 +128,18 @@ const FixedExpensesPage = () => {
     try {
       // Create all movements
       for (const row of rows) {
-        await createMovement(
-          row.type,
-          row.accountId,
-          row.pocketId,
-          parseFloat(row.amount),
-          row.notes || undefined,
-          row.displayedDate,
-          row.subPocketId,
-          false // Not pending
-        );
+        await createMovement.mutateAsync({
+          type: row.type,
+          accountId: row.accountId,
+          pocketId: row.pocketId,
+          amount: parseFloat(row.amount),
+          notes: row.notes || undefined,
+          displayedDate: row.displayedDate,
+          subPocketId: row.subPocketId,
+          isPending: false // Not pending
+        });
       }
-      
+
       setShowBatchForm(false);
       setBatchRows([]);
       toast.success(`Successfully created ${rows.length} movements!`);
@@ -178,19 +175,18 @@ const FixedExpensesPage = () => {
         setEditingSubPocket(null);
         form.reset();
         setShowForm(false);
-        
-        await updateSubPocket(editingSubPocket.id, {
-          name,
-          valueTotal,
-          periodicityMonths,
+
+        await updateSubPocket.mutateAsync({
+          id: editingSubPocket.id,
+          updates: { name, valueTotal, periodicityMonths }
         });
         toast.success('Fixed expense updated successfully!');
       } else {
         // Optimistic: close form immediately, store handles optimistic update
         form.reset();
         setShowForm(false);
-        
-        await createSubPocket(fixedPocket.id, name, valueTotal, periodicityMonths);
+
+        await createSubPocket.mutateAsync({ pocketId: fixedPocket.id, name, valueTotal, periodicityMonths });
         toast.success('Fixed expense created successfully!');
       }
     } catch (err: any) {
@@ -205,7 +201,7 @@ const FixedExpensesPage = () => {
 
   const handleDelete = async (id: string) => {
     const subPocket = fixedSubPockets.find(sp => sp.id === id);
-    
+
     const confirmed = await confirm({
       title: 'Delete Fixed Expense',
       message: `Are you sure you want to delete "${subPocket?.name}"? This action cannot be undone.`,
@@ -220,7 +216,7 @@ const FixedExpensesPage = () => {
     setDeletingId(id); // Track which item is being deleted
     try {
       // Optimistic: UI updates immediately via store
-      await deleteSubPocket(id);
+      await deleteSubPocket.mutateAsync(id);
       toast.success('Fixed expense deleted successfully!');
     } catch (err: any) {
       const errorMsg = err.message || 'Failed to delete fixed expense';
@@ -236,7 +232,7 @@ const FixedExpensesPage = () => {
     setTogglingId(id); // Track which item is being toggled
     try {
       // Optimistic: UI updates immediately via store
-      await toggleSubPocketEnabled(id);
+      await toggleSubPocketEnabled.mutateAsync(id);
       toast.success('Fixed expense status updated!');
     } catch (err: any) {
       const errorMsg = err.message || 'Failed to toggle fixed expense';
@@ -254,17 +250,17 @@ const FixedExpensesPage = () => {
       .reduce((sum, sp) => {
         const aporteMensual = calculateAporteMensual(sp.valueTotal, sp.periodicityMonths);
         const remaining = sp.valueTotal - sp.balance;
-        
+
         // Case 1: Negative balance - compensate + normal payment
         if (sp.balance < 0) {
           return sum + aporteMensual + Math.abs(sp.balance);
         }
-        
+
         // Case 2: Near completion - min of remaining or normal payment
         if (remaining < aporteMensual) {
           return sum + remaining;
         }
-        
+
         // Normal case
         return sum + aporteMensual;
       }, 0);
@@ -284,10 +280,10 @@ const FixedExpensesPage = () => {
 
     try {
       if (editingGroup) {
-        await updateFixedExpenseGroup(editingGroup.id, name, color);
+        await updateFixedExpenseGroup.mutateAsync({ id: editingGroup.id, name, color });
         toast.success('Group updated successfully!');
       } else {
-        await createFixedExpenseGroup(name, color);
+        await createFixedExpenseGroup.mutateAsync({ name, color });
         toast.success('Group created successfully!');
       }
       setShowGroupForm(false);
@@ -312,7 +308,7 @@ const FixedExpensesPage = () => {
     if (!confirmed) return;
 
     try {
-      await deleteFixedExpenseGroup(group.id);
+      await deleteFixedExpenseGroup.mutateAsync(group.id);
       toast.success('Group deleted successfully!');
     } catch (err: any) {
       toast.error(err.message || 'Failed to delete group');
@@ -322,7 +318,7 @@ const FixedExpensesPage = () => {
   const handleToggleGroup = async (groupId: string, enabled: boolean) => {
     setTogglingGroupId(groupId);
     try {
-      await toggleFixedExpenseGroup(groupId, enabled);
+      await toggleFixedExpenseGroup.mutateAsync({ id: groupId, enabled });
       toast.success(`Group ${enabled ? 'enabled' : 'disabled'} successfully!`);
     } catch (err: any) {
       toast.error(err.message || 'Failed to toggle group');
@@ -488,9 +484,9 @@ const FixedExpensesPage = () => {
       ) : (
         <div className="space-y-4">
           {fixedExpenseGroups.map((group) => {
-            const groupExpenses = getSubPocketsByGroup(group.id);
+            const groupExpenses = subPockets.filter(sp => sp.groupId === group.id);
             const isDefaultGroup = group.id === '00000000-0000-0000-0000-000000000001';
-            
+
             return (
               <FixedExpenseGroupCard
                 key={group.id}
@@ -516,7 +512,7 @@ const FixedExpensesPage = () => {
                 onToggleExpense={handleToggle}
                 onMoveToGroup={async (subPocketId, groupId) => {
                   try {
-                    await moveSubPocketToGroup(subPocketId, groupId);
+                    await moveSubPocketToGroup.mutateAsync({ subPocketId, groupId });
                     toast.success('Expense moved to new group!');
                   } catch (err: any) {
                     toast.error(err.message || 'Failed to move expense');
@@ -595,9 +591,8 @@ const FixedExpensesPage = () => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center gap-2">
-                          <span className={`text-sm font-medium text-gray-900 dark:text-gray-100 ${
-                            !subPocket.enabled ? 'line-through' : ''
-                          }`}>
+                          <span className={`text-sm font-medium text-gray-900 dark:text-gray-100 ${!subPocket.enabled ? 'line-through' : ''
+                            }`}>
                             {subPocket.name}
                           </span>
                           {!subPocket.enabled && (
@@ -628,13 +623,12 @@ const FixedExpensesPage = () => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div
-                          className={`text-sm font-medium ${
-                            subPocket.balance < 0
-                              ? 'text-red-600 dark:text-red-400'
-                              : subPocket.balance >= subPocket.valueTotal
+                          className={`text-sm font-medium ${subPocket.balance < 0
+                            ? 'text-red-600 dark:text-red-400'
+                            : subPocket.balance >= subPocket.valueTotal
                               ? 'text-green-600 dark:text-green-400'
                               : 'text-gray-900 dark:text-gray-100'
-                          }`}
+                            }`}
                         >
                           {subPocket.balance.toLocaleString(undefined, {
                             style: 'currency',
@@ -781,8 +775,8 @@ const FixedExpensesPage = () => {
       <Modal isOpen={showBatchForm} onClose={() => setShowBatchForm(false)}>
         <BatchMovementForm
           accounts={accounts}
-          getPocketsByAccount={getPocketsByAccount}
-          getSubPocketsByPocket={getSubPocketsByPocket}
+          getPocketsByAccount={(accountId) => pockets.filter(p => p.accountId === accountId)}
+          getSubPocketsByPocket={(pocketId) => subPockets.filter(sp => sp.pocketId === pocketId)}
           onSave={handleBatchSave}
           onCancel={() => {
             setShowBatchForm(false);
