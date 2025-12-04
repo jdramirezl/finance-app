@@ -48,6 +48,11 @@ A web application for personal finance management built with React and TypeScrip
   - Properties: `montoInvertido`, `shares`, `precioActual`, `gananciasUSD`, `gananciasPct`
   - Always displayed first in account lists
 
+- **Movement Template**
+  - Saved transaction pattern for quick entry
+  - Properties: `name`, `type`, `accountId`, `pocketId`, `defaultAmount` (optional), `notes` (optional)
+  - Can be created from existing movement or manually
+
 ## Business Rules
 
 ### Accounting Rules
@@ -175,6 +180,7 @@ Remaining: 100
 
 **Functionality:**
 - Register new movements
+- **Save as Template**: Option to save a new movement as a reusable template
 - Edit all fields of existing movements
 - Group by month (visual separation)
 - Sort by `createdAt` (registration date), not `displayedDate`
@@ -207,7 +213,15 @@ Remaining: 100
     - 1/2/2025 | 25,000$ | comida | account_3 | pocket_2
   ```
 
-### 6. Investments View (VOO)
+### 6. Templates View
+
+**Functionality:**
+- List all saved templates
+- Delete templates
+- Visual indication of template type (Income/Expense)
+- Shows linked Account and Pocket
+
+### 7. Investments View (VOO)
 
 **Display:**
 - Total money invested (`montoInvertido`)

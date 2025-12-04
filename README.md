@@ -114,6 +114,7 @@ npm run preview
 - ✅ Dark mode
 - ✅ Multi-user authentication
 - ✅ Cloud database with Supabase
+- ✅ Movement Templates for quick entry
 - ✅ Deployment ready
 
 ### 🚧 Future Enhancements

@@ -36,24 +36,30 @@ const Toast = ({ message, type = 'info', duration = 5000, onClose }: ToastProps)
   };
 
   const styles = {
-    success: 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800 text-green-800 dark:text-green-200',
-    error: 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-800 dark:text-red-200',
-    info: 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-200',
-    warning: 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800 text-yellow-800 dark:text-yellow-200',
+    success: 'bg-white/90 dark:bg-gray-800/90 border-l-4 border-l-green-500 text-gray-900 dark:text-gray-100',
+    error: 'bg-white/90 dark:bg-gray-800/90 border-l-4 border-l-red-500 text-gray-900 dark:text-gray-100',
+    info: 'bg-white/90 dark:bg-gray-800/90 border-l-4 border-l-blue-500 text-gray-900 dark:text-gray-100',
+    warning: 'bg-white/90 dark:bg-gray-800/90 border-l-4 border-l-yellow-500 text-gray-900 dark:text-gray-100',
+  };
+
+  const iconColors = {
+    success: 'text-green-600 dark:text-green-400',
+    error: 'text-red-600 dark:text-red-400',
+    info: 'text-blue-600 dark:text-blue-400',
+    warning: 'text-yellow-600 dark:text-yellow-400',
   };
 
   return (
     <div
-      className={`flex items-center gap-3 px-4 py-3 rounded-lg border shadow-lg max-w-md transition-all duration-300 ${
-        isExiting ? 'animate-toast-exit' : 'animate-toast-enter'
-      } ${styles[type]}`}
+      className={`flex items-center gap-3 px-4 py-3 rounded-lg border border-gray-200 dark:border-gray-700 shadow-2xl backdrop-blur-xl max-w-md transition-all duration-300 ${isExiting ? 'animate-toast-exit' : 'animate-toast-enter'
+        } ${styles[type]}`}
       role="alert"
     >
-      <div className="flex-shrink-0">{icons[type]}</div>
+      <div className={`flex-shrink-0 ${iconColors[type]}`}>{icons[type]}</div>
       <p className="flex-1 text-sm font-medium">{message}</p>
       <button
         onClick={handleClose}
-        className="flex-shrink-0 p-1 rounded hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
+        className="flex-shrink-0 p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-all hover:scale-110"
         aria-label="Close notification"
       >
         <X className="w-4 h-4" />

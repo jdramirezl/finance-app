@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { useFinanceStore } from '../store/useFinanceStore';
+import { useState } from 'react';
+import { useMovementTemplatesQuery, useAccountsQuery, usePocketsQuery, useMovementTemplateMutations } from '../hooks/queries';
 import { useToast } from '../hooks/useToast';
 import { useConfirm } from '../hooks/useConfirm';
 import { Trash2, Plus } from 'lucide-react';
@@ -9,34 +9,20 @@ import { Skeleton } from '../components/Skeleton';
 import ConfirmDialog from '../components/ConfirmDialog';
 
 const TemplatesPage = () => {
-  const {
-    movementTemplates,
-    accounts,
-    pockets,
-    loadMovementTemplates,
-    loadAccounts,
-    deleteMovementTemplate,
-  } = useFinanceStore();
+  // Queries
+  const { data: movementTemplates = [], isLoading: templatesLoading } = useMovementTemplatesQuery();
+  const { data: accounts = [] } = useAccountsQuery();
+  const { data: pockets = [] } = usePocketsQuery();
+
+  // Mutations
+  const { deleteMovementTemplate } = useMovementTemplateMutations();
 
   const toast = useToast();
   const { confirm, confirmState, handleClose, handleConfirm } = useConfirm();
-  const [isLoading, setIsLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  useEffect(() => {
-    const loadData = async () => {
-      setIsLoading(true);
-      try {
-        await Promise.all([loadAccounts(true), loadMovementTemplates()]);
-      } catch (err) {
-        console.error('Failed to load templates:', err);
-        toast.error('Failed to load templates');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    loadData();
-  }, [loadAccounts, loadMovementTemplates]);
+  // Derived loading state
+  const isLoading = templatesLoading;
 
   const handleDelete = async (id: string, name: string) => {
     const confirmed = await confirm({
@@ -50,7 +36,7 @@ const TemplatesPage = () => {
 
     setDeletingId(id);
     try {
-      await deleteMovementTemplate(id);
+      await deleteMovementTemplate.mutateAsync(id);
       toast.success(`Template "${name}" deleted successfully!`);
     } catch (err) {
       toast.error(`Failed to delete template: ${err instanceof Error ? err.message : 'Unknown error'}`);
