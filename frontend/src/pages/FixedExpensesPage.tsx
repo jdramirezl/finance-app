@@ -489,7 +489,7 @@ const FixedExpensesPage = () => {
         <div className="space-y-4">
           {fixedExpenseGroups.map((group) => {
             const groupExpenses = getSubPocketsByGroup(group.id);
-            const isDefaultGroup = group.id === '00000000-0000-0000-0000-000000000001';
+            const isDefaultGroup = group.name === 'Default';
             
             return (
               <FixedExpenseGroupCard
