@@ -36,7 +36,7 @@ export class MovementController {
     @inject(ApplyPendingMovementUseCase) private applyPendingMovementUseCase: ApplyPendingMovementUseCase,
     @inject(MarkAsPendingUseCase) private markAsPendingUseCase: MarkAsPendingUseCase,
     @inject(RestoreOrphanedMovementsUseCase) private restoreOrphanedMovementsUseCase: RestoreOrphanedMovementsUseCase
-  ) {}
+  ) { }
 
   /**
    * Create new movement
@@ -75,7 +75,12 @@ export class MovementController {
         return;
       }
 
-      const { accountId, pocketId, month, pending, year } = req.query;
+      const { accountId, pocketId, month, pending, year, page, limit } = req.query;
+
+      const pagination = {
+        limit: limit ? parseInt(limit as string) : undefined,
+        offset: (page && limit) ? (parseInt(page as string) - 1) * parseInt(limit as string) : undefined
+      };
 
       // Route to appropriate use case based on query parameters
       if (accountId) {
@@ -87,7 +92,8 @@ export class MovementController {
         const movements = await this.getMovementsByAccountUseCase.execute(
           accountId as string,
           userId,
-          filters
+          filters,
+          pagination
         );
         res.status(200).json(movements);
       } else if (pocketId) {
@@ -99,7 +105,8 @@ export class MovementController {
         const movements = await this.getMovementsByPocketUseCase.execute(
           pocketId as string,
           userId,
-          filters
+          filters,
+          pagination
         );
         res.status(200).json(movements);
       } else if (year && month) {
