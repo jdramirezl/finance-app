@@ -20,9 +20,9 @@ class MovementTemplateService {
     type: MovementType,
     accountId: string,
     pocketId: string,
-    defaultAmount?: number,
-    notes?: string,
-    subPocketId?: string
+    defaultAmount?: number | null,
+    notes?: string | null,
+    subPocketId?: string | null
   ): Promise<MovementTemplate> {
     // Validate name
     if (!name.trim()) {

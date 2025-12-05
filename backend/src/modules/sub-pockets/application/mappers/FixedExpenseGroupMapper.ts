@@ -19,6 +19,7 @@ interface FixedExpenseGroupPersistence {
   user_id: string;
   name: string;
   color: string;
+  display_order: number;
   created_at?: string;
   updated_at?: string;
 }
@@ -40,6 +41,7 @@ export class FixedExpenseGroupMapper {
       user_id: userId,
       name: group.name,
       color: group.color,
+      display_order: group.displayOrder,
     };
   }
 
@@ -55,7 +57,8 @@ export class FixedExpenseGroupMapper {
     return new FixedExpenseGroup(
       row.id,
       row.name,
-      row.color
+      row.color,
+      row.display_order || 0
     );
   }
 
@@ -73,6 +76,7 @@ export class FixedExpenseGroupMapper {
       id: group.id,
       name: group.name,
       color: group.color,
+      displayOrder: group.displayOrder,
     };
   }
 

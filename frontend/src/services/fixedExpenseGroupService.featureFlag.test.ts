@@ -19,10 +19,11 @@ import type { FixedExpenseGroup } from '../types';
 
 describe('fixedExpenseGroupService - Feature Flag Integration', () => {
     const mockGroup: FixedExpenseGroup = {
-        id: 'test-group-123',
+        id: '1',
         name: 'Test Group',
-        color: '#FF0000',
-        createdAt: '2024-01-01T00:00:00Z',
+        color: '#000000',
+        displayOrder: 0,
+        createdAt: '2023-01-01T00:00:00Z',
         updatedAt: '2024-01-01T00:00:00Z',
     };
 
@@ -228,7 +229,7 @@ describe('fixedExpenseGroupService - Feature Flag Integration', () => {
         });
 
         it('should fallback to Supabase when getAll fails', async () => {
-            const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+            const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => { });
             vi.spyOn(apiClient, 'get').mockRejectedValue(new Error('Backend unavailable'));
             const mockSupabaseResponse = {
                 data: [{
@@ -258,7 +259,7 @@ describe('fixedExpenseGroupService - Feature Flag Integration', () => {
         });
 
         it('should fallback to Supabase when getById fails', async () => {
-            const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+            const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => { });
             vi.spyOn(apiClient, 'get').mockRejectedValue(new Error('Backend unavailable'));
             const mockSupabaseResponse = {
                 data: {
@@ -286,7 +287,7 @@ describe('fixedExpenseGroupService - Feature Flag Integration', () => {
         });
 
         it('should fallback to Supabase when create fails', async () => {
-            const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+            const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => { });
             vi.spyOn(apiClient, 'post').mockRejectedValue(new Error('Backend unavailable'));
             const mockSupabaseResponse = {
                 data: {
@@ -314,7 +315,7 @@ describe('fixedExpenseGroupService - Feature Flag Integration', () => {
         });
 
         it('should fallback to Supabase when update fails', async () => {
-            const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+            const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => { });
             vi.spyOn(apiClient, 'put').mockRejectedValue(new Error('Backend unavailable'));
             const mockSupabaseResponse = { error: null };
             const supabaseSpy = vi.spyOn(supabase, 'from').mockReturnValue({
@@ -330,7 +331,7 @@ describe('fixedExpenseGroupService - Feature Flag Integration', () => {
         });
 
         it('should fallback to Supabase when delete fails', async () => {
-            const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+            const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => { });
             vi.spyOn(apiClient, 'delete').mockRejectedValue(new Error('Backend unavailable'));
             const mockSupabaseResponse = { error: null };
             const supabaseSpy = vi.spyOn(supabase, 'from').mockReturnValue({
@@ -349,7 +350,7 @@ describe('fixedExpenseGroupService - Feature Flag Integration', () => {
         });
 
         it('should successfully complete operation after fallback', async () => {
-            vi.spyOn(console, 'error').mockImplementation(() => {});
+            vi.spyOn(console, 'error').mockImplementation(() => { });
             vi.spyOn(apiClient, 'get').mockRejectedValue(new Error('Backend unavailable'));
             const mockSupabaseResponse = {
                 data: [{

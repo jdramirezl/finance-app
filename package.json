@@ -21,6 +21,7 @@
     "test:backend": "npm run test --workspace=backend"
   },
   "devDependencies": {
-    "concurrently": "^8.2.2"
+    "concurrently": "^8.2.2",
+    "typescript": "^5.9.3"
   }
 }

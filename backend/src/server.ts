@@ -56,7 +56,9 @@ const PORT = process.env.PORT || process.env.BACKEND_PORT || 3001;
 // Middleware
 app.use(helmet());
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  origin: process.env.NODE_ENV === 'production'
+    ? ['https://finance-app-five-navy.vercel.app', 'https://finance-app.vercel.app']
+    : ['http://localhost:5173', 'http://localhost:5174'],
   credentials: true,
 }));
 app.use(compression());
@@ -133,11 +135,13 @@ app.use((req: Request, res: Response) => {
 // Global error handler (must be last)
 app.use(errorHandler);
 
-// Start server
-app.listen(PORT, () => {
-  console.log(`🚀 Backend server running on http://localhost:${PORT}`);
-  console.log(`📊 Health check: http://localhost:${PORT}/health`);
-  console.log(`🔧 Environment: ${process.env.NODE_ENV || 'development'}`);
-});
+// Start server (only in non-serverless environments)
+if (process.env.VERCEL !== '1') {
+  app.listen(PORT, () => {
+    console.log(`🚀 Backend server running on http://localhost:${PORT}`);
+    console.log(`📊 Health check: http://localhost:${PORT}/health`);
+    console.log(`🔧 Environment: ${process.env.NODE_ENV || 'development'}`);
+  });
+}
 
 export default app;

@@ -7,7 +7,7 @@
  */
 
 import { injectable, inject } from 'tsyringe';
-import type { IMovementRepository, MovementFilters } from '../../infrastructure/IMovementRepository';
+import type { IMovementRepository, MovementFilters, PaginationOptions } from '../../infrastructure/IMovementRepository';
 import type { MovementResponseDTO } from '../dtos/MovementDTO';
 import { MovementMapper } from '../mappers/MovementMapper';
 import { ValidationError } from '../../../../shared/errors/AppError';
@@ -16,7 +16,7 @@ import { ValidationError } from '../../../../shared/errors/AppError';
 export class GetMovementsByPocketUseCase {
   constructor(
     @inject('MovementRepository') private movementRepo: IMovementRepository
-  ) {}
+  ) { }
 
   async execute(
     pocketId: string,
@@ -27,7 +27,8 @@ export class GetMovementsByPocketUseCase {
       endDate?: string;
       year?: number;
       month?: number;
-    }
+    },
+    pagination?: PaginationOptions
   ): Promise<MovementResponseDTO[]> {
     // Validate pocketId
     if (!pocketId?.trim()) {
@@ -60,7 +61,7 @@ export class GetMovementsByPocketUseCase {
     }
 
     // Fetch movements
-    const movements = await this.movementRepo.findAll(userId, movementFilters);
+    const movements = await this.movementRepo.findAll(userId, movementFilters, pagination);
 
     // Convert to DTOs
     return MovementMapper.toDTOArray(movements);

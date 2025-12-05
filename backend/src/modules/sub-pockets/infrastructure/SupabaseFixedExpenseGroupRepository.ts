@@ -25,7 +25,7 @@ export class SupabaseFixedExpenseGroupRepository implements IFixedExpenseGroupRe
     }
 
     // Create client only if credentials are available
-    this.supabase = supabaseUrl && supabaseKey 
+    this.supabase = supabaseUrl && supabaseKey
       ? createClient(supabaseUrl, supabaseKey)
       : null;
   }
@@ -42,7 +42,7 @@ export class SupabaseFixedExpenseGroupRepository implements IFixedExpenseGroupRe
    */
   async save(group: FixedExpenseGroup, userId: string): Promise<void> {
     const data = FixedExpenseGroupMapper.toPersistence(group, userId);
-    
+
     const { error } = await this.ensureClient()
       .from('fixed_expense_groups')
       .insert(data);
@@ -86,7 +86,7 @@ export class SupabaseFixedExpenseGroupRepository implements IFixedExpenseGroupRe
       .from('fixed_expense_groups')
       .select('*')
       .eq('user_id', userId)
-      .order('name', { ascending: true });
+      .order('display_order', { ascending: true });
 
     if (error) {
       throw new DatabaseError(`Failed to fetch fixed expense groups: ${error.message}`);
@@ -104,7 +104,7 @@ export class SupabaseFixedExpenseGroupRepository implements IFixedExpenseGroupRe
    */
   async update(group: FixedExpenseGroup, userId: string): Promise<void> {
     const data = FixedExpenseGroupMapper.toPersistence(group, userId);
-    
+
     // Remove id from update data (can't update primary key)
     const { id, ...updateData } = data;
 
@@ -131,6 +131,36 @@ export class SupabaseFixedExpenseGroupRepository implements IFixedExpenseGroupRe
 
     if (error) {
       throw new DatabaseError(`Failed to delete fixed expense group: ${error.message}`);
+    }
+  }
+  /**
+   * Update display order for multiple groups
+   */
+  async updateDisplayOrders(ids: string[], userId: string): Promise<void> {
+    // We use individual updates instead of upsert because upsert requires all non-nullable fields (like name)
+    // if it decides to insert (which happens if RLS hides the row or if it doesn't exist).
+    // Also, upsert with partial data is risky.
+    // Since we are just reordering existing groups, individual updates are safer.
+
+    // Note: This is less efficient than a single batch update, but Supabase/Postgres 
+    // doesn't support a clean "update multiple rows with different values" in one query easily
+    // without using a complex CTE or CASE statement, which is hard to construct with the JS client.
+    // Given the small number of groups (usually < 20), this is acceptable.
+
+    for (let i = 0; i < ids.length; i++) {
+      const id = ids[i];
+      const { error } = await this.ensureClient()
+        .from('fixed_expense_groups')
+        .update({
+          display_order: i,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', id)
+        .eq('user_id', userId);
+
+      if (error) {
+        throw new DatabaseError(`Failed to update order for group ${id}: ${error.message}`);
+      }
     }
   }
 }

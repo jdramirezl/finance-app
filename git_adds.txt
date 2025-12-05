@@ -1,0 +1,8 @@
+# Frontend changes appear to be already committed.
+# Only the following backend file is modified:
+
+git add backend/src/modules/movements/application/useCases/CreateMovementUseCase.ts
+
+# Untracked files (optional to add):
+# git add fix_rls_policies.sql
+# git add git_adds.txt

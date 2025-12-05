@@ -21,7 +21,7 @@ export class CreateSubPocketUseCase {
   constructor(
     @inject('SubPocketRepository') private subPocketRepo: ISubPocketRepository,
     @inject('PocketRepository') private pocketRepo: IPocketRepository
-  ) {}
+  ) { }
 
   async execute(dto: CreateSubPocketDTO, userId: string): Promise<SubPocketResponseDTO> {
     // Validation
@@ -64,6 +64,32 @@ export class CreateSubPocketUseCase {
       throw new ValidationError('SubPockets can only be created in fixed type pockets');
     }
 
+    // CRITICAL FIX: Ensure user has a default group, create if needed
+    let finalGroupId = dto.groupId;
+
+    if (!finalGroupId) {
+      // No group specified - find or create user's default group
+      // Dynamic import to avoid circular dependency
+      const groupRepo = await import('../../infrastructure/SupabaseFixedExpenseGroupRepository')
+        .then(m => new m.SupabaseFixedExpenseGroupRepository());
+
+      const allGroups = await groupRepo.findAllByUserId(userId);
+      let defaultGroup = allGroups.find(g => g.name === 'Default');
+
+      if (!defaultGroup) {
+        // Create default group for this user
+        const { FixedExpenseGroup } = await import('../../domain/FixedExpenseGroup');
+        defaultGroup = new FixedExpenseGroup(
+          generateId(),
+          'Default',
+          '#6B7280'
+        );
+        await groupRepo.save(defaultGroup, userId);
+      }
+
+      finalGroupId = defaultGroup.id;
+    }
+
     // Create domain entity
     // Requirement 8.2: Monthly contribution is calculated automatically by the entity
     const subPocket = new SubPocket(
@@ -74,7 +100,7 @@ export class CreateSubPocketUseCase {
       dto.periodicityMonths,
       0, // Initial balance
       true, // Default enabled
-      dto.groupId
+      finalGroupId // Always assign to a group (user's default if not specified)
     );
 
     // Persist sub-pocket

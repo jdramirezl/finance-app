@@ -5,10 +5,10 @@ export type Currency = 'USD' | 'MXN' | 'COP' | 'EUR' | 'GBP';
 export type PocketType = 'normal' | 'fixed';
 
 // Movement types
-export type MovementType = 
-  | 'IngresoNormal' 
-  | 'EgresoNormal' 
-  | 'IngresoFijo' 
+export type MovementType =
+  | 'IngresoNormal'
+  | 'EgresoNormal'
+  | 'IngresoFijo'
   | 'EgresoFijo';
 
 // Account interface
@@ -17,7 +17,7 @@ export interface Account {
   name: string;
   color: string;
   currency: Currency;
-  balance: number; // Calculated: sum of pocket balances
+  readonly balance: number; // Calculated by backend triggers
   type?: 'normal' | 'investment'; // Default: 'normal'
   stockSymbol?: string; // For investment accounts (e.g., 'VOO')
   montoInvertido?: number; // Total money invested (for investment accounts)
@@ -31,7 +31,7 @@ export interface Pocket {
   accountId: string;
   name: string;
   type: PocketType;
-  balance: number;
+  readonly balance: number; // Calculated by backend triggers
   currency: Currency; // Inherited from account
   displayOrder?: number; // For drag & drop reordering
 }
@@ -41,6 +41,7 @@ export interface FixedExpenseGroup {
   id: string;
   name: string;
   color: string;
+  displayOrder: number;
   createdAt: string;
   updatedAt?: string;
 }
@@ -94,9 +95,9 @@ export interface MovementTemplate {
   type: MovementType;
   accountId: string;
   pocketId: string;
-  subPocketId?: string;
-  defaultAmount?: number; // Optional default amount (user can override)
-  notes?: string; // Template notes
+  subPocketId?: string | null;
+  defaultAmount?: number | null; // Optional default amount (user can override)
+  notes?: string | null; // Template notes
   createdAt: string;
   updatedAt?: string;
 }

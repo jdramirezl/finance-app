@@ -311,7 +311,7 @@ class AccountService {
     movements: number;
   }> {
     console.log(`🗑️ [deleteAccountCascade] Starting - accountId: ${id}, deleteMovements: ${deleteMovements}`);
-    
+
     const account = await this.getAccountDirect(id);
     if (!account) {
       throw new Error(`Account with id "${id}" not found.`);
@@ -325,7 +325,7 @@ class AccountService {
 
     const pockets = await pocketService.getPocketsByAccount(id);
     console.log(`📦 [deleteAccountCascade] Found ${pockets.length} pockets to delete`);
-    
+
     let totalSubPockets = 0;
     let totalMovements = 0;
 
@@ -389,7 +389,7 @@ class AccountService {
     }
 
     console.log(`✅ [deleteAccountCascade] Complete - account: ${account.name}, pockets: ${pockets.length}, subPockets: ${totalSubPockets}, movements: ${totalMovements}`);
-    
+
     return {
       account: account.name,
       pockets: pockets.length,
@@ -415,7 +415,7 @@ class AccountService {
   // Direct Supabase implementation (fallback)
   private async reorderAccountsDirect(accountIds: string[]): Promise<void> {
     const accounts = await this.getAllAccountsDirect();
-    
+
     // Update display order for each account based on position in array
     const updatedAccounts = accounts.map(account => {
       const newIndex = accountIds.indexOf(account.id);
@@ -424,7 +424,7 @@ class AccountService {
       }
       return account;
     });
-    
+
     await SupabaseStorageService.saveAccounts(updatedAccounts);
   }
 
@@ -432,18 +432,20 @@ class AccountService {
   async recalculateAccountBalance(accountId: string): Promise<void> {
     const account = await this.getAccount(accountId);
     if (account) {
-      account.balance = await this.calculateAccountBalance(accountId);
-      await SupabaseStorageService.updateAccount(accountId, { balance: account.balance });
+      const newBalance = await this.calculateAccountBalance(accountId);
+      await SupabaseStorageService.updateAccount(accountId, { balance: newBalance });
     }
   }
 
   // Recalculate all account balances (useful after movements)
   async recalculateAllBalances(): Promise<void> {
     const accounts = await this.getAllAccounts();
+    const updatedAccounts = [];
     for (const account of accounts) {
-      account.balance = await this.calculateAccountBalance(account.id);
+      const newBalance = await this.calculateAccountBalance(account.id);
+      updatedAccounts.push({ ...account, balance: newBalance });
     }
-    await SupabaseStorageService.saveAccounts(accounts);
+    await SupabaseStorageService.saveAccounts(updatedAccounts);
   }
 }
 

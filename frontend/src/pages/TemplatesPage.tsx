@@ -1,42 +1,84 @@
-import { useEffect, useState } from 'react';
-import { useFinanceStore } from '../store/useFinanceStore';
+import { useState } from 'react';
+import { useMovementTemplatesQuery, useAccountsQuery, usePocketsQuery, useMovementTemplateMutations } from '../hooks/queries';
 import { useToast } from '../hooks/useToast';
 import { useConfirm } from '../hooks/useConfirm';
-import { Trash2, Plus } from 'lucide-react';
+import { Trash2, Plus, Edit2 } from 'lucide-react';
 import Button from '../components/Button';
 import Card from '../components/Card';
+import Modal from '../components/Modal';
 import { Skeleton } from '../components/Skeleton';
 import ConfirmDialog from '../components/ConfirmDialog';
+import MovementTemplateForm from '../components/movements/MovementTemplateForm';
+import type { MovementTemplate, MovementType } from '../types';
 
 const TemplatesPage = () => {
-  const {
-    movementTemplates,
-    accounts,
-    pockets,
-    loadMovementTemplates,
-    loadAccounts,
-    deleteMovementTemplate,
-  } = useFinanceStore();
+  // Queries
+  const { data: movementTemplates = [], isLoading: templatesLoading } = useMovementTemplatesQuery();
+  const { data: accounts = [] } = useAccountsQuery();
+  const { data: pockets = [] } = usePocketsQuery();
+
+  // Mutations
+  const { createMovementTemplate, updateMovementTemplate, deleteMovementTemplate } = useMovementTemplateMutations();
 
   const toast = useToast();
   const { confirm, confirmState, handleClose, handleConfirm } = useConfirm();
-  const [isLoading, setIsLoading] = useState(true);
+
+  // UI State
+  const [showForm, setShowForm] = useState(false);
+  const [editingTemplate, setEditingTemplate] = useState<MovementTemplate | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  useEffect(() => {
-    const loadData = async () => {
-      setIsLoading(true);
-      try {
-        await Promise.all([loadAccounts(true), loadMovementTemplates()]);
-      } catch (err) {
-        console.error('Failed to load templates:', err);
-        toast.error('Failed to load templates');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    loadData();
-  }, [loadAccounts, loadMovementTemplates]);
+  // Derived loading state
+  const isLoading = templatesLoading;
+
+  const handleCreate = async (data: {
+    name: string;
+    type: MovementType;
+    accountId: string;
+    pocketId: string;
+    subPocketId?: string | null;
+    defaultAmount?: number | null;
+    notes?: string | null;
+  }) => {
+    setIsSaving(true);
+    try {
+      await createMovementTemplate.mutateAsync(data);
+      toast.success('Template created successfully!');
+      setShowForm(false);
+    } catch (err) {
+      toast.error(`Failed to create template: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleUpdate = async (data: {
+    name: string;
+    type: MovementType;
+    accountId: string;
+    pocketId: string;
+    subPocketId?: string | null;
+    defaultAmount?: number | null;
+    notes?: string | null;
+  }) => {
+    if (!editingTemplate) return;
+
+    setIsSaving(true);
+    try {
+      await updateMovementTemplate.mutateAsync({
+        id: editingTemplate.id,
+        updates: data
+      });
+      toast.success('Template updated successfully!');
+      setShowForm(false);
+      setEditingTemplate(null);
+    } catch (err) {
+      toast.error(`Failed to update template: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   const handleDelete = async (id: string, name: string) => {
     const confirmed = await confirm({
@@ -50,7 +92,7 @@ const TemplatesPage = () => {
 
     setDeletingId(id);
     try {
-      await deleteMovementTemplate(id);
+      await deleteMovementTemplate.mutateAsync(id);
       toast.success(`Template "${name}" deleted successfully!`);
     } catch (err) {
       toast.error(`Failed to delete template: ${err instanceof Error ? err.message : 'Unknown error'}`);
@@ -103,6 +145,16 @@ const TemplatesPage = () => {
             Manage your saved transaction templates for quick entry
           </p>
         </div>
+        <Button
+          variant="primary"
+          onClick={() => {
+            setEditingTemplate(null);
+            setShowForm(true);
+          }}
+        >
+          <Plus className="w-5 h-5" />
+          New Template
+        </Button>
       </div>
 
       {movementTemplates.length === 0 ? (
@@ -115,8 +167,17 @@ const TemplatesPage = () => {
               No templates yet
             </h3>
             <p className="text-gray-600 dark:text-gray-400 mb-4">
-              Create your first template when adding a movement by checking "Save as template"
+              Create your first template to speed up transaction entry
             </p>
+            <Button
+              variant="primary"
+              onClick={() => {
+                setEditingTemplate(null);
+                setShowForm(true);
+              }}
+            >
+              Create Template
+            </Button>
           </div>
         </Card>
       ) : (
@@ -137,16 +198,29 @@ const TemplatesPage = () => {
                         {getMovementTypeLabel(template.type)}
                       </span>
                     </div>
-                    <Button
-                      variant="danger"
-                      size="sm"
-                      onClick={() => handleDelete(template.id, template.name)}
-                      loading={deletingId === template.id}
-                      disabled={deletingId !== null}
-                      className="p-2"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setEditingTemplate(template);
+                          setShowForm(true);
+                        }}
+                        className="p-2 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30"
+                      >
+                        <Edit2 className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDelete(template.id, template.name)}
+                        loading={deletingId === template.id}
+                        disabled={deletingId !== null}
+                        className="p-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
                   </div>
 
                   <div className="space-y-1 text-sm">
@@ -184,6 +258,26 @@ const TemplatesPage = () => {
           })}
         </div>
       )}
+
+      <Modal
+        isOpen={showForm}
+        onClose={() => {
+          setShowForm(false);
+          setEditingTemplate(null);
+        }}
+        title={editingTemplate ? 'Edit Template' : 'New Template'}
+        size="lg"
+      >
+        <MovementTemplateForm
+          initialData={editingTemplate}
+          onSubmit={editingTemplate ? handleUpdate : handleCreate}
+          onCancel={() => {
+            setShowForm(false);
+            setEditingTemplate(null);
+          }}
+          isSaving={isSaving}
+        />
+      </Modal>
 
       <ConfirmDialog
         isOpen={confirmState.isOpen}

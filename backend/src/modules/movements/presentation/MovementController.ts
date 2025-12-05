@@ -20,6 +20,7 @@ import { DeleteMovementUseCase } from '../application/useCases/DeleteMovementUse
 import { ApplyPendingMovementUseCase } from '../application/useCases/ApplyPendingMovementUseCase';
 import { MarkAsPendingUseCase } from '../application/useCases/MarkAsPendingUseCase';
 import { RestoreOrphanedMovementsUseCase } from '../application/useCases/RestoreOrphanedMovementsUseCase';
+import { CreateTransferUseCase } from '../application/useCases/CreateTransferUseCase';
 import type { CreateMovementDTO, UpdateMovementDTO } from '../application/dtos/MovementDTO';
 
 @injectable()
@@ -35,8 +36,9 @@ export class MovementController {
     @inject(DeleteMovementUseCase) private deleteMovementUseCase: DeleteMovementUseCase,
     @inject(ApplyPendingMovementUseCase) private applyPendingMovementUseCase: ApplyPendingMovementUseCase,
     @inject(MarkAsPendingUseCase) private markAsPendingUseCase: MarkAsPendingUseCase,
-    @inject(RestoreOrphanedMovementsUseCase) private restoreOrphanedMovementsUseCase: RestoreOrphanedMovementsUseCase
-  ) {}
+    @inject(RestoreOrphanedMovementsUseCase) private restoreOrphanedMovementsUseCase: RestoreOrphanedMovementsUseCase,
+    @inject(CreateTransferUseCase) private createTransferUseCase: CreateTransferUseCase
+  ) { }
 
   /**
    * Create new movement
@@ -62,6 +64,27 @@ export class MovementController {
   }
 
   /**
+   * Create transfer (two movements)
+   * POST /api/movements/transfer
+   */
+  async createTransfer(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        res.status(401).json({ error: 'Unauthorized' });
+        return;
+      }
+
+      const dto = req.body;
+      const result = await this.createTransferUseCase.execute(dto, userId);
+
+      res.status(201).json(result);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
    * Get movements with filters
    * GET /api/movements?accountId=xxx&pocketId=xxx&month=2024-11&pending=true
    * 
@@ -75,7 +98,12 @@ export class MovementController {
         return;
       }
 
-      const { accountId, pocketId, month, pending, year } = req.query;
+      const { accountId, pocketId, month, pending, year, page, limit } = req.query;
+
+      const pagination = {
+        limit: limit ? parseInt(limit as string) : undefined,
+        offset: (page && limit) ? (parseInt(page as string) - 1) * parseInt(limit as string) : undefined
+      };
 
       // Route to appropriate use case based on query parameters
       if (accountId) {
@@ -87,7 +115,8 @@ export class MovementController {
         const movements = await this.getMovementsByAccountUseCase.execute(
           accountId as string,
           userId,
-          filters
+          filters,
+          pagination
         );
         res.status(200).json(movements);
       } else if (pocketId) {
@@ -99,7 +128,8 @@ export class MovementController {
         const movements = await this.getMovementsByPocketUseCase.execute(
           pocketId as string,
           userId,
-          filters
+          filters,
+          pagination
         );
         res.status(200).json(movements);
       } else if (year && month) {
