@@ -18,9 +18,9 @@ export const useMovementTemplateMutations = () => {
             type: MovementType;
             accountId: string;
             pocketId: string;
-            defaultAmount?: number;
-            notes?: string;
-            subPocketId?: string;
+            defaultAmount?: number | null;
+            notes?: string | null;
+            subPocketId?: string | null;
         }) =>
             movementTemplateService.createTemplate(
                 data.name,
@@ -44,9 +44,9 @@ export const useMovementTemplateMutations = () => {
                 type: MovementType;
                 accountId: string;
                 pocketId: string;
-                subPocketId: string;
-                defaultAmount: number;
-                notes: string;
+                subPocketId: string | null;
+                defaultAmount: number | null;
+                notes: string | null;
             }>;
         }) => movementTemplateService.updateTemplate(data.id, data.updates),
         onSuccess: () => {
