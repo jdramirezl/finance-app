@@ -19,7 +19,6 @@ import {
 import { useThemeStore } from '../store/useThemeStore';
 import { useAuth } from '../contexts/AuthContext';
 import { useState, useEffect } from 'react';
-import Button from './Button';
 
 interface LayoutProps {
   children: ReactNode;

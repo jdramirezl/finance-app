@@ -9,7 +9,8 @@ export class FixedExpenseGroup {
   constructor(
     public readonly id: string,
     public name: string,
-    public color: string
+    public color: string,
+    public displayOrder: number = 0
   ) {
     this.validate();
   }

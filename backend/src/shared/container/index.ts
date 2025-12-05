@@ -62,6 +62,7 @@ import { GetAllGroupsUseCase } from '../../modules/sub-pockets/application/useCa
 import { UpdateGroupUseCase } from '../../modules/sub-pockets/application/useCases/UpdateGroupUseCase';
 import { DeleteGroupUseCase } from '../../modules/sub-pockets/application/useCases/DeleteGroupUseCase';
 import { ToggleGroupUseCase } from '../../modules/sub-pockets/application/useCases/ToggleGroupUseCase';
+import { ReorderFixedExpenseGroupsUseCase } from '../../modules/sub-pockets/application/useCases/ReorderFixedExpenseGroupsUseCase';
 import { FixedExpenseGroupController } from '../../modules/sub-pockets/presentation/FixedExpenseGroupController';
 
 // Movement Module
@@ -78,6 +79,7 @@ import { DeleteMovementUseCase } from '../../modules/movements/application/useCa
 import { ApplyPendingMovementUseCase } from '../../modules/movements/application/useCases/ApplyPendingMovementUseCase';
 import { MarkAsPendingUseCase } from '../../modules/movements/application/useCases/MarkAsPendingUseCase';
 import { RestoreOrphanedMovementsUseCase } from '../../modules/movements/application/useCases/RestoreOrphanedMovementsUseCase';
+import { CreateTransferUseCase } from '../../modules/movements/application/useCases/CreateTransferUseCase';
 import { MovementController } from '../../modules/movements/presentation/MovementController';
 
 // Settings Module
@@ -102,7 +104,7 @@ function registerAccountModule(): void {
   container.register<IAccountRepository>('AccountRepository', {
     useClass: SupabaseAccountRepository,
   });
-  
+
   container.register<IStockPriceRepository>('StockPriceRepository', {
     useClass: SupabaseStockPriceRepository,
   });
@@ -114,7 +116,7 @@ function registerAccountModule(): void {
 
   // Register GetCurrentStockPriceUseCase first (needed by other use cases)
   container.register(GetCurrentStockPriceUseCase, { useClass: GetCurrentStockPriceUseCase });
-  
+
   // Register as StockPriceService for use cases that need it
   container.register('StockPriceService', {
     useClass: GetCurrentStockPriceUseCase,
@@ -194,7 +196,9 @@ function registerFixedExpenseGroupModule(): void {
   container.register(GetAllGroupsUseCase, { useClass: GetAllGroupsUseCase });
   container.register(UpdateGroupUseCase, { useClass: UpdateGroupUseCase });
   container.register(DeleteGroupUseCase, { useClass: DeleteGroupUseCase });
+  container.register(DeleteGroupUseCase, { useClass: DeleteGroupUseCase });
   container.register(ToggleGroupUseCase, { useClass: ToggleGroupUseCase });
+  container.register(ReorderFixedExpenseGroupsUseCase, { useClass: ReorderFixedExpenseGroupsUseCase });
 
   // Register controller
   container.register(FixedExpenseGroupController, { useClass: FixedExpenseGroupController });
@@ -221,6 +225,7 @@ function registerMovementModule(): void {
   container.register(ApplyPendingMovementUseCase, { useClass: ApplyPendingMovementUseCase });
   container.register(MarkAsPendingUseCase, { useClass: MarkAsPendingUseCase });
   container.register(RestoreOrphanedMovementsUseCase, { useClass: RestoreOrphanedMovementsUseCase });
+  container.register(CreateTransferUseCase, { useClass: CreateTransferUseCase });
 
   // Register controller
   container.register(MovementController, { useClass: MovementController });

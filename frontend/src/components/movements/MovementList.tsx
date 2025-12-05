@@ -185,7 +185,7 @@ const MovementList = ({
                                         <div
                                             key={movement.id}
                                             className={`
-                        group relative flex items-center justify-between p-4 bg-white dark:bg-gray-800 rounded-lg border transition-all
+                        group relative flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-white dark:bg-gray-800 rounded-lg border transition-all gap-4 sm:gap-0
                         ${isSelected
                                                     ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
                                                     : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
@@ -193,13 +193,15 @@ const MovementList = ({
                         ${movement.isPending ? 'opacity-75 border-dashed' : ''}
                       `}
                                         >
-                                            <div className="flex items-center gap-4">
-                                                <input
-                                                    type="checkbox"
-                                                    checked={isSelected}
-                                                    onChange={() => toggleSelection(movement.id)}
-                                                    className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
-                                                />
+                                            <div className="flex items-start gap-4">
+                                                <div className="pt-1">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={isSelected}
+                                                        onChange={() => toggleSelection(movement.id)}
+                                                        className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                                                    />
+                                                </div>
 
                                                 {(() => {
                                                     const smartIcon = getSmartIcon(movement.notes);
@@ -214,7 +216,7 @@ const MovementList = ({
                                                 })()}
 
                                                 <div>
-                                                    <div className="flex items-center gap-2">
+                                                    <div className="flex flex-wrap items-center gap-2">
                                                         <span className="font-medium text-gray-900 dark:text-gray-100">
                                                             {movement.notes || 'Untitled Movement'}
                                                         </span>
@@ -227,22 +229,22 @@ const MovementList = ({
                                                             </span>
                                                         )}
                                                     </div>
-                                                    <div className="text-sm text-gray-500 dark:text-gray-400 mt-1 flex items-center gap-2">
+                                                    <div className="text-sm text-gray-500 dark:text-gray-400 mt-1 flex flex-wrap items-center gap-2">
                                                         <span>{format(parseISO(movement.displayedDate), 'MMM d, yyyy')}</span>
-                                                        <span>•</span>
+                                                        <span className="hidden sm:inline">•</span>
                                                         <span>{account?.name || 'Unknown Account'}</span>
-                                                        <span>•</span>
+                                                        <span className="hidden sm:inline">•</span>
                                                         <span>{pocket?.name || 'Unknown Pocket'}</span>
                                                     </div>
                                                 </div>
                                             </div>
 
-                                            <div className="flex items-center gap-4">
+                                            <div className="flex items-center justify-between sm:justify-end gap-4 w-full sm:w-auto pl-12 sm:pl-0">
                                                 <span className={`text-lg font-bold ${isIncome ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                                                     {isIncome ? '+' : '-'}${movement.amount.toLocaleString()}
                                                 </span>
 
-                                                <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <div className="flex gap-2 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
                                                     {movement.isPending && (
                                                         <Button
                                                             size="sm"

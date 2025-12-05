@@ -14,6 +14,7 @@ import { GetAllGroupsUseCase } from '../application/useCases/GetAllGroupsUseCase
 import { UpdateGroupUseCase } from '../application/useCases/UpdateGroupUseCase';
 import { DeleteGroupUseCase } from '../application/useCases/DeleteGroupUseCase';
 import { ToggleGroupUseCase } from '../application/useCases/ToggleGroupUseCase';
+import { ReorderFixedExpenseGroupsUseCase } from '../application/useCases/ReorderFixedExpenseGroupsUseCase';
 import type { CreateGroupDTO, UpdateGroupDTO } from '../application/dtos/FixedExpenseGroupDTO';
 
 @injectable()
@@ -23,8 +24,9 @@ export class FixedExpenseGroupController {
     @inject(GetAllGroupsUseCase) private getAllGroupsUseCase: GetAllGroupsUseCase,
     @inject(UpdateGroupUseCase) private updateGroupUseCase: UpdateGroupUseCase,
     @inject(DeleteGroupUseCase) private deleteGroupUseCase: DeleteGroupUseCase,
-    @inject(ToggleGroupUseCase) private toggleGroupUseCase: ToggleGroupUseCase
-  ) {}
+    @inject(ToggleGroupUseCase) private toggleGroupUseCase: ToggleGroupUseCase,
+    @inject(ReorderFixedExpenseGroupsUseCase) private reorderGroupsUseCase: ReorderFixedExpenseGroupsUseCase
+  ) { }
 
   /**
    * Create new fixed expense group
@@ -136,6 +138,32 @@ export class FixedExpenseGroupController {
       const group = await this.toggleGroupUseCase.execute(groupId, userId);
 
       res.status(200).json(group);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Reorder fixed expense groups
+   * POST /api/fixed-expense-groups/reorder
+   */
+  async reorder(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        res.status(401).json({ error: 'Unauthorized' });
+        return;
+      }
+
+      const { ids } = req.body;
+      if (!ids || !Array.isArray(ids)) {
+        res.status(400).json({ error: 'IDs array is required' });
+        return;
+      }
+
+      await this.reorderGroupsUseCase.execute(ids, userId);
+
+      res.status(200).json({ success: true });
     } catch (error) {
       next(error);
     }

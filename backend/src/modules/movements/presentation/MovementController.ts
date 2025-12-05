@@ -20,6 +20,7 @@ import { DeleteMovementUseCase } from '../application/useCases/DeleteMovementUse
 import { ApplyPendingMovementUseCase } from '../application/useCases/ApplyPendingMovementUseCase';
 import { MarkAsPendingUseCase } from '../application/useCases/MarkAsPendingUseCase';
 import { RestoreOrphanedMovementsUseCase } from '../application/useCases/RestoreOrphanedMovementsUseCase';
+import { CreateTransferUseCase } from '../application/useCases/CreateTransferUseCase';
 import type { CreateMovementDTO, UpdateMovementDTO } from '../application/dtos/MovementDTO';
 
 @injectable()
@@ -35,7 +36,8 @@ export class MovementController {
     @inject(DeleteMovementUseCase) private deleteMovementUseCase: DeleteMovementUseCase,
     @inject(ApplyPendingMovementUseCase) private applyPendingMovementUseCase: ApplyPendingMovementUseCase,
     @inject(MarkAsPendingUseCase) private markAsPendingUseCase: MarkAsPendingUseCase,
-    @inject(RestoreOrphanedMovementsUseCase) private restoreOrphanedMovementsUseCase: RestoreOrphanedMovementsUseCase
+    @inject(RestoreOrphanedMovementsUseCase) private restoreOrphanedMovementsUseCase: RestoreOrphanedMovementsUseCase,
+    @inject(CreateTransferUseCase) private createTransferUseCase: CreateTransferUseCase
   ) { }
 
   /**
@@ -56,6 +58,27 @@ export class MovementController {
       const movement = await this.createMovementUseCase.execute(dto, userId);
 
       res.status(201).json(movement);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Create transfer (two movements)
+   * POST /api/movements/transfer
+   */
+  async createTransfer(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        res.status(401).json({ error: 'Unauthorized' });
+        return;
+      }
+
+      const dto = req.body;
+      const result = await this.createTransferUseCase.execute(dto, userId);
+
+      res.status(201).json(result);
     } catch (error) {
       next(error);
     }
