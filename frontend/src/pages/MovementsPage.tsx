@@ -8,7 +8,8 @@ import {
   useOrphanedMovementsQuery,
   useSubPocketsQuery,
   useMovementMutations,
-  useMovementTemplateMutations
+  useMovementTemplateMutations,
+  useReminderMutations
 } from '../hooks/queries';
 import { useToast } from '../hooks/useToast';
 import { useConfirm } from '../hooks/useConfirm';
@@ -48,7 +49,9 @@ const MovementsPage = () => {
     // restoreOrphanedMovements
   } = useMovementMutations();
 
+
   const { createMovementTemplate } = useMovementTemplateMutations();
+  const { markAsPaidMutation } = useReminderMutations();
 
   // Derived State
   const orphanedCount = orphanedMovementsData.length;
@@ -75,6 +78,15 @@ const MovementsPage = () => {
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
   const [saveAsTemplate, setSaveAsTemplate] = useState(false);
   const [templateName, setTemplateName] = useState('');
+  const [reminderId, setReminderId] = useState<string | null>(null);
+  const [defaultValues, setDefaultValues] = useState<{
+    amount?: number;
+    notes?: string;
+    date?: string;
+    type?: MovementType;
+    fixedExpenseId?: string;
+    templateId?: string;
+  }>({});
 
   // Orphaned movements
   const [showOrphaned, setShowOrphaned] = useState(false);
@@ -111,20 +123,56 @@ const MovementsPage = () => {
     if (action === 'new') {
       setShowForm(true);
       setEditingMovement(null);
+
+      // Handle pre-filled data (e.g. from Reminders)
+      const amount = params.get('amount');
+      const notes = params.get('notes');
+      const date = params.get('date');
+      const templateId = params.get('templateId');
+      const fixedExpenseId = params.get('fixedExpenseId');
+      const reminderIdParam = params.get('reminderId');
+
+      if (amount || notes || date || templateId || fixedExpenseId) {
+        setDefaultValues({
+          amount: amount ? parseFloat(amount) : undefined,
+          notes: notes || undefined,
+          date: date || undefined,
+          templateId: templateId || undefined,
+          fixedExpenseId: fixedExpenseId || undefined,
+        });
+
+        if (templateId) {
+          handleTemplateSelect(templateId);
+        } else if (fixedExpenseId) {
+          // Find the fixed expense group/subpocket logic if needed
+          // For now, we rely on the form handling fixedExpenseId if we passed it, 
+          // but MovementForm doesn't take fixedExpenseId directly as a prop for selection, 
+          // it takes selectedPocketId/subPocketId.
+          // If we have a fixedExpenseId (which is a subPocketId), we should find the pocket and account.
+          const subPocket = subPockets.find(sp => sp.id === fixedExpenseId);
+          if (subPocket) {
+            const pocket = pockets.find(p => p.id === subPocket.pocketId);
+            if (pocket) {
+              setSelectedAccountId(pocket.accountId);
+              setSelectedPocketId(pocket.id);
+              setIsFixedExpense(true);
+            }
+          }
+        }
+      }
+
+      if (reminderIdParam) {
+        setReminderId(reminderIdParam);
+      }
+
       // Clear param
       navigate(location.pathname, { replace: true });
     } else if (action === 'transfer') {
       setShowForm(true);
       setEditingMovement(null);
-      // We need to set a flag or state to switch to Transfer tab in the form
-      // For now, we'll just open the form. The user can switch tabs.
-      // Ideally, we pass a prop to MovementForm to default to Transfer tab.
-      // Let's assume MovementForm can handle this if we pass a prop or if we set a state here.
-      // But MovementForm doesn't have a "defaultTab" prop yet.
-      // I will update MovementForm to accept an initialType or similar.
       navigate(location.pathname, { replace: true });
     }
-  }, [location.search, navigate]);
+  }, [location.search, navigate, subPockets, pockets, movementTemplates]);
 
   // Handlers
   const toggleMonth = (month: string) => {
@@ -219,6 +267,18 @@ const MovementsPage = () => {
           toast.success('Transfer created successfully!');
         } else {
           await createMovement.mutateAsync({ type, accountId, pocketId, amount, notes, displayedDate, subPocketId, isPending });
+
+          // If this was from a reminder, mark it as paid
+          if (reminderId) {
+            // We don't have the new movement ID here easily because mutateAsync returns void (or we need to check the hook).
+            // Actually, createMovement.mutateAsync returns the result if we didn't override it?
+            // The hook uses mutationFn which returns the data.
+            // Let's assume we can't easily link it right now without changing the hook return type or logic.
+            // But we can just mark it as paid.
+            await markAsPaidMutation.mutateAsync({ id: reminderId });
+            setReminderId(null);
+            setDefaultValues({});
+          }
 
           if (saveAsTemplate && templateName.trim()) {
             try {
@@ -636,6 +696,7 @@ const MovementsPage = () => {
           setTemplateName={setTemplateName}
           selectedTemplateId={selectedTemplateId}
           onTemplateSelect={handleTemplateSelect}
+          defaultValues={defaultValues}
         />
       </Modal>
 

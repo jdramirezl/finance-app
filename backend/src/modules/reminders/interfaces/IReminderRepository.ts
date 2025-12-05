@@ -1,0 +1,10 @@
+import { Reminder } from '../domain/Reminder';
+import { CreateReminderDTO, UpdateReminderDTO } from '../application/dtos/ReminderDTO';
+
+export interface IReminderRepository {
+    findAll(userId: string): Promise<Reminder[]>;
+    findById(id: string): Promise<Reminder | null>;
+    create(userId: string, data: CreateReminderDTO): Promise<Reminder>;
+    update(id: string, data: UpdateReminderDTO): Promise<Reminder>;
+    delete(id: string): Promise<void>;
+}

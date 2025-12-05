@@ -49,6 +49,7 @@ import groupRoutes from './modules/sub-pockets/presentation/groupRoutes';
 import movementRoutes from './modules/movements/presentation/routes';
 import settingsRoutes from './modules/settings/presentation/settingsRoutes';
 import currencyRoutes from './modules/settings/presentation/currencyRoutes';
+import reminderRoutes from './modules/reminders/presentation/routes';
 
 const app = express();
 const PORT = process.env.PORT || process.env.BACKEND_PORT || 3001;
@@ -123,6 +124,9 @@ app.use('/api/settings', settingsRoutes);
 
 // Mount currency routes
 app.use('/api/currency', currencyRoutes);
+
+// Mount reminder routes
+app.use('/api/reminders', reminderRoutes);
 
 // 404 handler
 app.use((req: Request, res: Response) => {

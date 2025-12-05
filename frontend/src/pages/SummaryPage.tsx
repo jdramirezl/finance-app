@@ -14,6 +14,7 @@ import {
   FixedExpensesSummary,
   type InvestmentData
 } from '../components/summary';
+import RemindersWidget from '../components/reminders/RemindersWidget';
 
 const SummaryPage = () => {
   // TanStack Query hooks
@@ -248,23 +249,31 @@ const SummaryPage = () => {
           )}
         </div>
 
-        {/* Fixed Expenses Section */}
-        <div className="space-y-4">
-          <h2 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">Fixed Expenses</h2>
+        {/* Right Column */}
+        <div className="space-y-6">
+          {/* Reminders Section */}
+          <div className="space-y-4 h-[400px]">
+            <RemindersWidget />
+          </div>
 
-          {!fixedPocket ? (
-            <EmptyState
-              icon={Wallet}
-              title="No fixed expenses pocket"
-              description="Create a fixed expenses pocket to track your recurring bills."
-            />
-          ) : (
-            <FixedExpensesSummary
-              subPockets={fixedSubPockets}
-              account={fixedAccount || undefined}
-              totalMoney={totalFixedExpensesMoney}
-            />
-          )}
+          {/* Fixed Expenses Section */}
+          <div className="space-y-4">
+            <h2 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">Fixed Expenses</h2>
+
+            {!fixedPocket ? (
+              <EmptyState
+                icon={Wallet}
+                title="No fixed expenses pocket"
+                description="Create a fixed expenses pocket to track your recurring bills."
+              />
+            ) : (
+              <FixedExpensesSummary
+                subPockets={fixedSubPockets}
+                account={fixedAccount || undefined}
+                totalMoney={totalFixedExpensesMoney}
+              />
+            )}
+          </div>
         </div>
       </div>
     </div>

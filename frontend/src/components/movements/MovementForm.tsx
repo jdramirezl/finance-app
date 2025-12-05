@@ -22,6 +22,14 @@ interface MovementFormProps {
     setTemplateName: (name: string) => void;
     selectedTemplateId: string;
     onTemplateSelect: (id: string) => void;
+    defaultValues?: {
+        amount?: number;
+        notes?: string;
+        date?: string;
+        type?: MovementType;
+        fixedExpenseId?: string;
+        templateId?: string;
+    };
 }
 
 const MovementForm = ({
@@ -41,6 +49,7 @@ const MovementForm = ({
     setTemplateName,
     selectedTemplateId,
     onTemplateSelect,
+    defaultValues,
 }: MovementFormProps) => {
     const { data: accounts = [] } = useAccountsQuery();
     const { data: pockets = [] } = usePocketsQuery();
@@ -105,7 +114,7 @@ const MovementForm = ({
                     label="Type"
                     name="type"
                     required
-                    defaultValue={initialData?.type || 'EgresoNormal'}
+                    defaultValue={initialData?.type || defaultValues?.type || 'EgresoNormal'}
                     onChange={(e) => {
                         const value = e.target.value;
                         if (value === 'Transfer') {
@@ -125,7 +134,7 @@ const MovementForm = ({
                     label="Date"
                     name="displayedDate"
                     required
-                    defaultValue={initialData?.displayedDate ? initialData.displayedDate.split('T')[0] : new Date().toISOString().split('T')[0]}
+                    defaultValue={initialData?.displayedDate ? initialData.displayedDate.split('T')[0] : (defaultValues?.date ? defaultValues.date.split('T')[0] : new Date().toISOString().split('T')[0])}
                 />
             </div>
 
@@ -211,14 +220,14 @@ const MovementForm = ({
                 step="0.01"
                 min="0"
                 required
-                defaultValue={initialData?.amount}
+                defaultValue={initialData?.amount || defaultValues?.amount}
             />
 
             <Input
                 label="Notes"
                 name="notes"
                 placeholder={isTransfer ? "Transfer details..." : "What is this for?"}
-                defaultValue={initialData?.notes}
+                defaultValue={initialData?.notes || defaultValues?.notes}
             />
 
             <div className="flex items-center gap-2">

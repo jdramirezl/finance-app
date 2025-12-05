@@ -95,34 +95,31 @@ import { GetExchangeRateUseCase } from '../../modules/settings/application/useCa
 import { ConvertCurrencyUseCase } from '../../modules/settings/application/useCases/ConvertCurrencyUseCase';
 import { SettingsController } from '../../modules/settings/presentation/SettingsController';
 import { CurrencyController } from '../../modules/settings/presentation/CurrencyController';
+// Reminders Module
+import { IReminderRepository } from '../../modules/reminders/interfaces/IReminderRepository';
+import { SupabaseReminderRepository } from '../../modules/reminders/infrastructure/SupabaseReminderRepository';
+import { ReminderService } from '../../modules/reminders/application/ReminderService';
+import { ReminderController } from '../../modules/reminders/interfaces/ReminderController';
 
+
+/**
+ * Initialize all module registrations
+ */
 /**
  * Register Account Module dependencies
  */
 function registerAccountModule(): void {
-  // Register repositories
-  container.register<IAccountRepository>('AccountRepository', {
-    useClass: SupabaseAccountRepository,
-  });
+  // Repositories
+  container.register<IAccountRepository>('AccountRepository', { useClass: SupabaseAccountRepository });
+  container.register<IStockPriceRepository>('StockPriceRepository', { useClass: SupabaseStockPriceRepository });
 
-  container.register<IStockPriceRepository>('StockPriceRepository', {
-    useClass: SupabaseStockPriceRepository,
-  });
+  // Services
+  container.register<IAlphaVantageService>('AlphaVantageService', { useClass: AlphaVantageService });
 
-  // Register services
-  container.register<IAlphaVantageService>('AlphaVantageService', {
-    useClass: AlphaVantageService,
-  });
+  // Register GetCurrentStockPriceUseCase as StockPriceService for GetAllAccountsUseCase
+  container.register('StockPriceService', { useClass: GetCurrentStockPriceUseCase });
 
-  // Register GetCurrentStockPriceUseCase first (needed by other use cases)
-  container.register(GetCurrentStockPriceUseCase, { useClass: GetCurrentStockPriceUseCase });
-
-  // Register as StockPriceService for use cases that need it
-  container.register('StockPriceService', {
-    useClass: GetCurrentStockPriceUseCase,
-  });
-
-  // Register use cases (automatically resolved by tsyringe)
+  // Use Cases
   container.register(CreateAccountUseCase, { useClass: CreateAccountUseCase });
   container.register(GetAllAccountsUseCase, { useClass: GetAllAccountsUseCase });
   container.register(GetAccountByIdUseCase, { useClass: GetAccountByIdUseCase });
@@ -130,9 +127,10 @@ function registerAccountModule(): void {
   container.register(DeleteAccountUseCase, { useClass: DeleteAccountUseCase });
   container.register(DeleteAccountCascadeUseCase, { useClass: DeleteAccountCascadeUseCase });
   container.register(ReorderAccountsUseCase, { useClass: ReorderAccountsUseCase });
+  container.register(GetCurrentStockPriceUseCase, { useClass: GetCurrentStockPriceUseCase });
   container.register(UpdateInvestmentAccountUseCase, { useClass: UpdateInvestmentAccountUseCase });
 
-  // Register controllers
+  // Controller
   container.register(AccountController, { useClass: AccountController });
   container.register(InvestmentController, { useClass: InvestmentController });
 }
@@ -141,12 +139,12 @@ function registerAccountModule(): void {
  * Register Pocket Module dependencies
  */
 function registerPocketModule(): void {
-  // Register repository
-  container.register<IPocketRepository>('PocketRepository', {
-    useClass: SupabasePocketRepository,
-  });
+  // Repository
+  container.register<IPocketRepository>('PocketRepository', { useClass: SupabasePocketRepository });
 
-  // Register use cases (automatically resolved by tsyringe)
+
+
+  // Use Cases
   container.register(CreatePocketUseCase, { useClass: CreatePocketUseCase });
   container.register(GetPocketsByAccountUseCase, { useClass: GetPocketsByAccountUseCase });
   container.register(GetPocketByIdUseCase, { useClass: GetPocketByIdUseCase });
@@ -155,7 +153,7 @@ function registerPocketModule(): void {
   container.register(MigrateFixedPocketUseCase, { useClass: MigrateFixedPocketUseCase });
   container.register(ReorderPocketsUseCase, { useClass: ReorderPocketsUseCase });
 
-  // Register controller
+  // Controller
   container.register(PocketController, { useClass: PocketController });
 }
 
@@ -261,6 +259,24 @@ function registerSettingsModule(): void {
 }
 
 /**
+ * Register Reminder Module dependencies
+ */
+function registerReminderModule(): void {
+  // Register repository
+  container.register<IReminderRepository>('ReminderRepository', {
+    useClass: SupabaseReminderRepository,
+  });
+
+  // Register service
+  container.register(ReminderService, {
+    useFactory: (c) => new ReminderService(c.resolve('ReminderRepository'))
+  });
+
+  // Register controller
+  container.register(ReminderController, { useClass: ReminderController });
+}
+
+/**
  * Initialize all module registrations
  */
 export function initializeContainer(): void {
@@ -270,4 +286,5 @@ export function initializeContainer(): void {
   registerFixedExpenseGroupModule();
   registerMovementModule();
   registerSettingsModule();
+  registerReminderModule();
 }
