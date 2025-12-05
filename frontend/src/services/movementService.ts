@@ -343,6 +343,73 @@ class MovementService {
     return await this.createMovementDirect(type, accountId, pocketId, amount, notes, displayedDate, subPocketId, isPending);
   }
 
+  // Create transfer (two movements)
+  async createTransfer(
+    sourceAccountId: string,
+    sourcePocketId: string,
+    targetAccountId: string,
+    targetPocketId: string,
+    amount: number,
+    displayedDate: string,
+    notes?: string
+  ): Promise<{ expense: Movement; income: Movement }> {
+    if (this.useBackend) {
+      try {
+        console.log('🔵 Backend API: POST /api/movements/transfer');
+        return await apiClient.post<{ expense: Movement; income: Movement }>('/api/movements/transfer', {
+          sourceAccountId,
+          sourcePocketId,
+          targetAccountId,
+          targetPocketId,
+          amount,
+          displayedDate,
+          notes,
+        });
+      } catch (error) {
+        console.error('❌ Backend API failed, falling back to Supabase:', error);
+        return await this.createTransferDirect(sourceAccountId, sourcePocketId, targetAccountId, targetPocketId, amount, displayedDate, notes);
+      }
+    }
+    return await this.createTransferDirect(sourceAccountId, sourcePocketId, targetAccountId, targetPocketId, amount, displayedDate, notes);
+  }
+
+  // Direct Supabase implementation (fallback)
+  private async createTransferDirect(
+    sourceAccountId: string,
+    sourcePocketId: string,
+    targetAccountId: string,
+    targetPocketId: string,
+    amount: number,
+    displayedDate: string,
+    notes?: string
+  ): Promise<{ expense: Movement; income: Movement }> {
+    // 1. Create Expense (Source)
+    const expense = await this.createMovementDirect(
+      'EgresoNormal',
+      sourceAccountId,
+      sourcePocketId,
+      amount,
+      notes ? `Transfer to target: ${notes}` : 'Transfer to target',
+      displayedDate,
+      undefined,
+      false
+    );
+
+    // 2. Create Income (Target)
+    const income = await this.createMovementDirect(
+      'IngresoNormal',
+      targetAccountId,
+      targetPocketId,
+      amount,
+      notes ? `Transfer from source: ${notes}` : 'Transfer from source',
+      displayedDate,
+      undefined,
+      false
+    );
+
+    return { expense, income };
+  }
+
   // Direct Supabase implementation (fallback)
   private async createMovementDirect(
     type: MovementType,

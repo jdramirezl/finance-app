@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useAccountsQuery, usePocketsQuery, useSubPocketsQuery, useMovementTemplatesQuery } from '../../hooks/queries';
 import Button from '../Button';
 import Input from '../Input';
@@ -46,8 +47,16 @@ const MovementForm = ({
     const { data: subPockets = [] } = useSubPocketsQuery();
     const { data: movementTemplates = [] } = useMovementTemplatesQuery();
 
+    const [isTransfer, setIsTransfer] = useState(false);
+    const [targetAccountId, setTargetAccountId] = useState('');
+    const [targetPocketId, setTargetPocketId] = useState('');
+
     const availablePockets = selectedAccountId
         ? pockets.filter(p => p.accountId === selectedAccountId)
+        : [];
+
+    const availableTargetPockets = targetAccountId
+        ? pockets.filter(p => p.accountId === targetAccountId)
         : [];
 
     const fixedPocket = availablePockets.find((p) => p.type === 'fixed');
@@ -55,15 +64,30 @@ const MovementForm = ({
         ? subPockets.filter(sp => sp.pocketId === fixedPocket.id)
         : [];
 
-    const movementTypes: { value: MovementType; label: string }[] = [
+    const movementTypes: { value: MovementType | 'Transfer'; label: string }[] = [
         { value: 'IngresoNormal', label: 'Normal Income' },
         { value: 'EgresoNormal', label: 'Normal Expense' },
         { value: 'IngresoFijo', label: 'Fixed Income' },
         { value: 'EgresoFijo', label: 'Fixed Expense' },
+        { value: 'Transfer', label: 'Transfer' },
     ];
 
+    const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault();
+        const formData = new FormData(e.currentTarget);
+
+        // Inject transfer data if in transfer mode
+        if (isTransfer) {
+            formData.append('isTransfer', 'true');
+            formData.append('targetAccountId', targetAccountId);
+            formData.append('targetPocketId', targetPocketId);
+        }
+
+        await onSubmit(e);
+    };
+
     return (
-        <form onSubmit={onSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4">
             {!initialData && (
                 <Select
                     label="Load Template"
@@ -83,8 +107,15 @@ const MovementForm = ({
                     required
                     defaultValue={initialData?.type || 'EgresoNormal'}
                     onChange={(e) => {
-                        const type = e.target.value as MovementType;
-                        setIsFixedExpense(type === 'IngresoFijo' || type === 'EgresoFijo');
+                        const value = e.target.value;
+                        if (value === 'Transfer') {
+                            setIsTransfer(true);
+                            setIsFixedExpense(false);
+                        } else {
+                            setIsTransfer(false);
+                            const type = value as MovementType;
+                            setIsFixedExpense(type === 'IngresoFijo' || type === 'EgresoFijo');
+                        }
                     }}
                     options={movementTypes}
                 />
@@ -100,7 +131,7 @@ const MovementForm = ({
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Select
-                    label="Account"
+                    label={isTransfer ? "Source Account" : "Account"}
                     name="accountId"
                     required
                     value={selectedAccountId}
@@ -115,7 +146,7 @@ const MovementForm = ({
                 />
 
                 <Select
-                    label="Pocket"
+                    label={isTransfer ? "Source Pocket" : "Pocket"}
                     name="pocketId"
                     required
                     value={selectedPocketId}
@@ -128,7 +159,39 @@ const MovementForm = ({
                 />
             </div>
 
-            {isFixedExpense && availableSubPockets.length > 0 && (
+            {isTransfer && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700">
+                    <Select
+                        label="Target Account"
+                        name="targetAccountId" // Not used directly by form data but good for accessibility
+                        required
+                        value={targetAccountId}
+                        onChange={(e) => {
+                            setTargetAccountId(e.target.value);
+                            setTargetPocketId('');
+                        }}
+                        options={[
+                            { value: '', label: 'Select Target Account' },
+                            ...accounts.filter(a => a.id !== selectedAccountId).map(acc => ({ value: acc.id, label: acc.name }))
+                        ]}
+                    />
+
+                    <Select
+                        label="Target Pocket"
+                        name="targetPocketId" // Not used directly by form data but good for accessibility
+                        required
+                        value={targetPocketId}
+                        onChange={(e) => setTargetPocketId(e.target.value)}
+                        options={[
+                            { value: '', label: 'Select Target Pocket' },
+                            ...availableTargetPockets.map(p => ({ value: p.id, label: p.name }))
+                        ]}
+                        disabled={!targetAccountId}
+                    />
+                </div>
+            )}
+
+            {isFixedExpense && availableSubPockets.length > 0 && !isTransfer && (
                 <Select
                     label="Sub-Pocket (Optional)"
                     name="subPocketId"
@@ -154,7 +217,7 @@ const MovementForm = ({
             <Input
                 label="Notes"
                 name="notes"
-                placeholder="What is this for?"
+                placeholder={isTransfer ? "Transfer details..." : "What is this for?"}
                 defaultValue={initialData?.notes}
             />
 
@@ -171,7 +234,10 @@ const MovementForm = ({
                 </label>
             </div>
 
-            {!initialData && (
+            {/* Hidden input to signal transfer mode to parent */}
+            <input type="hidden" name="isTransfer" value={isTransfer.toString()} />
+
+            {!initialData && !isTransfer && (
                 <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
                     <div className="flex items-center gap-2 mb-2">
                         <input
@@ -203,7 +269,7 @@ const MovementForm = ({
                     Cancel
                 </Button>
                 <Button type="submit" variant="primary" loading={isSaving}>
-                    {initialData ? 'Update Movement' : 'Create Movement'}
+                    {initialData ? 'Update Movement' : (isTransfer ? 'Transfer Funds' : 'Create Movement')}
                 </Button>
             </div>
         </form>

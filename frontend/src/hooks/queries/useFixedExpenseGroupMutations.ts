@@ -37,10 +37,18 @@ export const useFixedExpenseGroupMutations = () => {
         },
     });
 
+    const reorderFixedExpenseGroups = useMutation({
+        mutationFn: (ids: string[]) => fixedExpenseGroupService.reorder(ids),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['fixedExpenseGroups'] });
+        },
+    });
+
     return {
         createFixedExpenseGroup,
         updateFixedExpenseGroup,
         deleteFixedExpenseGroup,
         toggleFixedExpenseGroup,
+        reorderFixedExpenseGroups,
     };
 };

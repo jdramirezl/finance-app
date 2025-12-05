@@ -282,6 +282,59 @@ const MovementList = ({
                     </div>
                 );
             })}
+            {/* Floating Stats Bar */}
+            {selectedMovementIds.size > 0 && (
+                <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-gray-900/90 dark:bg-gray-800/90 text-white backdrop-blur-md px-6 py-3 rounded-full shadow-xl z-50 flex items-center gap-6 animate-in slide-in-from-bottom-4 fade-in duration-200 border border-gray-700/50">
+                    <div className="flex flex-col">
+                        <span className="text-xs text-gray-400 font-medium uppercase tracking-wider">Selected</span>
+                        <span className="font-bold text-lg leading-none">{selectedMovementIds.size}</span>
+                    </div>
+                    <div className="w-px h-8 bg-gray-700"></div>
+                    <div className="flex flex-col">
+                        <span className="text-xs text-gray-400 font-medium uppercase tracking-wider">Sum</span>
+                        <span className="font-bold text-lg leading-none">
+                            {(() => {
+                                const selectedMovements = movementsByMonth
+                                    .flatMap(([, movements]) => movements)
+                                    .filter(m => selectedMovementIds.has(m.id));
+
+                                const sum = selectedMovements.reduce((acc, m) => {
+                                    const isIncome = m.type.includes('Ingreso');
+                                    return acc + (isIncome ? m.amount : -m.amount);
+                                }, 0);
+
+                                return (sum >= 0 ? '+' : '-') + Math.abs(sum).toLocaleString(undefined, {
+                                    style: 'currency',
+                                    currency: 'USD', // Ideally this should be dynamic based on account currency
+                                });
+                            })()}
+                        </span>
+                    </div>
+                    <div className="w-px h-8 bg-gray-700"></div>
+                    <div className="flex flex-col">
+                        <span className="text-xs text-gray-400 font-medium uppercase tracking-wider">Average</span>
+                        <span className="font-bold text-lg leading-none">
+                            {(() => {
+                                const selectedMovements = movementsByMonth
+                                    .flatMap(([, movements]) => movements)
+                                    .filter(m => selectedMovementIds.has(m.id));
+
+                                const sum = selectedMovements.reduce((acc, m) => {
+                                    const isIncome = m.type.includes('Ingreso');
+                                    return acc + (isIncome ? m.amount : -m.amount);
+                                }, 0);
+
+                                const avg = sum / selectedMovements.length;
+
+                                return (avg >= 0 ? '+' : '-') + Math.abs(avg).toLocaleString(undefined, {
+                                    style: 'currency',
+                                    currency: 'USD',
+                                });
+                            })()}
+                        </span>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
