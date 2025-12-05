@@ -7,4 +7,5 @@ export interface IReminderRepository {
     create(userId: string, data: CreateReminderDTO): Promise<Reminder>;
     update(id: string, data: UpdateReminderDTO): Promise<Reminder>;
     delete(id: string): Promise<void>;
+    findByLinkedMovementId(movementId: string): Promise<Reminder | null>;
 }

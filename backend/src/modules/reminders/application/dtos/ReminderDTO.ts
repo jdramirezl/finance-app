@@ -15,7 +15,7 @@ export interface UpdateReminderDTO {
     dueDate?: string;
     isPaid?: boolean;
     recurrence?: RecurrenceConfig;
-    linkedMovementId?: string;
+    linkedMovementId?: string | null;
     fixedExpenseId?: string;
     templateId?: string;
 }

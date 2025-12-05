@@ -1,8 +1,8 @@
 import { format, parseISO } from 'date-fns';
-import { ChevronDown, ChevronUp, Edit2, Trash2 } from 'lucide-react';
+import { ChevronDown, ChevronUp, Edit2, Trash2, Bell } from 'lucide-react';
 import Button from '../Button';
 import Card from '../Card';
-import { useAccountsQuery, usePocketsQuery } from '../../hooks/queries';
+import { useAccountsQuery, usePocketsQuery, useRemindersQuery } from '../../hooks/queries';
 import type { Movement, MovementType } from '../../types';
 import type { SortField, SortOrder } from '../../hooks/useMovementsSort';
 import { getSmartIcon, getDefaultIcon } from '../../utils/smartIcons';
@@ -42,6 +42,7 @@ const MovementList = ({
 }: MovementListProps) => {
     const { data: accounts = [] } = useAccountsQuery();
     const { data: pockets = [] } = usePocketsQuery();
+    const { data: reminders = [] } = useRemindersQuery();
 
     const handleSort = (field: SortField) => {
         if (sortField === field) {
@@ -178,6 +179,7 @@ const MovementList = ({
                                 {monthMovements.map((movement) => {
                                     const account = accounts.find(a => a.id === movement.accountId);
                                     const pocket = pockets.find(p => p.id === movement.pocketId);
+                                    const linkedReminder = reminders.find(r => r.linkedMovementId === movement.id);
                                     const isIncome = movement.type.includes('Ingreso');
                                     const isSelected = selectedMovementIds.has(movement.id);
 
@@ -223,6 +225,12 @@ const MovementList = ({
                                                         <span className={`text-xs px-2 py-0.5 rounded-full border ${getMovementTypeColor(movement.type)}`}>
                                                             {getMovementTypeLabel(movement.type)}
                                                         </span>
+                                                        {linkedReminder && (
+                                                            <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-indigo-800 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 flex items-center gap-1" title="Paid Reminder">
+                                                                <Bell className="w-3 h-3" />
+                                                                {linkedReminder.title}
+                                                            </span>
+                                                        )}
                                                         {movement.isPending && (
                                                             <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-800 border border-yellow-200">
                                                                 Pending

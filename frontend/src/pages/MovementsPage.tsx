@@ -266,16 +266,13 @@ const MovementsPage = () => {
           });
           toast.success('Transfer created successfully!');
         } else {
-          await createMovement.mutateAsync({ type, accountId, pocketId, amount, notes, displayedDate, subPocketId, isPending });
+          const newMovement = await createMovement.mutateAsync({ type, accountId, pocketId, amount, notes, displayedDate, subPocketId, isPending });
 
           // If this was from a reminder, mark it as paid
           if (reminderId) {
-            // We don't have the new movement ID here easily because mutateAsync returns void (or we need to check the hook).
-            // Actually, createMovement.mutateAsync returns the result if we didn't override it?
-            // The hook uses mutationFn which returns the data.
-            // Let's assume we can't easily link it right now without changing the hook return type or logic.
-            // But we can just mark it as paid.
-            await markAsPaidMutation.mutateAsync({ id: reminderId });
+            // Link the reminder to the newly created movement
+            // Note: We use the ID from the returned movement object
+            await markAsPaidMutation.mutateAsync({ id: reminderId, movementId: newMovement?.id });
             setReminderId(null);
             setDefaultValues({});
           }

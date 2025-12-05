@@ -88,6 +88,8 @@ export const useMovementMutations = () => {
             queryClient.invalidateQueries({ queryKey: ['accounts'] });
             queryClient.invalidateQueries({ queryKey: ['pockets'] });
             queryClient.invalidateQueries({ queryKey: ['subPockets'] });
+            // Invalidate reminders to ensure restored reminders appear instantly
+            queryClient.invalidateQueries({ queryKey: ['reminders'] });
         },
     });
 

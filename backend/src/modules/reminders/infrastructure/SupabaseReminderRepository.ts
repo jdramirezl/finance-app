@@ -115,6 +115,17 @@ export class SupabaseReminderRepository implements IReminderRepository {
         if (error) throw new Error(error.message);
     }
 
+    async findByLinkedMovementId(movementId: string): Promise<Reminder | null> {
+        const { data, error } = await this.ensureClient()
+            .from('reminders')
+            .select('*')
+            .eq('linked_movement_id', movementId)
+            .single();
+
+        if (error) return null;
+        return this.mapToDomain(data);
+    }
+
     private mapToDomain(data: any): Reminder {
         return {
             id: data.id,
