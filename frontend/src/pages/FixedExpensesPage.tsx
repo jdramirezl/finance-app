@@ -19,6 +19,8 @@ import { Skeleton } from '../components/Skeleton';
 import BatchMovementForm, { type BatchMovementRow } from '../components/BatchMovementForm';
 import FixedExpenseGroupCard from '../components/FixedExpenseGroupCard';
 import { FixedExpenseForm, FixedExpenseGroupForm } from '../components/fixed-expenses';
+import SortableList from '../components/SortableList';
+import SortableItem from '../components/SortableItem';
 import PageHeader from '../components/PageHeader';
 import EmptyState from '../components/EmptyState';
 import { calculateAporteMensual } from '../utils/fixedExpenseUtils';
@@ -32,7 +34,7 @@ const FixedExpensesPage = () => {
 
   // Mutations
   const { createMovement } = useMovementMutations();
-  const { deleteFixedExpenseGroup, toggleFixedExpenseGroup } = useFixedExpenseGroupMutations();
+  const { deleteFixedExpenseGroup, toggleFixedExpenseGroup, reorderFixedExpenseGroups } = useFixedExpenseGroupMutations();
   const { deleteSubPocket, toggleSubPocketEnabled, moveSubPocketToGroup } = useSubPocketMutations();
 
   const toast = useToast();
@@ -233,6 +235,17 @@ const FixedExpensesPage = () => {
     });
   };
 
+  const handleReorder = async (items: FixedExpenseGroup[]) => {
+    const ids = items.map(item => item.id);
+    try {
+      // Optimistic update is handled by the SortableList component's state
+      // We just need to persist the new order
+      await reorderFixedExpenseGroups.mutateAsync(ids);
+    } catch (err: any) {
+      toast.error('Failed to reorder groups');
+    }
+  };
+
   if (!fixedPocket) {
     return (
       <div className="space-y-6">
@@ -370,46 +383,52 @@ const FixedExpensesPage = () => {
         />
       ) : (
         <div className="space-y-4">
-          {fixedExpenseGroups.map((group) => {
-            const groupExpenses = getSubPocketsByGroup(group.id);
-            const isDefaultGroup = group.name === 'Default';
+          <SortableList
+            items={fixedExpenseGroups}
+            getId={(item) => item.id}
+            onReorder={handleReorder}
+            renderItem={(group) => {
+              const groupExpenses = getSubPocketsByGroup(group.id);
+              const isDefaultGroup = group.name === 'Default';
 
-            return (
-              <FixedExpenseGroupCard
-                key={group.id}
-                group={group}
-                subPockets={groupExpenses}
-                allGroups={fixedExpenseGroups}
-                currency={fixedAccount?.currency || 'USD'}
-                isDefaultGroup={isDefaultGroup}
-                isCollapsed={collapsedGroups.has(group.id)}
-                isToggling={togglingGroupId === group.id}
-                onToggleCollapse={() => toggleGroupCollapse(group.id)}
-                onToggleGroup={(enabled) => handleToggleGroup(group.id, enabled)}
-                onEditGroup={() => {
-                  setEditingGroup(group);
-                  setShowGroupForm(true);
-                }}
-                onDeleteGroup={() => handleDeleteGroup(group)}
-                onEditExpense={(subPocket) => {
-                  setEditingSubPocket(subPocket);
-                  setShowForm(true);
-                }}
-                onDeleteExpense={handleDelete}
-                onToggleExpense={handleToggle}
-                onMoveToGroup={async (subPocketId, groupId) => {
-                  try {
-                    await moveSubPocketToGroup.mutateAsync({ subPocketId, groupId });
-                    toast.success('Expense moved to new group!');
-                  } catch (err: any) {
-                    toast.error(err.message || 'Failed to move expense');
-                  }
-                }}
-                deletingId={deletingId}
-                togglingId={togglingId}
-              />
-            );
-          })}
+              return (
+                <SortableItem key={group.id} id={group.id}>
+                  <FixedExpenseGroupCard
+                    group={group}
+                    subPockets={groupExpenses}
+                    allGroups={fixedExpenseGroups}
+                    currency={fixedAccount?.currency || 'USD'}
+                    isDefaultGroup={isDefaultGroup}
+                    isCollapsed={collapsedGroups.has(group.id)}
+                    isToggling={togglingGroupId === group.id}
+                    onToggleCollapse={() => toggleGroupCollapse(group.id)}
+                    onToggleGroup={(enabled) => handleToggleGroup(group.id, enabled)}
+                    onEditGroup={() => {
+                      setEditingGroup(group);
+                      setShowGroupForm(true);
+                    }}
+                    onDeleteGroup={() => handleDeleteGroup(group)}
+                    onEditExpense={(subPocket) => {
+                      setEditingSubPocket(subPocket);
+                      setShowForm(true);
+                    }}
+                    onDeleteExpense={handleDelete}
+                    onToggleExpense={handleToggle}
+                    onMoveToGroup={async (subPocketId, groupId) => {
+                      try {
+                        await moveSubPocketToGroup.mutateAsync({ subPocketId, groupId });
+                        toast.success('Expense moved to new group!');
+                      } catch (err: any) {
+                        toast.error(err.message || 'Failed to move expense');
+                      }
+                    }}
+                    deletingId={deletingId}
+                    togglingId={togglingId}
+                  />
+                </SortableItem>
+              );
+            }}
+          />
         </div>
       )}
 
@@ -421,6 +440,7 @@ const FixedExpensesPage = () => {
           setEditingSubPocket(null);
         }}
         title={editingSubPocket ? 'Edit Fixed Expense' : 'New Fixed Expense'}
+        size="lg"
       >
         {fixedAccount && (
           <FixedExpenseForm
@@ -439,7 +459,7 @@ const FixedExpensesPage = () => {
       </Modal>
 
       {/* Batch Movement Form Modal */}
-      <Modal isOpen={showBatchForm} onClose={() => setShowBatchForm(false)}>
+      <Modal isOpen={showBatchForm} onClose={() => setShowBatchForm(false)} size="xl">
         <BatchMovementForm
           accounts={accounts}
           getPocketsByAccount={(accountId) => pockets.filter(p => p.accountId === accountId)}

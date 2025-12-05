@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
   useAccountsQuery,
   usePocketsQuery,
@@ -39,6 +40,7 @@ const MovementsPage = () => {
   // Mutations
   const {
     createMovement,
+    createTransfer,
     updateMovement,
     deleteMovement,
     applyPendingMovement,
@@ -97,6 +99,32 @@ const MovementsPage = () => {
 
   // Load Orphaned
   // Orphaned loading handled by React Query
+
+  // Handle Quick Actions from URL
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const action = params.get('action');
+
+    if (action === 'new') {
+      setShowForm(true);
+      setEditingMovement(null);
+      // Clear param
+      navigate(location.pathname, { replace: true });
+    } else if (action === 'transfer') {
+      setShowForm(true);
+      setEditingMovement(null);
+      // We need to set a flag or state to switch to Transfer tab in the form
+      // For now, we'll just open the form. The user can switch tabs.
+      // Ideally, we pass a prop to MovementForm to default to Transfer tab.
+      // Let's assume MovementForm can handle this if we pass a prop or if we set a state here.
+      // But MovementForm doesn't have a "defaultTab" prop yet.
+      // I will update MovementForm to accept an initialType or similar.
+      navigate(location.pathname, { replace: true });
+    }
+  }, [location.search, navigate]);
 
   // Handlers
   const toggleMonth = (month: string) => {
@@ -173,19 +201,37 @@ const MovementsPage = () => {
         setSelectedPocketId('');
         setIsFixedExpense(false);
 
-        await createMovement.mutateAsync({ type, accountId, pocketId, amount, notes, displayedDate, subPocketId, isPending });
+        const isTransfer = formData.get('isTransfer') === 'true';
 
-        if (saveAsTemplate && templateName.trim()) {
-          try {
-            await createMovementTemplate.mutateAsync({ name: templateName.trim(), type, accountId, pocketId, defaultAmount: amount, notes, subPocketId });
-            toast.success(`Movement created and saved as template "${templateName}"!`);
-            setSaveAsTemplate(false);
-            setTemplateName('');
-          } catch (templateErr) {
-            toast.warning(`Movement created but template save failed: ${templateErr instanceof Error ? templateErr.message : 'Unknown error'}`);
-          }
+        if (isTransfer) {
+          const targetAccountId = formData.get('targetAccountId') as string;
+          const targetPocketId = formData.get('targetPocketId') as string;
+
+          await createTransfer.mutateAsync({
+            sourceAccountId: accountId,
+            sourcePocketId: pocketId,
+            targetAccountId,
+            targetPocketId,
+            amount,
+            displayedDate,
+            notes
+          });
+          toast.success('Transfer created successfully!');
         } else {
-          toast.success(isPending ? 'Pending movement created successfully!' : 'Movement created successfully!');
+          await createMovement.mutateAsync({ type, accountId, pocketId, amount, notes, displayedDate, subPocketId, isPending });
+
+          if (saveAsTemplate && templateName.trim()) {
+            try {
+              await createMovementTemplate.mutateAsync({ name: templateName.trim(), type, accountId, pocketId, defaultAmount: amount, notes, subPocketId });
+              toast.success(`Movement created and saved as template "${templateName}"!`);
+              setSaveAsTemplate(false);
+              setTemplateName('');
+            } catch (templateErr) {
+              toast.warning(`Movement created but template save failed: ${templateErr instanceof Error ? templateErr.message : 'Unknown error'}`);
+            }
+          } else {
+            toast.success(isPending ? 'Pending movement created successfully!' : 'Movement created successfully!');
+          }
         }
       }
     } catch (err: unknown) {
@@ -571,6 +617,7 @@ const MovementsPage = () => {
         isOpen={showForm}
         onClose={() => setShowForm(false)}
         title={editingMovement ? 'Edit Movement' : 'New Movement'}
+        size="lg"
       >
         <MovementForm
           initialData={editingMovement}
@@ -596,6 +643,7 @@ const MovementsPage = () => {
         isOpen={showBatchForm}
         onClose={() => setShowBatchForm(false)}
         title="Batch Add Movements"
+        size="xl"
       >
         <BatchMovementForm
           accounts={accounts}
