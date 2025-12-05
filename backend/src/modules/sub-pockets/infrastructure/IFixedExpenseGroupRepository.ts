@@ -32,4 +32,9 @@ export interface IFixedExpenseGroupRepository {
    * Delete a group
    */
   delete(id: string, userId: string): Promise<void>;
+
+  /**
+   * Update display order for multiple groups
+   */
+  updateDisplayOrders(ids: string[], userId: string): Promise<void>;
 }

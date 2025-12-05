@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
   useAccountsQuery,
   usePocketsQuery,
@@ -7,7 +8,8 @@ import {
   useOrphanedMovementsQuery,
   useSubPocketsQuery,
   useMovementMutations,
-  useMovementTemplateMutations
+  useMovementTemplateMutations,
+  useReminderMutations
 } from '../hooks/queries';
 import { useToast } from '../hooks/useToast';
 import { useConfirm } from '../hooks/useConfirm';
@@ -39,6 +41,7 @@ const MovementsPage = () => {
   // Mutations
   const {
     createMovement,
+    createTransfer,
     updateMovement,
     deleteMovement,
     applyPendingMovement,
@@ -46,7 +49,9 @@ const MovementsPage = () => {
     // restoreOrphanedMovements
   } = useMovementMutations();
 
+
   const { createMovementTemplate } = useMovementTemplateMutations();
+  const { markAsPaidMutation } = useReminderMutations();
 
   // Derived State
   const orphanedCount = orphanedMovementsData.length;
@@ -73,6 +78,15 @@ const MovementsPage = () => {
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
   const [saveAsTemplate, setSaveAsTemplate] = useState(false);
   const [templateName, setTemplateName] = useState('');
+  const [reminderId, setReminderId] = useState<string | null>(null);
+  const [defaultValues, setDefaultValues] = useState<{
+    amount?: number;
+    notes?: string;
+    date?: string;
+    type?: MovementType;
+    fixedExpenseId?: string;
+    templateId?: string;
+  }>({});
 
   // Orphaned movements
   const [showOrphaned, setShowOrphaned] = useState(false);
@@ -97,6 +111,68 @@ const MovementsPage = () => {
 
   // Load Orphaned
   // Orphaned loading handled by React Query
+
+  // Handle Quick Actions from URL
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const action = params.get('action');
+
+    if (action === 'new') {
+      setShowForm(true);
+      setEditingMovement(null);
+
+      // Handle pre-filled data (e.g. from Reminders)
+      const amount = params.get('amount');
+      const notes = params.get('notes');
+      const date = params.get('date');
+      const templateId = params.get('templateId');
+      const fixedExpenseId = params.get('fixedExpenseId');
+      const reminderIdParam = params.get('reminderId');
+
+      if (amount || notes || date || templateId || fixedExpenseId) {
+        setDefaultValues({
+          amount: amount ? parseFloat(amount) : undefined,
+          notes: notes || undefined,
+          date: date || undefined,
+          templateId: templateId || undefined,
+          fixedExpenseId: fixedExpenseId || undefined,
+        });
+
+        if (templateId) {
+          handleTemplateSelect(templateId);
+        } else if (fixedExpenseId) {
+          // Find the fixed expense group/subpocket logic if needed
+          // For now, we rely on the form handling fixedExpenseId if we passed it, 
+          // but MovementForm doesn't take fixedExpenseId directly as a prop for selection, 
+          // it takes selectedPocketId/subPocketId.
+          // If we have a fixedExpenseId (which is a subPocketId), we should find the pocket and account.
+          const subPocket = subPockets.find(sp => sp.id === fixedExpenseId);
+          if (subPocket) {
+            const pocket = pockets.find(p => p.id === subPocket.pocketId);
+            if (pocket) {
+              setSelectedAccountId(pocket.accountId);
+              setSelectedPocketId(pocket.id);
+              setIsFixedExpense(true);
+            }
+          }
+        }
+      }
+
+      if (reminderIdParam) {
+        setReminderId(reminderIdParam);
+      }
+
+      // Clear param
+      navigate(location.pathname, { replace: true });
+    } else if (action === 'transfer') {
+      setShowForm(true);
+      setEditingMovement(null);
+      navigate(location.pathname, { replace: true });
+    }
+  }, [location.search, navigate, subPockets, pockets, movementTemplates]);
 
   // Handlers
   const toggleMonth = (month: string) => {
@@ -173,19 +249,46 @@ const MovementsPage = () => {
         setSelectedPocketId('');
         setIsFixedExpense(false);
 
-        await createMovement.mutateAsync({ type, accountId, pocketId, amount, notes, displayedDate, subPocketId, isPending });
+        const isTransfer = formData.get('isTransfer') === 'true';
 
-        if (saveAsTemplate && templateName.trim()) {
-          try {
-            await createMovementTemplate.mutateAsync({ name: templateName.trim(), type, accountId, pocketId, defaultAmount: amount, notes, subPocketId });
-            toast.success(`Movement created and saved as template "${templateName}"!`);
-            setSaveAsTemplate(false);
-            setTemplateName('');
-          } catch (templateErr) {
-            toast.warning(`Movement created but template save failed: ${templateErr instanceof Error ? templateErr.message : 'Unknown error'}`);
-          }
+        if (isTransfer) {
+          const targetAccountId = formData.get('targetAccountId') as string;
+          const targetPocketId = formData.get('targetPocketId') as string;
+
+          await createTransfer.mutateAsync({
+            sourceAccountId: accountId,
+            sourcePocketId: pocketId,
+            targetAccountId,
+            targetPocketId,
+            amount,
+            displayedDate,
+            notes
+          });
+          toast.success('Transfer created successfully!');
         } else {
-          toast.success(isPending ? 'Pending movement created successfully!' : 'Movement created successfully!');
+          const newMovement = await createMovement.mutateAsync({ type, accountId, pocketId, amount, notes, displayedDate, subPocketId, isPending });
+
+          // If this was from a reminder, mark it as paid
+          if (reminderId) {
+            // Link the reminder to the newly created movement
+            // Note: We use the ID from the returned movement object
+            await markAsPaidMutation.mutateAsync({ id: reminderId, movementId: newMovement?.id });
+            setReminderId(null);
+            setDefaultValues({});
+          }
+
+          if (saveAsTemplate && templateName.trim()) {
+            try {
+              await createMovementTemplate.mutateAsync({ name: templateName.trim(), type, accountId, pocketId, defaultAmount: amount, notes, subPocketId });
+              toast.success(`Movement created and saved as template "${templateName}"!`);
+              setSaveAsTemplate(false);
+              setTemplateName('');
+            } catch (templateErr) {
+              toast.warning(`Movement created but template save failed: ${templateErr instanceof Error ? templateErr.message : 'Unknown error'}`);
+            }
+          } else {
+            toast.success(isPending ? 'Pending movement created successfully!' : 'Movement created successfully!');
+          }
         }
       }
     } catch (err: unknown) {
@@ -571,6 +674,7 @@ const MovementsPage = () => {
         isOpen={showForm}
         onClose={() => setShowForm(false)}
         title={editingMovement ? 'Edit Movement' : 'New Movement'}
+        size="lg"
       >
         <MovementForm
           initialData={editingMovement}
@@ -589,6 +693,7 @@ const MovementsPage = () => {
           setTemplateName={setTemplateName}
           selectedTemplateId={selectedTemplateId}
           onTemplateSelect={handleTemplateSelect}
+          defaultValues={defaultValues}
         />
       </Modal>
 
@@ -596,6 +701,7 @@ const MovementsPage = () => {
         isOpen={showBatchForm}
         onClose={() => setShowBatchForm(false)}
         title="Batch Add Movements"
+        size="xl"
       >
         <BatchMovementForm
           accounts={accounts}

@@ -15,6 +15,7 @@ export * from './useMovementMutations';
 export * from './useMovementTemplates';
 export * from './useOrphanedMovementsQuery';
 export * from './useFixedExpenseGroupsQuery';
+export * from './useReminderQueries';
 export * from './useFixedExpenseGroupMutations';
 export * from './useSubPocketMutations';
 export * from './useSettingsQuery';

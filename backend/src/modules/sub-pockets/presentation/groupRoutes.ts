@@ -66,6 +66,17 @@ router.put('/:id', (req, res, next) => controller.update(req, res, next));
 router.delete('/:id', (req, res, next) => controller.delete(req, res, next));
 
 /**
+ * POST /api/fixed-expense-groups/reorder
+ * Reorder fixed expense groups
+ * 
+ * Body: { ids: string[] }
+ * Response: 200
+ * 
+ * Requirements: 9.1
+ */
+router.post('/reorder', (req, res, next) => controller.reorder(req, res, next));
+
+/**
  * POST /api/fixed-expense-groups/:id/toggle
  * Toggle group and all sub-pockets
  * 

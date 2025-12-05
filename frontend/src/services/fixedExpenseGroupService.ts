@@ -42,6 +42,7 @@ class FixedExpenseGroupService {
         id: group.id,
         name: group.name,
         color: group.color,
+        displayOrder: group.display_order || 0,
         createdAt: group.created_at,
         updatedAt: group.updated_at,
       }));
@@ -81,6 +82,7 @@ class FixedExpenseGroupService {
         id: data.id,
         name: data.name,
         color: data.color,
+        displayOrder: data.display_order || 0,
         createdAt: data.created_at,
         updatedAt: data.updated_at,
       };
@@ -129,6 +131,7 @@ class FixedExpenseGroupService {
         id: data.id,
         name: data.name,
         color: data.color,
+        displayOrder: data.display_order || 0,
         createdAt: data.created_at,
         updatedAt: data.updated_at,
       };
@@ -208,7 +211,7 @@ class FixedExpenseGroupService {
       // Find user's default group to move expenses to
       const allGroups = await this.getAllDirect();
       const defaultGroup = allGroups.find(g => g.name === 'Default');
-      
+
       if (!defaultGroup) {
         throw new Error('Default group not found. Cannot delete group.');
       }
@@ -243,6 +246,42 @@ class FixedExpenseGroupService {
   async getDefaultGroup(): Promise<FixedExpenseGroup | null> {
     const groups = await this.getAll();
     return groups.find(g => g.name === 'Default') || null;
+  }
+  // Reorder groups
+  async reorder(ids: string[]): Promise<void> {
+    if (this.useBackend) {
+      try {
+        console.log('🔵 Backend API: POST /api/fixed-expense-groups/reorder', { ids });
+        await apiClient.post('/api/fixed-expense-groups/reorder', { ids });
+        return;
+      } catch (error) {
+        console.error('❌ Backend API failed, falling back to Supabase:', error);
+        return await this.reorderDirect(ids);
+      }
+    }
+    return await this.reorderDirect(ids);
+  }
+
+  // Direct Supabase implementation (fallback)
+  private async reorderDirect(ids: string[]): Promise<void> {
+    try {
+      // Use individual updates to avoid RLS/Not-Null constraint issues with upsert
+      for (let i = 0; i < ids.length; i++) {
+        const id = ids[i];
+        const { error } = await supabase
+          .from('fixed_expense_groups')
+          .update({
+            display_order: i,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', id);
+
+        if (error) throw error;
+      }
+    } catch (error) {
+      console.error('Error reordering fixed expense groups:', error);
+      throw error;
+    }
   }
 }
 

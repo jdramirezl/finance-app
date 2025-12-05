@@ -62,6 +62,7 @@ import { GetAllGroupsUseCase } from '../../modules/sub-pockets/application/useCa
 import { UpdateGroupUseCase } from '../../modules/sub-pockets/application/useCases/UpdateGroupUseCase';
 import { DeleteGroupUseCase } from '../../modules/sub-pockets/application/useCases/DeleteGroupUseCase';
 import { ToggleGroupUseCase } from '../../modules/sub-pockets/application/useCases/ToggleGroupUseCase';
+import { ReorderFixedExpenseGroupsUseCase } from '../../modules/sub-pockets/application/useCases/ReorderFixedExpenseGroupsUseCase';
 import { FixedExpenseGroupController } from '../../modules/sub-pockets/presentation/FixedExpenseGroupController';
 
 // Movement Module
@@ -78,6 +79,7 @@ import { DeleteMovementUseCase } from '../../modules/movements/application/useCa
 import { ApplyPendingMovementUseCase } from '../../modules/movements/application/useCases/ApplyPendingMovementUseCase';
 import { MarkAsPendingUseCase } from '../../modules/movements/application/useCases/MarkAsPendingUseCase';
 import { RestoreOrphanedMovementsUseCase } from '../../modules/movements/application/useCases/RestoreOrphanedMovementsUseCase';
+import { CreateTransferUseCase } from '../../modules/movements/application/useCases/CreateTransferUseCase';
 import { MovementController } from '../../modules/movements/presentation/MovementController';
 
 // Settings Module
@@ -93,34 +95,31 @@ import { GetExchangeRateUseCase } from '../../modules/settings/application/useCa
 import { ConvertCurrencyUseCase } from '../../modules/settings/application/useCases/ConvertCurrencyUseCase';
 import { SettingsController } from '../../modules/settings/presentation/SettingsController';
 import { CurrencyController } from '../../modules/settings/presentation/CurrencyController';
+// Reminders Module
+import { IReminderRepository } from '../../modules/reminders/interfaces/IReminderRepository';
+import { SupabaseReminderRepository } from '../../modules/reminders/infrastructure/SupabaseReminderRepository';
+import { ReminderService } from '../../modules/reminders/application/ReminderService';
+import { ReminderController } from '../../modules/reminders/interfaces/ReminderController';
 
+
+/**
+ * Initialize all module registrations
+ */
 /**
  * Register Account Module dependencies
  */
 function registerAccountModule(): void {
-  // Register repositories
-  container.register<IAccountRepository>('AccountRepository', {
-    useClass: SupabaseAccountRepository,
-  });
-  
-  container.register<IStockPriceRepository>('StockPriceRepository', {
-    useClass: SupabaseStockPriceRepository,
-  });
+  // Repositories
+  container.register<IAccountRepository>('AccountRepository', { useClass: SupabaseAccountRepository });
+  container.register<IStockPriceRepository>('StockPriceRepository', { useClass: SupabaseStockPriceRepository });
 
-  // Register services
-  container.register<IAlphaVantageService>('AlphaVantageService', {
-    useClass: AlphaVantageService,
-  });
+  // Services
+  container.register<IAlphaVantageService>('AlphaVantageService', { useClass: AlphaVantageService });
 
-  // Register GetCurrentStockPriceUseCase first (needed by other use cases)
-  container.register(GetCurrentStockPriceUseCase, { useClass: GetCurrentStockPriceUseCase });
-  
-  // Register as StockPriceService for use cases that need it
-  container.register('StockPriceService', {
-    useClass: GetCurrentStockPriceUseCase,
-  });
+  // Register GetCurrentStockPriceUseCase as StockPriceService for GetAllAccountsUseCase
+  container.register('StockPriceService', { useClass: GetCurrentStockPriceUseCase });
 
-  // Register use cases (automatically resolved by tsyringe)
+  // Use Cases
   container.register(CreateAccountUseCase, { useClass: CreateAccountUseCase });
   container.register(GetAllAccountsUseCase, { useClass: GetAllAccountsUseCase });
   container.register(GetAccountByIdUseCase, { useClass: GetAccountByIdUseCase });
@@ -128,9 +127,10 @@ function registerAccountModule(): void {
   container.register(DeleteAccountUseCase, { useClass: DeleteAccountUseCase });
   container.register(DeleteAccountCascadeUseCase, { useClass: DeleteAccountCascadeUseCase });
   container.register(ReorderAccountsUseCase, { useClass: ReorderAccountsUseCase });
+  container.register(GetCurrentStockPriceUseCase, { useClass: GetCurrentStockPriceUseCase });
   container.register(UpdateInvestmentAccountUseCase, { useClass: UpdateInvestmentAccountUseCase });
 
-  // Register controllers
+  // Controller
   container.register(AccountController, { useClass: AccountController });
   container.register(InvestmentController, { useClass: InvestmentController });
 }
@@ -139,12 +139,12 @@ function registerAccountModule(): void {
  * Register Pocket Module dependencies
  */
 function registerPocketModule(): void {
-  // Register repository
-  container.register<IPocketRepository>('PocketRepository', {
-    useClass: SupabasePocketRepository,
-  });
+  // Repository
+  container.register<IPocketRepository>('PocketRepository', { useClass: SupabasePocketRepository });
 
-  // Register use cases (automatically resolved by tsyringe)
+
+
+  // Use Cases
   container.register(CreatePocketUseCase, { useClass: CreatePocketUseCase });
   container.register(GetPocketsByAccountUseCase, { useClass: GetPocketsByAccountUseCase });
   container.register(GetPocketByIdUseCase, { useClass: GetPocketByIdUseCase });
@@ -153,7 +153,7 @@ function registerPocketModule(): void {
   container.register(MigrateFixedPocketUseCase, { useClass: MigrateFixedPocketUseCase });
   container.register(ReorderPocketsUseCase, { useClass: ReorderPocketsUseCase });
 
-  // Register controller
+  // Controller
   container.register(PocketController, { useClass: PocketController });
 }
 
@@ -194,7 +194,9 @@ function registerFixedExpenseGroupModule(): void {
   container.register(GetAllGroupsUseCase, { useClass: GetAllGroupsUseCase });
   container.register(UpdateGroupUseCase, { useClass: UpdateGroupUseCase });
   container.register(DeleteGroupUseCase, { useClass: DeleteGroupUseCase });
+  container.register(DeleteGroupUseCase, { useClass: DeleteGroupUseCase });
   container.register(ToggleGroupUseCase, { useClass: ToggleGroupUseCase });
+  container.register(ReorderFixedExpenseGroupsUseCase, { useClass: ReorderFixedExpenseGroupsUseCase });
 
   // Register controller
   container.register(FixedExpenseGroupController, { useClass: FixedExpenseGroupController });
@@ -221,6 +223,7 @@ function registerMovementModule(): void {
   container.register(ApplyPendingMovementUseCase, { useClass: ApplyPendingMovementUseCase });
   container.register(MarkAsPendingUseCase, { useClass: MarkAsPendingUseCase });
   container.register(RestoreOrphanedMovementsUseCase, { useClass: RestoreOrphanedMovementsUseCase });
+  container.register(CreateTransferUseCase, { useClass: CreateTransferUseCase });
 
   // Register controller
   container.register(MovementController, { useClass: MovementController });
@@ -256,6 +259,24 @@ function registerSettingsModule(): void {
 }
 
 /**
+ * Register Reminder Module dependencies
+ */
+function registerReminderModule(): void {
+  // Register repository
+  container.register<IReminderRepository>('ReminderRepository', {
+    useClass: SupabaseReminderRepository,
+  });
+
+  // Register service
+  container.register(ReminderService, {
+    useFactory: (c) => new ReminderService(c.resolve('ReminderRepository'))
+  });
+
+  // Register controller
+  container.register(ReminderController, { useClass: ReminderController });
+}
+
+/**
  * Initialize all module registrations
  */
 export function initializeContainer(): void {
@@ -265,4 +286,5 @@ export function initializeContainer(): void {
   registerFixedExpenseGroupModule();
   registerMovementModule();
   registerSettingsModule();
+  registerReminderModule();
 }

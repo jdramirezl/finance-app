@@ -41,6 +41,7 @@ export interface FixedExpenseGroup {
   id: string;
   name: string;
   color: string;
+  displayOrder: number;
   createdAt: string;
   updatedAt?: string;
 }
@@ -94,9 +95,9 @@ export interface MovementTemplate {
   type: MovementType;
   accountId: string;
   pocketId: string;
-  subPocketId?: string;
-  defaultAmount?: number; // Optional default amount (user can override)
-  notes?: string; // Template notes
+  subPocketId?: string | null;
+  defaultAmount?: number | null; // Optional default amount (user can override)
+  notes?: string | null; // Template notes
   createdAt: string;
   updatedAt?: string;
 }

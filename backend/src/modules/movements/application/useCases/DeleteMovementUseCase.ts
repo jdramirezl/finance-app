@@ -13,6 +13,7 @@ import type { IMovementRepository } from '../../infrastructure/IMovementReposito
 import type { IAccountRepository } from '../../../accounts/infrastructure/IAccountRepository';
 import type { IPocketRepository } from '../../../pockets/infrastructure/IPocketRepository';
 import type { ISubPocketRepository } from '../../../sub-pockets/infrastructure/ISubPocketRepository';
+import type { IReminderRepository } from '../../../reminders/interfaces/IReminderRepository';
 import { NotFoundError } from '../../../../shared/errors/AppError';
 
 @injectable()
@@ -23,7 +24,8 @@ export class DeleteMovementUseCase {
     @inject('MovementRepository') private movementRepo: IMovementRepository,
     @inject('AccountRepository') private accountRepo: IAccountRepository,
     @inject('PocketRepository') private pocketRepo: IPocketRepository,
-    @inject('SubPocketRepository') private subPocketRepo: ISubPocketRepository
+    @inject('SubPocketRepository') private subPocketRepo: ISubPocketRepository,
+    @inject('ReminderRepository') private reminderRepo: IReminderRepository
   ) {
     this.domainService = new MovementDomainService();
   }
@@ -33,6 +35,16 @@ export class DeleteMovementUseCase {
     const movement = await this.movementRepo.findById(id, userId);
     if (!movement) {
       throw new NotFoundError(`Movement with ID ${id} not found`);
+    }
+
+    // Check if there is a linked reminder
+    const linkedReminder = await this.reminderRepo.findByLinkedMovementId(id);
+    if (linkedReminder) {
+      // Un-pay the reminder
+      await this.reminderRepo.update(linkedReminder.id, {
+        isPaid: false,
+        linkedMovementId: null
+      });
     }
 
     // Delete the movement

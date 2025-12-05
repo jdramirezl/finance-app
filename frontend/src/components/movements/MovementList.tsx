@@ -1,8 +1,8 @@
 import { format, parseISO } from 'date-fns';
-import { ChevronDown, ChevronUp, Edit2, Trash2 } from 'lucide-react';
+import { ChevronDown, ChevronUp, Edit2, Trash2, Bell } from 'lucide-react';
 import Button from '../Button';
 import Card from '../Card';
-import { useAccountsQuery, usePocketsQuery } from '../../hooks/queries';
+import { useAccountsQuery, usePocketsQuery, useRemindersQuery } from '../../hooks/queries';
 import type { Movement, MovementType } from '../../types';
 import type { SortField, SortOrder } from '../../hooks/useMovementsSort';
 import { getSmartIcon, getDefaultIcon } from '../../utils/smartIcons';
@@ -42,6 +42,7 @@ const MovementList = ({
 }: MovementListProps) => {
     const { data: accounts = [] } = useAccountsQuery();
     const { data: pockets = [] } = usePocketsQuery();
+    const { data: reminders = [] } = useRemindersQuery();
 
     const handleSort = (field: SortField) => {
         if (sortField === field) {
@@ -178,6 +179,7 @@ const MovementList = ({
                                 {monthMovements.map((movement) => {
                                     const account = accounts.find(a => a.id === movement.accountId);
                                     const pocket = pockets.find(p => p.id === movement.pocketId);
+                                    const linkedReminder = reminders.find(r => r.linkedMovementId === movement.id);
                                     const isIncome = movement.type.includes('Ingreso');
                                     const isSelected = selectedMovementIds.has(movement.id);
 
@@ -185,7 +187,7 @@ const MovementList = ({
                                         <div
                                             key={movement.id}
                                             className={`
-                        group relative flex items-center justify-between p-4 bg-white dark:bg-gray-800 rounded-lg border transition-all
+                        group relative flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-white dark:bg-gray-800 rounded-lg border transition-all gap-4 sm:gap-0
                         ${isSelected
                                                     ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
                                                     : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
@@ -193,13 +195,15 @@ const MovementList = ({
                         ${movement.isPending ? 'opacity-75 border-dashed' : ''}
                       `}
                                         >
-                                            <div className="flex items-center gap-4">
-                                                <input
-                                                    type="checkbox"
-                                                    checked={isSelected}
-                                                    onChange={() => toggleSelection(movement.id)}
-                                                    className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
-                                                />
+                                            <div className="flex items-start gap-4">
+                                                <div className="pt-1">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={isSelected}
+                                                        onChange={() => toggleSelection(movement.id)}
+                                                        className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                                                    />
+                                                </div>
 
                                                 {(() => {
                                                     const smartIcon = getSmartIcon(movement.notes);
@@ -214,35 +218,41 @@ const MovementList = ({
                                                 })()}
 
                                                 <div>
-                                                    <div className="flex items-center gap-2">
+                                                    <div className="flex flex-wrap items-center gap-2">
                                                         <span className="font-medium text-gray-900 dark:text-gray-100">
                                                             {movement.notes || 'Untitled Movement'}
                                                         </span>
                                                         <span className={`text-xs px-2 py-0.5 rounded-full border ${getMovementTypeColor(movement.type)}`}>
                                                             {getMovementTypeLabel(movement.type)}
                                                         </span>
+                                                        {linkedReminder && (
+                                                            <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-indigo-800 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 flex items-center gap-1" title="Paid Reminder">
+                                                                <Bell className="w-3 h-3" />
+                                                                {linkedReminder.title}
+                                                            </span>
+                                                        )}
                                                         {movement.isPending && (
                                                             <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-800 border border-yellow-200">
                                                                 Pending
                                                             </span>
                                                         )}
                                                     </div>
-                                                    <div className="text-sm text-gray-500 dark:text-gray-400 mt-1 flex items-center gap-2">
+                                                    <div className="text-sm text-gray-500 dark:text-gray-400 mt-1 flex flex-wrap items-center gap-2">
                                                         <span>{format(parseISO(movement.displayedDate), 'MMM d, yyyy')}</span>
-                                                        <span>•</span>
+                                                        <span className="hidden sm:inline">•</span>
                                                         <span>{account?.name || 'Unknown Account'}</span>
-                                                        <span>•</span>
+                                                        <span className="hidden sm:inline">•</span>
                                                         <span>{pocket?.name || 'Unknown Pocket'}</span>
                                                     </div>
                                                 </div>
                                             </div>
 
-                                            <div className="flex items-center gap-4">
+                                            <div className="flex items-center justify-between sm:justify-end gap-4 w-full sm:w-auto pl-12 sm:pl-0">
                                                 <span className={`text-lg font-bold ${isIncome ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                                                     {isIncome ? '+' : '-'}${movement.amount.toLocaleString()}
                                                 </span>
 
-                                                <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <div className="flex gap-2 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
                                                     {movement.isPending && (
                                                         <Button
                                                             size="sm"
@@ -282,6 +292,59 @@ const MovementList = ({
                     </div>
                 );
             })}
+            {/* Floating Stats Bar */}
+            {selectedMovementIds.size > 0 && (
+                <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-gray-900/90 dark:bg-gray-800/90 text-white backdrop-blur-md px-6 py-3 rounded-full shadow-xl z-50 flex items-center gap-6 animate-in slide-in-from-bottom-4 fade-in duration-200 border border-gray-700/50">
+                    <div className="flex flex-col">
+                        <span className="text-xs text-gray-400 font-medium uppercase tracking-wider">Selected</span>
+                        <span className="font-bold text-lg leading-none">{selectedMovementIds.size}</span>
+                    </div>
+                    <div className="w-px h-8 bg-gray-700"></div>
+                    <div className="flex flex-col">
+                        <span className="text-xs text-gray-400 font-medium uppercase tracking-wider">Sum</span>
+                        <span className="font-bold text-lg leading-none">
+                            {(() => {
+                                const selectedMovements = movementsByMonth
+                                    .flatMap(([, movements]) => movements)
+                                    .filter(m => selectedMovementIds.has(m.id));
+
+                                const sum = selectedMovements.reduce((acc, m) => {
+                                    const isIncome = m.type.includes('Ingreso');
+                                    return acc + (isIncome ? m.amount : -m.amount);
+                                }, 0);
+
+                                return (sum >= 0 ? '+' : '-') + Math.abs(sum).toLocaleString(undefined, {
+                                    style: 'currency',
+                                    currency: 'USD', // Ideally this should be dynamic based on account currency
+                                });
+                            })()}
+                        </span>
+                    </div>
+                    <div className="w-px h-8 bg-gray-700"></div>
+                    <div className="flex flex-col">
+                        <span className="text-xs text-gray-400 font-medium uppercase tracking-wider">Average</span>
+                        <span className="font-bold text-lg leading-none">
+                            {(() => {
+                                const selectedMovements = movementsByMonth
+                                    .flatMap(([, movements]) => movements)
+                                    .filter(m => selectedMovementIds.has(m.id));
+
+                                const sum = selectedMovements.reduce((acc, m) => {
+                                    const isIncome = m.type.includes('Ingreso');
+                                    return acc + (isIncome ? m.amount : -m.amount);
+                                }, 0);
+
+                                const avg = sum / selectedMovements.length;
+
+                                return (avg >= 0 ? '+' : '-') + Math.abs(avg).toLocaleString(undefined, {
+                                    style: 'currency',
+                                    currency: 'USD',
+                                });
+                            })()}
+                        </span>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

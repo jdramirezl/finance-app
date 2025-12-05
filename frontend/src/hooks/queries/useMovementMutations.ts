@@ -34,6 +34,32 @@ export const useMovementMutations = () => {
         },
     });
 
+    const createTransfer = useMutation({
+        mutationFn: (data: {
+            sourceAccountId: string;
+            sourcePocketId: string;
+            targetAccountId: string;
+            targetPocketId: string;
+            amount: number;
+            displayedDate: string;
+            notes?: string;
+        }) =>
+            movementService.createTransfer(
+                data.sourceAccountId,
+                data.sourcePocketId,
+                data.targetAccountId,
+                data.targetPocketId,
+                data.amount,
+                data.displayedDate,
+                data.notes
+            ),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['movements'] });
+            queryClient.invalidateQueries({ queryKey: ['accounts'] });
+            queryClient.invalidateQueries({ queryKey: ['pockets'] });
+        },
+    });
+
     const updateMovement = useMutation({
         mutationFn: (data: {
             id: string;
@@ -62,6 +88,8 @@ export const useMovementMutations = () => {
             queryClient.invalidateQueries({ queryKey: ['accounts'] });
             queryClient.invalidateQueries({ queryKey: ['pockets'] });
             queryClient.invalidateQueries({ queryKey: ['subPockets'] });
+            // Invalidate reminders to ensure restored reminders appear instantly
+            queryClient.invalidateQueries({ queryKey: ['reminders'] });
         },
     });
 
@@ -97,6 +125,7 @@ export const useMovementMutations = () => {
 
     return {
         createMovement,
+        createTransfer,
         updateMovement,
         deleteMovement,
         applyPendingMovement,

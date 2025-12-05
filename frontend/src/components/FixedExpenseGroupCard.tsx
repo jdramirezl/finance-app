@@ -53,11 +53,11 @@ const FixedExpenseGroupCard = ({
 
   return (
     <div
-      className="border dark:border-gray-700 rounded-xl overflow-hidden transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5"
+      className="border dark:border-gray-700 rounded-xl transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5"
       style={{ borderLeftWidth: '4px', borderLeftColor: group.color }}
     >
       {/* Group Header */}
-      <div className="bg-gray-50 dark:bg-gray-800 p-4">
+      <div className="bg-gray-50 dark:bg-gray-800 p-4 sticky top-0 z-10 border-b dark:border-gray-700 rounded-t-xl">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3 flex-1">
             <button
@@ -156,7 +156,7 @@ const FixedExpenseGroupCard = ({
                 <div
                   key={subPocket.id}
                   className={`p-4 hover:bg-gradient-to-r hover:from-gray-50 hover:to-transparent dark:hover:from-gray-800/50 dark:hover:to-transparent transition-all duration-200 ${!subPocket.enabled ? 'opacity-50' : ''
-                    }`}
+                    } last:rounded-b-xl`}
                 >
                   <div className="flex items-center justify-between gap-4">
                     <div className="flex-1 min-w-0">
