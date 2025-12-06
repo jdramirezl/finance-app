@@ -27,8 +27,9 @@ const ActionButtons = ({
     showOnHover = false,
     className = '',
 }: ActionButtonsProps) => {
+    // On mobile: always visible. On desktop: hidden until hover if showOnHover is true
     const containerClass = showOnHover
-        ? 'opacity-0 group-hover:opacity-100 transition-opacity'
+        ? 'opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity'
         : '';
 
     return (

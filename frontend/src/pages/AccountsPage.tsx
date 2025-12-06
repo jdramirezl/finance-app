@@ -3,7 +3,7 @@ import { useAccountsQuery, usePocketsQuery, useAccountMutations, usePocketMutati
 import { useToast } from '../hooks/useToast';
 import { useConfirm } from '../hooks/useConfirm';
 import type { Account, Pocket } from '../types';
-import { Plus, Wallet } from 'lucide-react';
+import { Plus, Wallet, ArrowLeft } from 'lucide-react';
 import Modal from '../components/Modal';
 import Button from '../components/Button';
 import ConfirmDialog from '../components/ConfirmDialog';
@@ -302,23 +302,36 @@ const AccountsPage = () => {
     );
   }
 
+  // Handle mobile Back button
+  const handleMobileBack = () => {
+    setSelectedAccountId(null);
+  };
+
+  // Determine visibility states for mobile/desktop split
+  // Mobile: If account selected, hide list, show details. If not selected, show list, hide details.
+  // Desktop: Always show both.
+  const listClasses = `space-y-4 ${selectedAccountId ? 'hidden md:block' : 'block'}`;
+  const detailsClasses = `space-y-4 ${selectedAccountId ? 'block' : 'hidden md:block'}`;
+
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Accounts"
-        actions={
-          <Button
-            variant="primary"
-            onClick={() => {
-              setShowAccountForm(true);
-              setEditingAccount(null);
-            }}
-          >
-            <Plus className="w-5 h-5" />
-            New Account
-          </Button>
-        }
-      />
+      <div className={selectedAccountId ? 'hidden md:block' : 'block'}>
+        <PageHeader
+          title="Accounts"
+          actions={
+            <Button
+              variant="primary"
+              onClick={() => {
+                setShowAccountForm(true);
+                setEditingAccount(null);
+              }}
+            >
+              <Plus className="w-5 h-5" />
+              <span className="hidden sm:inline">New Account</span>
+            </Button>
+          }
+        />
+      </div>
 
       {error && (
         <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 rounded-lg">
@@ -326,10 +339,10 @@ const AccountsPage = () => {
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Left: Account List */}
-        <div className="space-y-4">
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">All Accounts</h2>
+        <div className={listClasses}>
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4 md:mb-0">All Accounts</h2>
           {accounts.length === 0 ? (
             <EmptyState
               icon={Wallet}
@@ -366,13 +379,18 @@ const AccountsPage = () => {
         </div>
 
         {/* Right: Account Details & Pockets */}
-        <div className="space-y-4">
+        <div className={detailsClasses}>
           {selectedAccount ? (
             <>
               <Card className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Account Details</h2>
-                  <Button variant="ghost" size="sm" onClick={() => setSelectedAccountId(null)}>Close</Button>
+                  <div className="flex items-center gap-2">
+                    <Button variant="ghost" size="sm" className="md:hidden p-1" onClick={handleMobileBack}>
+                      <ArrowLeft className="w-5 h-5" />
+                    </Button>
+                    <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Account Details</h2>
+                  </div>
+                  <Button variant="ghost" size="sm" onClick={() => setSelectedAccountId(null)} className="hidden md:flex">Close</Button>
                 </div>
 
                 <div className="flex items-center gap-4 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
@@ -408,7 +426,7 @@ const AccountsPage = () => {
                     className="flex-1"
                     onClick={() => handleCascadeDelete(selectedAccount.id)}
                   >
-                    Delete All Data
+                    Delete All
                   </Button>
                 </div>
               </Card>
@@ -425,7 +443,7 @@ const AccountsPage = () => {
                     }}
                   >
                     <Plus className="w-4 h-4" />
-                    New Pocket
+                    <span className="hidden sm:inline ml-1">New Pocket</span>
                   </Button>
                 </div>
 
