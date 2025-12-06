@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { reminderService, type CreateReminderDTO, type UpdateReminderDTO } from '../../services/reminderService';
+import { reminderService, type CreateReminderDTO, type UpdateReminderDTO, type CreateExceptionDTO } from '../../services/reminderService';
 import { useToast } from '../useToast';
 
 export const useRemindersQuery = () => {
@@ -59,10 +59,36 @@ export const useReminderMutations = () => {
         },
     });
 
+    const createExceptionMutation = useMutation({
+        mutationFn: ({ id, data }: { id: string; data: Omit<CreateExceptionDTO, 'reminderId'> }) =>
+            reminderService.createException(id, data),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['reminders'] });
+            toast.success('Reminder series updated');
+        },
+        onError: (error: any) => {
+            toast.error(error.response?.data?.error || 'Failed to update reminder series');
+        },
+    });
+
+    const splitMutation = useMutation({
+        mutationFn: ({ id, splitDate, newDetails }: { id: string; splitDate: string; newDetails?: CreateReminderDTO }) =>
+            reminderService.splitSeries(id, splitDate, newDetails),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['reminders'] });
+            toast.success('Reminder series split updated');
+        },
+        onError: (error: any) => {
+            toast.error(error.response?.data?.error || 'Failed to split reminder series');
+        },
+    });
+
     return {
         createMutation,
         updateMutation,
         deleteMutation,
         markAsPaidMutation,
+        createExceptionMutation,
+        splitMutation,
     };
 };

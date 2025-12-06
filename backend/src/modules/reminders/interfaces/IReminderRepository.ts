@@ -1,5 +1,6 @@
 import { Reminder } from '../domain/Reminder';
 import { CreateReminderDTO, UpdateReminderDTO } from '../application/dtos/ReminderDTO';
+import { CreateExceptionDTO, ReminderException } from '../domain/ReminderException';
 
 export interface IReminderRepository {
     findAll(userId: string): Promise<Reminder[]>;
@@ -8,4 +9,5 @@ export interface IReminderRepository {
     update(id: string, data: UpdateReminderDTO): Promise<Reminder>;
     delete(id: string): Promise<void>;
     findByLinkedMovementId(movementId: string): Promise<Reminder | null>;
+    createException(data: CreateExceptionDTO): Promise<ReminderException>;
 }

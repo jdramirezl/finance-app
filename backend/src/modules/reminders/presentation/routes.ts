@@ -13,5 +13,7 @@ router.post('/', controller.create);
 router.put('/:id', controller.update);
 router.delete('/:id', controller.delete);
 router.post('/:id/pay', controller.markAsPaid);
+router.post('/:id/exceptions', controller.createException);
+router.post('/:id/split', controller.splitSeries);
 
 export default router;

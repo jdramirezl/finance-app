@@ -7,7 +7,7 @@ interface ReminderCardProps {
     reminder: ReminderWithProjection;
     onPayNow: (reminder: ReminderWithProjection) => void;
     onEdit: (reminder: ReminderWithProjection) => void;
-    onDelete: (id: string) => void;
+    onDelete: (reminder: ReminderWithProjection) => void;
 }
 
 const statusStyles: Record<ReminderStatus, {
@@ -124,7 +124,7 @@ const ReminderCard = ({ reminder, onPayNow, onEdit, onDelete }: ReminderCardProp
                     </button>
                     {!isProjected && (
                         <button
-                            onClick={() => onDelete(reminder.id)}
+                            onClick={() => onDelete(reminder)}
                             className="p-1.5 text-red-600 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-lg transition-colors"
                             title="Delete"
                         >

@@ -12,6 +12,31 @@ export interface RecurrenceConfig {
     endDate?: string;
 }
 
+export interface ReminderException {
+    id: string;
+    reminderId: string;
+    originalDate: string;
+    action: 'deleted' | 'modified';
+    newTitle?: string;
+    newAmount?: number;
+    newDate?: string;
+    isPaid?: boolean;
+    linkedMovementId?: string;
+    createdAt: string;
+    updatedAt: string;
+}
+
+export interface CreateExceptionDTO {
+    reminderId: string;
+    originalDate: string;
+    action: 'deleted' | 'modified';
+    newTitle?: string;
+    newAmount?: number;
+    newDate?: string;
+    isPaid?: boolean;
+    linkedMovementId?: string;
+}
+
 export interface Reminder {
     id: string;
     userId: string;
@@ -23,6 +48,7 @@ export interface Reminder {
     linkedMovementId?: string;
     fixedExpenseId?: string;
     templateId?: string;
+    exceptions?: ReminderException[];
     createdAt: string;
     updatedAt: string;
 }
@@ -69,6 +95,16 @@ export const reminderService = {
 
     markAsPaid: async (id: string, movementId?: string): Promise<Reminder> => {
         const response = await api.post<Reminder>(`/api/reminders/${id}/pay`, { movementId });
+        return response;
+    },
+
+    createException: async (id: string, data: Omit<CreateExceptionDTO, 'reminderId'>): Promise<ReminderException> => {
+        const response = await api.post<ReminderException>(`/api/reminders/${id}/exceptions`, data);
+        return response;
+    },
+
+    splitSeries: async (id: string, splitDate: string, newDetails?: CreateReminderDTO): Promise<any> => {
+        const response = await api.post(`/api/reminders/${id}/split`, { splitDate, newDetails });
         return response;
     }
 };

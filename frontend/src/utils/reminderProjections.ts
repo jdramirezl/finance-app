@@ -50,16 +50,44 @@ export function generateProjectedOccurrences(
             break;
         }
 
-        // Only include future dates that are after current date
-        if (isAfter(currentDate, new Date()) && isBefore(currentDate, endDate)) {
-            projections.push({
-                ...reminder,
-                id: `${reminder.id}_projected_${format(currentDate, 'yyyy-MM-dd')}`,
-                dueDate: format(currentDate, 'yyyy-MM-dd'),
-                isPaid: false,
-                isProjected: true,
-                originalReminderId: reminder.id,
-            });
+        // Only include future dates that are after current date (ignoring time)
+        // Note: Using startOfDay comparison to allow "today" projections if needed, 
+        // but original logic was strict "after now". Let's keep it but check exceptions.
+
+        const currentDateStr = format(currentDate, 'yyyy-MM-dd');
+        const exception = reminder.exceptions?.find(e => e.originalDate === currentDateStr);
+
+        if (exception) {
+            if (exception.action === 'deleted') {
+                continue; // Skip this occurrence
+            }
+
+            // Apply modification
+            if (isAfter(currentDate, new Date()) && isBefore(currentDate, endDate)) {
+                projections.push({
+                    ...reminder,
+                    id: `${reminder.id}_projected_${currentDateStr}`,
+                    title: exception.newTitle || reminder.title,
+                    amount: exception.newAmount ?? reminder.amount,
+                    dueDate: exception.newDate || currentDateStr,
+                    isPaid: exception.isPaid ?? false,
+                    linkedMovementId: exception.linkedMovementId,
+                    isProjected: true,
+                    originalReminderId: reminder.id,
+                });
+            }
+        } else {
+            // Normal projection
+            if (isAfter(currentDate, new Date()) && isBefore(currentDate, endDate)) {
+                projections.push({
+                    ...reminder,
+                    id: `${reminder.id}_projected_${currentDateStr}`,
+                    dueDate: currentDateStr,
+                    isPaid: false,
+                    isProjected: true,
+                    originalReminderId: reminder.id,
+                });
+            }
         }
     }
 
@@ -139,8 +167,29 @@ export function groupRemindersByMonth(
     const allReminders: ReminderWithProjection[] = [];
 
     reminders.forEach(reminder => {
-        // Add the original reminder
-        allReminders.push({ ...reminder, isProjected: false });
+        // Handle Base Reminder
+        const baseDate = reminder.dueDate;
+        const baseException = reminder.exceptions?.find(e => e.originalDate === baseDate);
+
+        if (baseException) {
+            if (baseException.action === 'modified') {
+                // Add modified base reminder
+                allReminders.push({
+                    ...reminder,
+                    title: baseException.newTitle || reminder.title,
+                    amount: baseException.newAmount ?? reminder.amount,
+                    dueDate: baseException.newDate || reminder.dueDate,
+                    isPaid: baseException.isPaid ?? reminder.isPaid,
+                    linkedMovementId: baseException.linkedMovementId || reminder.linkedMovementId,
+                    isProjected: false
+                });
+            }
+            // If deleted, do nothing (skip)
+        } else {
+            // Add check for if it's paid? No, original logic was just pushing it.
+            // But if it's paid, it's paid.
+            allReminders.push({ ...reminder, isProjected: false });
+        }
 
         // Add projected occurrences for recurring reminders
         // Generate projections even if current occurrence is paid - the schedule continues

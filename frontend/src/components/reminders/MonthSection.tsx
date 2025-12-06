@@ -5,7 +5,7 @@ interface MonthSectionProps {
     monthGroup: MonthGroup;
     onPayNow: (reminder: ReminderWithProjection) => void;
     onEdit: (reminder: ReminderWithProjection) => void;
-    onDelete: (id: string) => void;
+    onDelete: (reminder: ReminderWithProjection) => void;
 }
 
 const MonthSection = ({ monthGroup, onPayNow, onEdit, onDelete }: MonthSectionProps) => {

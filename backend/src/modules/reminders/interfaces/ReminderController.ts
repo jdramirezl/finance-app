@@ -14,6 +14,7 @@ export class ReminderController {
             const reminders = await this.reminderService.getAllReminders(userId);
             res.json(reminders);
         } catch (error) {
+            console.error('Error in getAll reminders:', error);
             res.status(500).json({ error: error instanceof Error ? error.message : 'Unknown error' });
         }
     };
@@ -24,6 +25,7 @@ export class ReminderController {
             const reminder = await this.reminderService.createReminder(userId, req.body);
             res.status(201).json(reminder);
         } catch (error) {
+            console.error('Error in create reminder:', error);
             res.status(500).json({ error: error instanceof Error ? error.message : 'Unknown error' });
         }
     };
@@ -55,6 +57,31 @@ export class ReminderController {
             const reminder = await this.reminderService.markAsPaid(id, movementId);
             res.json(reminder);
         } catch (error) {
+            res.status(500).json({ error: error instanceof Error ? error.message : 'Unknown error' });
+        }
+    };
+
+    createException = async (req: Request, res: Response) => {
+        try {
+            const { id } = req.params;
+            // Merge reminderId from params with body data
+            const exceptionData = { ...req.body, reminderId: id };
+            const exception = await this.reminderService.createException(exceptionData);
+            res.status(201).json(exception);
+        } catch (error) {
+            console.error('Error in createException:', error);
+            res.status(500).json({ error: error instanceof Error ? error.message : 'Unknown error' });
+        }
+    };
+
+    splitSeries = async (req: Request, res: Response) => {
+        try {
+            const { id } = req.params;
+            const { splitDate, newDetails } = req.body;
+            const result = await this.reminderService.splitSeries(req.user!.id, id, splitDate, newDetails);
+            res.status(200).json(result || { message: 'Series ended' });
+        } catch (error) {
+            console.error('Error in splitSeries:', error);
             res.status(500).json({ error: error instanceof Error ? error.message : 'Unknown error' });
         }
     };

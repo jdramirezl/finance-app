@@ -1,3 +1,5 @@
+import { ReminderException } from './ReminderException';
+
 export type RecurrenceType = 'once' | 'daily' | 'weekly' | 'monthly' | 'yearly' | 'custom';
 export type RecurrenceEndType = 'never' | 'after' | 'on_date';
 
@@ -21,6 +23,7 @@ export interface Reminder {
     linkedMovementId?: string;
     fixedExpenseId?: string;
     templateId?: string;
+    exceptions?: ReminderException[];
     createdAt: string;
     updatedAt: string;
 }

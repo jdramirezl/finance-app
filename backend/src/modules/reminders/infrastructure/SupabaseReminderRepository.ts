@@ -2,6 +2,7 @@ import { injectable } from 'tsyringe';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { Reminder } from '../domain/Reminder';
 import { CreateReminderDTO, UpdateReminderDTO } from '../application/dtos/ReminderDTO';
+import { CreateExceptionDTO, ReminderException } from '../domain/ReminderException';
 import { IReminderRepository } from '../interfaces/IReminderRepository';
 import { DatabaseError } from '../../../shared/errors/AppError';
 
@@ -32,19 +33,19 @@ export class SupabaseReminderRepository implements IReminderRepository {
     async findAll(userId: string): Promise<Reminder[]> {
         const { data, error } = await this.ensureClient()
             .from('reminders')
-            .select('*')
+            .select('*, reminder_exceptions(*)')
             .eq('user_id', userId)
             .order('due_date', { ascending: true });
 
         if (error) throw new Error(error.message);
 
-        return data.map(this.mapToDomain);
+        return data.map((item) => this.mapToDomain(item));
     }
 
     async findById(id: string): Promise<Reminder | null> {
         const { data, error } = await this.ensureClient()
             .from('reminders')
-            .select('*')
+            .select('*, reminder_exceptions(*)')
             .eq('id', id)
             .single();
 
@@ -115,6 +116,26 @@ export class SupabaseReminderRepository implements IReminderRepository {
         if (error) throw new Error(error.message);
     }
 
+    async createException(data: CreateExceptionDTO): Promise<ReminderException> {
+        const { data: created, error } = await this.ensureClient()
+            .from('reminder_exceptions')
+            .insert({
+                reminder_id: data.reminderId,
+                original_date: data.originalDate,
+                action: data.action,
+                new_title: data.newTitle,
+                new_amount: data.newAmount,
+                new_date: data.newDate,
+                is_paid: data.isPaid,
+                linked_movement_id: data.linkedMovementId,
+            })
+            .select()
+            .single();
+
+        if (error) throw new Error(error.message);
+        return this.mapExceptionToDomain(created);
+    }
+
     async findByLinkedMovementId(movementId: string): Promise<Reminder | null> {
         const { data, error } = await this.ensureClient()
             .from('reminders')
@@ -145,6 +166,25 @@ export class SupabaseReminderRepository implements IReminderRepository {
             linkedMovementId: data.linked_movement_id,
             fixedExpenseId: data.fixed_expense_id,
             templateId: data.template_id,
+            exceptions: data.reminder_exceptions
+                ? data.reminder_exceptions.map(this.mapExceptionToDomain)
+                : [],
+            createdAt: data.created_at,
+            updatedAt: data.updated_at,
+        };
+    }
+
+    private mapExceptionToDomain(data: any): ReminderException {
+        return {
+            id: data.id,
+            reminderId: data.reminder_id,
+            originalDate: data.original_date,
+            action: data.action,
+            newTitle: data.new_title,
+            newAmount: data.new_amount,
+            newDate: data.new_date,
+            isPaid: data.is_paid,
+            linkedMovementId: data.linked_movement_id,
             createdAt: data.created_at,
             updatedAt: data.updated_at,
         };
