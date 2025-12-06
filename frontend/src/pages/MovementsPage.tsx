@@ -241,7 +241,7 @@ const MovementsPage = () => {
 
         await updateMovement.mutateAsync({
           id: editingMovement.id,
-          updates: { type, accountId, pocketId, subPocketId, amount, notes, displayedDate }
+          updates: { type, accountId, pocketId, subPocketId, amount, notes, displayedDate, isPending }
         });
         toast.success('Movement updated successfully!');
       } else {

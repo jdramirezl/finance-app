@@ -71,6 +71,7 @@ export const useMovementMutations = () => {
                 amount: number;
                 notes: string;
                 displayedDate: string;
+                isPending: boolean;
             }>;
         }) => movementService.updateMovement(data.id, data.updates),
         onSuccess: () => {
