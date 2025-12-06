@@ -153,37 +153,41 @@ const BudgetDistribution = ({
                         </div>
                     )}
 
-                    <div className="space-y-3">
-                        {/* Header */}
-                        <div className={`grid ${showConversion ? 'grid-cols-[2fr_1fr_1.5fr_1.5fr_1fr]' : 'grid-cols-12'} gap-4 pb-2 border-b dark:border-gray-700 font-semibold text-sm text-gray-600 dark:text-gray-400`}>
-                            <div className={showConversion ? '' : 'col-span-4'}>Name</div>
-                            <div className={showConversion ? '' : 'col-span-3'}>Percentage</div>
-                            <div className={showConversion ? '' : 'col-span-3'}>Amount ({currency})</div>
-                            {showConversion && <div>Amount ({primaryCurrency})</div>}
-                            <div className={`text-right ${showConversion ? '' : 'col-span-2'}`}>Actions</div>
-                        </div>
+                    <div className="space-y-3 overflow-x-auto pb-2">
+                        <div className="min-w-[700px]">
+                            {/* Header */}
+                            <div className={`grid ${showConversion ? 'grid-cols-[2fr_1fr_1.5fr_1.5fr_1fr]' : 'grid-cols-12'} gap-4 pb-2 border-b dark:border-gray-700 font-semibold text-sm text-gray-600 dark:text-gray-400`}>
+                                <div className={showConversion ? '' : 'col-span-4'}>Name</div>
+                                <div className={showConversion ? '' : 'col-span-3'}>Percentage</div>
+                                <div className={showConversion ? '' : 'col-span-3'}>Amount ({currency})</div>
+                                {showConversion && <div>Amount ({primaryCurrency})</div>}
+                                <div className={`text-right ${showConversion ? '' : 'col-span-2'}`}>Actions</div>
+                            </div>
 
-                        {/* Entries */}
-                        {entries.map((entry) => (
-                            <BudgetEntryRow
-                                key={entry.id}
-                                entry={entry}
-                                amount={calculateEntryAmount(entry.percentage)}
-                                convertedAmount={convertedAmounts.get(entry.id)}
-                                currency={currency}
-                                primaryCurrency={primaryCurrency}
-                                showConversion={showConversion}
-                                isEditing={editingEntryId === entry.id}
-                                editName={editingEntryName}
-                                editPercentage={editingEntryPercentage}
-                                onEditNameChange={setEditingEntryName}
-                                onEditPercentageChange={setEditingEntryPercentage}
-                                onStartEdit={() => handleStartEdit(entry)}
-                                onSave={() => handleSaveEntry(entry.id)}
-                                onCancel={handleCancelEdit}
-                                onDelete={() => handleDeleteEntry(entry.id)}
-                            />
-                        ))}
+                            {/* Entries */}
+                            <div className="space-y-2 mt-2">
+                                {entries.map((entry) => (
+                                    <BudgetEntryRow
+                                        key={entry.id}
+                                        entry={entry}
+                                        amount={calculateEntryAmount(entry.percentage)}
+                                        convertedAmount={convertedAmounts.get(entry.id)}
+                                        currency={currency}
+                                        primaryCurrency={primaryCurrency}
+                                        showConversion={showConversion}
+                                        isEditing={editingEntryId === entry.id}
+                                        editName={editingEntryName}
+                                        editPercentage={editingEntryPercentage}
+                                        onEditNameChange={setEditingEntryName}
+                                        onEditPercentageChange={setEditingEntryPercentage}
+                                        onStartEdit={() => handleStartEdit(entry)}
+                                        onSave={() => handleSaveEntry(entry.id)}
+                                        onCancel={handleCancelEdit}
+                                        onDelete={() => handleDeleteEntry(entry.id)}
+                                    />
+                                ))}
+                            </div>
+                        </div>
 
                         {/* Total Percentage Warning */}
                         {totalPercentage !== 100 && entries.length > 0 && (

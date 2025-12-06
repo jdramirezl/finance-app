@@ -41,15 +41,15 @@ const PocketCard = ({
 
     return (
         <div className={`flex items-center justify-between p-3 rounded-lg group transition-all ${bgClass} ${borderClass}`}>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 min-w-0 flex-1">
                 {icon && (
-                    <div className="p-1.5 bg-white dark:bg-gray-800 rounded-md shadow-sm">
+                    <div className="p-1.5 bg-white dark:bg-gray-800 rounded-md shadow-sm flex-shrink-0">
                         {icon}
                     </div>
                 )}
-                <div>
-                    <p className="font-medium text-gray-900 dark:text-gray-100">{pocket.name}</p>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                <div className="min-w-0 flex-1">
+                    <p className="font-medium text-gray-900 dark:text-gray-100 truncate">{pocket.name}</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 truncate">
                         {isFixed ? 'Fixed Expense' : (isInvestment ? 'Investment' : pocket.type)} •{' '}
                         {pocket.balance.toLocaleString(undefined, {
                             style: 'currency',
@@ -58,7 +58,7 @@ const PocketCard = ({
                     </p>
                 </div>
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-shrink-0 ml-2">
                 <ActionButtons
                     showOnHover
                     actions={[

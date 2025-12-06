@@ -21,12 +21,12 @@ const SortableItem = ({ id, children, className = '' }: SortableItemProps) => {
   };
 
   return (
-    <div ref={setNodeRef} style={style} className={`relative ${className}`}>
+    <div ref={setNodeRef} style={style} className={`relative overflow-hidden ${className}`}>
       <div className="flex items-center gap-2">
-        {/* Drag Handle */}
+        {/* Drag Handle - hidden on mobile */}
         <button
           type="button"
-          className="cursor-grab active:cursor-grabbing p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors touch-none"
+          className="hidden sm:flex cursor-grab active:cursor-grabbing p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors touch-none flex-shrink-0"
           {...attributes}
           {...listeners}
           aria-label="Drag to reorder"
@@ -35,7 +35,7 @@ const SortableItem = ({ id, children, className = '' }: SortableItemProps) => {
         </button>
 
         {/* Content */}
-        <div className="flex-1">{children}</div>
+        <div className="flex-1 min-w-0">{children}</div>
       </div>
     </div>
   );

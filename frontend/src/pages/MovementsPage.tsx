@@ -241,7 +241,7 @@ const MovementsPage = () => {
 
         await updateMovement.mutateAsync({
           id: editingMovement.id,
-          updates: { type, accountId, pocketId, subPocketId, amount, notes, displayedDate }
+          updates: { type, accountId, pocketId, subPocketId, amount, notes, displayedDate, isPending }
         });
         toast.success('Movement updated successfully!');
       } else {
@@ -406,17 +406,19 @@ const MovementsPage = () => {
             <Button
               variant="secondary"
               onClick={() => setShowOrphaned(!showOrphaned)}
+              className="px-2 sm:px-4"
             >
               <Trash2 className="w-5 h-5" />
-              Orphaned ({orphanedCount})
+              <span className="hidden sm:inline ml-2">Orphaned ({orphanedCount})</span>
             </Button>
           )}
           <Button
             variant="secondary"
             onClick={() => setShowBatchForm(true)}
+            className="px-2 sm:px-4"
           >
             <Plus className="w-5 h-5" />
-            Batch Add
+            <span className="hidden sm:inline ml-2">Batch Add</span>
           </Button>
           <Button
             variant="primary"
@@ -427,6 +429,7 @@ const MovementsPage = () => {
               setSelectedPocketId('');
               setIsFixedExpense(false);
             }}
+            className="hidden md:flex"
           >
             <Plus className="w-5 h-5" />
             New Movement
