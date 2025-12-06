@@ -139,6 +139,8 @@ const MovementsPage = () => {
           date: date || undefined,
           templateId: templateId || undefined,
           fixedExpenseId: fixedExpenseId || undefined,
+          // Set type to EgresoFijo if this is a fixed expense
+          type: fixedExpenseId ? 'EgresoFijo' : undefined,
         });
 
         if (templateId) {

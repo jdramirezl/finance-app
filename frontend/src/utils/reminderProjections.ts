@@ -143,7 +143,8 @@ export function groupRemindersByMonth(
         allReminders.push({ ...reminder, isProjected: false });
 
         // Add projected occurrences for recurring reminders
-        if (!reminder.isPaid && reminder.recurrence.type !== 'once') {
+        // Generate projections even if current occurrence is paid - the schedule continues
+        if (reminder.recurrence.type !== 'once') {
             const projections = generateProjectedOccurrences(reminder, monthsAhead);
             allReminders.push(...projections);
         }

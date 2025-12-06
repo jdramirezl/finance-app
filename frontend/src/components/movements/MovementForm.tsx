@@ -56,9 +56,14 @@ const MovementForm = ({
     const { data: subPockets = [] } = useSubPocketsQuery();
     const { data: movementTemplates = [] } = useMovementTemplatesQuery();
 
+    // Determine if this is a fixed expense from defaultValues or initialData
+    const defaultType = defaultValues?.type || initialData?.type || 'EgresoNormal';
+    const isDefaultFixedExpense = defaultType === 'IngresoFijo' || defaultType === 'EgresoFijo';
+
     const [isTransfer, setIsTransfer] = useState(false);
     const [targetAccountId, setTargetAccountId] = useState('');
     const [targetPocketId, setTargetPocketId] = useState('');
+    const [selectedSubPocketId, setSelectedSubPocketId] = useState(defaultValues?.fixedExpenseId || initialData?.subPocketId || '');
 
     const availablePockets = selectedAccountId
         ? pockets.filter(p => p.accountId === selectedAccountId)
@@ -114,7 +119,7 @@ const MovementForm = ({
                     label="Type"
                     name="type"
                     required
-                    defaultValue={initialData?.type || defaultValues?.type || 'EgresoNormal'}
+                    defaultValue={defaultType}
                     onChange={(e) => {
                         const value = e.target.value;
                         if (value === 'Transfer') {
@@ -200,11 +205,12 @@ const MovementForm = ({
                 </div>
             )}
 
-            {isFixedExpense && availableSubPockets.length > 0 && !isTransfer && (
+            {(isFixedExpense || isDefaultFixedExpense) && availableSubPockets.length > 0 && !isTransfer && (
                 <Select
                     label="Sub-Pocket (Optional)"
                     name="subPocketId"
-                    defaultValue={initialData?.subPocketId || ''}
+                    value={selectedSubPocketId}
+                    onChange={(e) => setSelectedSubPocketId(e.target.value)}
                     options={[
                         { value: '', label: 'None' },
                         ...availableSubPockets.map(sp => ({ value: sp.id, label: sp.name }))

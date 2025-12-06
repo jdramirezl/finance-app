@@ -105,35 +105,33 @@ const ReminderCard = ({ reminder, onPayNow, onEdit, onDelete }: ReminderCardProp
                 </div>
 
                 {/* Action buttons - visible on hover */}
-                {!isPaid && (
-                    <div className="flex justify-end gap-1 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        {!isProjected && (
-                            <button
-                                onClick={() => onPayNow(reminder)}
-                                className="p-1.5 text-green-600 hover:bg-green-100 dark:hover:bg-green-900/30 rounded-lg transition-colors"
-                                title="Pay Now"
-                            >
-                                <DollarSign className="w-4 h-4" />
-                            </button>
-                        )}
+                <div className="flex justify-end gap-1 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    {!isPaid && !isProjected && (
                         <button
-                            onClick={() => onEdit(reminder)}
-                            className="p-1.5 text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded-lg transition-colors"
-                            title={isProjected ? 'Create from Template' : 'Edit'}
+                            onClick={() => onPayNow(reminder)}
+                            className="p-1.5 text-green-600 hover:bg-green-100 dark:hover:bg-green-900/30 rounded-lg transition-colors"
+                            title="Pay Now"
                         >
-                            <Edit2 className="w-4 h-4" />
+                            <DollarSign className="w-4 h-4" />
                         </button>
-                        {!isProjected && (
-                            <button
-                                onClick={() => onDelete(reminder.id)}
-                                className="p-1.5 text-red-600 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-lg transition-colors"
-                                title="Delete"
-                            >
-                                <Trash2 className="w-4 h-4" />
-                            </button>
-                        )}
-                    </div>
-                )}
+                    )}
+                    <button
+                        onClick={() => onEdit(reminder)}
+                        className="p-1.5 text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded-lg transition-colors"
+                        title={isProjected ? 'Create from Template' : 'Edit'}
+                    >
+                        <Edit2 className="w-4 h-4" />
+                    </button>
+                    {!isProjected && (
+                        <button
+                            onClick={() => onDelete(reminder.id)}
+                            className="p-1.5 text-red-600 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-lg transition-colors"
+                            title="Delete"
+                        >
+                            <Trash2 className="w-4 h-4" />
+                        </button>
+                    )}
+                </div>
             </div>
         </div>
     );
