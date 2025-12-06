@@ -2,6 +2,7 @@ import type { Account, SubPocket } from '../../types';
 import { currencyService } from '../../services/currencyService';
 import Card from '../Card';
 import ProgressBar from '../ProgressBar';
+import { Wallet } from 'lucide-react';
 
 interface FixedExpensesSummaryProps {
     subPockets: SubPocket[];
@@ -26,6 +27,14 @@ const FixedExpensesSummary = ({
 
     return (
         <Card>
+            {/* Header */}
+            <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+                    <Wallet className="w-5 h-5" />
+                    Fixed Expenses
+                </h3>
+            </div>
+
             {/* Total Summary */}
             <div className="mb-6 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
                 <div className="text-sm text-gray-600 dark:text-gray-400 mb-1">

@@ -50,6 +50,7 @@ import movementRoutes from './modules/movements/presentation/routes';
 import settingsRoutes from './modules/settings/presentation/settingsRoutes';
 import currencyRoutes from './modules/settings/presentation/currencyRoutes';
 import reminderRoutes from './modules/reminders/presentation/routes';
+import netWorthRoutes from './modules/net-worth/presentation/routes';
 
 const app = express();
 const PORT = process.env.PORT || process.env.BACKEND_PORT || 3001;
@@ -127,6 +128,9 @@ app.use('/api/currency', currencyRoutes);
 
 // Mount reminder routes
 app.use('/api/reminders', reminderRoutes);
+
+// Mount net worth snapshot routes
+app.use('/api/net-worth-snapshots', netWorthRoutes);
 
 // 404 handler
 app.use((req: Request, res: Response) => {

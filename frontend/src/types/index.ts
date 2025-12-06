@@ -103,8 +103,11 @@ export interface MovementTemplate {
 }
 
 // Settings
+export type SnapshotFrequency = 'daily' | 'weekly' | 'monthly' | 'manual';
+
 export interface Settings {
   primaryCurrency: Currency;
   alphaVantageApiKey?: string; // API key for stock prices
+  snapshotFrequency?: SnapshotFrequency; // How often to take net worth snapshots
 }
 

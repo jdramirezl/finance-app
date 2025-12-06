@@ -149,6 +149,43 @@ const SettingsPage = () => {
       </Card>
 
       <Card className="max-w-2xl">
+        <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">Net Worth Snapshots</h2>
+        <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+          Take periodic snapshots of your net worth to visualize your financial progress over time.
+        </p>
+
+        <div className="space-y-2">
+          {(['daily', 'weekly', 'monthly', 'manual'] as const).map((frequency) => (
+            <label
+              key={frequency}
+              className={`flex items-center gap-3 p-4 border-2 rounded-lg cursor-pointer transition-all ${(settings.snapshotFrequency || 'weekly') === frequency
+                  ? 'border-blue-500 dark:border-blue-400 bg-blue-50 dark:bg-blue-900/30'
+                  : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+                }`}
+            >
+              <input
+                type="radio"
+                name="snapshotFrequency"
+                value={frequency}
+                checked={(settings.snapshotFrequency || 'weekly') === frequency}
+                onChange={() => updateSettingsMutation.mutate({ ...settings, snapshotFrequency: frequency })}
+                className="w-4 h-4 text-blue-600 dark:text-blue-400"
+              />
+              <div>
+                <span className="font-medium text-gray-900 dark:text-gray-100 capitalize">{frequency}</span>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  {frequency === 'daily' && 'Snapshot every day'}
+                  {frequency === 'weekly' && 'Snapshot once a week'}
+                  {frequency === 'monthly' && 'Snapshot once a month'}
+                  {frequency === 'manual' && 'Only when you manually trigger'}
+                </p>
+              </div>
+            </label>
+          ))}
+        </div>
+      </Card>
+
+      <Card className="max-w-2xl">
         <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">Data Migration</h2>
         <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
           Run this migration once to mark existing orphaned movements. This will scan all movements and flag any that belong to deleted accounts or pockets.

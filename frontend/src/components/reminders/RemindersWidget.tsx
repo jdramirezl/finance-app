@@ -186,23 +186,27 @@ const RemindersWidget = () => {
 
     return (
         <div className="h-full flex flex-col">
-            {/* Header */}
-            <div className="flex items-center justify-between mb-4">
-                <h2 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">Upcoming Payments</h2>
-                <Button
-                    variant="primary"
-                    size="sm"
-                    onClick={() => {
-                        setEditingReminder(null);
-                        setIsEditingException(false);
-                        setIsFormOpen(true);
-                    }}
-                >
-                    <Plus className="w-4 h-4" />
-                </Button>
-            </div>
-
             <Card padding="none" className="flex-1 overflow-hidden flex flex-col">
+                {/* Header */}
+                <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-gray-800">
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+                        <Calendar className="w-5 h-5" />
+                        Upcoming Payments
+                    </h3>
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                            setEditingReminder(null);
+                            setIsEditingException(false);
+                            setIsFormOpen(true);
+                        }}
+                        className="!p-1.5"
+                    >
+                        <Plus className="w-5 h-5" />
+                    </Button>
+                </div>
+
                 {/* Overdue Alert Banner */}
                 {overdueCount > 0 && (
                     <div className="px-4 py-3 bg-red-50 dark:bg-red-900/30 border-b border-red-200 dark:border-red-800 flex items-center gap-2">

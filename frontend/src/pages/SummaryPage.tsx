@@ -4,6 +4,7 @@ import { currencyService } from '../services/currencyService';
 import { investmentService } from '../services/investmentService';
 import type { Currency, Account } from '../types';
 import { useToast } from '../hooks/useToast';
+import { useAutoNetWorthSnapshot } from '../hooks/useAutoNetWorthSnapshot';
 import { SkeletonStats, SkeletonAccountCard, SkeletonList } from '../components/Skeleton';
 import PageHeader from '../components/PageHeader';
 import EmptyState from '../components/EmptyState';
@@ -15,6 +16,7 @@ import {
   type InvestmentData
 } from '../components/summary';
 import RemindersWidget from '../components/reminders/RemindersWidget';
+import NetWorthTimelineWidget from '../components/net-worth/NetWorthTimelineWidget';
 
 const SummaryPage = () => {
   // TanStack Query hooks
@@ -22,6 +24,9 @@ const SummaryPage = () => {
   const { data: pockets = [], isLoading: pocketsLoading } = usePocketsQuery();
   const { data: settings, isLoading: settingsLoading } = useSettingsQuery();
   const { data: subPockets = [], isLoading: subPocketsLoading } = useSubPocketsQuery();
+
+  // Auto-snapshot on load
+  useAutoNetWorthSnapshot();
 
   const [investmentData, setInvestmentData] = useState<Map<string, InvestmentData>>(new Map());
   const [, setLoadingInvestments] = useState(false);
@@ -224,7 +229,7 @@ const SummaryPage = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Accounts Section */}
         <div className="space-y-4">
-          <h2 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">Accounts</h2>
+
 
           {sortedCurrencies.length === 0 ? (
             <EmptyState
@@ -251,6 +256,9 @@ const SummaryPage = () => {
 
         {/* Right Column */}
         <div className="space-y-6">
+          {/* Net Worth Timeline */}
+          <NetWorthTimelineWidget />
+
           {/* Reminders Section */}
           <div className="space-y-4 h-[400px]">
             <RemindersWidget />
@@ -258,7 +266,7 @@ const SummaryPage = () => {
 
           {/* Fixed Expenses Section */}
           <div className="space-y-4">
-            <h2 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">Fixed Expenses</h2>
+
 
             {!fixedPocket ? (
               <EmptyState
