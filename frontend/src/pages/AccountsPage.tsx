@@ -357,6 +357,7 @@ const AccountsPage = () => {
                       setShowAccountForm(true);
                     }}
                     onDelete={() => handleDeleteAccount(account.id)}
+                    isFixedExpensesAccount={pockets.some(p => p.accountId === account.id && p.type === 'fixed')}
                   />
                 </SortableItem>
               )}
@@ -485,6 +486,7 @@ const AccountsPage = () => {
         isOpen={showAccountForm}
         onClose={() => setShowAccountForm(false)}
         title={editingAccount ? "Edit Account" : "Create New Account"}
+        size="lg"
       >
         <AccountForm
           initialData={editingAccount}

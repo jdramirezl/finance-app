@@ -1,5 +1,5 @@
 import type { Pocket } from '../../types';
-import { Edit2, Trash2, ArrowRightLeft, Lock, PieChart, Banknote } from 'lucide-react';
+import { Edit2, Trash2, ArrowRightLeft, Lock, PieChart, Banknote, Wallet } from 'lucide-react';
 import ActionButtons from '../ActionButtons';
 
 interface PocketCardProps {
@@ -32,6 +32,11 @@ const PocketCard = ({
         icon = pocket.name === 'Shares' ? <PieChart className="w-4 h-4 text-purple-500" /> : <Banknote className="w-4 h-4 text-purple-500" />;
         bgClass = "bg-purple-50 dark:bg-purple-900/20";
         borderClass = "border-l-4 border-l-purple-500";
+    } else {
+        // Normal pockets
+        icon = <Wallet className="w-4 h-4 text-slate-500" />;
+        bgClass = "bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm";
+        borderClass = "border-l-4 border-l-slate-400 dark:border-l-slate-600";
     }
 
     return (

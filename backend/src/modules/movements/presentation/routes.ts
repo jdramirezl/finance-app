@@ -33,6 +33,15 @@ router.use(authMiddleware);
 router.post('/', (req, res, next) => controller.create(req, res, next));
 
 /**
+ * POST /api/movements/transfer
+ * Create transfer (two movements)
+ * 
+ * Body: CreateTransferDTO
+ * Response: 201 + { expense: Movement, income: Movement }
+ */
+router.post('/transfer', (req, res, next) => controller.createTransfer(req, res, next));
+
+/**
  * GET /api/movements
  * Get movements with filters
  * 

@@ -18,4 +18,5 @@ export interface GroupResponseDTO {
   id: string;
   name: string;
   color: string;
+  displayOrder: number;
 }
