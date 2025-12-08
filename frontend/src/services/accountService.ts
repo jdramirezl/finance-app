@@ -1,4 +1,4 @@
-import type { Account } from '../types';
+import type { Account, Pocket } from '../types';
 import { SupabaseStorageService } from './supabaseStorageService';
 import { generateId } from '../utils/idGenerator';
 import { apiClient } from './apiClient';
@@ -108,7 +108,7 @@ class AccountService {
     if (account?.type === 'investment') {
       // For investment accounts, balance = shares × current price (market value)
       // Find the shares pocket
-      const sharesPocket = pockets.find(p => p.name === 'Shares');
+      const sharesPocket = pockets.find((p: Pocket) => p.name === 'Shares');
       const shares = sharesPocket?.balance || 0;
       
       // Get current price from investment service

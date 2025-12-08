@@ -57,7 +57,7 @@ class CurrencyService {
       const testCurrencies: Currency[] = ['MXN', 'COP', 'EUR', 'GBP'];
       
       for (const currency of testCurrencies) {
-        const converted = await this.convert(1, 'USD', currency);
+        await this.convert(1, 'USD', currency);
       }
     } catch (error) {
       console.error('❌ Failed to test conversion rates:', error);
@@ -267,19 +267,19 @@ class CurrencyService {
       this.cache.clear();
       
       // Test fetching USD -> MXN (will hit API since cache is cleared)
-      const usdMxnRate = await this.fetchFromAPI('USD', 'MXN');
+      await this.fetchFromAPI('USD', 'MXN');
       
       // Test fetching USD -> COP
-      const usdCopRate = await this.fetchFromAPI('USD', 'COP');
+      await this.fetchFromAPI('USD', 'COP');
       
       // Now test the full flow with caching
-      const cachedMxn = await this.getExchangeRateAsync('USD', 'MXN');
-      const cachedCop = await this.getExchangeRateAsync('USD', 'COP');
+      await this.getExchangeRateAsync('USD', 'MXN');
+      await this.getExchangeRateAsync('USD', 'COP');
       
       // Test conversions
-      const usdToMxn = await this.convert(100, 'USD', 'MXN');
+      await this.convert(100, 'USD', 'MXN');
       
-      const usdToCop = await this.convert(100, 'USD', 'COP');
+      await this.convert(100, 'USD', 'COP');
       
     } catch (err) {
       console.error('❌ Test failed:', err);
