@@ -46,7 +46,7 @@ const InvestmentCard = ({
                     <TrendingUp className="w-4 h-4 text-purple-600 dark:text-purple-400" />
                 </div>
                 <span className="font-mono text-lg font-semibold text-gray-900 dark:text-gray-100">
-                    {currencyService.formatCurrency(account.balance, account.currency)}
+                    {currencyService.formatCurrency(data?.totalValue ?? account.balance, account.currency)}
                 </span>
             </div>
 

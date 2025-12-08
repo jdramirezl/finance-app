@@ -102,6 +102,30 @@ class AccountService {
     // Import dynamically to avoid circular dependency
     const pocketService = await getPocketService();
     const pockets = await pocketService.getPocketsByAccount(accountId);
+    
+    // Check if this is an investment account
+    const account = await this.getAccount(accountId);
+    if (account?.type === 'investment') {
+      // For investment accounts, balance = shares × current price (market value)
+      // Find the shares pocket
+      const sharesPocket = pockets.find(p => p.name === 'Shares');
+      const shares = sharesPocket?.balance || 0;
+      
+      // Get current price from investment service
+      if (account.stockSymbol && shares > 0) {
+        try {
+          const { investmentService } = await import('./investmentService');
+          const currentPrice = await investmentService.getCurrentPrice(account.stockSymbol);
+          return shares * currentPrice;
+        } catch (error) {
+          console.warn(`⚠️ Failed to get price for ${account.stockSymbol}, using 0 balance`, error);
+          return 0;
+        }
+      }
+      return 0;
+    }
+    
+    // For normal accounts, sum all pocket balances
     return pockets.reduce((sum: number, pocket: { balance: number }) => sum + pocket.balance, 0);
   }
 
