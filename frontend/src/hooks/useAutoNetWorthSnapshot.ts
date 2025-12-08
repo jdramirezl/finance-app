@@ -50,6 +50,7 @@ export const useAutoNetWorthSnapshot = () => {
 
         if (shouldTakeSnapshot()) {
             hasRun.current = true;
+            console.log(`📸 Auto-creating net worth snapshot (${frequency} frequency)`);
 
             // Calculate net worth
             const calculateNetWorth = async () => {
@@ -93,6 +94,11 @@ export const useAutoNetWorthSnapshot = () => {
             };
 
             calculateNetWorth();
+        } else if (latestSnapshot) {
+            const lastDate = new Date(latestSnapshot.snapshotDate);
+            const now = new Date();
+            const daysDiff = Math.floor((now.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24));
+            console.log(`📸 Snapshot skipped: last snapshot was ${daysDiff} day(s) ago (${frequency} frequency)`);
         }
     }, [accounts, settings, latestSnapshot, loadingSnapshot, createMutation]);
 };

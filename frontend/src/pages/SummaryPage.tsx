@@ -56,17 +56,6 @@ const SummaryPage = () => {
           const montoInvertido = investedPocket?.balance || 0;
           const shares = sharesPocket?.balance || 0;
           
-          console.log('🔍 Investment Account Debug:', {
-            accountName: account.name,
-            accountId: account.id,
-            'account.montoInvertido (STALE)': account.montoInvertido,
-            'investedPocket.balance (SOURCE OF TRUTH)': investedPocket?.balance,
-            'montoInvertido (USED)': montoInvertido,
-            'account.shares (STALE)': account.shares,
-            'sharesPocket.balance (SOURCE OF TRUTH)': sharesPocket?.balance,
-            'shares (USED)': shares,
-          });
-          
           // Create a temporary account object with correct values
           const accountWithCorrectValues = {
             ...account,
@@ -76,15 +65,6 @@ const SummaryPage = () => {
           
           if (account.stockSymbol) {
             const data = await investmentService.updateInvestmentAccount(accountWithCorrectValues);
-            console.log('📊 Investment Data Calculated:', {
-              accountName: account.name,
-              montoInvertido,
-              shares,
-              precioActual: data.precioActual,
-              totalValue: data.totalValue,
-              gainsUSD: data.gainsUSD,
-              gainsPct: data.gainsPct,
-            });
             // Include the correct values in the data object
             newData.set(account.id, {
               ...data,
@@ -125,8 +105,22 @@ const SummaryPage = () => {
     setRefreshingPrices(prev => new Set(prev).add(account.id));
 
     try {
+      // Get fresh values from pocket balances (same as initial load)
+      const investedPocket = pockets.find(p => p.accountId === account.id && p.name === 'Invested Money');
+      const sharesPocket = pockets.find(p => p.accountId === account.id && p.name === 'Shares');
+      
+      const montoInvertido = investedPocket?.balance || 0;
+      const shares = sharesPocket?.balance || 0;
+      
+      // Create account with correct values
+      const accountWithCorrectValues = {
+        ...account,
+        montoInvertido,
+        shares,
+      };
+
       const data = await investmentService.forceRefreshPrice(account.stockSymbol);
-      const values = investmentService.calculateInvestmentValues(account, data);
+      const values = investmentService.calculateInvestmentValues(accountWithCorrectValues, data);
       const lastUpdated = investmentService.getPriceTimestamp(account.stockSymbol);
 
       setInvestmentData(prev => {
@@ -135,6 +129,8 @@ const SummaryPage = () => {
           precioActual: data,
           ...values,
           lastUpdated,
+          montoInvertido,
+          shares,
         });
         return newMap;
       });

@@ -31,16 +31,6 @@ const InvestmentCard = ({
     // Use corrected values from data if available, otherwise fall back to account
     const montoInvertido = data?.montoInvertido ?? account.montoInvertido ?? 0;
     const shares = data?.shares ?? account.shares ?? 0;
-    
-    console.log('💳 InvestmentCard Render:', {
-        accountName: account.name,
-        'account.montoInvertido (STALE)': account.montoInvertido,
-        'data.montoInvertido (CORRECT)': data?.montoInvertido,
-        'montoInvertido (displayed)': montoInvertido,
-        'account.shares (STALE)': account.shares,
-        'data.shares (CORRECT)': data?.shares,
-        'shares (displayed)': shares,
-    });
 
     return (
         <div className="border-l-4 pl-4" style={{ borderColor: account.color }}>
@@ -56,7 +46,7 @@ const InvestmentCard = ({
                     <TrendingUp className="w-4 h-4 text-purple-600 dark:text-purple-400" />
                 </div>
                 <span className="font-mono text-lg font-semibold text-gray-900 dark:text-gray-100">
-                    {currencyService.formatCurrency(account.balance, account.currency)}
+                    {currencyService.formatCurrency(data?.totalValue ?? account.balance, account.currency)}
                 </span>
             </div>
 

@@ -53,7 +53,6 @@ class PocketService {
   async getPocket(id: string): Promise<Pocket | null> {
     if (this.useBackend) {
       try {
-        console.log('🔵 Backend API: GET /api/pockets/' + id);
         return await apiClient.get<Pocket>(`/api/pockets/${id}`);
       } catch (error) {
         console.error('❌ Backend API failed, falling back to Supabase:', error);
@@ -73,7 +72,6 @@ class PocketService {
   async getPocketsByAccount(accountId: string): Promise<Pocket[]> {
     if (this.useBackend) {
       try {
-        console.log('🔵 Backend API: GET /api/pockets?accountId=' + accountId);
         return await apiClient.get<Pocket[]>(`/api/pockets?accountId=${accountId}`);
       } catch (error) {
         console.error('❌ Backend API failed, falling back to Supabase:', error);
@@ -128,7 +126,6 @@ class PocketService {
   async createPocket(accountId: string, name: string, type: Pocket['type']): Promise<Pocket> {
     if (this.useBackend) {
       try {
-        console.log('🔵 Backend API: POST /api/pockets', { accountId, name, type });
         return await apiClient.post<Pocket>('/api/pockets', {
           accountId,
           name,
@@ -200,7 +197,6 @@ class PocketService {
   async updatePocket(id: string, updates: Partial<Pick<Pocket, 'name'>>): Promise<Pocket> {
     if (this.useBackend) {
       try {
-        console.log('🔵 Backend API: PUT /api/pockets/' + id, updates);
         return await apiClient.put<Pocket>(`/api/pockets/${id}`, updates);
       } catch (error) {
         console.error('❌ Backend API failed, falling back to Supabase:', error);
@@ -253,7 +249,6 @@ class PocketService {
   async deletePocket(id: string): Promise<void> {
     if (this.useBackend) {
       try {
-        console.log('🔵 Backend API: DELETE /api/pockets/' + id);
         await apiClient.delete(`/api/pockets/${id}`);
         return;
       } catch (error) {
@@ -296,7 +291,6 @@ class PocketService {
   async migrateFixedPocketToAccount(pocketId: string, targetAccountId: string): Promise<Pocket> {
     if (this.useBackend) {
       try {
-        console.log('🔵 Backend API: POST /api/pockets/' + pocketId + '/migrate', { targetAccountId });
         return await apiClient.post<Pocket>(`/api/pockets/${pocketId}/migrate`, {
           targetAccountId,
         });
@@ -310,13 +304,11 @@ class PocketService {
 
   // Direct Supabase implementation (fallback)
   private async migrateFixedPocketToAccountDirect(pocketId: string, targetAccountId: string): Promise<Pocket> {
-    console.log(`🔄 [migrateFixedPocketToAccount] Starting migration - pocketId: ${pocketId}, targetAccountId: ${targetAccountId}`);
     
     const pocket = await this.getPocketDirect(pocketId);
     if (!pocket) {
       throw new Error(`Pocket with id "${pocketId}" not found.`);
     }
-    console.log(`✅ [migrateFixedPocketToAccount] Found pocket:`, pocket);
 
     if (pocket.type !== 'fixed') {
       throw new Error('Only fixed pockets can be migrated using this method.');
@@ -328,7 +320,6 @@ class PocketService {
     if (!targetAccount) {
       throw new Error(`Target account with id "${targetAccountId}" not found.`);
     }
-    console.log(`✅ [migrateFixedPocketToAccount] Found target account:`, targetAccount);
 
     // Investment accounts cannot have fixed pockets
     if (targetAccount.type === 'investment') {
@@ -339,7 +330,6 @@ class PocketService {
     if (!(await this.validatePocketUniqueness(targetAccountId, pocket.name, pocketId))) {
       throw new Error(`A pocket with name "${pocket.name}" already exists in the target account.`);
     }
-    console.log(`✅ [migrateFixedPocketToAccount] Pocket name is unique in target account`);
 
     // Update pocket's accountId and currency
     const updatedPocket = {
@@ -348,17 +338,14 @@ class PocketService {
       currency: targetAccount.currency,
     };
 
-    console.log(`💾 [migrateFixedPocketToAccount] Updating pocket in storage:`, updatedPocket);
     await SupabaseStorageService.updatePocket(pocketId, updatedPocket);
-    console.log(`✅ [migrateFixedPocketToAccount] Pocket updated in storage`);
 
     // Update all movements associated with this pocket to the new account
     const { movementService } = await import('./movementService');
-    console.log(`🔄 [migrateFixedPocketToAccount] Updating movements for pocket`);
     const movementCount = await movementService.updateMovementsAccountForPocket(pocketId, targetAccountId);
-    console.log(`✅ [migrateFixedPocketToAccount] Updated ${movementCount} movements`);
 
-    console.log(`🎉 [migrateFixedPocketToAccount] Migration complete!`);
+    console.log(`📦 Migrated fixed pocket "${pocket.name}" to account "${targetAccount.name}": ${movementCount} movements updated`);
+
     return updatedPocket;
   }
 
@@ -366,7 +353,6 @@ class PocketService {
   async reorderPockets(pocketIds: string[]): Promise<void> {
     if (this.useBackend) {
       try {
-        console.log('🔵 Backend API: POST /api/pockets/reorder', { pocketIds });
         await apiClient.post('/api/pockets/reorder', { pocketIds });
         return;
       } catch (error) {

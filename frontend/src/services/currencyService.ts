@@ -54,12 +54,10 @@ class CurrencyService {
 
   private async testConversionRates() {
     try {
-      console.log('💱 Testing currency conversion rates (1 USD to other currencies):');
       const testCurrencies: Currency[] = ['MXN', 'COP', 'EUR', 'GBP'];
       
       for (const currency of testCurrencies) {
-        const converted = await this.convert(1, 'USD', currency);
-        console.log(`  1 USD = ${converted.toFixed(4)} ${currency}`);
+        await this.convert(1, 'USD', currency);
       }
     } catch (error) {
       console.error('❌ Failed to test conversion rates:', error);
@@ -99,7 +97,6 @@ class CurrencyService {
     
     if (this.useBackend) {
       try {
-        console.log('🔵 Backend API: GET /api/currency/rates', { from, to });
         return await this.getExchangeRateFromBackend(from, to);
       } catch (error) {
         console.error('❌ Backend API failed, falling back to direct implementation:', error);
@@ -131,7 +128,6 @@ class CurrencyService {
     // 1. Check local cache first (fastest)
     const cached = this.cache.get(cacheKey);
     if (cached && Date.now() - cached.timestamp < this.CACHE_DURATION) {
-      console.log(`[Currency] Using cached rate: ${from} -> ${to} = ${cached.rate}`);
       return cached.rate;
     }
 
@@ -144,7 +140,6 @@ class CurrencyService {
           rate: dbRate,
           timestamp: Date.now(),
         });
-        console.log(`[Currency] Using DB rate: ${from} -> ${to} = ${dbRate}`);
         return dbRate;
       }
     } catch (err) {
@@ -164,10 +159,9 @@ class CurrencyService {
         timestamp: Date.now(),
       });
       
-      console.log(`[Currency] Fetched from API: ${from} -> ${to} = ${rate}`);
       return rate;
     } catch (err) {
-      console.error('[Currency] API fetch failed, using mock rate:', err);
+      console.warn(`💱 Currency API unavailable for ${from}→${to}, using mock rate`, err);
       // Fallback to mock
       return this.getExchangeRate(from, to);
     }
@@ -190,8 +184,12 @@ class CurrencyService {
       // Check if rate is stale (> 24 hours old)
       const lastUpdated = new Date(data.last_updated).getTime();
       const now = Date.now();
+      const ageHours = Math.round((now - lastUpdated) / 1000 / 60 / 60);
+      
       if (now - lastUpdated > this.CACHE_DURATION) {
-        console.log(`[Currency] DB rate is stale (${Math.round((now - lastUpdated) / 1000 / 60 / 60)}h old)`);
+        if (ageHours > 24) {
+          console.warn(`💱 Exchange rate ${from}→${to} is stale (${ageHours}h old), fetching fresh rate`);
+        }
         return null;
       }
 
@@ -222,7 +220,6 @@ class CurrencyService {
         });
 
       if (error) throw error;
-      console.log(`[Currency] Saved to DB: ${from} -> ${to} = ${rate}`);
     } catch (err) {
       console.error('[Currency] Failed to save to database:', err);
     }
@@ -264,40 +261,26 @@ class CurrencyService {
 
   // Test method - call from console to verify API works
   async testAPI(): Promise<void> {
-    console.log('🧪 Testing Currency API (forcing fresh fetch)...');
-    console.log('useRealAPI:', this.useRealAPI);
     
     try {
       // Clear local cache
       this.cache.clear();
-      console.log('🗑️  Cleared local cache');
       
       // Test fetching USD -> MXN (will hit API since cache is cleared)
-      console.log('\n1️⃣ Testing USD -> MXN...');
-      const usdMxnRate = await this.fetchFromAPI('USD', 'MXN');
-      console.log('✅ Rate from API:', usdMxnRate);
+      await this.fetchFromAPI('USD', 'MXN');
       
       // Test fetching USD -> COP
-      console.log('\n2️⃣ Testing USD -> COP...');
-      const usdCopRate = await this.fetchFromAPI('USD', 'COP');
-      console.log('✅ Rate from API:', usdCopRate);
+      await this.fetchFromAPI('USD', 'COP');
       
       // Now test the full flow with caching
-      console.log('\n3️⃣ Testing full flow with caching...');
-      const cachedMxn = await this.getExchangeRateAsync('USD', 'MXN');
-      const cachedCop = await this.getExchangeRateAsync('USD', 'COP');
-      console.log('USD -> MXN (cached):', cachedMxn);
-      console.log('USD -> COP (cached):', cachedCop);
+      await this.getExchangeRateAsync('USD', 'MXN');
+      await this.getExchangeRateAsync('USD', 'COP');
       
       // Test conversions
-      console.log('\n4️⃣ Testing conversions...');
-      const usdToMxn = await this.convert(100, 'USD', 'MXN');
-      console.log('100 USD =', usdToMxn.toFixed(2), 'MXN');
+      await this.convert(100, 'USD', 'MXN');
       
-      const usdToCop = await this.convert(100, 'USD', 'COP');
-      console.log('100 USD =', usdToCop.toFixed(2), 'COP');
+      await this.convert(100, 'USD', 'COP');
       
-      console.log('\n✅ All tests passed!');
     } catch (err) {
       console.error('❌ Test failed:', err);
     }
@@ -313,7 +296,6 @@ class CurrencyService {
     
     if (this.useBackend) {
       try {
-        console.log('🔵 Backend API: POST /api/currency/convert', { amount, from, to });
         return await this.convertFromBackend(amount, from, to);
       } catch (error) {
         console.error('❌ Backend API failed, falling back to direct implementation:', error);
@@ -346,7 +328,6 @@ class CurrencyService {
   // Clear cache (useful for testing)
   clearCache(): void {
     this.cache.clear();
-    console.log('[Currency] Cache cleared');
   }
 }
 

@@ -18,7 +18,6 @@ class FixedExpenseGroupService {
   async getAll(): Promise<FixedExpenseGroup[]> {
     if (this.useBackend) {
       try {
-        console.log('🔵 Backend API: GET /api/fixed-expense-groups');
         return await apiClient.get<FixedExpenseGroup[]>('/api/fixed-expense-groups');
       } catch (error) {
         console.error('❌ Backend API failed, falling back to Supabase:', error);
@@ -56,7 +55,6 @@ class FixedExpenseGroupService {
   async getById(id: string): Promise<FixedExpenseGroup | null> {
     if (this.useBackend) {
       try {
-        console.log('🔵 Backend API: GET /api/fixed-expense-groups/' + id);
         return await apiClient.get<FixedExpenseGroup>(`/api/fixed-expense-groups/${id}`);
       } catch (error) {
         console.error('❌ Backend API failed, falling back to Supabase:', error);
@@ -96,7 +94,6 @@ class FixedExpenseGroupService {
   async create(name: string, color: string): Promise<FixedExpenseGroup> {
     if (this.useBackend) {
       try {
-        console.log('🔵 Backend API: POST /api/fixed-expense-groups', { name, color });
         return await apiClient.post<FixedExpenseGroup>('/api/fixed-expense-groups', {
           name,
           color,
@@ -145,7 +142,6 @@ class FixedExpenseGroupService {
   async update(id: string, name: string, color: string): Promise<void> {
     if (this.useBackend) {
       try {
-        console.log('🔵 Backend API: PUT /api/fixed-expense-groups/' + id, { name, color });
         await apiClient.put(`/api/fixed-expense-groups/${id}`, {
           name,
           color,
@@ -188,7 +184,6 @@ class FixedExpenseGroupService {
   async delete(id: string): Promise<void> {
     if (this.useBackend) {
       try {
-        console.log('🔵 Backend API: DELETE /api/fixed-expense-groups/' + id);
         await apiClient.delete(`/api/fixed-expense-groups/${id}`);
         return;
       } catch (error) {
@@ -251,7 +246,6 @@ class FixedExpenseGroupService {
   async reorder(ids: string[]): Promise<void> {
     if (this.useBackend) {
       try {
-        console.log('🔵 Backend API: POST /api/fixed-expense-groups/reorder', { ids });
         await apiClient.post('/api/fixed-expense-groups/reorder', { ids });
         return;
       } catch (error) {
