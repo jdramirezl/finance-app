@@ -200,7 +200,16 @@ const SettingsPage = () => {
                 name="snapshotFrequency"
                 value={frequency}
                 checked={(settings.snapshotFrequency || 'weekly') === frequency}
-                onChange={() => updateSettingsMutation.mutate({ ...settings, snapshotFrequency: frequency })}
+                onChange={async () => {
+                  try {
+                    await updateSettingsMutation.mutateAsync({ ...settings, snapshotFrequency: frequency });
+                    toast.success(`Snapshot frequency updated to ${frequency}`);
+                  } catch (err) {
+                    console.error('Failed to update snapshot frequency:', err);
+                    toast.error('Failed to update snapshot frequency');
+                  }
+                }}
+                disabled={updateSettingsMutation.isPending}
                 className="w-4 h-4 text-blue-600 dark:text-blue-400"
               />
               <div>
