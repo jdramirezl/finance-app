@@ -105,8 +105,22 @@ const SummaryPage = () => {
     setRefreshingPrices(prev => new Set(prev).add(account.id));
 
     try {
+      // Get fresh values from pocket balances (same as initial load)
+      const investedPocket = pockets.find(p => p.accountId === account.id && p.name === 'Invested Money');
+      const sharesPocket = pockets.find(p => p.accountId === account.id && p.name === 'Shares');
+      
+      const montoInvertido = investedPocket?.balance || 0;
+      const shares = sharesPocket?.balance || 0;
+      
+      // Create account with correct values
+      const accountWithCorrectValues = {
+        ...account,
+        montoInvertido,
+        shares,
+      };
+
       const data = await investmentService.forceRefreshPrice(account.stockSymbol);
-      const values = investmentService.calculateInvestmentValues(account, data);
+      const values = investmentService.calculateInvestmentValues(accountWithCorrectValues, data);
       const lastUpdated = investmentService.getPriceTimestamp(account.stockSymbol);
 
       setInvestmentData(prev => {
@@ -115,6 +129,8 @@ const SummaryPage = () => {
           precioActual: data,
           ...values,
           lastUpdated,
+          montoInvertido,
+          shares,
         });
         return newMap;
       });
