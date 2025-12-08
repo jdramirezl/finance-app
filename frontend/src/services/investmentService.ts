@@ -141,7 +141,6 @@ class InvestmentService {
             const lastUpdated = new Date(data.last_updated).getTime();
             const now = Date.now();
             if (now - lastUpdated > CACHE_DURATION) {
-                console.log(`[Investment] DB price is stale (${Math.round((now - lastUpdated) / 1000 / 60)}m old)`);
                 return null;
             }
 
@@ -177,7 +176,6 @@ class InvestmentService {
                 });
 
             if (error) throw error;
-            console.log(`[Investment] Saved to DB: ${symbol} = ${price}`);
         } catch (err) {
             console.error('[Investment] Failed to save to database:', err);
         }
@@ -217,7 +215,6 @@ class InvestmentService {
             // Record API call in Supabase for global rate limiting
             await this.recordAPICall(symbol);
 
-            console.log(`✅ Successfully fetched ${symbol}: ${data.price} (cached for 15 minutes)`);
             return data.price;
         } catch (error) {
             console.error('Error fetching stock price from API:', error);
@@ -229,7 +226,6 @@ class InvestmentService {
     async getCurrentPrice(symbol: string): Promise<number> {
         if (this.useBackend) {
             try {
-                console.log('🔵 Backend API: GET /api/investments/prices/' + symbol);
                 const response = await apiClient.get<BackendStockPriceResponse>(`/api/investments/prices/${symbol}`);
                 
                 // Cache the price locally for performance
@@ -257,7 +253,6 @@ class InvestmentService {
         // 1. Check local cache first (fastest)
         const cachedPrice = this.getCachedPrice(symbol);
         if (cachedPrice !== null) {
-            console.log(`📊 Using local cached price for ${symbol}: ${cachedPrice}`);
             return cachedPrice;
         }
 
@@ -265,7 +260,6 @@ class InvestmentService {
         try {
             const dbPrice = await this.getPriceFromDatabase(symbol);
             if (dbPrice !== null) {
-                console.log(`💾 Using DB cached price for ${symbol}: ${dbPrice}`);
                 return dbPrice;
             }
         } catch (err) {
@@ -275,12 +269,17 @@ class InvestmentService {
         // 3. Check global rate limit before making API call
         const isRateLimited = await this.checkGlobalRateLimit(symbol);
         if (isRateLimited) {
-            console.warn(`⏱️ Rate limited for ${symbol}. Using last cached price or throwing error.`);
+            console.warn(`⏱️ Rate limited for ${symbol}. Please wait ${API_RATE_LIMIT_MINUTES} minutes between price updates`);
+            // Try to use stale cache as fallback
+            const staleCache = this.priceCache.get(symbol);
+            if (staleCache) {
+                console.log(`📊 Using stale cached price for ${symbol}: $${staleCache.price} (${Math.round((Date.now() - staleCache.timestamp) / 1000 / 60)} minutes old)`);
+                return staleCache.price;
+            }
             throw new Error(`Rate limited: Please wait ${API_RATE_LIMIT_MINUTES} minutes between price updates`);
         }
 
         // 4. Fetch from API (slowest, updates DB)
-        console.log(`🌐 Fetching fresh price for ${symbol} from API...`);
         return await this.fetchPriceFromAPI(symbol);
     }
 

@@ -56,17 +56,6 @@ const SummaryPage = () => {
           const montoInvertido = investedPocket?.balance || 0;
           const shares = sharesPocket?.balance || 0;
           
-          console.log('🔍 Investment Account Debug:', {
-            accountName: account.name,
-            accountId: account.id,
-            'account.montoInvertido (STALE)': account.montoInvertido,
-            'investedPocket.balance (SOURCE OF TRUTH)': investedPocket?.balance,
-            'montoInvertido (USED)': montoInvertido,
-            'account.shares (STALE)': account.shares,
-            'sharesPocket.balance (SOURCE OF TRUTH)': sharesPocket?.balance,
-            'shares (USED)': shares,
-          });
-          
           // Create a temporary account object with correct values
           const accountWithCorrectValues = {
             ...account,
@@ -76,15 +65,6 @@ const SummaryPage = () => {
           
           if (account.stockSymbol) {
             const data = await investmentService.updateInvestmentAccount(accountWithCorrectValues);
-            console.log('📊 Investment Data Calculated:', {
-              accountName: account.name,
-              montoInvertido,
-              shares,
-              precioActual: data.precioActual,
-              totalValue: data.totalValue,
-              gainsUSD: data.gainsUSD,
-              gainsPct: data.gainsPct,
-            });
             // Include the correct values in the data object
             newData.set(account.id, {
               ...data,

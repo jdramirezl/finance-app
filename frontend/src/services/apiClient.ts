@@ -41,17 +41,25 @@ class ApiClient {
   /**
    * Handle API errors
    */
-  private handleError(error: any): never {
+  private handleError(error: any, context?: { method: string; path: string; payloadSize?: number }): never {
+    let errorMessage = 'Unknown error';
+    
     if (error.response) {
       // Server responded with error
-      throw new Error(error.response.data?.message || 'Server error');
+      errorMessage = error.response.data?.message || `Server error (${error.response.status})`;
     } else if (error.request) {
       // Request made but no response
-      throw new Error('No response from server');
+      errorMessage = 'No response from server';
     } else {
       // Something else happened
-      throw new Error(error.message || 'Unknown error');
+      errorMessage = error.message || 'Unknown error';
     }
+
+    if (context) {
+      console.error(`❌ API ${context.method} ${context.path} failed:`, errorMessage, context.payloadSize ? `(payload: ${context.payloadSize} bytes)` : '');
+    }
+    
+    throw new Error(errorMessage);
   }
 
   /**
@@ -72,7 +80,7 @@ class ApiClient {
 
       return await response.json();
     } catch (error) {
-      return this.handleError(error);
+      return this.handleError(error, { method: 'GET', path });
     }
   }
 
@@ -100,7 +108,11 @@ class ApiClient {
 
       return await response.json();
     } catch (error) {
-      return this.handleError(error);
+      return this.handleError(error, { 
+        method: 'POST', 
+        path, 
+        payloadSize: data ? JSON.stringify(data).length : 0 
+      });
     }
   }
 
@@ -123,7 +135,11 @@ class ApiClient {
 
       return await response.json();
     } catch (error) {
-      return this.handleError(error);
+      return this.handleError(error, { 
+        method: 'PUT', 
+        path, 
+        payloadSize: data ? JSON.stringify(data).length : 0 
+      });
     }
   }
 
@@ -150,7 +166,7 @@ class ApiClient {
 
       return await response.json();
     } catch (error) {
-      return this.handleError(error);
+      return this.handleError(error, { method: 'DELETE', path });
     }
   }
 

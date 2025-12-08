@@ -8,3 +8,16 @@ if (!supabaseUrl || !supabaseAnonKey) {
 }
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+// Monitor authentication state changes
+supabase.auth.onAuthStateChange((event, session) => {
+  if (event === 'SIGNED_IN') {
+    console.log('🔐 User signed in:', session?.user?.email);
+  } else if (event === 'SIGNED_OUT') {
+    console.log('🔓 User signed out');
+  } else if (event === 'TOKEN_REFRESHED') {
+    console.log('🔄 Auth token refreshed');
+  } else if (event === 'USER_UPDATED') {
+    console.log('👤 User profile updated');
+  }
+});
