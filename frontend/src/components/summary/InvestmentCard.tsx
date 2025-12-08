@@ -10,6 +10,8 @@ export interface InvestmentData {
     gainsUSD: number;
     gainsPct: number;
     lastUpdated: number | null;
+    montoInvertido?: number; // Correct value from pocket balance
+    shares?: number; // Correct value from pocket balance
 }
 
 interface InvestmentCardProps {
@@ -26,8 +28,19 @@ const InvestmentCard = ({
     isRefreshing,
 }: InvestmentCardProps) => {
     const stockSymbol = account.stockSymbol || 'N/A';
-    const montoInvertido = account.montoInvertido || 0;
-    const shares = account.shares || 0;
+    // Use corrected values from data if available, otherwise fall back to account
+    const montoInvertido = data?.montoInvertido ?? account.montoInvertido ?? 0;
+    const shares = data?.shares ?? account.shares ?? 0;
+    
+    console.log('💳 InvestmentCard Render:', {
+        accountName: account.name,
+        'account.montoInvertido (STALE)': account.montoInvertido,
+        'data.montoInvertido (CORRECT)': data?.montoInvertido,
+        'montoInvertido (displayed)': montoInvertido,
+        'account.shares (STALE)': account.shares,
+        'data.shares (CORRECT)': data?.shares,
+        'shares (displayed)': shares,
+    });
 
     return (
         <div className="border-l-4 pl-4" style={{ borderColor: account.color }}>
@@ -79,7 +92,7 @@ const InvestmentCard = ({
                             </div>
                             <div className="flex justify-between">
                                 <span>Total shares:</span>
-                                <span className="font-mono">{shares.toFixed(4)}</span>
+                                <span className="font-mono">{shares.toFixed(6)}</span>
                             </div>
                             <div className="flex justify-between">
                                 <span>Current share price:</span>

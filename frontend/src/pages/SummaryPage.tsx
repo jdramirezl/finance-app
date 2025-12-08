@@ -48,20 +48,65 @@ const SummaryPage = () => {
 
       for (const account of investmentAccounts) {
         try {
+          // Get fresh values from pocket balances (source of truth)
+          const investedPocket = pockets.find(p => p.accountId === account.id && p.name === 'Invested Money');
+          const sharesPocket = pockets.find(p => p.accountId === account.id && p.name === 'Shares');
+          
+          // Use pocket balances as source of truth instead of account fields
+          const montoInvertido = investedPocket?.balance || 0;
+          const shares = sharesPocket?.balance || 0;
+          
+          console.log('🔍 Investment Account Debug:', {
+            accountName: account.name,
+            accountId: account.id,
+            'account.montoInvertido (STALE)': account.montoInvertido,
+            'investedPocket.balance (SOURCE OF TRUTH)': investedPocket?.balance,
+            'montoInvertido (USED)': montoInvertido,
+            'account.shares (STALE)': account.shares,
+            'sharesPocket.balance (SOURCE OF TRUTH)': sharesPocket?.balance,
+            'shares (USED)': shares,
+          });
+          
+          // Create a temporary account object with correct values
+          const accountWithCorrectValues = {
+            ...account,
+            montoInvertido,
+            shares,
+          };
+          
           if (account.stockSymbol) {
-            const data = await investmentService.updateInvestmentAccount(account);
-            newData.set(account.id, data);
+            const data = await investmentService.updateInvestmentAccount(accountWithCorrectValues);
+            console.log('📊 Investment Data Calculated:', {
+              accountName: account.name,
+              montoInvertido,
+              shares,
+              precioActual: data.precioActual,
+              totalValue: data.totalValue,
+              gainsUSD: data.gainsUSD,
+              gainsPct: data.gainsPct,
+            });
+            // Include the correct values in the data object
+            newData.set(account.id, {
+              ...data,
+              montoInvertido,
+              shares,
+            });
           }
         } catch (error) {
           console.error(`Error loading price for ${account.stockSymbol}:`, error);
-          // Use cached or default values
-          const montoInvertido = account.montoInvertido || 0;
+          // Use pocket balances for error case too
+          const investedPocket = pockets.find(p => p.accountId === account.id && p.name === 'Invested Money');
+          const sharesPocket = pockets.find(p => p.accountId === account.id && p.name === 'Shares');
+          const montoInvertido = investedPocket?.balance || 0;
+          const shares = sharesPocket?.balance || 0;
           newData.set(account.id, {
             precioActual: 0,
             totalValue: 0,
             gainsUSD: -montoInvertido,
             gainsPct: -100,
             lastUpdated: null,
+            montoInvertido,
+            shares,
           });
         }
       }
@@ -71,7 +116,7 @@ const SummaryPage = () => {
     };
 
     loadInvestmentPrices();
-  }, [accounts]);
+  }, [accounts, pockets]);
 
   // Refresh price for a specific investment account
   const handleRefreshPrice = async (account: Account) => {
