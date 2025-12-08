@@ -244,7 +244,7 @@ const BatchMovementForm = ({
                 <Input
                   label="Amount"
                   type="number"
-                  step="0.01"
+                  step={row.pocketId && availablePockets.find(p => p.id === row.pocketId)?.name === 'Shares' ? '0.000001' : '0.01'}
                   value={row.amount}
                   onChange={(e) => updateRow(row.id, { amount: e.target.value })}
                   required
