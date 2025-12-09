@@ -1,4 +1,4 @@
-import type { Account } from '../types';
+import type { Account, Pocket } from '../types';
 import { SupabaseStorageService } from './supabaseStorageService';
 import { generateId } from '../utils/idGenerator';
 import { apiClient } from './apiClient';
@@ -52,7 +52,6 @@ class AccountService {
   async getAllAccounts(): Promise<Account[]> {
     if (this.useBackend) {
       try {
-        console.log('🔵 Backend API: GET /api/accounts');
         return await apiClient.get<Account[]>('/api/accounts');
       } catch (error) {
         console.error('❌ Backend API failed, falling back to Supabase:', error);
@@ -103,6 +102,30 @@ class AccountService {
     // Import dynamically to avoid circular dependency
     const pocketService = await getPocketService();
     const pockets = await pocketService.getPocketsByAccount(accountId);
+    
+    // Check if this is an investment account
+    const account = await this.getAccount(accountId);
+    if (account?.type === 'investment') {
+      // For investment accounts, balance = shares × current price (market value)
+      // Find the shares pocket
+      const sharesPocket = pockets.find((p: Pocket) => p.name === 'Shares');
+      const shares = sharesPocket?.balance || 0;
+      
+      // Get current price from investment service
+      if (account.stockSymbol && shares > 0) {
+        try {
+          const { investmentService } = await import('./investmentService');
+          const currentPrice = await investmentService.getCurrentPrice(account.stockSymbol);
+          return shares * currentPrice;
+        } catch (error) {
+          console.warn(`⚠️ Failed to get price for ${account.stockSymbol}, using 0 balance`, error);
+          return 0;
+        }
+      }
+      return 0;
+    }
+    
+    // For normal accounts, sum all pocket balances
     return pockets.reduce((sum: number, pocket: { balance: number }) => sum + pocket.balance, 0);
   }
 
@@ -116,7 +139,6 @@ class AccountService {
   ): Promise<Account> {
     if (this.useBackend) {
       try {
-        console.log('🔵 Backend API: POST /api/accounts', { name, currency, type });
         return await apiClient.post<Account>('/api/accounts', {
           name,
           color,
@@ -310,21 +332,18 @@ class AccountService {
     subPockets: number;
     movements: number;
   }> {
-    console.log(`🗑️ [deleteAccountCascade] Starting - accountId: ${id}, deleteMovements: ${deleteMovements}`);
 
     const account = await this.getAccountDirect(id);
     if (!account) {
       throw new Error(`Account with id "${id}" not found.`);
     }
 
-    console.log(`📋 [deleteAccountCascade] Account found: ${account.name}`);
 
     const pocketService = await getPocketService();
     const subPocketService = await getSubPocketService();
     const movementService = await getMovementService();
 
     const pockets = await pocketService.getPocketsByAccount(id);
-    console.log(`📦 [deleteAccountCascade] Found ${pockets.length} pockets to delete`);
 
     let totalSubPockets = 0;
     let totalMovements = 0;
@@ -332,9 +351,7 @@ class AccountService {
     // CRITICAL: Mark movements as orphaned FIRST (before deleting anything)
     // Otherwise CASCADE DELETE will remove movements before we can mark them
     if (!deleteMovements) {
-      console.log(`🔖 [deleteAccountCascade] STEP 1: Marking all movements as orphaned for account ${id}`);
       const markedCount = await movementService.markMovementsAsOrphaned(id, 'account');
-      console.log(`🔖 [deleteAccountCascade] Marked ${markedCount} movements as orphaned`);
       totalMovements += markedCount;
     }
 
@@ -352,17 +369,13 @@ class AccountService {
       // Handle movements (only if hard delete)
       if (deleteMovements) {
         // Hard delete movements
-        console.log(`💥 [deleteAccountCascade] Hard deleting movements for pocket ${pocket.id}`);
         const deletedCount = await movementService.deleteMovementsByPocket(pocket.id);
-        console.log(`💥 [deleteAccountCascade] Deleted ${deletedCount} movements`);
         totalMovements += deletedCount;
       }
 
       // Delete pocket
-      console.log(`🗑️ [deleteAccountCascade] Deleting pocket ${pocket.id}`);
       try {
         await SupabaseStorageService.deletePocket(pocket.id);
-        console.log(`✅ [deleteAccountCascade] Pocket deleted successfully`);
       } catch (error) {
         console.error(`❌ [deleteAccountCascade] Failed to delete pocket:`, error);
         throw error;
@@ -372,30 +385,28 @@ class AccountService {
     // Handle any remaining movements by account (only if hard delete)
     if (deleteMovements) {
       // Hard delete remaining movements
-      console.log(`💥 [deleteAccountCascade] Hard deleting remaining movements for account ${id}`);
       const remainingCount = await movementService.deleteMovementsByAccount(id);
-      console.log(`💥 [deleteAccountCascade] Deleted ${remainingCount} remaining movements`);
       totalMovements += remainingCount;
     }
 
     // Delete account
-    console.log(`🗑️ [deleteAccountCascade] Deleting account ${id}`);
     try {
       await SupabaseStorageService.deleteAccount(id);
-      console.log(`✅ [deleteAccountCascade] Account deleted successfully`);
     } catch (error) {
       console.error(`❌ [deleteAccountCascade] Failed to delete account:`, error);
       throw error;
     }
 
-    console.log(`✅ [deleteAccountCascade] Complete - account: ${account.name}, pockets: ${pockets.length}, subPockets: ${totalSubPockets}, movements: ${totalMovements}`);
-
-    return {
+    const result = {
       account: account.name,
       pockets: pockets.length,
       subPockets: totalSubPockets,
       movements: totalMovements,
     };
+
+    console.log(`🗑️ Deleted account "${result.account}": ${result.pockets} pockets, ${result.subPockets} sub-pockets, ${result.movements} movements ${deleteMovements ? 'deleted' : 'orphaned'}`);
+
+    return result;
   }
 
   // Reorder accounts

@@ -42,7 +42,6 @@ class SubPocketService {
   async getSubPocket(id: string): Promise<SubPocket | null> {
     if (this.useBackend) {
       try {
-        console.log('🔵 Backend API: GET /api/sub-pockets/' + id);
         return await apiClient.get<SubPocket>(`/api/sub-pockets/${id}`);
       } catch (error) {
         console.error('❌ Backend API failed, falling back to Supabase:', error);
@@ -62,7 +61,6 @@ class SubPocketService {
   async getSubPocketsByPocket(pocketId: string): Promise<SubPocket[]> {
     if (this.useBackend) {
       try {
-        console.log('🔵 Backend API: GET /api/sub-pockets?pocketId=' + pocketId);
         return await apiClient.get<SubPocket[]>(`/api/sub-pockets?pocketId=${pocketId}`);
       } catch (error) {
         console.error('❌ Backend API failed, falling back to Supabase:', error);
@@ -139,7 +137,6 @@ class SubPocketService {
   ): Promise<SubPocket> {
     if (this.useBackend) {
       try {
-        console.log('🔵 Backend API: POST /api/sub-pockets', { pocketId, name, valueTotal, periodicityMonths, groupId });
         return await apiClient.post<SubPocket>('/api/sub-pockets', {
           pocketId,
           name,
@@ -231,7 +228,6 @@ class SubPocketService {
   async updateSubPocket(id: string, updates: Partial<Pick<SubPocket, 'name' | 'valueTotal' | 'periodicityMonths'>>): Promise<SubPocket> {
     if (this.useBackend) {
       try {
-        console.log('🔵 Backend API: PUT /api/sub-pockets/' + id, updates);
         return await apiClient.put<SubPocket>(`/api/sub-pockets/${id}`, updates);
       } catch (error) {
         console.error('❌ Backend API failed, falling back to Supabase:', error);
@@ -285,7 +281,6 @@ class SubPocketService {
   async deleteSubPocket(id: string): Promise<void> {
     if (this.useBackend) {
       try {
-        console.log('🔵 Backend API: DELETE /api/sub-pockets/' + id);
         await apiClient.delete(`/api/sub-pockets/${id}`);
         return;
       } catch (error) {
@@ -313,7 +308,6 @@ class SubPocketService {
   async toggleSubPocketEnabled(id: string): Promise<SubPocket> {
     if (this.useBackend) {
       try {
-        console.log('🔵 Backend API: POST /api/sub-pockets/' + id + '/toggle');
         return await apiClient.post<SubPocket>(`/api/sub-pockets/${id}/toggle`);
       } catch (error) {
         console.error('❌ Backend API failed, falling back to Supabase:', error);
@@ -342,7 +336,6 @@ class SubPocketService {
   async moveToGroup(subPocketId: string, groupId: string): Promise<void> {
     if (this.useBackend) {
       try {
-        console.log('🔵 Backend API: POST /api/sub-pockets/' + subPocketId + '/move-to-group', { groupId });
         await apiClient.post(`/api/sub-pockets/${subPocketId}/move-to-group`, { groupId });
         return;
       } catch (error) {
@@ -389,7 +382,6 @@ class SubPocketService {
   async getSubPocketsByGroup(groupId: string): Promise<SubPocket[]> {
     if (this.useBackend) {
       try {
-        console.log('🔵 Backend API: GET /api/sub-pockets?groupId=' + groupId);
         return await apiClient.get<SubPocket[]>(`/api/sub-pockets?groupId=${groupId}`);
       } catch (error) {
         console.error('❌ Backend API failed, falling back to Supabase:', error);

@@ -300,15 +300,21 @@ class MovementService {
     const sharesPocket = pockets.find((p: Pocket) => p.name === 'Shares');
 
     const updates: Partial<Account> = {};
-    if (investedPocket) {
+    const changes: string[] = [];
+    
+    if (investedPocket && investedPocket.balance !== account.montoInvertido) {
       updates.montoInvertido = investedPocket.balance;
+      changes.push(`montoInvertido: ${account.montoInvertido} → ${investedPocket.balance}`);
     }
-    if (sharesPocket) {
+    if (sharesPocket && sharesPocket.balance !== account.shares) {
       updates.shares = sharesPocket.balance;
+      changes.push(`shares: ${account.shares} → ${sharesPocket.balance}`);
     }
 
-    // Update directly - much faster
-    await SupabaseStorageService.updateAccount(accountId, updates);
+    if (changes.length > 0) {
+      console.log(`💰 Syncing investment account "${account.name}": ${changes.join(', ')}`);
+      await SupabaseStorageService.updateAccount(accountId, updates);
+    }
   }
 
   // Create new movement
@@ -324,7 +330,6 @@ class MovementService {
   ): Promise<Movement> {
     if (this.useBackend) {
       try {
-        console.log('🔵 Backend API: POST /api/movements');
         return await apiClient.post<Movement>('/api/movements', {
           type,
           accountId,
@@ -355,7 +360,6 @@ class MovementService {
   ): Promise<{ expense: Movement; income: Movement }> {
     if (this.useBackend) {
       try {
-        console.log('🔵 Backend API: POST /api/movements/transfer');
         return await apiClient.post<{ expense: Movement; income: Movement }>('/api/movements/transfer', {
           sourceAccountId,
           sourcePocketId,
@@ -831,15 +835,17 @@ class MovementService {
 
   // Recalculate ALL pocket balances from movements (excluding pending)
   async recalculateAllPocketBalances(): Promise<void> {
-    console.log(`🔄 [recalculateAllPocketBalances] Starting full recalculation`);
 
     const pocketService = await getPocketService();
     const accountService = await getAccountService();
 
     const pockets = await pocketService.getAllPockets();
-    console.log(`📦 [recalculateAllPocketBalances] Found ${pockets.length} pockets`);
+    let changedCount = 0;
 
     for (const pocket of pockets) {
+      const oldBalance = pocket.balance;
+      let newBalance = 0;
+
       if (pocket.type === 'fixed') {
         // Fixed pockets: calculate from sub-pockets
         const subPocketService = await getSubPocketService();
@@ -857,36 +863,41 @@ class MovementService {
               return sum + (isIncome ? m.amount : -m.amount);
             }, 0);
 
-          await SupabaseStorageService.updateSubPocket(subPocket.id, { balance });
-          console.log(`  ✅ SubPocket ${subPocket.name}: ${balance}`);
+          if (balance !== subPocket.balance) {
+            await SupabaseStorageService.updateSubPocket(subPocket.id, { balance });
+          }
         }
 
         // Now sum sub-pocket balances for the fixed pocket
         const updatedSubPockets = await subPocketService.getSubPocketsByPocket(pocket.id);
-        const pocketBalance = updatedSubPockets.reduce((sum: number, sp: { balance: number }) => sum + sp.balance, 0);
-        await SupabaseStorageService.updatePocket(pocket.id, { balance: pocketBalance });
-        console.log(`✅ Fixed Pocket ${pocket.name}: ${pocketBalance}`);
+        newBalance = updatedSubPockets.reduce((sum: number, sp: { balance: number }) => sum + sp.balance, 0);
+        await SupabaseStorageService.updatePocket(pocket.id, { balance: newBalance });
       } else {
         // Normal pockets: calculate from movements
         const movements = await this.getMovementsByPocket(pocket.id);
 
-        const balance = movements
+        newBalance = movements
           .filter(m => !m.isPending) // Exclude pending
           .reduce((sum, m) => {
             const isIncome = m.type === 'IngresoNormal';
             return sum + (isIncome ? m.amount : -m.amount);
           }, 0);
 
-        await SupabaseStorageService.updatePocket(pocket.id, { balance });
-        console.log(`✅ Pocket ${pocket.name}: ${balance}`);
+        await SupabaseStorageService.updatePocket(pocket.id, { balance: newBalance });
+      }
+
+      if (oldBalance !== newBalance) {
+        changedCount++;
       }
     }
 
     // Recalculate all account balances
-    console.log(`🏦 [recalculateAllPocketBalances] Recalculating account balances`);
     await accountService.recalculateAllBalances();
 
-    console.log(`🎉 [recalculateAllPocketBalances] Complete!`);
+    if (changedCount > 0) {
+      console.log(`🔄 Recalculated ${pockets.length} pockets: ${changedCount} had balance changes`);
+    }
+
   }
 
   // Mark movements as orphaned (soft delete) - FAST, no lookups needed

@@ -469,6 +469,7 @@ export class SupabaseStorageService {
     return {
       primaryCurrency: data.primary_currency,
       alphaVantageApiKey: data.alpha_vantage_api_key,
+      snapshotFrequency: data.snapshot_frequency,
     };
   }
 
@@ -481,6 +482,7 @@ export class SupabaseStorageService {
         user_id: userId,
         primary_currency: settings.primaryCurrency,
         alpha_vantage_api_key: settings.alphaVantageApiKey,
+        snapshot_frequency: settings.snapshotFrequency,
       }, { onConflict: 'user_id' });
 
     if (error) throw error;

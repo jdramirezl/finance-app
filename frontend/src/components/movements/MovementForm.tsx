@@ -222,8 +222,8 @@ const MovementForm = ({
                 type="number"
                 label="Amount"
                 name="amount"
-                placeholder="0.00"
-                step="0.01"
+                placeholder={selectedPocketId && pockets.find(p => p.id === selectedPocketId)?.name === 'Shares' ? '0.000000' : '0.00'}
+                step={selectedPocketId && pockets.find(p => p.id === selectedPocketId)?.name === 'Shares' ? '0.000001' : '0.01'}
                 min="0"
                 required
                 defaultValue={initialData?.amount || defaultValues?.amount}

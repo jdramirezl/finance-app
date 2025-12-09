@@ -8,7 +8,8 @@ export const useAccountMutations = () => {
     const createAccount = useMutation({
         mutationFn: (data: { name: string; color: string; currency: Account['currency']; type?: Account['type']; stockSymbol?: string }) =>
             accountService.createAccount(data.name, data.color, data.currency, data.type, data.stockSymbol),
-        onSuccess: () => {
+        onSuccess: (_, variables) => {
+            console.log(`🏦 Created ${variables.type || 'normal'} account: "${variables.name}" (${variables.currency})`);
             queryClient.invalidateQueries({ queryKey: ['accounts'] });
         },
     });

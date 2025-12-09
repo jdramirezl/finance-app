@@ -149,6 +149,38 @@ const SettingsPage = () => {
       </Card>
 
       <Card className="max-w-2xl">
+        <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">Investment Account Sync</h2>
+        <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+          Sync investment account fields (invested amount and shares) from pocket balances. This fixes stale data in the database.
+        </p>
+
+        <div className="p-4 bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-lg mb-4">
+          <p className="text-sm text-purple-800 dark:text-purple-300">
+            <strong>When to run:</strong> If your investment accounts show incorrect "Total money invested" amounts, or if the account balance doesn't match the market value of your shares.
+          </p>
+        </div>
+
+        <Button
+          variant="primary"
+          onClick={async () => {
+            try {
+              const { syncAllInvestmentAccounts } = await import('../utils/syncInvestmentAccounts');
+              await syncAllInvestmentAccounts();
+              // Invalidate accounts query to reload fresh data
+              queryClient.invalidateQueries({ queryKey: ['accounts'] });
+              toast.success('Investment accounts synced successfully!');
+            } catch (err) {
+              console.error('Sync failed:', err);
+              toast.error('Failed to sync investment accounts');
+            }
+          }}
+        >
+          <RefreshCw className="w-5 h-5" />
+          Sync Investment Accounts
+        </Button>
+      </Card>
+
+      <Card className="max-w-2xl">
         <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">Net Worth Snapshots</h2>
         <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
           Take periodic snapshots of your net worth to visualize your financial progress over time.
@@ -168,7 +200,16 @@ const SettingsPage = () => {
                 name="snapshotFrequency"
                 value={frequency}
                 checked={(settings.snapshotFrequency || 'weekly') === frequency}
-                onChange={() => updateSettingsMutation.mutate({ ...settings, snapshotFrequency: frequency })}
+                onChange={async () => {
+                  try {
+                    await updateSettingsMutation.mutateAsync({ ...settings, snapshotFrequency: frequency });
+                    toast.success(`Snapshot frequency updated to ${frequency}`);
+                  } catch (err) {
+                    console.error('Failed to update snapshot frequency:', err);
+                    toast.error('Failed to update snapshot frequency');
+                  }
+                }}
+                disabled={updateSettingsMutation.isPending}
                 className="w-4 h-4 text-blue-600 dark:text-blue-400"
               />
               <div>

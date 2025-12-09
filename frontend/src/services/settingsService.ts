@@ -20,7 +20,6 @@ class SettingsService {
   async getSettings(): Promise<Settings> {
     if (this.useBackend) {
       try {
-        console.log('🔵 Backend API: GET /api/settings');
         return await apiClient.get<Settings>('/api/settings');
       } catch (error) {
         console.error('❌ Backend API failed, falling back to Supabase:', error);
@@ -46,7 +45,6 @@ class SettingsService {
   async updateSettings(updates: Partial<Settings>): Promise<Settings> {
     if (this.useBackend) {
       try {
-        console.log('🔵 Backend API: PUT /api/settings', updates);
         return await apiClient.put<Settings>('/api/settings', updates);
       } catch (error) {
         console.error('❌ Backend API failed, falling back to Supabase:', error);
