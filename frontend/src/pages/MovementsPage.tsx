@@ -13,7 +13,7 @@ import {
 } from '../hooks/queries';
 import { useToast } from '../hooks/useToast';
 import { useConfirm } from '../hooks/useConfirm';
-import type { Movement, MovementType } from '../types';
+import type { Movement, MovementType, Account, Pocket, SubPocket, MovementTemplate } from '../types';
 import { Plus, Trash2, X } from 'lucide-react';
 import Modal from '../components/Modal';
 import Button from '../components/Button';
@@ -28,17 +28,21 @@ import MovementList from '../components/movements/MovementList';
 import MovementForm from '../components/movements/MovementForm';
 import { format } from 'date-fns';
 
-const EMPTY_ARRAY: any[] = [];
+const EMPTY_ACCOUNTS: Account[] = [];
+const EMPTY_POCKETS: Pocket[] = [];
+const EMPTY_SUBPOCKETS: SubPocket[] = [];
+const EMPTY_MOVEMENTS: Movement[] = [];
+const EMPTY_TEMPLATES: MovementTemplate[] = [];
 
 const MovementsPage = () => {
   // Queries
-  const { data: accounts = EMPTY_ARRAY } = useAccountsQuery();
-  const { data: pockets = EMPTY_ARRAY } = usePocketsQuery();
-  const { data: subPockets = EMPTY_ARRAY } = useSubPocketsQuery();
+  const { data: accounts = EMPTY_ACCOUNTS } = useAccountsQuery();
+  const { data: pockets = EMPTY_POCKETS } = usePocketsQuery();
+  const { data: subPockets = EMPTY_SUBPOCKETS } = useSubPocketsQuery();
   // Load ALL movements (no pagination) - grouping by month happens client-side
-  const { data: movements = EMPTY_ARRAY, isLoading: movementsLoading } = useMovementsQuery();
-  const { data: movementTemplates = EMPTY_ARRAY, isLoading: templatesLoading } = useMovementTemplatesQuery();
-  const { data: orphanedMovementsData = EMPTY_ARRAY } = useOrphanedMovementsQuery();
+  const { data: movements = EMPTY_MOVEMENTS, isLoading: movementsLoading } = useMovementsQuery();
+  const { data: movementTemplates = EMPTY_TEMPLATES, isLoading: templatesLoading } = useMovementTemplatesQuery();
+  const { data: orphanedMovementsData = EMPTY_MOVEMENTS } = useOrphanedMovementsQuery();
 
   // Mutations
   const {
