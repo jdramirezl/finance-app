@@ -11,9 +11,12 @@ A modern web application for managing personal finances with multi-user support,
 - 📊 **Movement Tracking** - Record all transactions with filters
 - 🎯 **Budget Planning** - Plan income distribution
 - 📅 **Fixed Expenses** - Manage recurring expenses
+- 🔔 **Reminders** - Bill payment reminders with recurrence (Daily, Weekly, Monthly, Yearly)
+- 📈 **Net Worth Timeline** - Visual history of your wealth with currency breakdown
+- ⚡ **Real-time Rates** - Async exchange rate fetching for accurate multi-currency totals
 - ⏳ **Pending Movements** - Track future transactions
 - 💱 **Multi-Currency** - Support for USD, MXN, COP, EUR, GBP
-- 📈 **Investment Tracking** - Track stocks and gains
+- 📉 **Investment Tracking** - Track stocks (e.g., VOO) and gains
 - 🌙 **Dark Mode** - Full dark theme support
 
 ## 🚀 Quick Start
@@ -38,10 +41,12 @@ See [QUICK_START.md](./QUICK_START.md) for 25-minute deployment guide!
 - **React 19** + **TypeScript** - UI framework
 - **Vite** - Build tool and dev server
 - **React Router v7** - Client-side routing
+- **TanStack Query v5** - Data fetching & server state
+- **Zustand v5** - Client state management (Theme, UI)
 - **Tailwind CSS v4** - Styling
-- **Zustand** - State management
 - **Lucide React** - Icons
 - **date-fns** - Date utilities
+- **Recharts** - Data visualization
 
 **Backend:**
 - **Supabase** - PostgreSQL database + Authentication
@@ -58,10 +63,10 @@ src/
 ├── components/     # Reusable UI components
 ├── pages/          # Page components (routes)
 ├── services/       # Business logic and API services
-├── store/          # Zustand state stores
+├── store/          # Zustand stores (UI state)
+├── hooks/          # React hooks & TanStack Query hooks
 ├── types/          # TypeScript type definitions
-├── utils/          # Utility functions
-└── hooks/          # Custom React hooks
+└── utils/          # Utility functions
 ```
 
 ## Getting Started
@@ -108,8 +113,10 @@ npm run preview
 - ✅ Monthly movement tracking with advanced filters
 - ✅ Budget planning
 - ✅ Fixed expenses with sub-pockets
-- ✅ Multi-currency support
-- ✅ Investment tracking (VOO)
+- ✅ Smart Reminders system
+- ✅ Net Worth Timeline & Analytics
+- ✅ Multi-currency support with Async Rates
+- ✅ Investment tracking (Real-time stock data)
 - ✅ Pending movements
 - ✅ Dark mode
 - ✅ Multi-user authentication
@@ -121,10 +128,10 @@ npm run preview
 
 - Mobile app (React Native)
 - Export data to CSV/Excel
-- Recurring transactions
+- Recurring transactions (Auto-create)
 - Email notifications
-- Shared accounts
-- Data analytics
+- Shared accounts (Family mode)
+- Advanced Data analytics
 
 ## 💰 Cost
 
