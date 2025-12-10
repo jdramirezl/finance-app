@@ -28,15 +28,17 @@ import MovementList from '../components/movements/MovementList';
 import MovementForm from '../components/movements/MovementForm';
 import { format } from 'date-fns';
 
+const EMPTY_ARRAY: any[] = [];
+
 const MovementsPage = () => {
   // Queries
-  const { data: accounts = [] } = useAccountsQuery();
-  const { data: pockets = [] } = usePocketsQuery();
-  const { data: subPockets = [] } = useSubPocketsQuery();
+  const { data: accounts = EMPTY_ARRAY } = useAccountsQuery();
+  const { data: pockets = EMPTY_ARRAY } = usePocketsQuery();
+  const { data: subPockets = EMPTY_ARRAY } = useSubPocketsQuery();
   // Load ALL movements (no pagination) - grouping by month happens client-side
-  const { data: movements = [], isLoading: movementsLoading } = useMovementsQuery();
-  const { data: movementTemplates = [] } = useMovementTemplatesQuery();
-  const { data: orphanedMovementsData = [] } = useOrphanedMovementsQuery();
+  const { data: movements = EMPTY_ARRAY, isLoading: movementsLoading } = useMovementsQuery();
+  const { data: movementTemplates = EMPTY_ARRAY, isLoading: templatesLoading } = useMovementTemplatesQuery();
+  const { data: orphanedMovementsData = EMPTY_ARRAY } = useOrphanedMovementsQuery();
 
   // Mutations
   const {
@@ -126,9 +128,6 @@ const MovementsPage = () => {
     const action = params.get('action');
 
     if (action === 'new') {
-      setShowForm(true);
-      setEditingMovement(null);
-
       // Handle pre-filled data (e.g. from Reminders)
       const amount = params.get('amount');
       const notes = params.get('notes');
@@ -136,6 +135,14 @@ const MovementsPage = () => {
       const templateId = params.get('templateId');
       const fixedExpenseId = params.get('fixedExpenseId');
       const reminderIdParam = params.get('reminderId');
+
+      // If we have a templateId but templates are still loading, wait.
+      if (templateId && templatesLoading) {
+        return;
+      }
+
+      setShowForm(true);
+      setEditingMovement(null);
 
       if (amount || notes || date || templateId || fixedExpenseId) {
         setDefaultValues({
@@ -179,7 +186,7 @@ const MovementsPage = () => {
       setEditingMovement(null);
       navigate(location.pathname, { replace: true });
     }
-  }, [location.search, navigate, subPockets, pockets, movementTemplates]);
+  }, [location.search, navigate, subPockets, pockets, movementTemplates, templatesLoading]);
 
   // Handlers
   const toggleMonth = (month: string) => {
