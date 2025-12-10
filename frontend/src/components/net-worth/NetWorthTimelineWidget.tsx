@@ -3,7 +3,7 @@
  * Displays a line chart of the user's net worth over time
  */
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { useNetWorthSnapshotsQuery } from '../../hooks/queries/useNetWorthSnapshotQueries';
 import { useSettingsQuery } from '../../hooks/queries';
@@ -24,6 +24,8 @@ const NetWorthTimelineWidget = () => {
     const [showVariation, setShowVariation] = useState(false);
 
     const primaryCurrency = settings?.primaryCurrency || 'USD';
+
+    const [rates, setRates] = useState<Record<string, number>>({});
 
     // Filter snapshots by date range
     const filteredSnapshots = useMemo(() => {
@@ -51,7 +53,7 @@ const NetWorthTimelineWidget = () => {
         return snapshots.filter(s => parseISO(s.snapshotDate) >= startDate);
     }, [snapshots, dateRange]);
 
-    // Get all unique currencies from breakdown for multi-line chart
+    // Get all unique currencies from breakdown
     const currencies = useMemo(() => {
         const allCurrencies = new Set<string>();
         snapshots.forEach(s => {
@@ -59,6 +61,37 @@ const NetWorthTimelineWidget = () => {
         });
         return Array.from(allCurrencies);
     }, [snapshots]);
+
+    // Fetch exchange rates
+    useEffect(() => {
+        const fetchRates = async () => {
+            const newRates: Record<string, number> = {};
+
+            // We need rates for all currencies converting TO primaryCurrency
+            const promises = currencies.map(async (currency) => {
+                if (currency === primaryCurrency) {
+                    newRates[currency] = 1;
+                } else {
+                    try {
+                        // Use async method to ensure we check DB/API
+                        const rate = await currencyService.getExchangeRateAsync(currency as any, primaryCurrency);
+                        newRates[currency] = rate;
+                    } catch (err) {
+                        console.error(`Failed to fetch rate for ${currency}`, err);
+                        // Fallback to sync (mock) if fails
+                        newRates[currency] = currencyService.getExchangeRate(currency as any, primaryCurrency);
+                    }
+                }
+            });
+
+            await Promise.all(promises);
+            setRates(newRates);
+        };
+
+        if (currencies.length > 0) {
+            fetchRates();
+        }
+    }, [currencies, primaryCurrency]);
 
     // Color palette for currencies
     const currencyColors: Record<string, string> = {
@@ -81,6 +114,9 @@ const NetWorthTimelineWidget = () => {
     // Prepare chart data
     const chartData = useMemo(() => {
         if (filteredSnapshots.length === 0) return [];
+        // Wait for rates to be loaded if we have foreign currencies
+        const hasForeignCurrency = currencies.some(c => c !== primaryCurrency);
+        if (hasForeignCurrency && Object.keys(rates).length === 0) return [];
 
         // 1. First pass: Process raw values ensuring everything is in Primary Currency
         const processedSnapshots = filteredSnapshots.map(snapshot => {
@@ -94,7 +130,8 @@ const NetWorthTimelineWidget = () => {
                 Object.entries(snapshot.breakdown).forEach(([currency, value]) => {
                     // ALWAYS convert to primary currency for consistent scaling
                     if (currency !== primaryCurrency) {
-                        const rate = currencyService.getExchangeRate(currency as any, primaryCurrency);
+                        // Use fetched rate or fallback to 1 (shouldn't happen if we wait)
+                        const rate = rates[currency] || 1;
                         data[currency] = value * rate;
                     } else {
                         data[currency] = value;
@@ -136,7 +173,7 @@ const NetWorthTimelineWidget = () => {
         }
 
         return processedSnapshots;
-    }, [filteredSnapshots, viewMode, showVariation, primaryCurrency, currencies]);
+    }, [filteredSnapshots, viewMode, showVariation, primaryCurrency, currencies, rates]);
 
     if (isLoading) {
         return (
