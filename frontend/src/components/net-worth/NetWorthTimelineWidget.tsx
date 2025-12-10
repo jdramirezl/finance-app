@@ -7,6 +7,7 @@ import { useState, useMemo } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { useNetWorthSnapshotsQuery } from '../../hooks/queries/useNetWorthSnapshotQueries';
 import { useSettingsQuery } from '../../hooks/queries';
+import { currencyService } from '../../services/currencyService';
 import Card from '../Card';
 import Button from '../Button';
 import { TrendingUp } from 'lucide-react';
@@ -20,8 +21,11 @@ const NetWorthTimelineWidget = () => {
     const { data: settings } = useSettingsQuery();
     const [viewMode, setViewMode] = useState<ViewMode>('total');
     const [dateRange, setDateRange] = useState<DateRange>('6m');
+    const [isNormalized, setIsNormalized] = useState(false);
 
     const primaryCurrency = settings?.primaryCurrency || 'USD';
+
+    // ... (existing code)
 
     // Filter snapshots by date range
     const filteredSnapshots = useMemo(() => {
@@ -49,16 +53,6 @@ const NetWorthTimelineWidget = () => {
         return snapshots.filter(s => parseISO(s.snapshotDate) >= startDate);
     }, [snapshots, dateRange]);
 
-    // Prepare chart data
-    const chartData = useMemo(() => {
-        return filteredSnapshots.map(snapshot => ({
-            date: format(parseISO(snapshot.snapshotDate), 'MMM d'),
-            fullDate: snapshot.snapshotDate,
-            total: snapshot.totalNetWorth,
-            ...snapshot.breakdown
-        }));
-    }, [filteredSnapshots]);
-
     // Get all unique currencies from breakdown for multi-line chart
     const currencies = useMemo(() => {
         const allCurrencies = new Set<string>();
@@ -85,6 +79,35 @@ const NetWorthTimelineWidget = () => {
             maximumFractionDigits: 0,
         }).format(value);
     };
+
+    // Prepare chart data
+    const chartData = useMemo(() => {
+        return filteredSnapshots.map(snapshot => {
+            const data: any = {
+                date: format(parseISO(snapshot.snapshotDate), 'MMM d'),
+                fullDate: snapshot.snapshotDate,
+                total: snapshot.totalNetWorth,
+            };
+
+            // Process breakdown
+            if (snapshot.breakdown) {
+                Object.entries(snapshot.breakdown).forEach(([currency, value]) => {
+                    if (viewMode === 'breakdown' && isNormalized && currency !== primaryCurrency) {
+                        // Convert to primary currency using CURRENT rate (approximation)
+                        // Ideally we would use historical rate but we don't store it
+                        const rate = currencyService.getExchangeRate(currency as any, primaryCurrency);
+                        data[currency] = value * rate;
+                    } else {
+                        data[currency] = value;
+                    }
+                });
+            }
+
+            return data;
+        });
+    }, [filteredSnapshots, viewMode, isNormalized, primaryCurrency]);
+
+    // ... (existing code)
 
     if (isLoading) {
         return (
@@ -139,18 +162,34 @@ const NetWorthTimelineWidget = () => {
                 </div>
             </div>
 
-            {/* Date Range Selector */}
-            <div className="flex gap-2 mb-4">
-                {(['30d', '6m', '1y', 'all'] as DateRange[]).map(range => (
-                    <Button
-                        key={range}
-                        variant={dateRange === range ? 'primary' : 'ghost'}
-                        size="sm"
-                        onClick={() => setDateRange(range)}
-                    >
-                        {range === '30d' ? '30 Days' : range === '6m' ? '6 Months' : range === '1y' ? '1 Year' : 'All Time'}
-                    </Button>
-                ))}
+            {/* Controls Row */}
+            <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
+                {/* Date Range Selector */}
+                <div className="flex gap-2">
+                    {(['30d', '6m', '1y', 'all'] as DateRange[]).map(range => (
+                        <Button
+                            key={range}
+                            variant={dateRange === range ? 'primary' : 'ghost'}
+                            size="sm"
+                            onClick={() => setDateRange(range)}
+                        >
+                            {range === '30d' ? '30 Days' : range === '6m' ? '6 Months' : range === '1y' ? '1 Year' : 'All Time'}
+                        </Button>
+                    ))}
+                </div>
+
+                {/* Normalization Toggle (only for breakdown) */}
+                {viewMode === 'breakdown' && (
+                    <label className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 cursor-pointer select-none">
+                        <input
+                            type="checkbox"
+                            checked={isNormalized}
+                            onChange={(e) => setIsNormalized(e.target.checked)}
+                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        />
+                        Normalize to {primaryCurrency}
+                    </label>
+                )}
             </div>
 
             {/* Chart */}
@@ -170,7 +209,12 @@ const NetWorthTimelineWidget = () => {
                             className="text-gray-600 dark:text-gray-400"
                         />
                         <Tooltip
-                            formatter={(value: number) => formatCurrency(value)}
+                            formatter={(value: number, name: string) => [
+                                formatCurrency(value),
+                                isNormalized && viewMode === 'breakdown' && name !== primaryCurrency
+                                    ? `${name} (Converted)`
+                                    : name
+                            ]}
                             labelFormatter={(label) => `Date: ${label}`}
                             contentStyle={{
                                 backgroundColor: 'var(--tooltip-bg, #fff)',
@@ -208,7 +252,7 @@ const NetWorthTimelineWidget = () => {
             </div>
 
             {/* Latest Value */}
-            {chartData.length > 0 && (
+            {chartData.length > 0 && viewMode === 'total' && (
                 <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
                     <div className="flex items-center justify-between">
                         <span className="text-sm text-gray-500 dark:text-gray-400">
