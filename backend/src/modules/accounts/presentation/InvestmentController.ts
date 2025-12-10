@@ -18,7 +18,7 @@ export class InvestmentController {
   constructor(
     @inject(GetCurrentStockPriceUseCase) private getCurrentStockPriceUseCase: GetCurrentStockPriceUseCase,
     @inject(UpdateInvestmentAccountUseCase) private updateInvestmentAccountUseCase: UpdateInvestmentAccountUseCase
-  ) {}
+  ) { }
 
   /**
    * Get current stock price for an investment account
@@ -35,11 +35,11 @@ export class InvestmentController {
       }
 
       const { accountId } = req.params;
-      
+
       // Note: In a full implementation, we would fetch the account first to get the stock symbol
       // For now, we'll accept the symbol as a query parameter
       const symbol = req.query.symbol as string;
-      
+
       if (!symbol) {
         res.status(400).json({ error: 'Stock symbol is required' });
         return;
@@ -51,6 +51,7 @@ export class InvestmentController {
         symbol: stockPrice.symbol,
         price: stockPrice.price,
         cachedAt: stockPrice.cachedAt.toISOString(),
+        source: stockPrice.source,
       });
     } catch (error) {
       next(error);
@@ -79,6 +80,7 @@ export class InvestmentController {
         symbol: stockPrice.symbol,
         price: stockPrice.price,
         cachedAt: stockPrice.cachedAt.toISOString(),
+        source: stockPrice.source,
       });
     } catch (error) {
       next(error);
