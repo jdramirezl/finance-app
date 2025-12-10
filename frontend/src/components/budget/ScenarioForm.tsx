@@ -8,6 +8,7 @@ export interface PlanningScenario {
     id: string;
     name: string;
     expenseIds: string[];
+    deductSaved?: boolean;
 }
 
 interface ScenarioFormProps {
@@ -28,6 +29,7 @@ const ScenarioForm = ({
     onCancel
 }: ScenarioFormProps) => {
     const [name, setName] = useState(initialData?.name || '');
+    const [deductSaved, setDeductSaved] = useState(initialData?.deductSaved || false);
     const [selectedIds, setSelectedIds] = useState<Set<string>>(
         new Set(initialData?.expenseIds || [])
     );
@@ -84,8 +86,14 @@ const ScenarioForm = ({
         return fixedSubPockets
             .filter(sp => selectedIds.has(sp.id))
             .reduce((sum, sp) => {
-                // Simple monthly calculation for scenario planning
-                return sum + (sp.valueTotal / sp.periodicityMonths);
+                const aporteMensual = sp.valueTotal / sp.periodicityMonths;
+                if (deductSaved && sp.balance > 0) {
+                    const reduced = Math.max(0, aporteMensual - sp.balance);
+                    // Note: We don't check 'remaining' here for simplicity in the form preview, 
+                    // but it gives a good estimate.
+                    return sum + reduced;
+                }
+                return sum + aporteMensual;
             }, 0);
     };
 
@@ -96,6 +104,7 @@ const ScenarioForm = ({
         onSave({
             id: initialData?.id || crypto.randomUUID(),
             name,
+            deductSaved,
             expenseIds: Array.from(selectedIds)
         });
     };
@@ -121,6 +130,19 @@ const ScenarioForm = ({
                 placeholder="e.g. Bare Minimum, Luxury..."
                 required
             />
+
+            <div className="flex items-center gap-2 p-3 bg-blue-50 dark:bg-blue-900/10 rounded-lg border border-blue-100 dark:border-blue-900/30">
+                <input
+                    type="checkbox"
+                    id="deductSaved"
+                    checked={deductSaved}
+                    onChange={(e) => setDeductSaved(e.target.checked)}
+                    className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                />
+                <label htmlFor="deductSaved" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Deduct saved amounts from required monthly total
+                </label>
+            </div>
 
             <div className="space-y-2 max-h-[60vh] overflow-y-auto pr-2 border rounded-lg p-2 dark:border-gray-700">
                 <div className="text-sm font-medium text-gray-500 dark:text-gray-400 sticky top-0 bg-white dark:bg-gray-800 pb-2 border-b dark:border-gray-700 z-10">

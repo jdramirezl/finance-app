@@ -67,12 +67,22 @@ const BudgetPlanningPage = () => {
   const calculateTotalFijosMes = (): number => {
     let relevantSubPockets: typeof fixedSubPockets = [];
 
+    // Map to track if deduction should apply for a specific expense
+    const expenseDeductionMap = new Map<string, boolean>();
+
     if (activeScenarioIds.size > 0) {
       // If scenarios are active, use union of expenses from scenarios
       const allScenarioExpenseIds = new Set<string>();
+
       scenarios.forEach(s => {
         if (activeScenarioIds.has(s.id)) {
-          s.expenseIds.forEach(id => allScenarioExpenseIds.add(id));
+          s.expenseIds.forEach(id => {
+            allScenarioExpenseIds.add(id);
+            // If ANY active scenario containing this expense has deductSaved enabled, apply it
+            if (s.deductSaved) {
+              expenseDeductionMap.set(id, true);
+            }
+          });
         }
       });
       relevantSubPockets = fixedSubPockets.filter(sp => allScenarioExpenseIds.has(sp.id));
@@ -87,13 +97,31 @@ const BudgetPlanningPage = () => {
     return relevantSubPockets.reduce((sum, sp) => {
       const aporteMensual = sp.valueTotal / sp.periodicityMonths;
       const remaining = sp.valueTotal - sp.balance;
+      const shouldDeduct = expenseDeductionMap.get(sp.id);
 
-      // Case 1: Negative balance - compensate + normal payment
+      // Case 1: Negative balance - compensate + normal payment (Always applies)
       if (sp.balance < 0) {
         return sum + aporteMensual + Math.abs(sp.balance);
       }
 
-      // Case 2: Near completion - min of remaining or normal payment
+      // Case 2: Deduct saved amounts if scenario requested
+      if (shouldDeduct) {
+        // If we have saved more than needed for this month (aporteMensual), we pay 0.
+        // If we have saved some (e.g. 50 saved, 100 needed), we pay 50.
+        // BUT wait, this logic is tricky. 
+        // Logic: Standard contribution is X. 
+        // If I have saved Y in current balance (positive). 
+        // Requirement for this month = max(0, X - Y).
+
+        // This differs from "Near Completion" logic which looks at TOTAL remaining.
+        // Let's combine them: We never need to pay more than TOTAL remaining.
+        // And if we deduct savings, we reduce the monthly payment by current savings.
+
+        const reducedPayment = Math.max(0, aporteMensual - sp.balance);
+        return sum + Math.min(remaining, reducedPayment);
+      }
+
+      // Case 3: Near completion - min of remaining or normal payment (Default behavior)
       if (remaining < aporteMensual) {
         return sum + remaining;
       }
@@ -239,7 +267,16 @@ const BudgetPlanningPage = () => {
               // Calculate scenario total
               const scenarioTotal = fixedSubPockets
                 .filter(sp => scenario.expenseIds.includes(sp.id))
-                .reduce((sum, sp) => sum + (sp.valueTotal / sp.periodicityMonths), 0);
+                .reduce((sum, sp) => {
+                  const aporteMensual = sp.valueTotal / sp.periodicityMonths;
+                  if (scenario.deductSaved && sp.balance > 0) {
+                    const reduced = Math.max(0, aporteMensual - sp.balance);
+                    // Determine remaining total amount (cap)
+                    const remaining = sp.valueTotal - sp.balance;
+                    return sum + Math.min(remaining, reduced);
+                  }
+                  return sum + aporteMensual;
+                }, 0);
 
               return (
                 <div
@@ -272,8 +309,13 @@ const BudgetPlanningPage = () => {
                   <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">
                     {currencyService.formatCurrency(scenarioTotal, budgetCurrency)}
                   </div>
-                  <p className="text-xs text-gray-500 mt-1">
-                    {scenario.expenseIds.length} expenses included
+                  <p className="text-xs text-gray-500 mt-1 flex items-center justify-between">
+                    <span>{scenario.expenseIds.length} expenses included</span>
+                    {scenario.deductSaved && (
+                      <span className="text-[10px] bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 px-1.5 py-0.5 rounded border border-green-200 dark:border-green-800">
+                        Savings Deducted
+                      </span>
+                    )}
                   </p>
                 </div>
               );
