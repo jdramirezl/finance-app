@@ -21,11 +21,9 @@ const NetWorthTimelineWidget = () => {
     const { data: settings } = useSettingsQuery();
     const [viewMode, setViewMode] = useState<ViewMode>('total');
     const [dateRange, setDateRange] = useState<DateRange>('6m');
-    const [isNormalized, setIsNormalized] = useState(false);
+    const [showVariation, setShowVariation] = useState(false);
 
     const primaryCurrency = settings?.primaryCurrency || 'USD';
-
-    // ... (existing code)
 
     // Filter snapshots by date range
     const filteredSnapshots = useMemo(() => {
@@ -82,19 +80,20 @@ const NetWorthTimelineWidget = () => {
 
     // Prepare chart data
     const chartData = useMemo(() => {
-        return filteredSnapshots.map(snapshot => {
+        if (filteredSnapshots.length === 0) return [];
+
+        // 1. First pass: Process raw values ensuring everything is in Primary Currency
+        const processedSnapshots = filteredSnapshots.map(snapshot => {
             const data: any = {
                 date: format(parseISO(snapshot.snapshotDate), 'MMM d'),
                 fullDate: snapshot.snapshotDate,
                 total: snapshot.totalNetWorth,
             };
 
-            // Process breakdown
             if (snapshot.breakdown) {
                 Object.entries(snapshot.breakdown).forEach(([currency, value]) => {
-                    if (viewMode === 'breakdown' && isNormalized && currency !== primaryCurrency) {
-                        // Convert to primary currency using CURRENT rate (approximation)
-                        // Ideally we would use historical rate but we don't store it
+                    // ALWAYS convert to primary currency for consistent scaling
+                    if (currency !== primaryCurrency) {
                         const rate = currencyService.getExchangeRate(currency as any, primaryCurrency);
                         data[currency] = value * rate;
                     } else {
@@ -102,12 +101,42 @@ const NetWorthTimelineWidget = () => {
                     }
                 });
             }
-
             return data;
         });
-    }, [filteredSnapshots, viewMode, isNormalized, primaryCurrency]);
 
-    // ... (existing code)
+        // 2. Second pass: Calculate variation if enabled
+        if (showVariation) {
+            const baseline = processedSnapshots[0];
+            return processedSnapshots.map(snapshot => {
+                const variationData: any = {
+                    date: snapshot.date,
+                    fullDate: snapshot.fullDate,
+                    total: baseline.total !== 0
+                        ? ((snapshot.total - baseline.total) / Math.abs(baseline.total)) * 100
+                        : 0,
+                    // Store original total for tooltip
+                    total_original: snapshot.total,
+                };
+
+                // Process currencies
+                if (viewMode === 'breakdown') {
+                    currencies.forEach(currency => {
+                        const baseVal = baseline[currency] || 0;
+                        const currentVal = snapshot[currency] || 0;
+                        variationData[currency] = baseVal !== 0
+                            ? ((currentVal - baseVal) / Math.abs(baseVal)) * 100
+                            : 0;
+                        // Store original value for tooltip
+                        variationData[`${currency}_original`] = currentVal;
+                    });
+                }
+
+                return variationData;
+            });
+        }
+
+        return processedSnapshots;
+    }, [filteredSnapshots, viewMode, showVariation, primaryCurrency, currencies]);
 
     if (isLoading) {
         return (
@@ -178,18 +207,16 @@ const NetWorthTimelineWidget = () => {
                     ))}
                 </div>
 
-                {/* Normalization Toggle (only for breakdown) */}
-                {viewMode === 'breakdown' && (
-                    <label className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 cursor-pointer select-none">
-                        <input
-                            type="checkbox"
-                            checked={isNormalized}
-                            onChange={(e) => setIsNormalized(e.target.checked)}
-                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                        />
-                        Normalize to {primaryCurrency}
-                    </label>
-                )}
+                {/* Variation Toggle (Available for both modes) */}
+                <label className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 cursor-pointer select-none">
+                    <input
+                        type="checkbox"
+                        checked={showVariation}
+                        onChange={(e) => setShowVariation(e.target.checked)}
+                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    Show Variation (%)
+                </label>
             </div>
 
             {/* Chart */}
@@ -203,18 +230,26 @@ const NetWorthTimelineWidget = () => {
                             className="text-gray-600 dark:text-gray-400"
                         />
                         <YAxis
-                            tickFormatter={formatCurrency}
+                            tickFormatter={(value) => showVariation ? `${value.toFixed(0)}%` : formatCurrency(value)}
                             tick={{ fontSize: 12 }}
-                            width={80}
+                            width={showVariation ? 50 : 80}
                             className="text-gray-600 dark:text-gray-400"
+                            domain={showVariation ? [-100, 100] : ['auto', 'auto']}
                         />
                         <Tooltip
-                            formatter={(value: number, name: string) => [
-                                formatCurrency(value),
-                                isNormalized && viewMode === 'breakdown' && name !== primaryCurrency
-                                    ? `${name} (Converted)`
-                                    : name
-                            ]}
+                            formatter={(value: number, name: string, entry: any) => {
+                                if (showVariation) {
+                                    // Retrieve original value from payload
+                                    // Key format: "currency_original" or "total_original"
+                                    const originalKey = name === 'Net Worth' ? 'total_original' : `${name}_original`;
+                                    const originalValue = entry.payload[originalKey];
+                                    return [
+                                        `${value.toFixed(2)}% (${originalValue !== undefined ? formatCurrency(originalValue) : 'N/A'})`,
+                                        name
+                                    ];
+                                }
+                                return [formatCurrency(value), name];
+                            }}
                             labelFormatter={(label) => `Date: ${label}`}
                             contentStyle={{
                                 backgroundColor: 'var(--tooltip-bg, #fff)',
