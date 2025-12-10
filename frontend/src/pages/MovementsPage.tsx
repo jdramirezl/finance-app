@@ -74,6 +74,11 @@ const MovementsPage = () => {
   // Form State
   const [selectedAccountId, setSelectedAccountId] = useState<string>('');
   const [selectedPocketId, setSelectedPocketId] = useState<string>('');
+  // New state for type and subPocket
+  const [selectedSubPocketId, setSelectedSubPocketId] = useState<string>('');
+  const [selectedType, setSelectedType] = useState<MovementType>('EgresoNormal');
+  const [amount, setAmount] = useState<string>('');
+  const [notes, setNotes] = useState<string>('');
   const [isFixedExpense, setIsFixedExpense] = useState(false);
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
   const [saveAsTemplate, setSaveAsTemplate] = useState(false);
@@ -203,6 +208,9 @@ const MovementsPage = () => {
     if (!templateId) {
       setSelectedAccountId('');
       setSelectedPocketId('');
+      setSelectedSubPocketId('');
+      setAmount('');
+      setNotes('');
       setIsFixedExpense(false);
       return;
     }
@@ -212,7 +220,27 @@ const MovementsPage = () => {
 
     setSelectedAccountId(template.accountId);
     setSelectedPocketId(template.pocketId);
+    setSelectedSubPocketId(template.subPocketId || '');
+    setSelectedType(template.type);
+    setAmount(template.defaultAmount ? template.defaultAmount.toString() : '');
+    setNotes(template.notes || '');
     setIsFixedExpense(template.type === 'IngresoFijo' || template.type === 'EgresoFijo');
+  };
+
+  const resetFormState = () => {
+    setShowForm(false);
+    setEditingMovement(null);
+    setSelectedAccountId('');
+    setSelectedPocketId('');
+    setSelectedSubPocketId('');
+    setSelectedType('EgresoNormal');
+    setAmount('');
+    setNotes('');
+    setIsFixedExpense(false);
+    setSelectedTemplateId('');
+    setSaveAsTemplate(false);
+    setTemplateName('');
+    setDefaultValues({});
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -233,11 +261,7 @@ const MovementsPage = () => {
 
     try {
       if (editingMovement) {
-        setEditingMovement(null);
-        setShowForm(false);
-        setSelectedAccountId('');
-        setSelectedPocketId('');
-        setIsFixedExpense(false);
+        resetFormState();
 
         await updateMovement.mutateAsync({
           id: editingMovement.id,
@@ -246,10 +270,7 @@ const MovementsPage = () => {
         toast.success('Movement updated successfully!');
       } else {
         form.reset();
-        setShowForm(false);
-        setSelectedAccountId('');
-        setSelectedPocketId('');
-        setIsFixedExpense(false);
+        resetFormState();
 
         const isTransfer = formData.get('isTransfer') === 'true';
 
@@ -427,6 +448,8 @@ const MovementsPage = () => {
               setEditingMovement(null);
               setSelectedAccountId('');
               setSelectedPocketId('');
+              setSelectedSubPocketId('');
+              setSelectedType('EgresoNormal');
               setIsFixedExpense(false);
             }}
             className="hidden md:flex"
@@ -662,6 +685,10 @@ const MovementsPage = () => {
         onEdit={(movement) => {
           setEditingMovement(movement);
           setSelectedAccountId(movement.accountId);
+          setSelectedSubPocketId(movement.subPocketId || '');
+          setSelectedType(movement.type);
+          setAmount(movement.amount.toString());
+          setNotes(movement.notes || '');
           const pocket = pockets.filter(p => p.accountId === movement.accountId).find(p => p.id === movement.pocketId);
           if (pocket) {
             setSelectedPocketId(movement.pocketId);
@@ -677,19 +704,23 @@ const MovementsPage = () => {
 
       <Modal
         isOpen={showForm}
-        onClose={() => setShowForm(false)}
+        onClose={resetFormState}
         title={editingMovement ? 'Edit Movement' : 'New Movement'}
         size="lg"
       >
         <MovementForm
           initialData={editingMovement}
           onSubmit={handleSubmit}
-          onCancel={() => setShowForm(false)}
+          onCancel={resetFormState}
           isSaving={isSaving}
           selectedAccountId={selectedAccountId}
           setSelectedAccountId={setSelectedAccountId}
           selectedPocketId={selectedPocketId}
           setSelectedPocketId={setSelectedPocketId}
+          selectedSubPocketId={selectedSubPocketId}
+          setSelectedSubPocketId={setSelectedSubPocketId}
+          selectedType={selectedType}
+          setSelectedType={setSelectedType}
           isFixedExpense={isFixedExpense}
           setIsFixedExpense={setIsFixedExpense}
           saveAsTemplate={saveAsTemplate}
@@ -699,6 +730,10 @@ const MovementsPage = () => {
           selectedTemplateId={selectedTemplateId}
           onTemplateSelect={handleTemplateSelect}
           defaultValues={defaultValues}
+          amount={amount}
+          setAmount={setAmount}
+          notes={notes}
+          setNotes={setNotes}
         />
       </Modal>
 
