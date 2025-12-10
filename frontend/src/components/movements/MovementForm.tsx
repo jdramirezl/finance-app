@@ -203,7 +203,7 @@ const MovementForm = ({
                         }}
                         options={[
                             { value: '', label: 'Select Target Account' },
-                            ...accounts.filter(a => a.id !== selectedAccountId).map(acc => ({ value: acc.id, label: acc.name }))
+                            ...accounts.map(acc => ({ value: acc.id, label: acc.name }))
                         ]}
                     />
 
@@ -215,7 +215,9 @@ const MovementForm = ({
                         onChange={(e) => setTargetPocketId(e.target.value)}
                         options={[
                             { value: '', label: 'Select Target Pocket' },
-                            ...availableTargetPockets.map(p => ({ value: p.id, label: p.name }))
+                            ...availableTargetPockets
+                                .filter(p => !selectedPocketId || p.id !== selectedPocketId) // Prevent transferring to same pocket
+                                .map(p => ({ value: p.id, label: p.name }))
                         ]}
                         disabled={!targetAccountId}
                     />
