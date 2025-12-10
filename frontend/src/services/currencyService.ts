@@ -4,26 +4,27 @@ import { supabase } from '../lib/supabase';
 import { apiClient } from './apiClient';
 
 // Mock exchange rates (fallback if API fails)
+// Mock exchange rates (fallback if API fails) - Updated Dec 2025
 const MOCK_EXCHANGE_RATES: Record<string, number> = {
-  'USD_MXN': 17.0,
-  'USD_COP': 4100.0,
+  'USD_MXN': 18.26,
+  'USD_COP': 3830.0,
   'USD_EUR': 0.92,
   'USD_GBP': 0.79,
-  'MXN_USD': 1 / 17.0,
-  'MXN_COP': 4100.0 / 17.0,
-  'MXN_EUR': 0.92 / 17.0,
-  'MXN_GBP': 0.79 / 17.0,
-  'COP_USD': 1 / 4100.0,
-  'COP_MXN': 17.0 / 4100.0,
-  'COP_EUR': 0.92 / 4100.0,
-  'COP_GBP': 0.79 / 4100.0,
+  'MXN_USD': 1 / 18.26,
+  'MXN_COP': 3830.0 / 18.26,
+  'MXN_EUR': 0.92 / 18.26,
+  'MXN_GBP': 0.79 / 18.26,
+  'COP_USD': 1 / 3830.0,
+  'COP_MXN': 18.26 / 3830.0,
+  'COP_EUR': 0.92 / 3830.0,
+  'COP_GBP': 0.79 / 3830.0,
   'EUR_USD': 1 / 0.92,
-  'EUR_MXN': 17.0 / 0.92,
-  'EUR_COP': 4100.0 / 0.92,
+  'EUR_MXN': 18.26 / 0.92,
+  'EUR_COP': 3830.0 / 0.92,
   'EUR_GBP': 0.79 / 0.92,
   'GBP_USD': 1 / 0.79,
-  'GBP_MXN': 17.0 / 0.79,
-  'GBP_COP': 4100.0 / 0.79,
+  'GBP_MXN': 18.26 / 0.79,
+  'GBP_COP': 3830.0 / 0.79,
   'GBP_EUR': 0.92 / 0.79,
 };
 
