@@ -4,13 +4,18 @@ import { useUpdateSettings } from '../hooks/mutations';
 import { currencyService } from '../services/currencyService';
 import { movementService } from '../services/movementService';
 import { accountService } from '../services/accountService';
+import { pocketService } from '../services/pocketService';
+import { subPocketService } from '../services/subPocketService';
+import { StorageService } from '../services/storageService';
 import type { Currency } from '../types';
 import Card from '../components/Card';
 import Button from '../components/Button';
-import { RefreshCw } from 'lucide-react';
+import { RefreshCw, Download } from 'lucide-react';
 import { migrateOrphanedMovements } from '../utils/migrateOrphanedMovements';
 import { useToast } from '../hooks/useToast';
 import { useQueryClient } from '@tanstack/react-query';
+import DebugStockPrice from '../components/settings/DebugStockPrice';
+import DebugExchangeRate from '../components/settings/DebugExchangeRate';
 
 const SettingsPage = () => {
   // TanStack Query hooks
@@ -21,6 +26,7 @@ const SettingsPage = () => {
   const toast = useToast();
   const [isMigrating, setIsMigrating] = useState(false);
   const [isRecalculating, setIsRecalculating] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
 
   const currencies: Currency[] = ['USD', 'MXN', 'COP', 'EUR', 'GBP'];
 
@@ -69,6 +75,51 @@ const SettingsPage = () => {
       toast.error('Failed to recalculate balances');
     } finally {
       setIsRecalculating(false);
+    }
+  };
+
+  const handleExportData = async () => {
+    setIsExporting(true);
+    try {
+      // Fetch all data
+      // Note: We access services directly to get fresh data
+      const accounts = await accountService.getAllAccounts();
+      const pockets = await pocketService.getAllPockets();
+      const subPockets = await subPocketService.getAllSubPockets();
+      const movements = await movementService.getAllMovements(); // This might need pagination handling if very large
+      const budgetPlanning = StorageService.getBudgetPlanning();
+
+      const exportData = {
+        meta: {
+          version: '1.0',
+          exportDate: new Date().toISOString(),
+          app: 'FinanceApp'
+        },
+        settings,
+        accounts,
+        pockets,
+        subPockets,
+        movements,
+        budgetPlanning
+      };
+
+      // Create blob and download
+      const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `finance_app_backup_${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      toast.success(`Exported ${movements.length} movements and all data successfully`);
+    } catch (err) {
+      console.error('Export failed:', err);
+      toast.error('Failed to export data');
+    } finally {
+      setIsExporting(false);
     }
   };
 
@@ -126,58 +177,95 @@ const SettingsPage = () => {
       </Card>
 
       <Card className="max-w-2xl">
-        <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">Balance Recalculation</h2>
-        <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-          Recalculate all account and pocket balances from movements. This will fix any incorrect balances caused by pending movements being included.
-        </p>
-
-        <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg mb-4">
-          <p className="text-sm text-yellow-800 dark:text-yellow-300">
-            <strong>When to run:</strong> If you see incorrect balances in your accounts or pockets, especially negative balances where they shouldn't be. This will exclude pending movements from calculations.
-          </p>
+        <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">Debug Tools</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <DebugStockPrice />
+          <DebugExchangeRate />
         </div>
-
-        <Button
-          variant="primary"
-          onClick={handleRecalculateBalances}
-          loading={isRecalculating}
-          disabled={isRecalculating}
-        >
-          <RefreshCw className="w-5 h-5" />
-          Recalculate All Balances
-        </Button>
       </Card>
 
       <Card className="max-w-2xl">
-        <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">Investment Account Sync</h2>
-        <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-          Sync investment account fields (invested amount and shares) from pocket balances. This fixes stale data in the database.
-        </p>
+        <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">Data Management</h2>
 
-        <div className="p-4 bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-lg mb-4">
-          <p className="text-sm text-purple-800 dark:text-purple-300">
-            <strong>When to run:</strong> If your investment accounts show incorrect "Total money invested" amounts, or if the account balance doesn't match the market value of your shares.
-          </p>
+        <div className="space-y-6">
+          <div>
+            <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">Export Data</h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+              Download a JSON file containing all your data (accounts, pockets, movements, settings, and budget scenarios).
+            </p>
+            <Button
+              variant="secondary"
+              onClick={handleExportData}
+              loading={isExporting}
+              disabled={isExporting}
+            >
+              <Download className="w-5 h-5" />
+              Export to JSON
+            </Button>
+          </div>
+
+          <hr className="border-gray-200 dark:border-gray-700" />
+
+          <div>
+            <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">Balance Recalculation</h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+              Recalculate all account and pocket balances. Run this if you see incorrect balances.
+            </p>
+            <Button
+              variant="primary"
+              onClick={handleRecalculateBalances}
+              loading={isRecalculating}
+              disabled={isRecalculating}
+            >
+              <RefreshCw className="w-5 h-5" />
+              Recalculate All Balances
+            </Button>
+          </div>
+
+          <hr className="border-gray-200 dark:border-gray-700" />
+
+          <div>
+            <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">Sync Investments</h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+              Sync investment account fields with pocket balances.
+            </p>
+            <Button
+              variant="primary"
+              onClick={async () => {
+                try {
+                  const { syncAllInvestmentAccounts } = await import('../utils/syncInvestmentAccounts');
+                  await syncAllInvestmentAccounts();
+                  queryClient.invalidateQueries({ queryKey: ['accounts'] });
+                  toast.success('Investment accounts synced successfully!');
+                } catch (err) {
+                  console.error('Sync failed:', err);
+                  toast.error('Failed to sync investment accounts');
+                }
+              }}
+            >
+              <RefreshCw className="w-5 h-5" />
+              Sync Investment Accounts
+            </Button>
+          </div>
+
+          <hr className="border-gray-200 dark:border-gray-700" />
+
+          <div>
+            <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">Data Migration</h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+              Scan for orphaned movements (movements belonging to deleted accounts/pockets).
+            </p>
+            <Button
+              variant="primary"
+              onClick={handleMigrateOrphans}
+              loading={isMigrating}
+              disabled={isMigrating}
+            >
+              <RefreshCw className="w-5 h-5" />
+              Migrate Orphaned Movements
+            </Button>
+          </div>
         </div>
-
-        <Button
-          variant="primary"
-          onClick={async () => {
-            try {
-              const { syncAllInvestmentAccounts } = await import('../utils/syncInvestmentAccounts');
-              await syncAllInvestmentAccounts();
-              // Invalidate accounts query to reload fresh data
-              queryClient.invalidateQueries({ queryKey: ['accounts'] });
-              toast.success('Investment accounts synced successfully!');
-            } catch (err) {
-              console.error('Sync failed:', err);
-              toast.error('Failed to sync investment accounts');
-            }
-          }}
-        >
-          <RefreshCw className="w-5 h-5" />
-          Sync Investment Accounts
-        </Button>
       </Card>
 
       <Card className="max-w-2xl">
@@ -191,8 +279,8 @@ const SettingsPage = () => {
             <label
               key={frequency}
               className={`flex items-center gap-3 p-4 border-2 rounded-lg cursor-pointer transition-all ${(settings.snapshotFrequency || 'weekly') === frequency
-                  ? 'border-blue-500 dark:border-blue-400 bg-blue-50 dark:bg-blue-900/30'
-                  : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+                ? 'border-blue-500 dark:border-blue-400 bg-blue-50 dark:bg-blue-900/30'
+                : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
                 }`}
             >
               <input
@@ -224,29 +312,6 @@ const SettingsPage = () => {
             </label>
           ))}
         </div>
-      </Card>
-
-      <Card className="max-w-2xl">
-        <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">Data Migration</h2>
-        <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-          Run this migration once to mark existing orphaned movements. This will scan all movements and flag any that belong to deleted accounts or pockets.
-        </p>
-
-        <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg mb-4">
-          <p className="text-sm text-blue-800 dark:text-blue-300">
-            <strong>When to run:</strong> After upgrading to the new orphaned movements system, or if you notice movements that should be hidden but aren't.
-          </p>
-        </div>
-
-        <Button
-          variant="primary"
-          onClick={handleMigrateOrphans}
-          loading={isMigrating}
-          disabled={isMigrating}
-        >
-          <RefreshCw className="w-5 h-5" />
-          Migrate Orphaned Movements
-        </Button>
       </Card>
     </div>
   );

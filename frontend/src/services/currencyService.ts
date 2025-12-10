@@ -47,7 +47,7 @@ class CurrencyService {
     } else {
       console.log('📦 CurrencyService: Using DIRECT Supabase calls');
     }
-    
+
     // Test conversion rates on initialization
     this.testConversionRates();
   }
@@ -55,7 +55,7 @@ class CurrencyService {
   private async testConversionRates() {
     try {
       const testCurrencies: Currency[] = ['MXN', 'COP', 'EUR', 'GBP'];
-      
+
       for (const currency of testCurrencies) {
         await this.convert(1, 'USD', currency);
       }
@@ -80,13 +80,13 @@ class CurrencyService {
   getExchangeRate(from: Currency, to: Currency): number {
     if (from === to) return 1;
     const key = `${from}_${to}`;
-    
+
     // Check cache first
     const cached = this.cache.get(key);
     if (cached && Date.now() - cached.timestamp < this.CACHE_DURATION) {
       return cached.rate;
     }
-    
+
     // Fallback to mock rates
     return MOCK_EXCHANGE_RATES[key] || 1;
   }
@@ -94,7 +94,7 @@ class CurrencyService {
   // Get exchange rate with real API (async version)
   async getExchangeRateAsync(from: Currency, to: Currency): Promise<number> {
     if (from === to) return 1;
-    
+
     if (this.useBackend) {
       try {
         return await this.getExchangeRateFromBackend(from, to);
@@ -103,7 +103,7 @@ class CurrencyService {
         return await this.getExchangeRateAsyncDirect(from, to);
       }
     }
-    
+
     return await this.getExchangeRateAsyncDirect(from, to);
   }
 
@@ -118,7 +118,7 @@ class CurrencyService {
   // Direct implementation (fallback)
   private async getExchangeRateAsyncDirect(from: Currency, to: Currency): Promise<number> {
     if (from === to) return 1;
-    
+
     if (!this.useRealAPI) {
       return this.getExchangeRate(from, to);
     }
@@ -149,16 +149,16 @@ class CurrencyService {
     // 3. Fetch from API (slowest, updates DB)
     try {
       const rate = await this.fetchFromAPI(from, to);
-      
+
       // Save to database
       await this.saveToDatabase(from, to, rate);
-      
+
       // Cache locally
       this.cache.set(cacheKey, {
         rate,
         timestamp: Date.now(),
       });
-      
+
       return rate;
     } catch (err) {
       console.warn(`💱 Currency API unavailable for ${from}→${to}, using mock rate`, err);
@@ -170,7 +170,7 @@ class CurrencyService {
   // Get rate from database
   private async getFromDatabase(from: string, to: string): Promise<number | null> {
     const id = `${from}_${to}`;
-    
+
     try {
       const { data, error } = await supabase
         .from('exchange_rates')
@@ -185,7 +185,7 @@ class CurrencyService {
       const lastUpdated = new Date(data.last_updated).getTime();
       const now = Date.now();
       const ageHours = Math.round((now - lastUpdated) / 1000 / 60 / 60);
-      
+
       if (now - lastUpdated > this.CACHE_DURATION) {
         if (ageHours > 24) {
           console.warn(`💱 Exchange rate ${from}→${to} is stale (${ageHours}h old), fetching fresh rate`);
@@ -229,14 +229,14 @@ class CurrencyService {
   private async fetchFromAPI(from: string, to: string): Promise<number> {
     // Exchange API supports all currencies as base
     const url = `${this.API_ENDPOINT}?base=${from}&currencies=${to}`;
-    
+
     const response = await fetch(url);
     if (!response.ok) {
       throw new Error(`API error: ${response.status} ${response.statusText}`);
     }
 
     const data = await response.json();
-    
+
     if (!data.rates || !data.rates[to]) {
       throw new Error(`No rate found for ${from} -> ${to}`);
     }
@@ -261,26 +261,26 @@ class CurrencyService {
 
   // Test method - call from console to verify API works
   async testAPI(): Promise<void> {
-    
+
     try {
       // Clear local cache
       this.cache.clear();
-      
+
       // Test fetching USD -> MXN (will hit API since cache is cleared)
       await this.fetchFromAPI('USD', 'MXN');
-      
+
       // Test fetching USD -> COP
       await this.fetchFromAPI('USD', 'COP');
-      
+
       // Now test the full flow with caching
       await this.getExchangeRateAsync('USD', 'MXN');
       await this.getExchangeRateAsync('USD', 'COP');
-      
+
       // Test conversions
       await this.convert(100, 'USD', 'MXN');
-      
+
       await this.convert(100, 'USD', 'COP');
-      
+
     } catch (err) {
       console.error('❌ Test failed:', err);
     }
@@ -293,7 +293,7 @@ class CurrencyService {
       console.warn('⚠️ Invalid convert parameters:', { amount, from, to });
       return amount || 0;
     }
-    
+
     if (this.useBackend) {
       try {
         return await this.convertFromBackend(amount, from, to);
@@ -302,7 +302,7 @@ class CurrencyService {
         return await this.convertDirect(amount, from, to);
       }
     }
-    
+
     return await this.convertDirect(amount, from, to);
   }
 
@@ -323,6 +323,25 @@ class CurrencyService {
   private async convertDirect(amount: number, from: Currency, to: Currency): Promise<number> {
     const rate = await this.getExchangeRateAsync(from, to);
     return amount * rate;
+  }
+
+  // Debug: Get full rate details with source
+  async getDebugRate(from: Currency, to: Currency): Promise<{ from: string; to: string; rate: number; cachedAt: string; source?: string }> {
+    if (this.useBackend) {
+      return await apiClient.get<{ from: string; to: string; rate: number; cachedAt: string; source?: string }>(
+        `/api/currency/rates?from=${from}&to=${to}`
+      );
+    }
+
+    // Mock response for direct mode
+    const rate = await this.getExchangeRateAsync(from, to);
+    return {
+      from,
+      to,
+      rate,
+      cachedAt: new Date().toISOString(),
+      source: 'client-side (legacy)'
+    };
   }
 
   // Clear cache (useful for testing)
