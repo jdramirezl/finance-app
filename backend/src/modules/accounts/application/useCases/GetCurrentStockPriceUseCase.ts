@@ -22,7 +22,7 @@ export class GetCurrentStockPriceUseCase {
   constructor(
     @inject('StockPriceRepository') private stockPriceRepo: IStockPriceRepository,
     @inject('AlphaVantageService') private alphaVantageService: IAlphaVantageService
-  ) {}
+  ) { }
 
   /**
    * Execute the use case
@@ -37,20 +37,21 @@ export class GetCurrentStockPriceUseCase {
     // 1. Check local cache first (Requirements 13.2)
     const localCached = this.localCache.get(normalizedSymbol);
     if (localCached && localCached.isFresh()) {
-      return localCached;
+      return new StockPrice(localCached.symbol, localCached.price, localCached.cachedAt, 'cache');
     }
 
     // 2. Check database cache (Requirements 13.3)
     const dbCached = await this.stockPriceRepo.findBySymbol(normalizedSymbol);
     if (dbCached && dbCached.isFresh()) {
+      const stockPriceDb = new StockPrice(dbCached.symbol, dbCached.price, dbCached.cachedAt, 'db');
       // Update local cache
-      this.localCache.set(normalizedSymbol, dbCached);
-      return dbCached;
+      this.localCache.set(normalizedSymbol, stockPriceDb);
+      return stockPriceDb;
     }
 
     // 3. Fetch from API (Requirements 13.4)
     const currentPrice = await this.alphaVantageService.fetchStockPrice(normalizedSymbol);
-    const stockPrice = new StockPrice(normalizedSymbol, currentPrice, new Date());
+    const stockPrice = new StockPrice(normalizedSymbol, currentPrice, new Date(), 'api');
 
     // Cache in both locations
     await this.stockPriceRepo.save(stockPrice);

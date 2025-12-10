@@ -24,7 +24,7 @@ export class GetExchangeRateUseCase {
   constructor(
     @inject('ExchangeRateRepository') private exchangeRateRepository: IExchangeRateRepository,
     @inject('ExchangeRateAPIService') private exchangeRateAPIService: IExchangeRateAPIService
-  ) {}
+  ) { }
 
   /**
    * Execute the use case
@@ -42,7 +42,7 @@ export class GetExchangeRateUseCase {
 
     // Step 1: Check database cache with 24-hour expiration
     const cachedRate = await this.exchangeRateRepository.findRate(fromCurrency, toCurrency);
-    
+
     if (cachedRate && cachedRate.isValid()) {
       // Cache hit - return cached rate
       return ExchangeRateMapper.toDTO(cachedRate);
@@ -52,7 +52,7 @@ export class GetExchangeRateUseCase {
     const rateValue = await this.exchangeRateAPIService.fetchRate(fromCurrency, toCurrency);
 
     // Step 3: Create exchange rate value object and cache it
-    const exchangeRate = new ExchangeRate(fromCurrency, toCurrency, rateValue, new Date());
+    const exchangeRate = new ExchangeRate(fromCurrency, toCurrency, rateValue, new Date(), 'api');
     await this.exchangeRateRepository.saveRate(exchangeRate);
 
     // Return DTO

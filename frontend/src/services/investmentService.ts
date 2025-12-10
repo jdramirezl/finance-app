@@ -20,6 +20,7 @@ interface BackendStockPriceResponse {
     symbol: string;
     price: number;
     cachedAt: string;
+    source?: string;
 }
 
 const CACHE_DURATION = 15 * 60 * 1000; // 15 minutes in milliseconds
@@ -28,7 +29,7 @@ const API_RATE_LIMIT_MINUTES = 15; // Global rate limit across all devices
 class InvestmentService {
     // Feature flag to control backend usage
     private useBackend = import.meta.env.VITE_USE_BACKEND_INVESTMENTS === 'true';
-    
+
     private priceCache: Map<string, PriceCache> = new Map();
 
     constructor() {
@@ -227,7 +228,7 @@ class InvestmentService {
         if (this.useBackend) {
             try {
                 const response = await apiClient.get<BackendStockPriceResponse>(`/api/investments/prices/${symbol}`);
-                
+
                 // Cache the price locally for performance
                 const cachedAt = new Date(response.cachedAt).getTime();
                 this.priceCache.set(symbol, {
@@ -236,7 +237,7 @@ class InvestmentService {
                     timestamp: cachedAt,
                 });
                 this.savePriceCache();
-                
+
                 return response.price;
             } catch (error) {
                 console.error('❌ Backend API failed, falling back to direct implementation:', error);
@@ -342,9 +343,9 @@ class InvestmentService {
         cacheDuration: string;
     }> {
         this.loadPriceCache();
-        
+
         const vooCache = this.priceCache.get('VOO');
-        
+
         return {
             cacheValid: vooCache ? this.isCacheValid('VOO') : false,
             cacheExpiry: vooCache ? new Date(vooCache.timestamp + CACHE_DURATION) : null,
@@ -358,11 +359,29 @@ class InvestmentService {
         this.loadPriceCache();
         this.priceCache.delete(symbol);
         this.savePriceCache();
-        
+
         // Fetch fresh price (will check rate limit)
         // Note: Backend doesn't have a force refresh endpoint, so we just call getCurrentPrice
         // which will use cached data if available
         return await this.getCurrentPrice(symbol);
+    }
+
+    // Debug: Get full price details with source
+    async getDebugPrice(symbol: string): Promise<BackendStockPriceResponse> {
+        if (this.useBackend) {
+            return await apiClient.get<BackendStockPriceResponse>(`/api/investments/prices/${symbol}`);
+        }
+
+        // Mock response for direct mode (or implement proper tracking if needed)
+        const price = await this.getCurrentPrice(symbol);
+        const timestamp = this.getPriceTimestamp(symbol) || Date.now();
+
+        return {
+            symbol,
+            price,
+            cachedAt: new Date(timestamp).toISOString(),
+            source: 'client-side (legacy)'
+        };
     }
 }
 

@@ -14,6 +14,7 @@ export interface ExchangeRateResponseDTO {
   toCurrency: Currency;
   rate: number;
   cachedAt: string; // ISO string
+  source?: 'cache' | 'db' | 'api';
 }
 
 /**

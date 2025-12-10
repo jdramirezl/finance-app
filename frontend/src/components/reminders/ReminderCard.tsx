@@ -68,6 +68,13 @@ const ReminderCard = ({ reminder, onPayNow, onEdit, onDelete }: ReminderCardProp
                 transition-all duration-200 group
                 hover:shadow-md hover:scale-[1.01]
             `}
+            style={
+                status === 'upcoming'
+                    ? {
+                        backgroundColor: `rgba(59, 130, 246, ${Math.max(0.05, 0.2 - Math.min(30, Math.max(0, (new Date(reminder.dueDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))) / 150)})`,
+                    }
+                    : {}
+            }
         >
             <div className="p-3">
                 {/* Header with title and amount */}
@@ -98,10 +105,22 @@ const ReminderCard = ({ reminder, onPayNow, onEdit, onDelete }: ReminderCardProp
                         </div>
                     </div>
 
+
                     {/* Amount */}
-                    <span className={`font-bold text-lg whitespace-nowrap ${isPaid ? 'line-through text-gray-400 dark:text-gray-500' : 'text-gray-900 dark:text-gray-100'}`}>
-                        ${reminder.amount.toLocaleString()}
-                    </span>
+                    <div className="text-right">
+                        <span className={`block font-bold text-lg whitespace-nowrap ${isPaid ? 'line-through text-gray-400 dark:text-gray-500' : 'text-gray-900 dark:text-gray-100'}`}>
+                            ${reminder.amount.toLocaleString()}
+                        </span>
+                        {!isPaid && !isProjected && status === 'upcoming' && (() => {
+                            const daysUntil = Math.ceil((new Date(reminder.dueDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+                            if (daysUntil <= 3) {
+                                return <span className="text-xs font-bold text-blue-600 dark:text-blue-400 block animate-pulse">URGENT</span>;
+                            } else if (daysUntil <= 7) {
+                                return <span className="text-xs font-medium text-blue-500 dark:text-blue-300 block">This Week</span>;
+                            }
+                            return null;
+                        })()}
+                    </div>
                 </div>
 
                 {/* Action buttons - visible on hover */}

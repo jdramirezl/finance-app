@@ -7,6 +7,7 @@ import { useState, useMemo } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { useNetWorthSnapshotsQuery } from '../../hooks/queries/useNetWorthSnapshotQueries';
 import { useSettingsQuery } from '../../hooks/queries';
+import { currencyService } from '../../services/currencyService';
 import Card from '../Card';
 import Button from '../Button';
 import { TrendingUp } from 'lucide-react';
@@ -20,6 +21,7 @@ const NetWorthTimelineWidget = () => {
     const { data: settings } = useSettingsQuery();
     const [viewMode, setViewMode] = useState<ViewMode>('total');
     const [dateRange, setDateRange] = useState<DateRange>('6m');
+    const [showVariation, setShowVariation] = useState(false);
 
     const primaryCurrency = settings?.primaryCurrency || 'USD';
 
@@ -49,16 +51,6 @@ const NetWorthTimelineWidget = () => {
         return snapshots.filter(s => parseISO(s.snapshotDate) >= startDate);
     }, [snapshots, dateRange]);
 
-    // Prepare chart data
-    const chartData = useMemo(() => {
-        return filteredSnapshots.map(snapshot => ({
-            date: format(parseISO(snapshot.snapshotDate), 'MMM d'),
-            fullDate: snapshot.snapshotDate,
-            total: snapshot.totalNetWorth,
-            ...snapshot.breakdown
-        }));
-    }, [filteredSnapshots]);
-
     // Get all unique currencies from breakdown for multi-line chart
     const currencies = useMemo(() => {
         const allCurrencies = new Set<string>();
@@ -85,6 +77,66 @@ const NetWorthTimelineWidget = () => {
             maximumFractionDigits: 0,
         }).format(value);
     };
+
+    // Prepare chart data
+    const chartData = useMemo(() => {
+        if (filteredSnapshots.length === 0) return [];
+
+        // 1. First pass: Process raw values ensuring everything is in Primary Currency
+        const processedSnapshots = filteredSnapshots.map(snapshot => {
+            const data: any = {
+                date: format(parseISO(snapshot.snapshotDate), 'MMM d'),
+                fullDate: snapshot.snapshotDate,
+                total: snapshot.totalNetWorth,
+            };
+
+            if (snapshot.breakdown) {
+                Object.entries(snapshot.breakdown).forEach(([currency, value]) => {
+                    // ALWAYS convert to primary currency for consistent scaling
+                    if (currency !== primaryCurrency) {
+                        const rate = currencyService.getExchangeRate(currency as any, primaryCurrency);
+                        data[currency] = value * rate;
+                    } else {
+                        data[currency] = value;
+                    }
+                });
+            }
+            return data;
+        });
+
+        // 2. Second pass: Calculate variation if enabled
+        if (showVariation) {
+            const baseline = processedSnapshots[0];
+            return processedSnapshots.map(snapshot => {
+                const variationData: any = {
+                    date: snapshot.date,
+                    fullDate: snapshot.fullDate,
+                    total: baseline.total !== 0
+                        ? ((snapshot.total - baseline.total) / Math.abs(baseline.total)) * 100
+                        : 0,
+                    // Store original total for tooltip
+                    total_original: snapshot.total,
+                };
+
+                // Process currencies
+                if (viewMode === 'breakdown') {
+                    currencies.forEach(currency => {
+                        const baseVal = baseline[currency] || 0;
+                        const currentVal = snapshot[currency] || 0;
+                        variationData[currency] = baseVal !== 0
+                            ? ((currentVal - baseVal) / Math.abs(baseVal)) * 100
+                            : 0;
+                        // Store original value for tooltip
+                        variationData[`${currency}_original`] = currentVal;
+                    });
+                }
+
+                return variationData;
+            });
+        }
+
+        return processedSnapshots;
+    }, [filteredSnapshots, viewMode, showVariation, primaryCurrency, currencies]);
 
     if (isLoading) {
         return (
@@ -139,18 +191,32 @@ const NetWorthTimelineWidget = () => {
                 </div>
             </div>
 
-            {/* Date Range Selector */}
-            <div className="flex gap-2 mb-4">
-                {(['30d', '6m', '1y', 'all'] as DateRange[]).map(range => (
-                    <Button
-                        key={range}
-                        variant={dateRange === range ? 'primary' : 'ghost'}
-                        size="sm"
-                        onClick={() => setDateRange(range)}
-                    >
-                        {range === '30d' ? '30 Days' : range === '6m' ? '6 Months' : range === '1y' ? '1 Year' : 'All Time'}
-                    </Button>
-                ))}
+            {/* Controls Row */}
+            <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
+                {/* Date Range Selector */}
+                <div className="flex gap-2">
+                    {(['30d', '6m', '1y', 'all'] as DateRange[]).map(range => (
+                        <Button
+                            key={range}
+                            variant={dateRange === range ? 'primary' : 'ghost'}
+                            size="sm"
+                            onClick={() => setDateRange(range)}
+                        >
+                            {range === '30d' ? '30 Days' : range === '6m' ? '6 Months' : range === '1y' ? '1 Year' : 'All Time'}
+                        </Button>
+                    ))}
+                </div>
+
+                {/* Variation Toggle (Available for both modes) */}
+                <label className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 cursor-pointer select-none">
+                    <input
+                        type="checkbox"
+                        checked={showVariation}
+                        onChange={(e) => setShowVariation(e.target.checked)}
+                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    Show Variation (%)
+                </label>
             </div>
 
             {/* Chart */}
@@ -164,13 +230,26 @@ const NetWorthTimelineWidget = () => {
                             className="text-gray-600 dark:text-gray-400"
                         />
                         <YAxis
-                            tickFormatter={formatCurrency}
+                            tickFormatter={(value) => showVariation ? `${value.toFixed(0)}%` : formatCurrency(value)}
                             tick={{ fontSize: 12 }}
-                            width={80}
+                            width={showVariation ? 50 : 80}
                             className="text-gray-600 dark:text-gray-400"
+                            domain={showVariation ? [-100, 100] : ['auto', 'auto']}
                         />
                         <Tooltip
-                            formatter={(value: number) => formatCurrency(value)}
+                            formatter={(value: number, name: string, entry: any) => {
+                                if (showVariation) {
+                                    // Retrieve original value from payload
+                                    // Key format: "currency_original" or "total_original"
+                                    const originalKey = name === 'Net Worth' ? 'total_original' : `${name}_original`;
+                                    const originalValue = entry.payload[originalKey];
+                                    return [
+                                        `${value.toFixed(2)}% (${originalValue !== undefined ? formatCurrency(originalValue) : 'N/A'})`,
+                                        name
+                                    ];
+                                }
+                                return [formatCurrency(value), name];
+                            }}
                             labelFormatter={(label) => `Date: ${label}`}
                             contentStyle={{
                                 backgroundColor: 'var(--tooltip-bg, #fff)',
@@ -208,7 +287,7 @@ const NetWorthTimelineWidget = () => {
             </div>
 
             {/* Latest Value */}
-            {chartData.length > 0 && (
+            {chartData.length > 0 && viewMode === 'total' && (
                 <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
                     <div className="flex items-center justify-between">
                         <span className="text-sm text-gray-500 dark:text-gray-400">

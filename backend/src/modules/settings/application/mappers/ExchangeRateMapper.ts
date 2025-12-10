@@ -18,6 +18,7 @@ export class ExchangeRateMapper {
       toCurrency: exchangeRate.toCurrency,
       rate: exchangeRate.rate,
       cachedAt: exchangeRate.cachedAt.toISOString(),
+      source: exchangeRate.source,
     };
   }
 
@@ -34,7 +35,8 @@ export class ExchangeRateMapper {
       data.base_currency as Currency,
       data.target_currency as Currency,
       data.rate,
-      typeof data.last_updated === 'string' ? new Date(data.last_updated) : data.last_updated
+      typeof data.last_updated === 'string' ? new Date(data.last_updated) : data.last_updated,
+      'db'
     );
   }
 

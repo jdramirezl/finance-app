@@ -14,6 +14,14 @@ interface MovementFormProps {
     setSelectedAccountId: (id: string) => void;
     selectedPocketId: string;
     setSelectedPocketId: (id: string) => void;
+    selectedSubPocketId: string;
+    setSelectedSubPocketId: (id: string) => void; // New prop
+    selectedType: MovementType;
+    setSelectedType: (type: MovementType) => void; // New prop
+    amount: string; // New prop
+    setAmount: (amount: string) => void; // New prop
+    notes: string; // New prop
+    setNotes: (notes: string) => void; // New prop
     isFixedExpense: boolean;
     setIsFixedExpense: (isFixed: boolean) => void;
     saveAsTemplate: boolean;
@@ -41,6 +49,14 @@ const MovementForm = ({
     setSelectedAccountId,
     selectedPocketId,
     setSelectedPocketId,
+    selectedSubPocketId,
+    setSelectedSubPocketId,
+    selectedType,
+    setSelectedType,
+    amount,
+    setAmount,
+    notes,
+    setNotes,
     isFixedExpense,
     setIsFixedExpense,
     saveAsTemplate,
@@ -57,13 +73,13 @@ const MovementForm = ({
     const { data: movementTemplates = [] } = useMovementTemplatesQuery();
 
     // Determine if this is a fixed expense from defaultValues or initialData
-    const defaultType = defaultValues?.type || initialData?.type || 'EgresoNormal';
-    const isDefaultFixedExpense = defaultType === 'IngresoFijo' || defaultType === 'EgresoFijo';
+    // const defaultType = defaultValues?.type || initialData?.type || 'EgresoNormal'; // No longer needed as we use selectedType
+    const isDefaultFixedExpense = selectedType === 'IngresoFijo' || selectedType === 'EgresoFijo';
 
     const [isTransfer, setIsTransfer] = useState(false);
     const [targetAccountId, setTargetAccountId] = useState('');
     const [targetPocketId, setTargetPocketId] = useState('');
-    const [selectedSubPocketId, setSelectedSubPocketId] = useState(defaultValues?.fixedExpenseId || initialData?.subPocketId || '');
+    // const [selectedSubPocketId, setSelectedSubPocketId] = useState(defaultValues?.fixedExpenseId || initialData?.subPocketId || ''); // Removed local state
 
     const availablePockets = selectedAccountId
         ? pockets.filter(p => p.accountId === selectedAccountId)
@@ -119,7 +135,7 @@ const MovementForm = ({
                     label="Type"
                     name="type"
                     required
-                    defaultValue={defaultType}
+                    value={selectedType}
                     onChange={(e) => {
                         const value = e.target.value;
                         if (value === 'Transfer') {
@@ -128,6 +144,7 @@ const MovementForm = ({
                         } else {
                             setIsTransfer(false);
                             const type = value as MovementType;
+                            setSelectedType(type);
                             setIsFixedExpense(type === 'IngresoFijo' || type === 'EgresoFijo');
                         }
                     }}
@@ -186,7 +203,7 @@ const MovementForm = ({
                         }}
                         options={[
                             { value: '', label: 'Select Target Account' },
-                            ...accounts.filter(a => a.id !== selectedAccountId).map(acc => ({ value: acc.id, label: acc.name }))
+                            ...accounts.map(acc => ({ value: acc.id, label: acc.name }))
                         ]}
                     />
 
@@ -198,7 +215,9 @@ const MovementForm = ({
                         onChange={(e) => setTargetPocketId(e.target.value)}
                         options={[
                             { value: '', label: 'Select Target Pocket' },
-                            ...availableTargetPockets.map(p => ({ value: p.id, label: p.name }))
+                            ...availableTargetPockets
+                                .filter(p => !selectedPocketId || p.id !== selectedPocketId) // Prevent transferring to same pocket
+                                .map(p => ({ value: p.id, label: p.name }))
                         ]}
                         disabled={!targetAccountId}
                     />
@@ -226,14 +245,16 @@ const MovementForm = ({
                 step={selectedPocketId && pockets.find(p => p.id === selectedPocketId)?.name === 'Shares' ? '0.000001' : '0.01'}
                 min="0"
                 required
-                defaultValue={initialData?.amount || defaultValues?.amount}
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
             />
 
             <Input
                 label="Notes"
                 name="notes"
                 placeholder={isTransfer ? "Transfer details..." : "What is this for?"}
-                defaultValue={initialData?.notes || defaultValues?.notes}
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
             />
 
             <div className="flex items-center gap-2">

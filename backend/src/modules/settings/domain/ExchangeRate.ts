@@ -12,7 +12,8 @@ export class ExchangeRate {
     public readonly fromCurrency: Currency,
     public readonly toCurrency: Currency,
     public readonly rate: number,
-    public readonly cachedAt: Date
+    public readonly cachedAt: Date,
+    public readonly source?: 'cache' | 'db' | 'api'
   ) {
     this.validate();
   }
@@ -23,11 +24,11 @@ export class ExchangeRate {
   private validate(): void {
     // Validate currencies
     const validCurrencies: Currency[] = ['USD', 'MXN', 'COP', 'EUR', 'GBP'];
-    
+
     if (!validCurrencies.includes(this.fromCurrency)) {
       throw new Error(`Invalid from currency - must be one of: ${validCurrencies.join(', ')}`);
     }
-    
+
     if (!validCurrencies.includes(this.toCurrency)) {
       throw new Error(`Invalid to currency - must be one of: ${validCurrencies.join(', ')}`);
     }
@@ -61,7 +62,7 @@ export class ExchangeRate {
     const now = new Date();
     const expirationTime = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
     const timeSinceCached = now.getTime() - this.cachedAt.getTime();
-    
+
     return timeSinceCached >= expirationTime;
   }
 

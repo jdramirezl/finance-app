@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { Account, Currency } from '../../types';
 import Button from '../Button';
 import Input from '../Input';
@@ -17,6 +18,7 @@ const AccountForm = ({
     isSaving,
 }: AccountFormProps) => {
     const isEditing = !!initialData;
+    const [type, setType] = useState('normal');
 
     const currencies: Currency[] = ['USD', 'MXN', 'COP', 'EUR', 'GBP'];
 
@@ -51,7 +53,8 @@ const AccountForm = ({
                     <Select
                         label="Account Type"
                         name="type"
-                        defaultValue="normal"
+                        value={type}
+                        onChange={(e) => setType(e.target.value)}
                         required
                         options={[
                             { value: 'normal', label: 'Normal' },
@@ -59,11 +62,13 @@ const AccountForm = ({
                         ] as { value: string; label: string }[]}
                     />
 
-                    <Input
-                        label="Stock Symbol (for investment accounts)"
-                        name="stockSymbol"
-                        placeholder="e.g., VOO, AAPL"
-                    />
+                    {type === 'investment' && (
+                        <Input
+                            label="Stock Ticker"
+                            name="stockSymbol"
+                            placeholder="e.g., VOO, AAPL"
+                        />
+                    )}
                 </>
             )}
 

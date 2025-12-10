@@ -13,7 +13,7 @@ import {
 } from '../hooks/queries';
 import { useToast } from '../hooks/useToast';
 import { useConfirm } from '../hooks/useConfirm';
-import type { Movement, MovementType } from '../types';
+import type { Movement, MovementType, Account, Pocket, SubPocket, MovementTemplate } from '../types';
 import { Plus, Trash2, X } from 'lucide-react';
 import Modal from '../components/Modal';
 import Button from '../components/Button';
@@ -28,15 +28,21 @@ import MovementList from '../components/movements/MovementList';
 import MovementForm from '../components/movements/MovementForm';
 import { format } from 'date-fns';
 
+const EMPTY_ACCOUNTS: Account[] = [];
+const EMPTY_POCKETS: Pocket[] = [];
+const EMPTY_SUBPOCKETS: SubPocket[] = [];
+const EMPTY_MOVEMENTS: Movement[] = [];
+const EMPTY_TEMPLATES: MovementTemplate[] = [];
+
 const MovementsPage = () => {
   // Queries
-  const { data: accounts = [] } = useAccountsQuery();
-  const { data: pockets = [] } = usePocketsQuery();
-  const { data: subPockets = [] } = useSubPocketsQuery();
+  const { data: accounts = EMPTY_ACCOUNTS } = useAccountsQuery();
+  const { data: pockets = EMPTY_POCKETS } = usePocketsQuery();
+  const { data: subPockets = EMPTY_SUBPOCKETS } = useSubPocketsQuery();
   // Load ALL movements (no pagination) - grouping by month happens client-side
-  const { data: movements = [], isLoading: movementsLoading } = useMovementsQuery();
-  const { data: movementTemplates = [] } = useMovementTemplatesQuery();
-  const { data: orphanedMovementsData = [] } = useOrphanedMovementsQuery();
+  const { data: movements = EMPTY_MOVEMENTS, isLoading: movementsLoading } = useMovementsQuery();
+  const { data: movementTemplates = EMPTY_TEMPLATES, isLoading: templatesLoading } = useMovementTemplatesQuery();
+  const { data: orphanedMovementsData = EMPTY_MOVEMENTS } = useOrphanedMovementsQuery();
 
   // Mutations
   const {
@@ -74,6 +80,11 @@ const MovementsPage = () => {
   // Form State
   const [selectedAccountId, setSelectedAccountId] = useState<string>('');
   const [selectedPocketId, setSelectedPocketId] = useState<string>('');
+  // New state for type and subPocket
+  const [selectedSubPocketId, setSelectedSubPocketId] = useState<string>('');
+  const [selectedType, setSelectedType] = useState<MovementType>('EgresoNormal');
+  const [amount, setAmount] = useState<string>('');
+  const [notes, setNotes] = useState<string>('');
   const [isFixedExpense, setIsFixedExpense] = useState(false);
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
   const [saveAsTemplate, setSaveAsTemplate] = useState(false);
@@ -121,9 +132,6 @@ const MovementsPage = () => {
     const action = params.get('action');
 
     if (action === 'new') {
-      setShowForm(true);
-      setEditingMovement(null);
-
       // Handle pre-filled data (e.g. from Reminders)
       const amount = params.get('amount');
       const notes = params.get('notes');
@@ -131,6 +139,14 @@ const MovementsPage = () => {
       const templateId = params.get('templateId');
       const fixedExpenseId = params.get('fixedExpenseId');
       const reminderIdParam = params.get('reminderId');
+
+      // If we have a templateId but templates are still loading, wait.
+      if (templateId && templatesLoading) {
+        return;
+      }
+
+      setShowForm(true);
+      setEditingMovement(null);
 
       if (amount || notes || date || templateId || fixedExpenseId) {
         setDefaultValues({
@@ -174,7 +190,7 @@ const MovementsPage = () => {
       setEditingMovement(null);
       navigate(location.pathname, { replace: true });
     }
-  }, [location.search, navigate, subPockets, pockets, movementTemplates]);
+  }, [location.search, navigate, subPockets, pockets, movementTemplates, templatesLoading]);
 
   // Handlers
   const toggleMonth = (month: string) => {
@@ -203,6 +219,9 @@ const MovementsPage = () => {
     if (!templateId) {
       setSelectedAccountId('');
       setSelectedPocketId('');
+      setSelectedSubPocketId('');
+      setAmount('');
+      setNotes('');
       setIsFixedExpense(false);
       return;
     }
@@ -212,7 +231,27 @@ const MovementsPage = () => {
 
     setSelectedAccountId(template.accountId);
     setSelectedPocketId(template.pocketId);
+    setSelectedSubPocketId(template.subPocketId || '');
+    setSelectedType(template.type);
+    setAmount(template.defaultAmount ? template.defaultAmount.toString() : '');
+    setNotes(template.notes || '');
     setIsFixedExpense(template.type === 'IngresoFijo' || template.type === 'EgresoFijo');
+  };
+
+  const resetFormState = () => {
+    setShowForm(false);
+    setEditingMovement(null);
+    setSelectedAccountId('');
+    setSelectedPocketId('');
+    setSelectedSubPocketId('');
+    setSelectedType('EgresoNormal');
+    setAmount('');
+    setNotes('');
+    setIsFixedExpense(false);
+    setSelectedTemplateId('');
+    setSaveAsTemplate(false);
+    setTemplateName('');
+    setDefaultValues({});
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -233,11 +272,7 @@ const MovementsPage = () => {
 
     try {
       if (editingMovement) {
-        setEditingMovement(null);
-        setShowForm(false);
-        setSelectedAccountId('');
-        setSelectedPocketId('');
-        setIsFixedExpense(false);
+        resetFormState();
 
         await updateMovement.mutateAsync({
           id: editingMovement.id,
@@ -246,10 +281,7 @@ const MovementsPage = () => {
         toast.success('Movement updated successfully!');
       } else {
         form.reset();
-        setShowForm(false);
-        setSelectedAccountId('');
-        setSelectedPocketId('');
-        setIsFixedExpense(false);
+        resetFormState();
 
         const isTransfer = formData.get('isTransfer') === 'true';
 
@@ -427,6 +459,8 @@ const MovementsPage = () => {
               setEditingMovement(null);
               setSelectedAccountId('');
               setSelectedPocketId('');
+              setSelectedSubPocketId('');
+              setSelectedType('EgresoNormal');
               setIsFixedExpense(false);
             }}
             className="hidden md:flex"
@@ -662,6 +696,10 @@ const MovementsPage = () => {
         onEdit={(movement) => {
           setEditingMovement(movement);
           setSelectedAccountId(movement.accountId);
+          setSelectedSubPocketId(movement.subPocketId || '');
+          setSelectedType(movement.type);
+          setAmount(movement.amount.toString());
+          setNotes(movement.notes || '');
           const pocket = pockets.filter(p => p.accountId === movement.accountId).find(p => p.id === movement.pocketId);
           if (pocket) {
             setSelectedPocketId(movement.pocketId);
@@ -677,19 +715,23 @@ const MovementsPage = () => {
 
       <Modal
         isOpen={showForm}
-        onClose={() => setShowForm(false)}
+        onClose={resetFormState}
         title={editingMovement ? 'Edit Movement' : 'New Movement'}
         size="lg"
       >
         <MovementForm
           initialData={editingMovement}
           onSubmit={handleSubmit}
-          onCancel={() => setShowForm(false)}
+          onCancel={resetFormState}
           isSaving={isSaving}
           selectedAccountId={selectedAccountId}
           setSelectedAccountId={setSelectedAccountId}
           selectedPocketId={selectedPocketId}
           setSelectedPocketId={setSelectedPocketId}
+          selectedSubPocketId={selectedSubPocketId}
+          setSelectedSubPocketId={setSelectedSubPocketId}
+          selectedType={selectedType}
+          setSelectedType={setSelectedType}
           isFixedExpense={isFixedExpense}
           setIsFixedExpense={setIsFixedExpense}
           saveAsTemplate={saveAsTemplate}
@@ -699,6 +741,10 @@ const MovementsPage = () => {
           selectedTemplateId={selectedTemplateId}
           onTemplateSelect={handleTemplateSelect}
           defaultValues={defaultValues}
+          amount={amount}
+          setAmount={setAmount}
+          notes={notes}
+          setNotes={setNotes}
         />
       </Modal>
 

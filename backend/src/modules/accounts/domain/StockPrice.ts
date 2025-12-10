@@ -11,7 +11,8 @@ export class StockPrice {
   constructor(
     public readonly symbol: string,
     public readonly price: number,
-    public readonly cachedAt: Date
+    public readonly cachedAt: Date,
+    public readonly source?: 'cache' | 'db' | 'api'
   ) {
     this.validate();
   }
@@ -52,7 +53,7 @@ export class StockPrice {
     const now = new Date();
     const expirationTime = new Date(this.cachedAt);
     expirationTime.setHours(expirationTime.getHours() + StockPrice.CACHE_EXPIRATION_HOURS);
-    
+
     return now > expirationTime;
   }
 
