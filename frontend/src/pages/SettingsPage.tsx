@@ -140,179 +140,209 @@ const SettingsPage = () => {
   }
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Settings</h1>
-
-      <Card className="max-w-2xl">
-        <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">Primary Currency</h2>
-        <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-          Select your primary currency. All totals will be converted and displayed in this currency
-          on the Summary page.
-        </p>
-
-        <div className="space-y-2">
-          {currencies.map((currency) => (
-            <label
-              key={currency}
-              className={`flex items-center gap-3 p-4 border-2 rounded-lg cursor-pointer transition-all ${settings.primaryCurrency === currency
-                ? 'border-blue-500 dark:border-blue-400 bg-blue-50 dark:bg-blue-900/30'
-                : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
-                }`}
-            >
-              <input
-                type="radio"
-                name="primaryCurrency"
-                value={currency}
-                checked={settings.primaryCurrency === currency}
-                onChange={() => handleCurrencyChange(currency)}
-                className="w-4 h-4 text-blue-600 dark:text-blue-400"
-              />
-              <span className="font-medium text-lg text-gray-900 dark:text-gray-100">{currency}</span>
-              {settings.primaryCurrency === currency && (
-                <span className="ml-auto text-sm text-blue-600 dark:text-blue-400 font-medium">Primary</span>
-              )}
-            </label>
-          ))}
+    <div className="max-w-7xl mx-auto space-y-12">
+      <div className="flex items-center justify-between pb-4 border-b border-gray-100 dark:border-gray-800">
+        <div>
+          <h1 className="text-4xl font-bold text-gray-900 dark:text-gray-100 tracking-tight">Settings</h1>
+          <p className="text-lg text-gray-500 dark:text-gray-400 mt-2">Manage your application preferences and data.</p>
         </div>
-      </Card>
+      </div>
 
-      <Card className="max-w-2xl">
-        <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">Debug Tools</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <DebugStockPrice />
-          <DebugExchangeRate />
-        </div>
-      </Card>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16">
+        {/* Left Column: General Preferences */}
+        <div className="space-y-12">
+          <section>
+            <h2 className="text-xl font-semibold mb-6 text-gray-900 dark:text-gray-100 flex items-center gap-3">
+              <span className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg text-blue-600 dark:text-blue-400">
+                <RefreshCw className="w-5 h-5" />
+              </span>
+              General Preferences
+            </h2>
 
-      <Card className="max-w-2xl">
-        <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">Data Management</h2>
-
-        <div className="space-y-6">
-          <div>
-            <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">Export Data</h3>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-              Download a JSON file containing all your data (accounts, pockets, movements, settings, and budget scenarios).
-            </p>
-            <Button
-              variant="secondary"
-              onClick={handleExportData}
-              loading={isExporting}
-              disabled={isExporting}
-            >
-              <Download className="w-5 h-5" />
-              Export to JSON
-            </Button>
-          </div>
-
-          <hr className="border-gray-200 dark:border-gray-700" />
-
-          <div>
-            <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">Balance Recalculation</h3>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-              Recalculate all account and pocket balances. Run this if you see incorrect balances.
-            </p>
-            <Button
-              variant="primary"
-              onClick={handleRecalculateBalances}
-              loading={isRecalculating}
-              disabled={isRecalculating}
-            >
-              <RefreshCw className="w-5 h-5" />
-              Recalculate All Balances
-            </Button>
-          </div>
-
-          <hr className="border-gray-200 dark:border-gray-700" />
-
-          <div>
-            <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">Sync Investments</h3>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-              Sync investment account fields with pocket balances.
-            </p>
-            <Button
-              variant="primary"
-              onClick={async () => {
-                try {
-                  const { syncAllInvestmentAccounts } = await import('../utils/syncInvestmentAccounts');
-                  await syncAllInvestmentAccounts();
-                  queryClient.invalidateQueries({ queryKey: ['accounts'] });
-                  toast.success('Investment accounts synced successfully!');
-                } catch (err) {
-                  console.error('Sync failed:', err);
-                  toast.error('Failed to sync investment accounts');
-                }
-              }}
-            >
-              <RefreshCw className="w-5 h-5" />
-              Sync Investment Accounts
-            </Button>
-          </div>
-
-          <hr className="border-gray-200 dark:border-gray-700" />
-
-          <div>
-            <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">Data Migration</h3>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-              Scan for orphaned movements (movements belonging to deleted accounts/pockets).
-            </p>
-            <Button
-              variant="primary"
-              onClick={handleMigrateOrphans}
-              loading={isMigrating}
-              disabled={isMigrating}
-            >
-              <RefreshCw className="w-5 h-5" />
-              Migrate Orphaned Movements
-            </Button>
-          </div>
-        </div>
-      </Card>
-
-      <Card className="max-w-2xl">
-        <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">Net Worth Snapshots</h2>
-        <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-          Take periodic snapshots of your net worth to visualize your financial progress over time.
-        </p>
-
-        <div className="space-y-2">
-          {(['daily', 'weekly', 'monthly', 'manual'] as const).map((frequency) => (
-            <label
-              key={frequency}
-              className={`flex items-center gap-3 p-4 border-2 rounded-lg cursor-pointer transition-all ${(settings.snapshotFrequency || 'weekly') === frequency
-                ? 'border-blue-500 dark:border-blue-400 bg-blue-50 dark:bg-blue-900/30'
-                : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
-                }`}
-            >
-              <input
-                type="radio"
-                name="snapshotFrequency"
-                value={frequency}
-                checked={(settings.snapshotFrequency || 'weekly') === frequency}
-                onChange={async () => {
-                  try {
-                    await updateSettingsMutation.mutateAsync({ ...settings, snapshotFrequency: frequency });
-                    toast.success(`Snapshot frequency updated to ${frequency}`);
-                  } catch (err) {
-                    console.error('Failed to update snapshot frequency:', err);
-                    toast.error('Failed to update snapshot frequency');
-                  }
-                }}
-                disabled={updateSettingsMutation.isPending}
-                className="w-4 h-4 text-blue-600 dark:text-blue-400"
-              />
+            <Card className="space-y-6">
               <div>
-                <span className="font-medium text-gray-900 dark:text-gray-100 capitalize">{frequency}</span>
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  {frequency === 'daily' && 'Snapshot every day'}
-                  {frequency === 'weekly' && 'Snapshot once a week'}
-                  {frequency === 'monthly' && 'Snapshot once a month'}
-                  {frequency === 'manual' && 'Only when you manually trigger'}
+                <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">Primary Currency</h3>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                  Select your primary currency for all total calculations.
                 </p>
+                <div className="grid grid-cols-2 gap-3">
+                  {currencies.map((currency) => (
+                    <label
+                      key={currency}
+                      className={`relative flex flex-col p-4 border rounded-xl cursor-pointer transition-all duration-200 ${settings.primaryCurrency === currency
+                        ? 'border-blue-500 bg-blue-50/50 dark:bg-blue-900/20 ring-1 ring-blue-500'
+                        : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800'
+                        }`}
+                    >
+                      <input
+                        type="radio"
+                        name="primaryCurrency"
+                        value={currency}
+                        checked={settings.primaryCurrency === currency}
+                        onChange={() => handleCurrencyChange(currency)}
+                        className="sr-only"
+                      />
+                      <span className="font-bold text-lg text-gray-900 dark:text-gray-100">{currency}</span>
+                      <span className="text-xs text-gray-500 dark:text-gray-400">
+                        {settings.primaryCurrency === currency ? 'Active' : 'Select'}
+                      </span>
+                    </label>
+                  ))}
+                </div>
               </div>
-            </label>
-          ))}
+
+              <hr className="border-gray-200 dark:border-gray-700" />
+
+              <div>
+                <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">Net Worth Snapshots</h3>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                  Automated tracking of your financial progress.
+                </p>
+                <div className="space-y-3">
+                  {(['daily', 'weekly', 'monthly', 'manual'] as const).map((frequency) => (
+                    <label
+                      key={frequency}
+                      className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition-all ${(settings.snapshotFrequency || 'weekly') === frequency
+                        ? 'border-blue-500 bg-blue-50/30 dark:bg-blue-900/20'
+                        : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800'
+                        }`}
+                    >
+                      <input
+                        type="radio"
+                        name="snapshotFrequency"
+                        value={frequency}
+                        checked={(settings.snapshotFrequency || 'weekly') === frequency}
+                        onChange={async () => {
+                          try {
+                            await updateSettingsMutation.mutateAsync({ ...settings, snapshotFrequency: frequency });
+                            toast.success(`Snapshot frequency updated to ${frequency}`);
+                          } catch (err) {
+                            console.error('Failed to update snapshot frequency:', err);
+                            toast.error('Failed to update snapshot frequency');
+                          }
+                        }}
+                        disabled={updateSettingsMutation.isPending}
+                        className="w-4 h-4 text-blue-600 dark:text-blue-400"
+                      />
+                      <div className="flex-1">
+                        <span className="font-medium text-gray-900 dark:text-gray-100 capitalize block">{frequency}</span>
+                        <span className="text-xs text-gray-500 dark:text-gray-400">
+                          {frequency === 'daily' && 'Track every day'}
+                          {frequency === 'weekly' && 'Track weekly (Recommended)'}
+                          {frequency === 'monthly' && 'Track monthly'}
+                          {frequency === 'manual' && 'No automation'}
+                        </span>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </Card>
+          </section>
         </div>
-      </Card>
+
+        {/* Right Column: Data & Debug */}
+        <div className="space-y-12">
+          <section>
+            <h2 className="text-xl font-semibold mb-6 text-gray-900 dark:text-gray-100 flex items-center gap-3">
+              <span className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg text-purple-600 dark:text-purple-400">
+                <Download className="w-5 h-5" />
+              </span>
+              Data Management
+            </h2>
+            <Card>
+              <div className="space-y-6">
+                <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800/50 rounded-xl">
+                  <div>
+                    <h3 className="font-semibold text-gray-900 dark:text-gray-100">Export Backup</h3>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">Download all your data as JSON</p>
+                  </div>
+                  <Button
+                    variant="secondary"
+                    onClick={handleExportData}
+                    loading={isExporting}
+                    disabled={isExporting}
+                  >
+                    <Download className="w-4 h-4 mr-2" />
+                    Export
+                  </Button>
+                </div>
+
+                <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800/50 rounded-xl">
+                  <div>
+                    <h3 className="font-semibold text-gray-900 dark:text-gray-100">Recalculate Balances</h3>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">Fix synchronization issues</p>
+                  </div>
+                  <Button
+                    variant="primary"
+                    onClick={handleRecalculateBalances}
+                    loading={isRecalculating}
+                    disabled={isRecalculating}
+                  >
+                    <RefreshCw className="w-4 h-4 mr-2" />
+                    Run
+                  </Button>
+                </div>
+
+                <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800/50 rounded-xl">
+                  <div>
+                    <h3 className="font-semibold text-gray-900 dark:text-gray-100">Sync Investments</h3>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">Update investment values</p>
+                  </div>
+                  <Button
+                    variant="primary"
+                    onClick={async () => {
+                      try {
+                        const { syncAllInvestmentAccounts } = await import('../utils/syncInvestmentAccounts');
+                        await syncAllInvestmentAccounts();
+                        queryClient.invalidateQueries({ queryKey: ['accounts'] });
+                        toast.success('Investment accounts synced successfully!');
+                      } catch (err) {
+                        console.error('Sync failed:', err);
+                        toast.error('Failed to sync investment accounts');
+                      }
+                    }}
+                  >
+                    <RefreshCw className="w-4 h-4 mr-2" />
+                    Sync
+                  </Button>
+                </div>
+
+                <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800/50 rounded-xl">
+                  <div>
+                    <h3 className="font-semibold text-gray-900 dark:text-gray-100">Migrate Orphans</h3>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">Restore missing movements</p>
+                  </div>
+                  <Button
+                    variant="primary"
+                    onClick={handleMigrateOrphans}
+                    loading={isMigrating}
+                    disabled={isMigrating}
+                  >
+                    <RefreshCw className="w-4 h-4 mr-2" />
+                    Migrate
+                  </Button>
+                </div>
+              </div>
+            </Card>
+          </section>
+
+          <section>
+            <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100 flex items-center gap-2">
+              <span className="p-2 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg text-yellow-600 dark:text-yellow-400">
+                <RefreshCw className="w-5 h-5" />
+              </span>
+              Debug Tools
+            </h2>
+            <Card>
+              <div className="grid grid-cols-1 gap-4">
+                <DebugStockPrice />
+                <DebugExchangeRate />
+              </div>
+            </Card>
+          </section>
+        </div>
+      </div>
     </div>
   );
 };
