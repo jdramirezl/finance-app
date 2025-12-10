@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useAccountsQuery, usePocketsQuery, useSettingsQuery, useSubPocketsQuery } from '../hooks/queries';
+import { useAccountsQuery, usePocketsQuery, useSettingsQuery, useSubPocketsQuery, useFixedExpenseGroupsQuery } from '../hooks/queries';
 import { currencyService } from '../services/currencyService';
 import { investmentService } from '../services/investmentService';
 import type { Currency, Account } from '../types';
@@ -24,6 +24,7 @@ const SummaryPage = () => {
   const { data: pockets = [], isLoading: pocketsLoading } = usePocketsQuery();
   const { data: settings, isLoading: settingsLoading } = useSettingsQuery();
   const { data: subPockets = [], isLoading: subPocketsLoading } = useSubPocketsQuery();
+  const { data: fixedExpenseGroups = [] } = useFixedExpenseGroupsQuery();
 
   // Auto-snapshot on load
   useAutoNetWorthSnapshot();
@@ -51,18 +52,18 @@ const SummaryPage = () => {
           // Get fresh values from pocket balances (source of truth)
           const investedPocket = pockets.find(p => p.accountId === account.id && p.name === 'Invested Money');
           const sharesPocket = pockets.find(p => p.accountId === account.id && p.name === 'Shares');
-          
+
           // Use pocket balances as source of truth instead of account fields
           const montoInvertido = investedPocket?.balance || 0;
           const shares = sharesPocket?.balance || 0;
-          
+
           // Create a temporary account object with correct values
           const accountWithCorrectValues = {
             ...account,
             montoInvertido,
             shares,
           };
-          
+
           if (account.stockSymbol) {
             const data = await investmentService.updateInvestmentAccount(accountWithCorrectValues);
             // Include the correct values in the data object
@@ -108,10 +109,10 @@ const SummaryPage = () => {
       // Get fresh values from pocket balances (same as initial load)
       const investedPocket = pockets.find(p => p.accountId === account.id && p.name === 'Invested Money');
       const sharesPocket = pockets.find(p => p.accountId === account.id && p.name === 'Shares');
-      
+
       const montoInvertido = investedPocket?.balance || 0;
       const shares = sharesPocket?.balance || 0;
-      
+
       // Create account with correct values
       const accountWithCorrectValues = {
         ...account,
@@ -318,6 +319,7 @@ const SummaryPage = () => {
             ) : (
               <FixedExpensesSummary
                 subPockets={fixedSubPockets}
+                groups={fixedExpenseGroups}
                 account={fixedAccount || undefined}
                 totalMoney={totalFixedExpensesMoney}
               />
