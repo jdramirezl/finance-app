@@ -90,7 +90,7 @@ const FixedExpensesPage = () => {
       accountId: fixedAccount.id,
       pocketId: fixedPocket.id,
       subPocketId: subPocket.id,
-      amount: (subPocket.valueTotal / subPocket.periodicityMonths).toFixed(2),
+      amount: calculateAporteMensual(subPocket.valueTotal, subPocket.periodicityMonths, subPocket.balance).toFixed(2),
       notes: `Monthly contribution for ${subPocket.name}`,
       displayedDate: new Date().toISOString().split('T')[0],
     }));
@@ -112,7 +112,7 @@ const FixedExpensesPage = () => {
           notes: row.notes || undefined,
           displayedDate: row.displayedDate,
           subPocketId: row.subPocketId,
-          isPending: false // Not pending
+          isPending: row.isPending || false
         });
       }
 
@@ -171,20 +171,13 @@ const FixedExpensesPage = () => {
     return fixedSubPockets
       .filter((sp) => sp.enabled)
       .reduce((sum, sp) => {
-        const aporteMensual = calculateAporteMensual(sp.valueTotal, sp.periodicityMonths);
-        const remaining = sp.valueTotal - sp.balance;
+        const aporteMensual = calculateAporteMensual(sp.valueTotal, sp.periodicityMonths, sp.balance);
 
         // Case 1: Negative balance - compensate + normal payment
         if (sp.balance < 0) {
           return sum + aporteMensual + Math.abs(sp.balance);
         }
 
-        // Case 2: Near completion - min of remaining or normal payment
-        if (remaining < aporteMensual) {
-          return sum + remaining;
-        }
-
-        // Normal case
         return sum + aporteMensual;
       }, 0);
   };
