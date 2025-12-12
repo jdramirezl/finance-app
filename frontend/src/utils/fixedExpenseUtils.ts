@@ -4,9 +4,15 @@
  * @param periodicityMonths - Number of months to divide over
  * @returns Monthly contribution amount
  */
-export const calculateAporteMensual = (valueTotal: number, periodicityMonths: number): number => {
+export const calculateAporteMensual = (valueTotal: number, periodicityMonths: number, balance: number = 0): number => {
     if (periodicityMonths <= 0) return 0;
-    return valueTotal / periodicityMonths;
+
+    const standardContribution = valueTotal / periodicityMonths;
+    // Calculate remaining amount needed (treating negative balance as 0 for this calculation)
+    const remainingToGoal = Math.max(0, valueTotal - Math.max(0, balance));
+
+    // Return the minimum between standard monthly payment and what's left to pay
+    return Math.min(standardContribution, remainingToGoal);
 };
 
 /**

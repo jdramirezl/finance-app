@@ -1,6 +1,7 @@
 import type { Currency } from '../../types';
 import { currencyService } from '../../services/currencyService';
 import AnimatedCounter from '../AnimatedCounter';
+import SelectableValue from '../SelectableValue';
 
 interface TotalsSummaryProps {
     consolidatedTotal: number;
@@ -32,10 +33,12 @@ const TotalsSummary = ({
                             </div>
                         </div>
                         <div className="text-4xl font-black bg-gradient-to-r from-blue-700 via-blue-600 to-purple-600 dark:from-blue-300 dark:via-blue-200 dark:to-purple-300 bg-clip-text text-transparent mb-1">
-                            <AnimatedCounter
-                                value={consolidatedTotal}
-                                formatValue={(v) => currencyService.formatCurrency(v, primaryCurrency)}
-                            />
+                            <SelectableValue id="summary-net-worth" value={consolidatedTotal} currency={primaryCurrency}>
+                                <AnimatedCounter
+                                    value={consolidatedTotal}
+                                    formatValue={(v) => currencyService.formatCurrency(v, primaryCurrency)}
+                                />
+                            </SelectableValue>
                         </div>
                         <div className="text-xs font-medium text-blue-600/80 dark:text-blue-400/80 flex items-center gap-1">
                             <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -62,10 +65,12 @@ const TotalsSummary = ({
                                 {currency}
                             </div>
                             <div className="text-3xl font-bold text-gray-900 dark:text-gray-100 group-hover:scale-105 transition-transform duration-200">
-                                <AnimatedCounter
-                                    value={totalsByCurrency[currency]}
-                                    formatValue={(v) => currencyService.formatCurrency(v, currency)}
-                                />
+                                <SelectableValue id={`summary-total-${currency}`} value={totalsByCurrency[currency]} currency={currency}>
+                                    <AnimatedCounter
+                                        value={totalsByCurrency[currency]}
+                                        formatValue={(v) => currencyService.formatCurrency(v, currency)}
+                                    />
+                                </SelectableValue>
                             </div>
                         </div>
                     </div>

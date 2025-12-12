@@ -4,6 +4,7 @@ import { currencyService } from '../../services/currencyService';
 import Card from '../Card';
 import ProgressBar from '../ProgressBar';
 import { Wallet } from 'lucide-react';
+import SelectableValue from '../SelectableValue';
 
 interface FixedExpensesSummaryProps {
     subPockets: SubPocket[];
@@ -57,36 +58,35 @@ const FixedExpensesSummary = ({
         const progress = subPocket.valueTotal > 0
             ? Math.min((subPocket.balance / subPocket.valueTotal) * 100, 100)
             : 0;
-        const isDisabled = !subPocket.enabled;
+
 
         return (
             <tr
                 key={subPocket.id}
-                className={`hover:bg-gray-50 dark:hover:bg-gray-700/30 ${isDisabled ? 'opacity-50' : ''}`}
+                className="hover:bg-gray-50 dark:hover:bg-gray-700/30"
             >
                 <td className="px-4 py-2 text-sm font-medium text-gray-900 dark:text-gray-100">
                     <div className="flex items-center gap-2">
-                        <span className={isDisabled ? 'line-through' : ''}>
+                        <span>
                             {subPocket.name}
                         </span>
-                        {isDisabled && (
-                            <span className="px-1.5 py-0.5 text-[10px] font-medium bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded">
-                                Disabled
-                            </span>
-                        )}
                     </div>
                 </td>
                 <td className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300">
-                    {currencyService.formatCurrency(
-                        subPocket.balance,
-                        account?.currency || 'USD'
-                    )}
+                    <SelectableValue id={`fixed-bal-${subPocket.id}`} value={subPocket.balance} currency={account?.currency}>
+                        {currencyService.formatCurrency(
+                            subPocket.balance,
+                            account?.currency || 'USD'
+                        )}
+                    </SelectableValue>
                 </td>
                 <td className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300">
-                    {currencyService.formatCurrency(
-                        subPocket.valueTotal,
-                        account?.currency || 'USD'
-                    )}
+                    <SelectableValue id={`fixed-tot-${subPocket.id}`} value={subPocket.valueTotal} currency={account?.currency}>
+                        {currencyService.formatCurrency(
+                            subPocket.valueTotal,
+                            account?.currency || 'USD'
+                        )}
+                    </SelectableValue>
                 </td>
                 <td className="px-4 py-2 min-w-[100px]">
                     <ProgressBar value={progress} showLabel size="sm" />

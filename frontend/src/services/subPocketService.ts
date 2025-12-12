@@ -2,6 +2,7 @@ import type { SubPocket } from '../types';
 import { SupabaseStorageService } from './supabaseStorageService';
 import { generateId } from '../utils/idGenerator';
 import { apiClient } from './apiClient';
+import { calculateAporteMensual } from '../utils/fixedExpenseUtils';
 
 // Lazy getter to avoid circular dependency - using dynamic import
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -77,9 +78,8 @@ class SubPocketService {
   }
 
   // Calculate monthly contribution (aporteMensual)
-  calculateAporteMensual(valueTotal: number, periodicityMonths: number): number {
-    if (periodicityMonths <= 0) return 0;
-    return valueTotal / periodicityMonths;
+  calculateAporteMensual(valueTotal: number, periodicityMonths: number, balance: number = 0): number {
+    return calculateAporteMensual(valueTotal, periodicityMonths, balance);
   }
 
   // Calculate progress (progreso)
@@ -93,7 +93,12 @@ class SubPocketService {
     const subPockets = await this.getSubPocketsByPocket(pocketId);
     return subPockets
       .filter(sp => sp.enabled)
-      .reduce((sum, sp) => sum + this.calculateAporteMensual(sp.valueTotal, sp.periodicityMonths), 0);
+      .reduce((sum, sp) => {
+        const contribution = calculateAporteMensual(sp.valueTotal, sp.periodicityMonths, sp.balance);
+        // Add absolute value of negative balance if debt exists
+        const debt = sp.balance < 0 ? Math.abs(sp.balance) : 0;
+        return sum + contribution + debt;
+      }, 0);
   }
 
   // Calculate next payment for a sub-pocket (handles negative balance and near completion)
@@ -101,21 +106,15 @@ class SubPocketService {
     const subPocket = await this.getSubPocket(subPocketId);
     if (!subPocket) return 0;
 
-    const aporteMensual = this.calculateAporteMensual(subPocket.valueTotal, subPocket.periodicityMonths);
-    const remaining = subPocket.valueTotal - subPocket.balance;
+    // Use centralized logic which handles capping
+    const payment = calculateAporteMensual(subPocket.valueTotal, subPocket.periodicityMonths, subPocket.balance);
 
-    // Case 1: Negative balance - compensate + normal payment
+    // Add debt repayment if balance is negative
     if (subPocket.balance < 0) {
-      return aporteMensual + Math.abs(subPocket.balance);
+      return payment + Math.abs(subPocket.balance);
     }
 
-    // Case 2: Near completion - min of remaining or normal payment
-    if (remaining < aporteMensual) {
-      return remaining;
-    }
-
-    // Normal case
-    return aporteMensual;
+    return payment;
   }
 
   // Validate sub-pocket uniqueness within a pocket
@@ -129,9 +128,9 @@ class SubPocketService {
 
   // Create new sub-pocket
   async createSubPocket(
-    pocketId: string, 
-    name: string, 
-    valueTotal: number, 
+    pocketId: string,
+    name: string,
+    valueTotal: number,
     periodicityMonths: number,
     groupId?: string
   ): Promise<SubPocket> {
@@ -154,9 +153,9 @@ class SubPocketService {
 
   // Direct Supabase implementation (fallback)
   private async createSubPocketDirect(
-    pocketId: string, 
-    name: string, 
-    valueTotal: number, 
+    pocketId: string,
+    name: string,
+    valueTotal: number,
     periodicityMonths: number,
     groupId?: string
   ): Promise<SubPocket> {
@@ -189,18 +188,18 @@ class SubPocketService {
 
     // CRITICAL FIX: Ensure user has a default group, create if needed
     let finalGroupId = groupId;
-    
+
     if (!finalGroupId) {
       // No group specified - find or create user's default group
       const { fixedExpenseGroupService } = await import('./fixedExpenseGroupService');
       const allGroups = await fixedExpenseGroupService.getAll();
       let defaultGroup = allGroups.find(g => g.name === 'Default');
-      
+
       if (!defaultGroup) {
         // Create default group for this user
         defaultGroup = await fixedExpenseGroupService.create('Default', '#6B7280');
       }
-      
+
       finalGroupId = defaultGroup.id;
     }
 
@@ -371,7 +370,7 @@ class SubPocketService {
     if (groupSubPockets.length === 0) return;
 
     // Update all sub-pockets in the group
-    const updated = allSubPockets.map(sp => 
+    const updated = allSubPockets.map(sp =>
       sp.groupId === groupId ? { ...sp, enabled } : sp
     );
 

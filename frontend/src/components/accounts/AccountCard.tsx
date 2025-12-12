@@ -1,6 +1,7 @@
 import type { Account } from '../../types';
 import { EditDeleteActions } from '../ActionButtons';
 import { TrendingUp, Wallet } from 'lucide-react';
+import SelectableValue from '../SelectableValue';
 
 interface AccountCardProps {
     account: Account;
@@ -72,10 +73,12 @@ const AccountCard = ({
                 </div>
                 <div className="flex items-center justify-between sm:justify-end gap-2 sm:gap-3 w-full sm:w-auto min-w-0">
                     <span className={`font-mono text-sm sm:text-lg truncate min-w-0 flex-1 sm:flex-none ${isInvestment ? 'text-purple-700 dark:text-purple-300 font-bold' : isFixedExpensesAccount ? 'text-blue-700 dark:text-blue-300 font-bold' : 'text-gray-900 dark:text-gray-100'}`}>
-                        {account.balance.toLocaleString(undefined, {
-                            style: 'currency',
-                            currency: account.currency,
-                        })}
+                        <SelectableValue id={`acc-bal-${account.id}`} value={account.balance} currency={account.currency}>
+                            {account.balance.toLocaleString(undefined, {
+                                style: 'currency',
+                                currency: account.currency,
+                            })}
+                        </SelectableValue>
                     </span>
                     <div onClick={(e) => e.stopPropagation()}>
                         <EditDeleteActions

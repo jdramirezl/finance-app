@@ -3,6 +3,7 @@ import { currencyService } from '../../services/currencyService';
 import { TrendingUp, RefreshCw } from 'lucide-react';
 import Button from '../Button';
 import { formatDistanceToNow } from 'date-fns';
+import SelectableValue from '../SelectableValue';
 
 export interface InvestmentData {
     precioActual: number;
@@ -46,7 +47,9 @@ const InvestmentCard = ({
                     <TrendingUp className="w-4 h-4 text-purple-600 dark:text-purple-400" />
                 </div>
                 <span className="font-mono text-lg font-semibold text-gray-900 dark:text-gray-100">
-                    {currencyService.formatCurrency(data?.totalValue ?? account.balance, account.currency)}
+                    <SelectableValue id={`inv-total-${account.id}`} value={data?.totalValue ?? account.balance} currency={account.currency}>
+                        {currencyService.formatCurrency(data?.totalValue ?? account.balance, account.currency)}
+                    </SelectableValue>
                 </span>
             </div>
 
@@ -77,7 +80,9 @@ const InvestmentCard = ({
                             <div className="flex justify-between">
                                 <span>Total money invested:</span>
                                 <span className="font-mono">
-                                    {currencyService.formatCurrency(montoInvertido, account.currency)}
+                                    <SelectableValue id={`inv-invested-${account.id}`} value={montoInvertido} currency={account.currency}>
+                                        {currencyService.formatCurrency(montoInvertido, account.currency)}
+                                    </SelectableValue>
                                 </span>
                             </div>
                             <div className="flex justify-between">
@@ -107,7 +112,9 @@ const InvestmentCard = ({
                             <div className="flex justify-between">
                                 <span>Total money gained:</span>
                                 <span className={`font-mono font-semibold ${data.gainsUSD >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                                    {data.gainsUSD >= 0 ? '+' : ''}{currencyService.formatCurrency(data.gainsUSD, account.currency)}
+                                    <SelectableValue id={`inv-gains-${account.id}`} value={data.gainsUSD} currency={account.currency}>
+                                        {data.gainsUSD >= 0 ? '+' : ''}{currencyService.formatCurrency(data.gainsUSD, account.currency)}
+                                    </SelectableValue>
                                 </span>
                             </div>
                         </div>

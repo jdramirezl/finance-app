@@ -17,6 +17,8 @@ import {
 } from '../components/summary';
 import RemindersWidget from '../components/reminders/RemindersWidget';
 import NetWorthTimelineWidget from '../components/net-worth/NetWorthTimelineWidget';
+import { SelectionProvider } from '../context/SelectionContext';
+import FloatingStatsBar from '../components/summary/FloatingStatsBar';
 
 const SummaryPage = () => {
   // TanStack Query hooks
@@ -258,76 +260,75 @@ const SummaryPage = () => {
   }
 
   return (
-    <div className="space-y-6">
-      <PageHeader title="Summary" />
+    <SelectionProvider>
+      <div className="space-y-6">
+        <PageHeader title="Summary" />
 
-      {/* Main Summary - Totals by Currency */}
-      <TotalsSummary
-        consolidatedTotal={consolidatedTotal}
-        primaryCurrency={primaryCurrency}
-        totalsByCurrency={totalsByCurrency}
-      />
+        {/* Main Summary - Totals by Currency */}
+        <TotalsSummary
+          consolidatedTotal={consolidatedTotal}
+          primaryCurrency={primaryCurrency}
+          totalsByCurrency={totalsByCurrency}
+        />
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Accounts Section */}
-        <div className="space-y-4">
-
-
-          {sortedCurrencies.length === 0 ? (
-            <EmptyState
-              icon={Wallet}
-              title="No accounts yet"
-              description="Create your first account to see your summary."
-            />
-          ) : (
-            <div className="space-y-4">
-              {sortedCurrencies.map((currency) => (
-                <CurrencySection
-                  key={currency}
-                  currency={currency as Currency}
-                  accounts={accountsByCurrency[currency as Currency]}
-                  pockets={pockets}
-                  investmentData={investmentData}
-                  refreshingPrices={refreshingPrices}
-                  onRefreshPrice={handleRefreshPrice}
-                />
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Right Column */}
-        <div className="space-y-6">
-          {/* Net Worth Timeline */}
-          <NetWorthTimelineWidget />
-
-          {/* Reminders Section */}
-          <div className="space-y-4 h-[400px]">
-            <RemindersWidget />
-          </div>
-
-          {/* Fixed Expenses Section */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Accounts Section */}
           <div className="space-y-4">
-
-
-            {!fixedPocket ? (
+            {sortedCurrencies.length === 0 ? (
               <EmptyState
                 icon={Wallet}
-                title="No fixed expenses pocket"
-                description="Create a fixed expenses pocket to track your recurring bills."
+                title="No accounts yet"
+                description="Create your first account to see your summary."
               />
             ) : (
-              <FixedExpensesSummary
-                subPockets={fixedSubPockets}
-                groups={fixedExpenseGroups}
-                account={fixedAccount || undefined}
-                totalMoney={totalFixedExpensesMoney}
-              />
+              <div className="space-y-4">
+                {sortedCurrencies.map((currency) => (
+                  <CurrencySection
+                    key={currency}
+                    currency={currency as Currency}
+                    accounts={accountsByCurrency[currency as Currency]}
+                    pockets={pockets}
+                    investmentData={investmentData}
+                    refreshingPrices={refreshingPrices}
+                    onRefreshPrice={handleRefreshPrice}
+                  />
+                ))}
+              </div>
             )}
           </div>
+
+          {/* Right Column */}
+          <div className="space-y-6">
+            {/* Net Worth Timeline */}
+            <NetWorthTimelineWidget />
+
+            {/* Reminders Section */}
+            <div className="space-y-4 h-[400px]">
+              <RemindersWidget />
+            </div>
+
+            {/* Fixed Expenses Section */}
+            <div className="space-y-4">
+              {!fixedPocket ? (
+                <EmptyState
+                  icon={Wallet}
+                  title="No fixed expenses pocket"
+                  description="Create a fixed expenses pocket to track your recurring bills."
+                />
+              ) : (
+                <FixedExpensesSummary
+                  subPockets={fixedSubPockets}
+                  groups={fixedExpenseGroups}
+                  account={fixedAccount || undefined}
+                  totalMoney={totalFixedExpensesMoney}
+                />
+              )}
+            </div>
+          </div>
         </div>
+        <FloatingStatsBar primaryCurrency={primaryCurrency} />
       </div>
-    </div>
+    </SelectionProvider>
   );
 };
 

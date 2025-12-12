@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useAccountsQuery, usePocketsQuery, useSubPocketsQuery, useSettingsQuery, useFixedExpenseGroupsQuery } from '../hooks/queries';
+import { useAccountsQuery, usePocketsQuery, useSubPocketsQuery, useSettingsQuery, useFixedExpenseGroupsQuery, useMovementMutations } from '../hooks/queries';
 import { StorageService } from '../services/storageService';
 import { currencyService } from '../services/currencyService';
 import Input from '../components/Input';
@@ -13,7 +13,10 @@ import ScenarioForm, { type PlanningScenario } from '../components/budget/Scenar
 import PageHeader from '../components/PageHeader';
 import EmptyState from '../components/EmptyState';
 import { Receipt, Layers, Plus, Pencil, Trash2, Info } from 'lucide-react';
+import { calculateAporteMensual } from '../utils/fixedExpenseUtils';
 import { useConfirm } from '../hooks/useConfirm';
+import BatchMovementForm, { type BatchMovementRow } from '../components/BatchMovementForm';
+import { useToast } from '../hooks/useToast';
 
 const BudgetPlanningPage = () => {
   // Queries
@@ -22,6 +25,11 @@ const BudgetPlanningPage = () => {
   const { data: subPockets = [] } = useSubPocketsQuery();
   const { data: fixedExpenseGroups = [] } = useFixedExpenseGroupsQuery();
   const { data: settings = { primaryCurrency: 'USD' }, isLoading: isSettingsLoading } = useSettingsQuery();
+
+  // Mutations
+  const { createMovement } = useMovementMutations();
+
+  const toast = useToast();
 
   const { confirm } = useConfirm();
 
@@ -37,6 +45,10 @@ const BudgetPlanningPage = () => {
   const [activeScenarioIds, setActiveScenarioIds] = useState<Set<string>>(new Set());
   const [showScenarioForm, setShowScenarioForm] = useState(false);
   const [editingScenario, setEditingScenario] = useState<PlanningScenario | null>(null);
+
+  // Batch movements state
+  const [showBatchForm, setShowBatchForm] = useState(false);
+  const [batchRows, setBatchRows] = useState<BatchMovementRow[]>([]);
 
   const [convertedAmounts, setConvertedAmounts] = useState<Map<string, number>>(new Map());
 
@@ -95,8 +107,7 @@ const BudgetPlanningPage = () => {
     }
 
     return relevantSubPockets.reduce((sum, sp) => {
-      const aporteMensual = sp.valueTotal / sp.periodicityMonths;
-      const remaining = sp.valueTotal - sp.balance;
+      const aporteMensual = calculateAporteMensual(sp.valueTotal, sp.periodicityMonths, sp.balance);
       const shouldDeduct = expenseDeductionMap.get(sp.id);
 
       // Case 1: Negative balance - compensate + normal payment (Always applies)
@@ -108,25 +119,22 @@ const BudgetPlanningPage = () => {
       if (shouldDeduct) {
         // If we have saved more than needed for this month (aporteMensual), we pay 0.
         // If we have saved some (e.g. 50 saved, 100 needed), we pay 50.
-        // BUT wait, this logic is tricky. 
-        // Logic: Standard contribution is X. 
-        // If I have saved Y in current balance (positive). 
-        // Requirement for this month = max(0, X - Y).
+        // With the new 'aporteMensual' already being capped, we just need to subtract current balance FROM it?
+        // No, 'deductSaved' meant "If I have ANY savings, they count towards THIS MONTH's payment".
+        // The new logic `max(0, Total - Balance)` essentially does a "Global Deduct Saved".
+        // If the user wants `deductSaved` to be even STRONGER (e.g. reduce payment by full balance), 
+        // effectively paying 0 if balance > standard payment...
+        // The previous logic was: `reducedPayment = max(0, aporteMensual - sp.balance)`.
 
-        // This differs from "Near Completion" logic which looks at TOTAL remaining.
-        // Let's combine them: We never need to pay more than TOTAL remaining.
-        // And if we deduct savings, we reduce the monthly payment by current savings.
+        // Given the new "Capping" logic is the DEFAULT, `deductSaved` might be redundant 
+        // OR it might mean "Use existing balance to cover THIS month's installment specifically".
+        // Let's preserve the specific `deductSaved` intent: reduce the monthly bill by current balance.
 
         const reducedPayment = Math.max(0, aporteMensual - sp.balance);
-        return sum + Math.min(remaining, reducedPayment);
+        return sum + reducedPayment;
       }
 
-      // Case 3: Near completion - min of remaining or normal payment (Default behavior)
-      if (remaining < aporteMensual) {
-        return sum + remaining;
-      }
-
-      // Normal case
+      // Normal case (now includes Capping via calculateAporteMensual)
       return sum + aporteMensual;
     }, 0);
   };
@@ -168,6 +176,69 @@ const BudgetPlanningPage = () => {
 
     convertAmounts();
   }, [distributionEntries, remaining, showConversion, budgetCurrency, primaryCurrency]);
+
+  const handleCreateMovements = () => {
+    const activeEntries = distributionEntries.filter(entry => entry.percentage > 0);
+
+    if (activeEntries.length === 0) {
+      toast.error('No distribution entries to create movements from.');
+      return;
+    }
+
+    const rows: BatchMovementRow[] = [];
+
+    activeEntries.forEach(entry => {
+      const amount = calculateEntryAmount(entry.percentage);
+      if (amount <= 0) return;
+
+      // Try to match pocket by name (case insensitive)
+      // This is a heuristic since DistributionEntry doesn't store pocketId
+      const matchedPocket = pockets.find(p => p.name.trim().toLowerCase() === entry.name.trim().toLowerCase());
+      const account = matchedPocket ? accounts.find(a => a.id === matchedPocket.accountId) : undefined;
+
+      rows.push({
+        id: crypto.randomUUID(),
+        type: 'IngresoNormal', // Funding the pocket
+        accountId: account?.id || '',
+        pocketId: matchedPocket?.id || '',
+        amount: amount.toFixed(2),
+        notes: `Budget Distribution: ${entry.name}`,
+        displayedDate: new Date().toISOString().split('T')[0],
+      });
+    });
+
+    if (rows.length === 0) {
+      toast.error('Calculated amounts are zero.');
+      return;
+    }
+
+    setBatchRows(rows);
+    setShowBatchForm(true);
+    toast.success(rows.length === 1 ? 'Prepared 1 movement' : `Prepared ${rows.length} movements`);
+  };
+
+  const handleBatchSave = async (rows: BatchMovementRow[]) => {
+    try {
+      for (const row of rows) {
+        await createMovement.mutateAsync({
+          type: row.type,
+          accountId: row.accountId,
+          pocketId: row.pocketId,
+          amount: parseFloat(row.amount),
+          notes: row.notes || undefined,
+          displayedDate: row.displayedDate,
+          isPending: row.isPending || false
+        });
+      }
+
+      setShowBatchForm(false);
+      setBatchRows([]);
+      toast.success(`Successfully distributed budget!`);
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to save movements';
+      toast.error(errorMessage);
+    }
+  };
 
   const handleSaveScenario = (scenario: PlanningScenario) => {
     if (editingScenario) {
@@ -221,7 +292,17 @@ const BudgetPlanningPage = () => {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Budget Planning" />
+      <div className="flex items-center justify-between">
+        <PageHeader title="Budget Planning" />
+        <Button
+          variant="secondary"
+          onClick={handleCreateMovements}
+          disabled={initialAmount <= 0}
+        >
+          <Receipt className="w-5 h-5" />
+          Create Movements
+        </Button>
+      </div>
 
       {/* Initial Amount Input */}
       <Card padding="md">
@@ -268,13 +349,13 @@ const BudgetPlanningPage = () => {
               const scenarioTotal = fixedSubPockets
                 .filter(sp => scenario.expenseIds.includes(sp.id))
                 .reduce((sum, sp) => {
-                  const aporteMensual = sp.valueTotal / sp.periodicityMonths;
+                  const aporteMensual = calculateAporteMensual(sp.valueTotal, sp.periodicityMonths, sp.balance);
+
                   if (scenario.deductSaved && sp.balance > 0) {
                     const reduced = Math.max(0, aporteMensual - sp.balance);
-                    // Determine remaining total amount (cap)
-                    const remaining = sp.valueTotal - sp.balance;
-                    return sum + Math.min(remaining, reduced);
+                    return sum + reduced;
                   }
+
                   return sum + aporteMensual;
                 }, 0);
 
@@ -382,6 +463,24 @@ const BudgetPlanningPage = () => {
             setShowScenarioForm(false);
             setEditingScenario(null);
           }}
+        />
+      </Modal>
+
+      {/* Batch Movement Form Modal */}
+      <Modal isOpen={showBatchForm} onClose={() => setShowBatchForm(false)} size="xl">
+        <BatchMovementForm
+          accounts={accounts}
+          getPocketsByAccount={(accountId) => pockets.filter(p => p.accountId === accountId)}
+          // Pass empty / unused getter or simple filter for subpockets if needed, 
+          // though Budget Distribution usually targets Main Pockets, not SubPockets.
+          // BatchMovementForm needs getSubPocketsByPocket?
+          getSubPocketsByPocket={(pocketId) => subPockets.filter(sp => sp.pocketId === pocketId)}
+          onSave={handleBatchSave}
+          onCancel={() => {
+            setShowBatchForm(false);
+            setBatchRows([]);
+          }}
+          initialRows={batchRows}
         />
       </Modal>
     </div>
