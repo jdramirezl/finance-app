@@ -4,6 +4,7 @@ import { currencyService } from '../../services/currencyService';
 import Card from '../Card';
 import ProgressBar from '../ProgressBar';
 import { Wallet } from 'lucide-react';
+import SelectableValue from '../SelectableValue';
 
 interface FixedExpensesSummaryProps {
     subPockets: SubPocket[];
@@ -72,16 +73,20 @@ const FixedExpensesSummary = ({
                     </div>
                 </td>
                 <td className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300">
-                    {currencyService.formatCurrency(
-                        subPocket.balance,
-                        account?.currency || 'USD'
-                    )}
+                    <SelectableValue id={`fixed-bal-${subPocket.id}`} value={subPocket.balance} currency={account?.currency}>
+                        {currencyService.formatCurrency(
+                            subPocket.balance,
+                            account?.currency || 'USD'
+                        )}
+                    </SelectableValue>
                 </td>
                 <td className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300">
-                    {currencyService.formatCurrency(
-                        subPocket.valueTotal,
-                        account?.currency || 'USD'
-                    )}
+                    <SelectableValue id={`fixed-tot-${subPocket.id}`} value={subPocket.valueTotal} currency={account?.currency}>
+                        {currencyService.formatCurrency(
+                            subPocket.valueTotal,
+                            account?.currency || 'USD'
+                        )}
+                    </SelectableValue>
                 </td>
                 <td className="px-4 py-2 min-w-[100px]">
                     <ProgressBar value={progress} showLabel size="sm" />

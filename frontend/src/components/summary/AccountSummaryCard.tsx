@@ -1,5 +1,6 @@
 import type { Account, Pocket } from '../../types';
 import { currencyService } from '../../services/currencyService';
+import SelectableValue from '../SelectableValue';
 
 interface AccountSummaryCardProps {
     account: Account;
@@ -20,7 +21,9 @@ const AccountSummaryCard = ({ account, pockets }: AccountSummaryCardProps) => {
                     </span>
                 </div>
                 <span className="font-mono text-lg font-semibold text-gray-900 dark:text-gray-100">
-                    {currencyService.formatCurrency(account.balance, account.currency)}
+                    <SelectableValue id={`acc-sum-bal-${account.id}`} value={account.balance} currency={account.currency}>
+                        {currencyService.formatCurrency(account.balance, account.currency)}
+                    </SelectableValue>
                 </span>
             </div>
 
@@ -36,7 +39,9 @@ const AccountSummaryCard = ({ account, pockets }: AccountSummaryCardProps) => {
                             )}
                         </span>
                         <span className="font-mono text-gray-900 dark:text-gray-100">
-                            {currencyService.formatCurrency(pocket.balance, pocket.currency)}
+                            <SelectableValue id={`pocket-sum-bal-${pocket.id}`} value={pocket.balance} currency={pocket.currency}>
+                                {currencyService.formatCurrency(pocket.balance, pocket.currency)}
+                            </SelectableValue>
                         </span>
                     </div>
                 ))}
