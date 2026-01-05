@@ -6,6 +6,7 @@ import Input from '../components/Input';
 import Button from '../components/Button';
 import Card from '../components/Card';
 import Modal from '../components/Modal';
+import ConfirmDialog from '../components/ConfirmDialog';
 import { Skeleton, SkeletonCard, SkeletonList } from '../components/Skeleton';
 import type { Currency } from '../types';
 import { BudgetSummaryCard, BudgetDistribution, type DistributionEntry } from '../components/budget';
@@ -31,7 +32,7 @@ const BudgetPlanningPage = () => {
 
   const toast = useToast();
 
-  const { confirm } = useConfirm();
+  const { confirm, confirmState, handleClose, handleConfirm } = useConfirm();
 
   // Load persisted data on mount
   const savedData = StorageService.getBudgetPlanning();
@@ -440,6 +441,17 @@ const BudgetPlanningPage = () => {
           initialRows={batchRows}
         />
       </Modal>
+
+      {/* Confirm Dialog */}
+      <ConfirmDialog
+        isOpen={confirmState.isOpen}
+        title={confirmState.title}
+        message={confirmState.message}
+        confirmText={confirmState.confirmText}
+        variant={confirmState.variant}
+        onConfirm={handleConfirm}
+        onClose={handleClose}
+      />
     </div>
   );
 };
