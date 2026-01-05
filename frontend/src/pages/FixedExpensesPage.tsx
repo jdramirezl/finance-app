@@ -15,6 +15,7 @@ import { Plus, Receipt, FolderPlus } from 'lucide-react';
 import Modal from '../components/Modal';
 import Button from '../components/Button';
 import Card from '../components/Card';
+import ConfirmDialog from '../components/ConfirmDialog';
 import { Skeleton } from '../components/Skeleton';
 import BatchMovementForm, { type BatchMovementRow } from '../components/BatchMovementForm';
 import FixedExpenseGroupCard from '../components/FixedExpenseGroupCard';
@@ -38,7 +39,7 @@ const FixedExpensesPage = () => {
   const { deleteSubPocket, toggleSubPocketEnabled, moveSubPocketToGroup } = useSubPocketMutations();
 
   const toast = useToast();
-  const { confirm } = useConfirm();
+  const { confirm, confirmState, handleClose, handleConfirm } = useConfirm();
 
   // UI State
   const [showForm, setShowForm] = useState(false);
@@ -485,6 +486,17 @@ const FixedExpensesPage = () => {
           }}
         />
       </Modal>
+
+      <ConfirmDialog
+        isOpen={confirmState.isOpen}
+        title={confirmState.title}
+        message={confirmState.message}
+        confirmText={confirmState.confirmText}
+        cancelText={confirmState.cancelText}
+        variant={confirmState.variant}
+        onConfirm={handleConfirm}
+        onClose={handleClose}
+      />
     </div>
   );
 };
