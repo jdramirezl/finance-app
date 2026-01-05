@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAccountsQuery, usePocketsQuery, useSubPocketsQuery, useMovementTemplatesQuery } from '../../hooks/queries';
 import Button from '../Button';
 import Input from '../Input';
@@ -72,6 +72,12 @@ const MovementForm = ({
     const { data: subPockets = [] } = useSubPocketsQuery();
     const { data: movementTemplates = [] } = useMovementTemplatesQuery();
 
+    // Find the fixed expense account and pocket (there's only one globally)
+    const fixedExpensePocket = pockets.find(p => p.type === 'fixed');
+    const fixedExpenseAccount = fixedExpensePocket 
+        ? accounts.find(a => a.id === fixedExpensePocket.accountId)
+        : null;
+
     // Determine if this is a fixed expense from defaultValues or initialData
     // const defaultType = defaultValues?.type || initialData?.type || 'EgresoNormal'; // No longer needed as we use selectedType
     const isDefaultFixedExpense = selectedType === 'IngresoFijo' || selectedType === 'EgresoFijo';
@@ -93,6 +99,15 @@ const MovementForm = ({
     const availableSubPockets = fixedPocket && isFixedExpense
         ? subPockets.filter(sp => sp.pocketId === fixedPocket.id)
         : [];
+
+    // Auto-populate account and pocket when fixed expense type is selected
+    useEffect(() => {
+        if ((selectedType === 'IngresoFijo' || selectedType === 'EgresoFijo') && fixedExpenseAccount && fixedExpensePocket) {
+            // Auto-populate the fixed expense account and pocket
+            setSelectedAccountId(fixedExpenseAccount.id);
+            setSelectedPocketId(fixedExpensePocket.id);
+        }
+    }, [selectedType, fixedExpenseAccount, fixedExpensePocket, setSelectedAccountId, setSelectedPocketId]);
 
     const movementTypes: { value: MovementType | 'Transfer'; label: string }[] = [
         { value: 'IngresoNormal', label: 'Normal Income' },
@@ -141,11 +156,22 @@ const MovementForm = ({
                         if (value === 'Transfer') {
                             setIsTransfer(true);
                             setIsFixedExpense(false);
+                            // Clear selections when switching to transfer
+                            setSelectedAccountId('');
+                            setSelectedPocketId('');
                         } else {
                             setIsTransfer(false);
                             const type = value as MovementType;
                             setSelectedType(type);
-                            setIsFixedExpense(type === 'IngresoFijo' || type === 'EgresoFijo');
+                            const isFixedType = type === 'IngresoFijo' || type === 'EgresoFijo';
+                            setIsFixedExpense(isFixedType);
+                            
+                            // If switching to fixed expense type, auto-populate will happen via useEffect
+                            // If switching away from fixed expense type, clear selections to allow manual selection
+                            if (!isFixedType) {
+                                setSelectedAccountId('');
+                                setSelectedPocketId('');
+                            }
                         }
                     }}
                     options={movementTypes}
@@ -189,6 +215,14 @@ const MovementForm = ({
                     disabled={!selectedAccountId}
                 />
             </div>
+
+            {(selectedType === 'IngresoFijo' || selectedType === 'EgresoFijo') && fixedExpenseAccount && fixedExpensePocket && (
+                <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                    <p className="text-sm text-blue-700 dark:text-blue-300">
+                        ℹ️ Fixed expense account and pocket have been automatically selected: <strong>{fixedExpenseAccount.name}</strong> → <strong>{fixedExpensePocket.name}</strong>
+                    </p>
+                </div>
+            )}
 
             {isTransfer && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700">
