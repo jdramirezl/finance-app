@@ -128,7 +128,9 @@ const FixedExpensesPage = () => {
   };
 
   const handleDelete = async (id: string) => {
+    console.log('🚀 handleDelete called with id:', id);
     const subPocket = fixedSubPockets.find(sp => sp.id === id);
+    console.log('📦 Found subPocket:', subPocket);
 
     const confirmed = await confirm({
       title: 'Delete Fixed Expense',
@@ -138,14 +140,18 @@ const FixedExpensesPage = () => {
       variant: 'danger',
     });
 
+    console.log('✅ Confirmation result:', confirmed);
     if (!confirmed) return;
 
     setDeletingId(id); // Track which item is being deleted
     try {
+      console.log('🔄 Calling deleteSubPocket.mutateAsync...');
       // Optimistic: UI updates immediately via store
       await deleteSubPocket.mutateAsync(id);
+      console.log('✅ Delete successful');
       toast.success('Fixed expense deleted successfully!');
     } catch (err: any) {
+      console.error('❌ Delete failed:', err);
       const errorMsg = err.message || 'Failed to delete fixed expense';
       toast.error(errorMsg);
     } finally {

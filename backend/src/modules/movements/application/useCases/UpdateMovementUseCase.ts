@@ -57,8 +57,8 @@ export class UpdateMovementUseCase {
 
     // Validate input if provided
     if (dto.amount !== undefined) {
-      if (dto.amount <= 0) {
-        throw new ValidationError('Amount must be positive');
+      if (dto.amount < 0) {
+        throw new ValidationError('Amount cannot be negative');
       }
     }
 

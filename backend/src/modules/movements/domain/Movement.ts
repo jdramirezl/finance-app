@@ -30,9 +30,9 @@ export class Movement {
    * Domain invariants - business rules that must always be true
    */
   private validate(): void {
-    // Validate amount
-    if (this.amount <= 0) {
-      throw new Error('Movement amount must be positive');
+    // Validate amount (allow zero for tracking purposes)
+    if (this.amount < 0) {
+      throw new Error('Movement amount cannot be negative');
     }
 
     // Validate type

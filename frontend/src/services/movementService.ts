@@ -425,9 +425,9 @@ class MovementService {
     subPocketId?: string,
     isPending?: boolean
   ): Promise<Movement> {
-    // Validate amount
-    if (amount <= 0) {
-      throw new Error('Movement amount must be greater than zero.');
+    // Validate amount (allow zero for tracking purposes)
+    if (amount < 0) {
+      throw new Error('Movement amount cannot be negative.');
     }
 
     // Validate account exists
