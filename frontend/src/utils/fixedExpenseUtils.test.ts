@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { calculateAporteMensual } from './fixedExpenseUtils';
+import { calculateAporteMensual, calculateSimpleMonthlyContribution } from './fixedExpenseUtils';
 
 describe('calculateAporteMensual', () => {
     // Standard case: 0 balance
@@ -46,5 +46,22 @@ describe('calculateAporteMensual', () => {
     // Edge case: 0 periodicity
     it('should return 0 if periodicity is 0 to avoid division by zero', () => {
         expect(calculateAporteMensual(100, 0, 0)).toBe(0);
+    });
+});
+
+describe('calculateSimpleMonthlyContribution', () => {
+    it('should return simple division of total by months', () => {
+        expect(calculateSimpleMonthlyContribution(1200, 12)).toBe(100);
+        expect(calculateSimpleMonthlyContribution(1000, 3)).toBeCloseTo(333.33, 2);
+        expect(calculateSimpleMonthlyContribution(500, 5)).toBe(100);
+    });
+
+    it('should return 0 if periodicity is 0', () => {
+        expect(calculateSimpleMonthlyContribution(100, 0)).toBe(0);
+    });
+
+    it('should ignore balance (unlike calculateAporteMensual)', () => {
+        // This function should always return the same result regardless of balance
+        expect(calculateSimpleMonthlyContribution(1200, 12)).toBe(100);
     });
 });

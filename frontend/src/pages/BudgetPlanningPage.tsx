@@ -6,6 +6,7 @@ import Input from '../components/Input';
 import Button from '../components/Button';
 import Card from '../components/Card';
 import Modal from '../components/Modal';
+import ConfirmDialog from '../components/ConfirmDialog';
 import { Skeleton, SkeletonCard, SkeletonList } from '../components/Skeleton';
 import type { Currency } from '../types';
 import { BudgetSummaryCard, BudgetDistribution, type DistributionEntry } from '../components/budget';
@@ -31,7 +32,7 @@ const BudgetPlanningPage = () => {
 
   const toast = useToast();
 
-  const { confirm } = useConfirm();
+  const { confirm, confirmState, handleClose, handleConfirm } = useConfirm();
 
   // Load persisted data on mount
   const savedData = StorageService.getBudgetPlanning();
@@ -75,12 +76,9 @@ const BudgetPlanningPage = () => {
   const budgetCurrency = fixedAccount?.currency || 'USD';
   const showConversion = primaryCurrency !== budgetCurrency;
 
-  // Calculate total monthly fixed expenses (using next payment logic for negative balances)
+  // Calculate total monthly fixed expenses (using actual calculation with overflow handling)
   const calculateTotalFijosMes = (): number => {
     let relevantSubPockets: typeof fixedSubPockets = [];
-
-    // Map to track if deduction should apply for a specific expense
-    const expenseDeductionMap = new Map<string, boolean>();
 
     if (activeScenarioIds.size > 0) {
       // If scenarios are active, use union of expenses from scenarios
@@ -90,10 +88,6 @@ const BudgetPlanningPage = () => {
         if (activeScenarioIds.has(s.id)) {
           s.expenseIds.forEach(id => {
             allScenarioExpenseIds.add(id);
-            // If ANY active scenario containing this expense has deductSaved enabled, apply it
-            if (s.deductSaved) {
-              expenseDeductionMap.set(id, true);
-            }
           });
         }
       });
@@ -107,35 +101,9 @@ const BudgetPlanningPage = () => {
     }
 
     return relevantSubPockets.reduce((sum, sp) => {
-      const aporteMensual = calculateAporteMensual(sp.valueTotal, sp.periodicityMonths, sp.balance);
-      const shouldDeduct = expenseDeductionMap.get(sp.id);
-
-      // Case 1: Negative balance - compensate + normal payment (Always applies)
-      if (sp.balance < 0) {
-        return sum + aporteMensual + Math.abs(sp.balance);
-      }
-
-      // Case 2: Deduct saved amounts if scenario requested
-      if (shouldDeduct) {
-        // If we have saved more than needed for this month (aporteMensual), we pay 0.
-        // If we have saved some (e.g. 50 saved, 100 needed), we pay 50.
-        // With the new 'aporteMensual' already being capped, we just need to subtract current balance FROM it?
-        // No, 'deductSaved' meant "If I have ANY savings, they count towards THIS MONTH's payment".
-        // The new logic `max(0, Total - Balance)` essentially does a "Global Deduct Saved".
-        // If the user wants `deductSaved` to be even STRONGER (e.g. reduce payment by full balance), 
-        // effectively paying 0 if balance > standard payment...
-        // The previous logic was: `reducedPayment = max(0, aporteMensual - sp.balance)`.
-
-        // Given the new "Capping" logic is the DEFAULT, `deductSaved` might be redundant 
-        // OR it might mean "Use existing balance to cover THIS month's installment specifically".
-        // Let's preserve the specific `deductSaved` intent: reduce the monthly bill by current balance.
-
-        const reducedPayment = Math.max(0, aporteMensual - sp.balance);
-        return sum + reducedPayment;
-      }
-
-      // Normal case (now includes Capping via calculateAporteMensual)
-      return sum + aporteMensual;
+      // Use actual calculation: min(total/months, leftover) - same as Fixed Expenses page "Actual"
+      const monthlyAmount = calculateAporteMensual(sp.valueTotal, sp.periodicityMonths, sp.balance);
+      return sum + monthlyAmount;
     }, 0);
   };
 
@@ -345,18 +313,13 @@ const BudgetPlanningPage = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {scenarios.map(scenario => {
               const isActive = activeScenarioIds.has(scenario.id);
-              // Calculate scenario total
+              // Calculate scenario total using simple calculation
               const scenarioTotal = fixedSubPockets
                 .filter(sp => scenario.expenseIds.includes(sp.id))
                 .reduce((sum, sp) => {
-                  const aporteMensual = calculateAporteMensual(sp.valueTotal, sp.periodicityMonths, sp.balance);
-
-                  if (scenario.deductSaved && sp.balance > 0) {
-                    const reduced = Math.max(0, aporteMensual - sp.balance);
-                    return sum + reduced;
-                  }
-
-                  return sum + aporteMensual;
+                  // Use actual calculation: min(total/months, leftover) - same as Fixed Expenses page "Actual"
+                  const monthlyAmount = calculateAporteMensual(sp.valueTotal, sp.periodicityMonths, sp.balance);
+                  return sum + monthlyAmount;
                 }, 0);
 
               return (
@@ -390,13 +353,8 @@ const BudgetPlanningPage = () => {
                   <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">
                     {currencyService.formatCurrency(scenarioTotal, budgetCurrency)}
                   </div>
-                  <p className="text-xs text-gray-500 mt-1 flex items-center justify-between">
-                    <span>{scenario.expenseIds.length} expenses included</span>
-                    {scenario.deductSaved && (
-                      <span className="text-[10px] bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 px-1.5 py-0.5 rounded border border-green-200 dark:border-green-800">
-                        Savings Deducted
-                      </span>
-                    )}
+                  <p className="text-xs text-gray-500 mt-1">
+                    {scenario.expenseIds.length} expenses included
                   </p>
                 </div>
               );
@@ -483,6 +441,17 @@ const BudgetPlanningPage = () => {
           initialRows={batchRows}
         />
       </Modal>
+
+      {/* Confirm Dialog */}
+      <ConfirmDialog
+        isOpen={confirmState.isOpen}
+        title={confirmState.title}
+        message={confirmState.message}
+        confirmText={confirmState.confirmText}
+        variant={confirmState.variant}
+        onConfirm={handleConfirm}
+        onClose={handleClose}
+      />
     </div>
   );
 };

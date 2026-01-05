@@ -2,7 +2,7 @@ import type { FixedExpenseGroup, SubPocket } from '../types';
 import { ChevronDown, ChevronRight, Edit2, Trash2, ToggleLeft, ToggleRight } from 'lucide-react';
 import Button from './Button';
 import AnimatedProgressBar from './AnimatedProgressBar';
-import { calculateAporteMensual, calculateProgress } from '../utils/fixedExpenseUtils';
+import { calculateAporteMensual, calculateSimpleMonthlyContribution, calculateProgress } from '../utils/fixedExpenseUtils';
 
 interface FixedExpenseGroupCardProps {
   group: FixedExpenseGroup;
@@ -45,9 +45,12 @@ const FixedExpenseGroupCard = ({
 }: FixedExpenseGroupCardProps) => {
 
   const enabledCount = subPockets.filter(sp => sp.enabled).length;
-  const totalMonthly = subPockets
+  const totalMonthlyExpected = subPockets
     .filter(sp => sp.enabled)
-    .reduce((sum, sp) => sum + calculateAporteMensual(sp.valueTotal, sp.periodicityMonths), 0);
+    .reduce((sum, sp) => sum + calculateSimpleMonthlyContribution(sp.valueTotal, sp.periodicityMonths), 0);
+  const totalMonthlyActual = subPockets
+    .filter(sp => sp.enabled)
+    .reduce((sum, sp) => sum + calculateAporteMensual(sp.valueTotal, sp.periodicityMonths, sp.balance), 0);
   const allEnabled = subPockets.length > 0 && enabledCount === subPockets.length;
   const someEnabled = enabledCount > 0 && enabledCount < subPockets.length;
 
@@ -80,9 +83,20 @@ const FixedExpenseGroupCard = ({
                   ({enabledCount}/{subPockets.length} enabled)
                 </span>
               </div>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                Monthly: {totalMonthly.toLocaleString(undefined, { style: 'currency', currency })}
-              </p>
+              <div className="flex items-center gap-4 text-sm">
+                <div>
+                  <span className="text-gray-500 dark:text-gray-400">Expected:</span>
+                  <span className="ml-1 font-medium text-gray-900 dark:text-gray-100">
+                    {totalMonthlyExpected.toLocaleString(undefined, { style: 'currency', currency })}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-gray-500 dark:text-gray-400">Actual:</span>
+                  <span className="ml-1 font-medium text-blue-600 dark:text-blue-400">
+                    {totalMonthlyActual.toLocaleString(undefined, { style: 'currency', currency })}
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -147,7 +161,8 @@ const FixedExpenseGroupCard = ({
             </div>
           ) : (
             subPockets.map((subPocket) => {
-              const aporteMensual = calculateAporteMensual(subPocket.valueTotal, subPocket.periodicityMonths);
+              const aporteMensualExpected = calculateSimpleMonthlyContribution(subPocket.valueTotal, subPocket.periodicityMonths);
+              const aporteMensualActual = calculateAporteMensual(subPocket.valueTotal, subPocket.periodicityMonths, subPocket.balance);
               const progress = calculateProgress(subPocket.balance, subPocket.valueTotal);
               const isDeleting = deletingId === subPocket.id;
               const isTogglingExpense = togglingId === subPocket.id;
@@ -187,7 +202,7 @@ const FixedExpenseGroupCard = ({
                         </select>
                       </div>
 
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
                         <div>
                           <span className="text-gray-500 dark:text-gray-400">Total:</span>
                           <span className="ml-2 font-medium text-gray-900 dark:text-gray-100">
@@ -195,9 +210,15 @@ const FixedExpenseGroupCard = ({
                           </span>
                         </div>
                         <div>
-                          <span className="text-gray-500 dark:text-gray-400">Monthly:</span>
+                          <span className="text-gray-500 dark:text-gray-400">Expected:</span>
                           <span className="ml-2 font-medium text-gray-900 dark:text-gray-100">
-                            {aporteMensual.toLocaleString(undefined, { style: 'currency', currency })}
+                            {aporteMensualExpected.toLocaleString(undefined, { style: 'currency', currency })}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-gray-500 dark:text-gray-400">Actual:</span>
+                          <span className="ml-2 font-medium text-blue-600 dark:text-blue-400">
+                            {aporteMensualActual.toLocaleString(undefined, { style: 'currency', currency })}
                           </span>
                         </div>
                         <div>
