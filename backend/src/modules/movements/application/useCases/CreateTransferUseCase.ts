@@ -30,8 +30,8 @@ export class CreateTransferUseCase {
 
     async execute(dto: CreateTransferDTO, userId: string): Promise<{ expense: Movement; income: Movement }> {
         // 1. Validate input
-        if (dto.amount <= 0) {
-            throw new ValidationError('Amount must be positive');
+        if (dto.amount < 0) {
+            throw new ValidationError('Amount cannot be negative');
         }
         if (dto.sourceAccountId === dto.targetAccountId && dto.sourcePocketId === dto.targetPocketId) {
             throw new ValidationError('Source and target pockets must be different');

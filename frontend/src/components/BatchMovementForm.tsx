@@ -109,7 +109,7 @@ const BatchMovementForm = ({
     rows.forEach((row, index) => {
       if (!row.accountId) errors.push(`Row ${index + 1}: Account is required`);
       if (!row.pocketId) errors.push(`Row ${index + 1}: Pocket is required`);
-      if (!row.amount || parseFloat(row.amount) <= 0) errors.push(`Row ${index + 1}: Valid amount is required`);
+      if (!row.amount || parseFloat(row.amount) < 0) errors.push(`Row ${index + 1}: Valid amount is required (cannot be negative)`);
     });
 
     if (errors.length > 0) {

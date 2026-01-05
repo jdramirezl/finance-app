@@ -34,10 +34,18 @@ export const useConfirm = () => {
           setConfirmState((prev) => ({ ...prev, isOpen: false }));
         },
       });
+
+      // Store the resolve function to handle cancellation
+      (window as any).__confirmResolve = resolve;
     });
   }, []);
 
   const handleClose = useCallback(() => {
+    // Resolve with false when dialog is closed/cancelled
+    if ((window as any).__confirmResolve) {
+      (window as any).__confirmResolve(false);
+      (window as any).__confirmResolve = null;
+    }
     setConfirmState((prev) => ({ ...prev, isOpen: false }));
   }, []);
 

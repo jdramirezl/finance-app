@@ -79,8 +79,8 @@ export class CreateMovementUseCase {
       throw new ValidationError('Amount is required');
     }
 
-    if (dto.amount <= 0) {
-      throw new ValidationError('Amount must be positive');
+    if (dto.amount < 0) {
+      throw new ValidationError('Amount cannot be negative');
     }
 
     // Validate type

@@ -15,6 +15,7 @@ import { Plus, Receipt, FolderPlus } from 'lucide-react';
 import Modal from '../components/Modal';
 import Button from '../components/Button';
 import Card from '../components/Card';
+import ConfirmDialog from '../components/ConfirmDialog';
 import { Skeleton } from '../components/Skeleton';
 import BatchMovementForm, { type BatchMovementRow } from '../components/BatchMovementForm';
 import FixedExpenseGroupCard from '../components/FixedExpenseGroupCard';
@@ -38,7 +39,7 @@ const FixedExpensesPage = () => {
   const { deleteSubPocket, toggleSubPocketEnabled, moveSubPocketToGroup } = useSubPocketMutations();
 
   const toast = useToast();
-  const { confirm } = useConfirm();
+  const { confirm, confirmState, handleClose, handleConfirm } = useConfirm();
 
   // UI State
   const [showForm, setShowForm] = useState(false);
@@ -127,7 +128,9 @@ const FixedExpensesPage = () => {
   };
 
   const handleDelete = async (id: string) => {
+    console.log('🚀 handleDelete called with id:', id);
     const subPocket = fixedSubPockets.find(sp => sp.id === id);
+    console.log('📦 Found subPocket:', subPocket);
 
     const confirmed = await confirm({
       title: 'Delete Fixed Expense',
@@ -137,14 +140,18 @@ const FixedExpensesPage = () => {
       variant: 'danger',
     });
 
+    console.log('✅ Confirmation result:', confirmed);
     if (!confirmed) return;
 
     setDeletingId(id); // Track which item is being deleted
     try {
+      console.log('🔄 Calling deleteSubPocket.mutateAsync...');
       // Optimistic: UI updates immediately via store
       await deleteSubPocket.mutateAsync(id);
+      console.log('✅ Delete successful');
       toast.success('Fixed expense deleted successfully!');
     } catch (err: any) {
+      console.error('❌ Delete failed:', err);
       const errorMsg = err.message || 'Failed to delete fixed expense';
       toast.error(errorMsg);
     } finally {
@@ -485,6 +492,17 @@ const FixedExpensesPage = () => {
           }}
         />
       </Modal>
+
+      <ConfirmDialog
+        isOpen={confirmState.isOpen}
+        title={confirmState.title}
+        message={confirmState.message}
+        confirmText={confirmState.confirmText}
+        cancelText={confirmState.cancelText}
+        variant={confirmState.variant}
+        onConfirm={handleConfirm}
+        onClose={handleClose}
+      />
     </div>
   );
 };
