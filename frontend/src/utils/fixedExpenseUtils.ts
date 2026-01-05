@@ -16,6 +16,17 @@ export const calculateAporteMensual = (valueTotal: number, periodicityMonths: nu
 };
 
 /**
+ * Calculate simple monthly contribution for budget planning scenarios
+ * @param valueTotal - Total value to save/pay
+ * @param periodicityMonths - Number of months to divide over
+ * @returns Simple monthly contribution (total / months)
+ */
+export const calculateSimpleMonthlyContribution = (valueTotal: number, periodicityMonths: number): number => {
+    if (periodicityMonths <= 0) return 0;
+    return valueTotal / periodicityMonths;
+};
+
+/**
  * Calculate the progress percentage for a fixed expense
  * @param balance - Current balance
  * @param valueTotal - Total target value
