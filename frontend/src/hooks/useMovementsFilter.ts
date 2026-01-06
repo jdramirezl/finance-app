@@ -34,7 +34,15 @@ export const useMovementsFilter = ({ movements }: UseMovementsFilterProps) => {
         };
 
         if (filterDateRange === 'custom' && filterDateFrom && filterDateTo) {
-            return { from: new Date(filterDateFrom), to: new Date(filterDateTo) };
+            // Ensure we're working with YYYY-MM-DD format
+            const fromDateStr = filterDateFrom.includes('T') ? filterDateFrom.split('T')[0] : filterDateFrom;
+            const toDateStr = filterDateTo.includes('T') ? filterDateTo.split('T')[0] : filterDateTo;
+            
+            // Create dates in LOCAL timezone (not UTC) to match user's perspective
+            const fromDate = new Date(fromDateStr + 'T00:00:00');
+            const toDate = new Date(toDateStr + 'T23:59:59.999');
+            
+            return { from: fromDate, to: toDate };
         }
 
         return filterDateRange !== 'all' ? ranges[filterDateRange] : null;
