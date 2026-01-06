@@ -157,7 +157,7 @@ describe('FinancialCalendarWidget', () => {
     const dayButtons = screen.getAllByRole('button');
     const day6Button = dayButtons.find(button => 
       button.textContent?.includes('6') && 
-      !button.disabled
+      !(button as HTMLButtonElement).disabled
     );
     
     if (day6Button) {
