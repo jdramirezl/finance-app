@@ -176,13 +176,33 @@ const MovementFilters = ({ showFilters, setShowFilters, filters, setFilters }: M
                                 type="date"
                                 label="From"
                                 value={filters.dateFrom}
-                                onChange={(e) => setFilters.setDateFrom(e.target.value)}
+                                onChange={(e) => {
+                                    const newFromDate = e.target.value;
+                                    // Prevent start date from being after end date
+                                    if (filters.dateTo && newFromDate && newFromDate > filters.dateTo) {
+                                        // If user tries to set start date after end date,
+                                        // set end date to the same as start date
+                                        setFilters.setDateTo(newFromDate);
+                                    }
+                                    setFilters.setDateFrom(newFromDate);
+                                }}
+                                max={filters.dateTo || undefined}
                             />
                             <Input
                                 type="date"
                                 label="To"
                                 value={filters.dateTo}
-                                onChange={(e) => setFilters.setDateTo(e.target.value)}
+                                onChange={(e) => {
+                                    const newToDate = e.target.value;
+                                    // Prevent end date from being before start date
+                                    if (filters.dateFrom && newToDate && newToDate < filters.dateFrom) {
+                                        // If user tries to set end date before start date, 
+                                        // set start date to the same as end date
+                                        setFilters.setDateFrom(newToDate);
+                                    }
+                                    setFilters.setDateTo(newToDate);
+                                }}
+                                min={filters.dateFrom || undefined}
                             />
                         </>
                     )}

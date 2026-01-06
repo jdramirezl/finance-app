@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   useAccountsQuery,
@@ -126,6 +126,34 @@ const MovementsPage = () => {
   // Handle Quick Actions from URL
   const location = useLocation();
   const navigate = useNavigate();
+
+  // Handle date filtering from URL (e.g., from calendar widget)
+  const processedDateRef = useRef<string | null>(null);
+  
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const dateParam = params.get('date');
+    
+    // Only process if we have a date param and haven't processed this exact date yet
+    if (dateParam && processedDateRef.current !== dateParam) {
+      processedDateRef.current = dateParam;
+      
+      // Set custom date range filter for the specific date
+      setFilters.setDateRange('custom');
+      setFilters.setDateFrom(dateParam);
+      setFilters.setDateTo(dateParam);
+      
+      // Expand the month containing this date
+      const monthKey = format(new Date(dateParam), 'yyyy-MM');
+      setExpandedMonths(prev => new Set(prev).add(monthKey));
+      
+      // Clear the date parameter from URL
+      const newParams = new URLSearchParams(location.search);
+      newParams.delete('date');
+      const newSearch = newParams.toString();
+      navigate(location.pathname + (newSearch ? `?${newSearch}` : ''), { replace: true });
+    }
+  }, [location.search, navigate]); // Don't include setFilters in dependencies
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);

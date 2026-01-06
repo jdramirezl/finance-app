@@ -17,6 +17,7 @@ import {
 } from '../components/summary';
 import RemindersWidget from '../components/reminders/RemindersWidget';
 import NetWorthTimelineWidget from '../components/net-worth/NetWorthTimelineWidget';
+import FinancialCalendarWidget from '../components/calendar/FinancialCalendarWidget';
 import { SelectionProvider } from '../context/SelectionContext';
 import FloatingStatsBar from '../components/summary/FloatingStatsBar';
 
@@ -299,6 +300,9 @@ const SummaryPage = () => {
 
           {/* Right Column */}
           <div className="space-y-6">
+            {/* Financial Calendar */}
+            <FinancialCalendarWidget primaryCurrency={primaryCurrency} />
+
             {/* Net Worth Timeline */}
             <NetWorthTimelineWidget />
 
