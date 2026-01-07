@@ -3,7 +3,7 @@ import { useAccountsQuery, usePocketsQuery, useSettingsQuery, useSubPocketsQuery
 import { currencyService } from '../services/currencyService';
 import { cdCalculationService } from '../services/cdCalculationService';
 import { investmentService } from '../services/investmentService';
-import type { Currency, Account, CDInvestmentAccount } from '../types';
+import type { Currency, Account, CDInvestmentAccount, AccountCardDisplaySettings } from '../types';
 import { useToast } from '../hooks/useToast';
 import { useAutoNetWorthSnapshot } from '../hooks/useAutoNetWorthSnapshot';
 import { SkeletonStats, SkeletonAccountCard, SkeletonList } from '../components/Skeleton';
@@ -154,6 +154,13 @@ const SummaryPage = () => {
   };
 
   const primaryCurrency = settings?.primaryCurrency || 'USD';
+
+  // Get account card display settings with defaults
+  const accountCardDisplay: AccountCardDisplaySettings = settings?.accountCardDisplay || {
+    normal: 'detailed',
+    investment: 'detailed',
+    cd: 'detailed'
+  };
 
   // Helper to check if account is a CD
   const isCDAccount = (account: Account): account is CDInvestmentAccount => {
@@ -349,6 +356,9 @@ const SummaryPage = () => {
                     investmentData={investmentData}
                     refreshingPrices={refreshingPrices}
                     onRefreshPrice={handleRefreshPrice}
+                    normalAccountDisplayMode={accountCardDisplay.normal}
+                    investmentAccountDisplayMode={accountCardDisplay.investment}
+                    cdAccountDisplayMode={accountCardDisplay.cd}
                   />
                 ))}
               </div>

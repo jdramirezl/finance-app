@@ -76,7 +76,14 @@ export class StorageService {
 
   // Settings
   static getSettings() {
-    return this.get<any>(STORAGE_KEYS.SETTINGS) || { primaryCurrency: 'USD' };
+    return this.get<any>(STORAGE_KEYS.SETTINGS) || { 
+      primaryCurrency: 'USD',
+      accountCardDisplay: {
+        normal: 'detailed',
+        investment: 'detailed',
+        cd: 'detailed'
+      }
+    };
   }
 
   static saveSettings(settings: any) {

@@ -194,6 +194,148 @@ const SettingsPage = () => {
               <hr className="border-gray-200 dark:border-gray-700" />
 
               <div>
+                <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">Account Card Display</h3>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                  Choose how account cards appear on the summary page for each account type.
+                </p>
+                <div className="space-y-4">
+                  {/* Normal Accounts */}
+                  <div>
+                    <h4 className="font-medium text-gray-900 dark:text-gray-100 mb-2">Regular Accounts</h4>
+                    <div className="grid grid-cols-2 gap-3">
+                      {(['compact', 'detailed'] as const).map((mode) => (
+                        <label
+                          key={`normal-${mode}`}
+                          className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition-all ${(settings.accountCardDisplay?.normal || 'detailed') === mode
+                            ? 'border-blue-500 bg-blue-50/30 dark:bg-blue-900/20'
+                            : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800'
+                            }`}
+                        >
+                          <input
+                            type="radio"
+                            name="normalAccountDisplay"
+                            value={mode}
+                            checked={(settings.accountCardDisplay?.normal || 'detailed') === mode}
+                            onChange={async () => {
+                              try {
+                                const currentDisplay = settings.accountCardDisplay || { normal: 'detailed', investment: 'detailed', cd: 'detailed' };
+                                await updateSettingsMutation.mutateAsync({
+                                  ...settings,
+                                  accountCardDisplay: { ...currentDisplay, normal: mode }
+                                });
+                                toast.success(`Regular account display updated to ${mode}`);
+                              } catch (err) {
+                                console.error('Failed to update account display:', err);
+                                toast.error('Failed to update account display');
+                              }
+                            }}
+                            disabled={updateSettingsMutation.isPending}
+                            className="w-4 h-4 text-blue-600 dark:text-blue-400"
+                          />
+                          <div className="flex-1">
+                            <span className="font-medium text-gray-900 dark:text-gray-100 capitalize">{mode}</span>
+                            <span className="text-xs text-gray-500 dark:text-gray-400 block">
+                              {mode === 'compact' ? 'Simple list view' : 'Rich visual cards'}
+                            </span>
+                          </div>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Investment Accounts */}
+                  <div>
+                    <h4 className="font-medium text-gray-900 dark:text-gray-100 mb-2">Investment Accounts</h4>
+                    <div className="grid grid-cols-2 gap-3">
+                      {(['compact', 'detailed'] as const).map((mode) => (
+                        <label
+                          key={`investment-${mode}`}
+                          className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition-all ${(settings.accountCardDisplay?.investment || 'detailed') === mode
+                            ? 'border-blue-500 bg-blue-50/30 dark:bg-blue-900/20'
+                            : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800'
+                            }`}
+                        >
+                          <input
+                            type="radio"
+                            name="investmentAccountDisplay"
+                            value={mode}
+                            checked={(settings.accountCardDisplay?.investment || 'detailed') === mode}
+                            onChange={async () => {
+                              try {
+                                const currentDisplay = settings.accountCardDisplay || { normal: 'detailed', investment: 'detailed', cd: 'detailed' };
+                                await updateSettingsMutation.mutateAsync({
+                                  ...settings,
+                                  accountCardDisplay: { ...currentDisplay, investment: mode }
+                                });
+                                toast.success(`Investment account display updated to ${mode}`);
+                              } catch (err) {
+                                console.error('Failed to update account display:', err);
+                                toast.error('Failed to update account display');
+                              }
+                            }}
+                            disabled={updateSettingsMutation.isPending}
+                            className="w-4 h-4 text-blue-600 dark:text-blue-400"
+                          />
+                          <div className="flex-1">
+                            <span className="font-medium text-gray-900 dark:text-gray-100 capitalize">{mode}</span>
+                            <span className="text-xs text-gray-500 dark:text-gray-400 block">
+                              {mode === 'compact' ? 'Simple list view' : 'Rich visual cards'}
+                            </span>
+                          </div>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* CD Accounts */}
+                  <div>
+                    <h4 className="font-medium text-gray-900 dark:text-gray-100 mb-2">Certificate of Deposit (CD)</h4>
+                    <div className="grid grid-cols-2 gap-3">
+                      {(['compact', 'detailed'] as const).map((mode) => (
+                        <label
+                          key={`cd-${mode}`}
+                          className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition-all ${(settings.accountCardDisplay?.cd || 'detailed') === mode
+                            ? 'border-blue-500 bg-blue-50/30 dark:bg-blue-900/20'
+                            : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800'
+                            }`}
+                        >
+                          <input
+                            type="radio"
+                            name="cdAccountDisplay"
+                            value={mode}
+                            checked={(settings.accountCardDisplay?.cd || 'detailed') === mode}
+                            onChange={async () => {
+                              try {
+                                const currentDisplay = settings.accountCardDisplay || { normal: 'detailed', investment: 'detailed', cd: 'detailed' };
+                                await updateSettingsMutation.mutateAsync({
+                                  ...settings,
+                                  accountCardDisplay: { ...currentDisplay, cd: mode }
+                                });
+                                toast.success(`CD account display updated to ${mode}`);
+                              } catch (err) {
+                                console.error('Failed to update account display:', err);
+                                toast.error('Failed to update account display');
+                              }
+                            }}
+                            disabled={updateSettingsMutation.isPending}
+                            className="w-4 h-4 text-blue-600 dark:text-blue-400"
+                          />
+                          <div className="flex-1">
+                            <span className="font-medium text-gray-900 dark:text-gray-100 capitalize">{mode}</span>
+                            <span className="text-xs text-gray-500 dark:text-gray-400 block">
+                              {mode === 'compact' ? 'Simple list view' : 'Rich visual cards'}
+                            </span>
+                          </div>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <hr className="border-gray-200 dark:border-gray-700" />
+
+              <div>
                 <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">Net Worth Snapshots</h3>
                 <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
                   Automated tracking of your financial progress.

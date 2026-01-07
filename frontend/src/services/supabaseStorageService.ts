@@ -510,20 +510,33 @@ export class SupabaseStorageService {
       primaryCurrency: data.primary_currency,
       alphaVantageApiKey: data.alpha_vantage_api_key,
       snapshotFrequency: data.snapshot_frequency,
+      // Handle case where column might not exist yet
+      accountCardDisplay: data.account_card_display ? 
+        (typeof data.account_card_display === 'string' ? 
+          JSON.parse(data.account_card_display) : 
+          data.account_card_display) : 
+        undefined,
     };
   }
 
   static async saveSettings(settings: Settings): Promise<void> {
     const userId = await this.getUserId();
     
+    const settingsData: any = {
+      user_id: userId,
+      primary_currency: settings.primaryCurrency,
+      alpha_vantage_api_key: settings.alphaVantageApiKey,
+      snapshot_frequency: settings.snapshotFrequency,
+    };
+
+    // Only add account_card_display if it exists (for backward compatibility)
+    if (settings.accountCardDisplay) {
+      settingsData.account_card_display = JSON.stringify(settings.accountCardDisplay);
+    }
+    
     const { error } = await supabase
       .from('settings')
-      .upsert({
-        user_id: userId,
-        primary_currency: settings.primaryCurrency,
-        alpha_vantage_api_key: settings.alphaVantageApiKey,
-        snapshot_frequency: settings.snapshotFrequency,
-      }, { onConflict: 'user_id' });
+      .upsert(settingsData, { onConflict: 'user_id' });
 
     if (error) throw error;
   }

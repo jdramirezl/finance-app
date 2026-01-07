@@ -1,7 +1,10 @@
-import type { Account, Pocket, Currency, CDInvestmentAccount } from '../../types';
+import type { Account, Pocket, Currency, CDInvestmentAccount, AccountCardDisplayMode } from '../../types';
 import AccountSummaryCard from './AccountSummaryCard';
+import AccountSummaryCardCompact from './AccountSummaryCardCompact';
 import InvestmentCard, { type InvestmentData } from './InvestmentCard';
+import InvestmentCardCompact from './InvestmentCardCompact';
 import CDSummaryCard from './CDSummaryCard';
+import CDSummaryCardCompact from './CDSummaryCardCompact';
 import Card from '../Card';
 import { Banknote } from 'lucide-react';
 
@@ -12,6 +15,10 @@ interface CurrencySectionProps {
     investmentData: Map<string, InvestmentData>;
     refreshingPrices: Set<string>;
     onRefreshPrice: (account: Account) => void;
+    // Display mode settings
+    normalAccountDisplayMode?: AccountCardDisplayMode;
+    investmentAccountDisplayMode?: AccountCardDisplayMode;
+    cdAccountDisplayMode?: AccountCardDisplayMode;
 }
 
 const CurrencySection = ({
@@ -21,6 +28,9 @@ const CurrencySection = ({
     investmentData,
     refreshingPrices,
     onRefreshPrice,
+    normalAccountDisplayMode = 'detailed',
+    investmentAccountDisplayMode = 'detailed',
+    cdAccountDisplayMode = 'detailed',
 }: CurrencySectionProps) => {
     // Helper to check if account is a CD
     const isCDAccount = (account: Account): account is CDInvestmentAccount => {
@@ -62,7 +72,12 @@ const CurrencySection = ({
                     const accountPockets = pockets.filter(p => p.accountId === account.id);
 
                     if (isCDAccount(account)) {
-                        return (
+                        return cdAccountDisplayMode === 'compact' ? (
+                            <CDSummaryCardCompact
+                                key={account.id}
+                                account={account}
+                            />
+                        ) : (
                             <CDSummaryCard
                                 key={account.id}
                                 account={account}
@@ -71,7 +86,15 @@ const CurrencySection = ({
                     }
 
                     if (account.type === 'investment') {
-                        return (
+                        return investmentAccountDisplayMode === 'compact' ? (
+                            <InvestmentCardCompact
+                                key={account.id}
+                                account={account}
+                                data={investmentData.get(account.id)}
+                                isRefreshing={refreshingPrices.has(account.id)}
+                                onRefresh={() => onRefreshPrice(account)}
+                            />
+                        ) : (
                             <InvestmentCard
                                 key={account.id}
                                 account={account}
@@ -82,7 +105,13 @@ const CurrencySection = ({
                         );
                     }
 
-                    return (
+                    return normalAccountDisplayMode === 'compact' ? (
+                        <AccountSummaryCardCompact
+                            key={account.id}
+                            account={account}
+                            pockets={accountPockets}
+                        />
+                    ) : (
                         <AccountSummaryCard
                             key={account.id}
                             account={account}
