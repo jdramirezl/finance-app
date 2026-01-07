@@ -1,6 +1,7 @@
-import type { Account, Pocket, Currency } from '../../types';
+import type { Account, Pocket, Currency, CDInvestmentAccount } from '../../types';
 import AccountSummaryCard from './AccountSummaryCard';
 import InvestmentCard, { type InvestmentData } from './InvestmentCard';
+import CDSummaryCard from './CDSummaryCard';
 import Card from '../Card';
 import { Banknote } from 'lucide-react';
 
@@ -21,11 +22,31 @@ const CurrencySection = ({
     refreshingPrices,
     onRefreshPrice,
 }: CurrencySectionProps) => {
-    // Sort: investment first, then others
+    // Helper to check if account is a CD
+    const isCDAccount = (account: Account): account is CDInvestmentAccount => {
+        // For CD accounts, we only need to check the type since investmentType might not be set correctly
+        const isCD = account.type === 'cd';
+        return isCD;
+    };
+
+    // Sort: CD first, then investment, then others
     const sortedAccounts = [...accounts].sort((a, b) => {
+        if (isCDAccount(a) && !isCDAccount(b)) return -1;
+        if (!isCDAccount(a) && isCDAccount(b)) return 1;
         if (a.type === 'investment' && b.type !== 'investment') return -1;
         if (a.type !== 'investment' && b.type === 'investment') return 1;
         return 0;
+    });
+
+    console.log('📊 CurrencySection rendering accounts:', {
+        currency,
+        totalAccounts: accounts.length,
+        sortedAccounts: sortedAccounts.map(acc => ({
+            name: acc.name,
+            type: acc.type,
+            investmentType: acc.investmentType,
+            isCD: isCDAccount(acc)
+        }))
     });
 
     return (
@@ -39,6 +60,15 @@ const CurrencySection = ({
             <div className="space-y-6">
                 {sortedAccounts.map((account) => {
                     const accountPockets = pockets.filter(p => p.accountId === account.id);
+
+                    if (isCDAccount(account)) {
+                        return (
+                            <CDSummaryCard
+                                key={account.id}
+                                account={account}
+                            />
+                        );
+                    }
 
                     if (account.type === 'investment') {
                         return (

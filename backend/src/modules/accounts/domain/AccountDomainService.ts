@@ -110,7 +110,11 @@ export class AccountDomainService {
     pockets?: PocketData[],
     currentPrice?: number
   ): void {
-    if (account.isInvestment()) {
+    if (account.isCD()) {
+      // CD accounts calculate their own balance using compound interest
+      const balance = account.calculateCDBalance();
+      account.updateBalance(balance);
+    } else if (account.isInvestment()) {
       if (currentPrice === undefined) {
         throw new Error('Current price is required for investment accounts');
       }

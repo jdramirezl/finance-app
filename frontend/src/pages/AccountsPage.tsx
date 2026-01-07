@@ -1,8 +1,9 @@
 import { useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useAccountsQuery, usePocketsQuery, useAccountMutations, usePocketMutations } from '../hooks/queries';
 import { useToast } from '../hooks/useToast';
 import { useConfirm } from '../hooks/useConfirm';
-import type { Account, Pocket } from '../types';
+import type { Account, Pocket, CDInvestmentAccount } from '../types';
 import { Plus, Wallet, ArrowLeft } from 'lucide-react';
 import Modal from '../components/Modal';
 import Button from '../components/Button';
@@ -13,12 +14,17 @@ import { Skeleton, SkeletonList } from '../components/Skeleton';
 import PageHeader from '../components/PageHeader';
 import EmptyState from '../components/EmptyState';
 import { AccountCard, PocketCard, AccountForm, PocketForm } from '../components/accounts';
+import CDAccountCard from '../components/accounts/CDAccountCard';
+import CDAccountForm, { type CDFormData } from '../components/accounts/CDAccountForm';
+import CDDetailsPanel from '../components/accounts/CDDetailsPanel';
 import Card from '../components/Card';
+import { accountService } from '../services/accountService';
 
 const AccountsPage = () => {
   // Queries
   const { data: accounts = [], isLoading: accountsLoading } = useAccountsQuery();
   const { data: pockets = [], isLoading: pocketsLoading } = usePocketsQuery();
+  const queryClient = useQueryClient();
 
   // Mutations
   const {
@@ -45,6 +51,7 @@ const AccountsPage = () => {
 
   const [showAccountForm, setShowAccountForm] = useState(false);
   const [showPocketForm, setShowPocketForm] = useState(false);
+  const [showCDForm, setShowCDForm] = useState(false);
   const [showCascadeDialog, setShowCascadeDialog] = useState(false);
   const [showMigrationDialog, setShowMigrationDialog] = useState(false);
   const [migrationPocketId, setMigrationPocketId] = useState<string | null>(null);
@@ -53,6 +60,7 @@ const AccountsPage = () => {
   const [cascadeDeleteMovements, setCascadeDeleteMovements] = useState(false);
   const [editingAccount, setEditingAccount] = useState<Account | null>(null);
   const [editingPocket, setEditingPocket] = useState<Pocket | null>(null);
+  const [editingCD, setEditingCD] = useState<CDInvestmentAccount | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   // UI State
@@ -70,6 +78,13 @@ const AccountsPage = () => {
     ? pockets.filter(p => p.accountId === selectedAccountId)
     : [];
 
+  // Helper to check if account is a CD
+  const isCDAccount = (account: Account): account is CDInvestmentAccount => {
+    // For CD accounts, we only need to check the type since investmentType might not be set correctly
+    const isCD = account.type === 'cd';
+    return isCD;
+  };
+
   // --- Account Handlers ---
 
   const handleCreateAccount = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -80,6 +95,16 @@ const AccountsPage = () => {
     const formData = new FormData(form);
 
     try {
+      const accountType = formData.get('type') as string;
+      
+      // If it's a CD type, redirect to CD form instead
+      if (accountType === 'cd') {
+        setShowAccountForm(false);
+        setShowCDForm(true);
+        setIsSaving(false);
+        return;
+      }
+
       await createAccount.mutateAsync({
         name: formData.get('name') as string,
         color: formData.get('color') as string,
@@ -92,6 +117,71 @@ const AccountsPage = () => {
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to create account');
       toast.error(err instanceof Error ? err.message : 'Failed to create account');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // CD Account Handlers
+  const handleCreateCD = async (data: CDFormData) => {
+    setError(null);
+    setIsSaving(true);
+
+    try {
+      await accountService.createCDAccount(
+        data.name,
+        data.color,
+        data.currency,
+        data.principal,
+        data.interestRate,
+        data.termMonths,
+        data.compoundingFrequency,
+        data.earlyWithdrawalPenalty,
+        data.withholdingTaxRate
+      );
+
+      // Invalidate accounts query to trigger refetch
+      queryClient.invalidateQueries({ queryKey: ['accounts'] });
+      
+      toast.success('Certificate of Deposit created successfully!');
+      setShowCDForm(false);
+      setEditingCD(null);
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to create CD';
+      setError(errorMessage);
+      toast.error(errorMessage);
+      throw err; // Re-throw to let the form handle it
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleUpdateCD = async (data: CDFormData) => {
+    if (!editingCD) return;
+    
+    setError(null);
+    setIsSaving(true);
+
+    try {
+      // For CD updates, we only allow updating basic info (name, color)
+      // CD terms should not be changeable after creation for financial accuracy
+      await updateAccount.mutateAsync({
+        id: editingCD.id,
+        updates: {
+          name: data.name,
+          color: data.color,
+          currency: data.currency,
+        }
+      });
+      
+      toast.success('CD updated successfully!');
+      setShowCDForm(false);
+      setEditingCD(null);
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to update CD';
+      setError(errorMessage);
+      toast.error(errorMessage);
+      throw err;
     } finally {
       setIsSaving(false);
     }
@@ -361,17 +451,30 @@ const AccountsPage = () => {
               getId={(account) => account.id}
               renderItem={(account) => (
                 <SortableItem key={account.id} id={account.id}>
-                  <AccountCard
-                    account={account}
-                    isSelected={selectedAccountId === account.id}
-                    onSelect={() => setSelectedAccountId(account.id)}
-                    onEdit={() => {
-                      setEditingAccount(account);
-                      setShowAccountForm(true);
-                    }}
-                    onDelete={() => handleDeleteAccount(account.id)}
-                    isFixedExpensesAccount={pockets.some(p => p.accountId === account.id && p.type === 'fixed')}
-                  />
+                  {isCDAccount(account) ? (
+                    <CDAccountCard
+                      account={account}
+                      isSelected={selectedAccountId === account.id}
+                      onSelect={() => setSelectedAccountId(account.id)}
+                      onEdit={() => {
+                        setEditingCD(account);
+                        setShowCDForm(true);
+                      }}
+                      onDelete={() => handleDeleteAccount(account.id)}
+                    />
+                  ) : (
+                    <AccountCard
+                      account={account}
+                      isSelected={selectedAccountId === account.id}
+                      onSelect={() => setSelectedAccountId(account.id)}
+                      onEdit={() => {
+                        setEditingAccount(account);
+                        setShowAccountForm(true);
+                      }}
+                      onDelete={() => handleDeleteAccount(account.id)}
+                      isFixedExpensesAccount={pockets.some(p => p.accountId === account.id && p.type === 'fixed')}
+                    />
+                  )}
                 </SortableItem>
               )}
             />
@@ -432,58 +535,72 @@ const AccountsPage = () => {
               </Card>
 
               <Card className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Pockets</h2>
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    onClick={() => {
-                      setShowPocketForm(true);
-                      setEditingPocket(null);
+                {isCDAccount(selectedAccount) ? (
+                  // CD Details Panel
+                  <CDDetailsPanel
+                    account={selectedAccount}
+                    onEdit={() => {
+                      setEditingCD(selectedAccount);
+                      setShowCDForm(true);
                     }}
-                  >
-                    <Plus className="w-4 h-4" />
-                    <span className="hidden sm:inline ml-1">New Pocket</span>
-                  </Button>
-                </div>
-
-                {showPocketForm && (
-                  <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-                    <PocketForm
-                      initialData={editingPocket}
-                      onSubmit={editingPocket ? handleUpdatePocket : handleCreatePocket}
-                      onCancel={() => {
-                        setShowPocketForm(false);
-                        setEditingPocket(null);
-                      }}
-                      isSaving={isSaving}
-                    />
-                  </div>
-                )}
-
-                {selectedAccountPockets.length === 0 && !showPocketForm ? (
-                  <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-                    No pockets yet. Create one to organize your money.
-                  </div>
-                ) : (
-                  <SortableList
-                    items={[...selectedAccountPockets].sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0))}
-                    onReorder={(items) => reorderPockets.mutate(items)}
-                    getId={(pocket) => pocket.id}
-                    renderItem={(pocket) => (
-                      <SortableItem key={pocket.id} id={pocket.id}>
-                        <PocketCard
-                          pocket={pocket}
-                          onEdit={() => {
-                            setEditingPocket(pocket);
-                            setShowPocketForm(true);
-                          }}
-                          onDelete={() => handleDeletePocket(pocket.id)}
-                          onMigrate={pocket.type === 'fixed' ? () => handleMigratePocket(pocket.id) : undefined}
-                        />
-                      </SortableItem>
-                    )}
                   />
+                ) : (
+                  // Regular Pockets Panel
+                  <>
+                    <div className="flex items-center justify-between">
+                      <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Pockets</h2>
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        onClick={() => {
+                          setShowPocketForm(true);
+                          setEditingPocket(null);
+                        }}
+                      >
+                        <Plus className="w-4 h-4" />
+                        <span className="hidden sm:inline ml-1">New Pocket</span>
+                      </Button>
+                    </div>
+
+                    {showPocketForm && (
+                      <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                        <PocketForm
+                          initialData={editingPocket}
+                          onSubmit={editingPocket ? handleUpdatePocket : handleCreatePocket}
+                          onCancel={() => {
+                            setShowPocketForm(false);
+                            setEditingPocket(null);
+                          }}
+                          isSaving={isSaving}
+                        />
+                      </div>
+                    )}
+
+                    {selectedAccountPockets.length === 0 && !showPocketForm ? (
+                      <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                        No pockets yet. Create one to organize your money.
+                      </div>
+                    ) : (
+                      <SortableList
+                        items={[...selectedAccountPockets].sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0))}
+                        onReorder={(items) => reorderPockets.mutate(items)}
+                        getId={(pocket) => pocket.id}
+                        renderItem={(pocket) => (
+                          <SortableItem key={pocket.id} id={pocket.id}>
+                            <PocketCard
+                              pocket={pocket}
+                              onEdit={() => {
+                                setEditingPocket(pocket);
+                                setShowPocketForm(true);
+                              }}
+                              onDelete={() => handleDeletePocket(pocket.id)}
+                              onMigrate={pocket.type === 'fixed' ? () => handleMigratePocket(pocket.id) : undefined}
+                            />
+                          </SortableItem>
+                        )}
+                      />
+                    )}
+                  </>
                 )}
               </Card>
             </>
@@ -511,6 +628,27 @@ const AccountsPage = () => {
           onSubmit={editingAccount ? handleUpdateAccount : handleCreateAccount}
           onCancel={() => setShowAccountForm(false)}
           isSaving={isSaving}
+        />
+      </Modal>
+
+      {/* CD Form Modal */}
+      <Modal
+        isOpen={showCDForm}
+        onClose={() => {
+          setShowCDForm(false);
+          setEditingCD(null);
+        }}
+        title={editingCD ? "Edit Certificate of Deposit" : "Create Certificate of Deposit"}
+        size="xl"
+      >
+        <CDAccountForm
+          account={editingCD || undefined}
+          onSubmit={editingCD ? handleUpdateCD : handleCreateCD}
+          onCancel={() => {
+            setShowCDForm(false);
+            setEditingCD(null);
+          }}
+          isLoading={isSaving}
         />
       </Modal>
 

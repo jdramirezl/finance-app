@@ -4,6 +4,7 @@
  * Fetches all accounts for a user with calculated balances.
  * For normal accounts: calculates balance from pockets
  * For investment accounts: fetches current stock price and calculates balance
+ * For CD accounts: calculates balance using compound interest
  * 
  * Requirements: 4.4
  */
@@ -56,7 +57,10 @@ export class GetAllAccountsUseCase {
     // Calculate balances for each account
     const accountsWithBalances = await Promise.all(
       accounts.map(async (account) => {
-        if (account.isInvestment()) {
+        if (account.isCD()) {
+          // For CD accounts: calculate balance using compound interest
+          this.domainService.updateAccountBalance(account);
+        } else if (account.isInvestment()) {
           // For investment accounts: fetch current price and calculate balance
           if (!skipInvestmentPrices && account.stockSymbol) {
             try {

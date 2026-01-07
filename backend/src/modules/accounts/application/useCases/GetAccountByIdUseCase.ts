@@ -2,6 +2,9 @@
  * Get Account By ID Use Case
  * 
  * Fetches a single account by ID with calculated balance.
+ * For normal accounts: calculates balance from pockets
+ * For investment accounts: fetches current stock price and calculates balance
+ * For CD accounts: calculates balance using compound interest
  * Verifies ownership before returning.
  * 
  * Requirements: 4.4
@@ -65,7 +68,10 @@ export class GetAccountByIdUseCase {
     }
 
     // Calculate balance based on account type
-    if (account.isInvestment()) {
+    if (account.isCD()) {
+      // For CD accounts: calculate balance using compound interest
+      this.domainService.updateAccountBalance(account);
+    } else if (account.isInvestment()) {
       // For investment accounts: fetch current price and calculate balance
       if (!skipInvestmentPrice && account.stockSymbol) {
         try {

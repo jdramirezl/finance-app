@@ -40,6 +40,19 @@ export class CreateAccountUseCase {
       throw new ValidationError('Investment accounts must have a stock symbol');
     }
 
+    // Validate CD account requirements
+    if (dto.type === 'cd') {
+      if (!dto.principal || dto.principal <= 0) {
+        throw new ValidationError('CD accounts must have a positive principal amount');
+      }
+      if (!dto.interestRate || dto.interestRate <= 0) {
+        throw new ValidationError('CD accounts must have a positive interest rate');
+      }
+      if (!dto.termMonths || dto.termMonths <= 0) {
+        throw new ValidationError('CD accounts must have a positive term in months');
+      }
+    }
+
     // Check uniqueness (name + currency combination) (Requirement 4.2)
     const exists = await this.accountRepo.existsByNameAndCurrency(
       dto.name.trim(),
@@ -61,7 +74,20 @@ export class CreateAccountUseCase {
       dto.currency,
       0, // Initial balance
       dto.type || 'normal',
-      dto.stockSymbol?.trim()
+      dto.stockSymbol?.trim(),
+      undefined, // montoInvertido
+      undefined, // shares
+      undefined, // displayOrder
+      // CD-specific fields
+      dto.investmentType,
+      dto.principal,
+      dto.interestRate,
+      dto.termMonths,
+      dto.maturityDate ? new Date(dto.maturityDate) : undefined,
+      dto.compoundingFrequency,
+      dto.earlyWithdrawalPenalty,
+      dto.withholdingTaxRate,
+      dto.cdCreatedAt ? new Date(dto.cdCreatedAt) : (dto.type === 'cd' ? new Date() : undefined)
     );
 
     // Persist account

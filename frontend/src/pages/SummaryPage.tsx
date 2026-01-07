@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useAccountsQuery, usePocketsQuery, useSettingsQuery, useSubPocketsQuery, useFixedExpenseGroupsQuery } from '../hooks/queries';
 import { currencyService } from '../services/currencyService';
+import { cdCalculationService } from '../services/cdCalculationService';
 import { investmentService } from '../services/investmentService';
-import type { Currency, Account } from '../types';
+import type { Currency, Account, CDInvestmentAccount } from '../types';
 import { useToast } from '../hooks/useToast';
 import { useAutoNetWorthSnapshot } from '../hooks/useAutoNetWorthSnapshot';
 import { SkeletonStats, SkeletonAccountCard, SkeletonList } from '../components/Skeleton';
@@ -154,6 +155,62 @@ const SummaryPage = () => {
 
   const primaryCurrency = settings?.primaryCurrency || 'USD';
 
+  // Helper to check if account is a CD
+  const isCDAccount = (account: Account): account is CDInvestmentAccount => {
+    // For CD accounts, we only need to check the type since investmentType might not be set correctly
+    const isCD = account.type === 'cd';
+    return isCD;
+  };
+
+  // Helper to get effective balance for any account type
+  const getAccountBalance = (account: Account): number => {
+    console.log('🔍 getAccountBalance called for account:', {
+      id: account.id,
+      name: account.name,
+      type: account.type,
+      investmentType: account.investmentType,
+      balance: account.balance,
+      principal: account.principal,
+      interestRate: account.interestRate,
+      cdCreatedAt: account.cdCreatedAt,
+      maturityDate: account.maturityDate,
+      withholdingTaxRate: account.withholdingTaxRate,
+      compoundingFrequency: account.compoundingFrequency
+    });
+
+    if (isCDAccount(account)) {
+      console.log('💰 Processing CD account:', account.name);
+      // For CD accounts, use calculated current value
+      try {
+        // Check if account has all required CD fields
+        if (!account.principal || !account.interestRate || !account.maturityDate) {
+          console.warn('⚠️ CD account missing required fields:', {
+            principal: account.principal,
+            interestRate: account.interestRate,
+            cdCreatedAt: account.cdCreatedAt,
+            maturityDate: account.maturityDate
+          });
+          return account.balance || 0;
+        }
+
+        const calculation = cdCalculationService.calculateCurrentValue(account);
+        console.log('📊 CD calculation result:', calculation);
+        // Use net value if withholding tax is applied, otherwise use gross value
+        const effectiveBalance = account.withholdingTaxRate && account.withholdingTaxRate > 0 
+          ? calculation.netCurrentValue 
+          : calculation.currentValue;
+        console.log('💵 Effective CD balance:', effectiveBalance);
+        return effectiveBalance;
+      } catch (error) {
+        console.warn('❌ Failed to calculate CD value, falling back to account balance:', error);
+        return account.balance || 0;
+      }
+    }
+    console.log('🏦 Processing normal/investment account, using balance:', account.balance);
+    // For normal and investment accounts, use the regular balance
+    return account.balance;
+  };
+
   // Group accounts by currency
   const accountsByCurrency = accounts.reduce((acc, account) => {
     if (!acc[account.currency]) {
@@ -163,10 +220,10 @@ const SummaryPage = () => {
     return acc;
   }, {} as Record<Currency, Account[]>);
 
-  // Calculate total by currency
+  // Calculate total by currency using effective balance
   const getTotalByCurrency = (currency: Currency): number => {
     const currencyAccounts = accountsByCurrency[currency] || [];
-    let total = currencyAccounts.reduce((sum, account) => sum + account.balance, 0);
+    let total = currencyAccounts.reduce((sum, account) => sum + getAccountBalance(account), 0);
     return total;
   };
 

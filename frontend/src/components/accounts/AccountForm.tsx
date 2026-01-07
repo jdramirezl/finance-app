@@ -3,6 +3,7 @@ import type { Account, Currency } from '../../types';
 import Button from '../Button';
 import Input from '../Input';
 import Select from '../Select';
+import ColorSelector from '../ColorSelector';
 
 interface AccountFormProps {
     initialData?: Account | null;
@@ -19,6 +20,7 @@ const AccountForm = ({
 }: AccountFormProps) => {
     const isEditing = !!initialData;
     const [type, setType] = useState('normal');
+    const [color, setColor] = useState(initialData?.color || '#3B82F6');
 
     const currencies: Currency[] = ['USD', 'MXN', 'COP', 'EUR', 'GBP'];
 
@@ -32,19 +34,24 @@ const AccountForm = ({
                 placeholder="e.g., Checking Account"
             />
 
-            <Input
+            <ColorSelector
                 label="Color"
-                name="color"
-                type="color"
-                defaultValue={initialData?.color || '#3B82F6'}
-                required
+                value={color}
+                onChange={setColor}
+                accountType={type as 'normal' | 'investment' | 'cd'}
+                className={type === 'cd' ? 'opacity-50 pointer-events-none' : ''}
             />
+            
+            {/* Hidden input for form submission */}
+            <input type="hidden" name="color" value={color} />
 
             <Select
                 label="Currency"
                 name="currency"
                 defaultValue={initialData?.currency || 'USD'}
                 required
+                disabled={type === 'cd'}
+                className={type === 'cd' ? 'opacity-50' : ''}
                 options={currencies.map(c => ({ value: c, label: c }))}
             />
 
@@ -59,6 +66,7 @@ const AccountForm = ({
                         options={[
                             { value: 'normal', label: 'Normal' },
                             { value: 'investment', label: 'Investment' },
+                            { value: 'cd', label: 'Certificate of Deposit (CD)' },
                         ] as { value: string; label: string }[]}
                     />
 
@@ -68,6 +76,15 @@ const AccountForm = ({
                             name="stockSymbol"
                             placeholder="e.g., VOO, AAPL"
                         />
+                    )}
+
+                    {type === 'cd' && (
+                        <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                            <p className="text-sm text-blue-800 dark:text-blue-200">
+                                <strong>Note:</strong> CD accounts require additional information like principal amount, interest rate, and term. 
+                                You'll be able to configure these details after creating the account.
+                            </p>
+                        </div>
                     )}
                 </>
             )}

@@ -1,7 +1,8 @@
-import type { Account, Pocket } from '../types';
+import type { Account, Pocket, CDInvestmentAccount, InvestmentType, CompoundingFrequency } from '../types';
 import { SupabaseStorageService } from './supabaseStorageService';
 import { generateId } from '../utils/idGenerator';
 import { apiClient } from './apiClient';
+import { cdCalculationService } from './cdCalculationService';
 
 // Lazy getters to avoid circular dependencies - using dynamic import
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -38,9 +39,18 @@ const getMovementService = async () => {
 class AccountService {
   // Feature flag to control backend usage
   private useBackend = import.meta.env.VITE_USE_BACKEND_ACCOUNTS === 'true';
+  
+  // Flag to temporarily disable migration during CD creation
+  private skipMigration = false;
 
   constructor() {
     // Log which mode we're in
+    console.log('🏗️ AccountService constructor called');
+    console.log('🔧 Environment variables:', {
+      VITE_USE_BACKEND_ACCOUNTS: import.meta.env.VITE_USE_BACKEND_ACCOUNTS,
+      VITE_API_URL: import.meta.env.VITE_API_URL
+    });
+    
     if (this.useBackend) {
       console.log('🚀 AccountService: Using BACKEND API at', import.meta.env.VITE_API_URL);
     } else {
@@ -50,20 +60,117 @@ class AccountService {
 
   // Get all accounts
   async getAllAccounts(): Promise<Account[]> {
+    console.log('🔄 AccountService.getAllAccounts called');
+    
     if (this.useBackend) {
       try {
-        return await apiClient.get<Account[]>('/api/accounts');
+        console.log('🌐 Attempting to use backend API at', import.meta.env.VITE_API_URL);
+        const accounts = await apiClient.get<Account[]>('/api/accounts');
+        console.log('✅ Backend API success! Received accounts:', accounts.length);
+        console.log('📦 Raw accounts from backend API:', accounts);
+        
+        // Log each account's details
+        accounts.forEach(account => {
+          console.log('🏦 Backend account details:', {
+            id: account.id,
+            name: account.name,
+            type: account.type,
+            investmentType: account.investmentType,
+            balance: account.balance,
+            principal: account.principal,
+            interestRate: account.interestRate,
+            cdCreatedAt: account.cdCreatedAt,
+            maturityDate: account.maturityDate,
+            withholdingTaxRate: account.withholdingTaxRate,
+            compoundingFrequency: account.compoundingFrequency,
+            termMonths: account.termMonths,
+            earlyWithdrawalPenalty: account.earlyWithdrawalPenalty
+          });
+        });
+        
+        return accounts;
       } catch (error) {
         console.error('❌ Backend API failed, falling back to Supabase:', error);
+        console.log('🔄 Switching to Supabase direct mode...');
         return await this.getAllAccountsDirect();
       }
     }
+    console.log('📦 Using Supabase direct mode (backend disabled)');
     return await this.getAllAccountsDirect();
   }
 
   // Direct Supabase implementation (fallback)
   private async getAllAccountsDirect(): Promise<Account[]> {
-    return await SupabaseStorageService.getAccounts();
+    const accounts = await SupabaseStorageService.getAccounts();
+    
+    // Fix CD accounts that are missing required fields (migration) - but skip during CD creation
+    if (!this.skipMigration) {
+      const fixedAccounts = await this.fixIncompleteCDAccounts(accounts);
+      return fixedAccounts;
+    }
+    
+    return accounts;
+  }
+
+  // Migration helper: Fix CD accounts that are missing required fields
+  private async fixIncompleteCDAccounts(accounts: Account[]): Promise<Account[]> {
+    const cdAccounts = accounts.filter(acc => acc.type === 'cd');
+    let hasUpdates = false;
+    
+    for (const account of cdAccounts) {
+      // Check if CD account is missing ALL required fields (indicates it's truly incomplete)
+      // Don't fix accounts that are just being created (they might have some fields but not all yet)
+      const isMissingAllCDFields = !account.principal && !account.interestRate && !account.maturityDate && !account.cdCreatedAt;
+      
+      if (isMissingAllCDFields) {
+        console.log('🔧 Fixing incomplete CD account (missing all CD fields):', account.name);
+        
+        // Set default values for missing CD fields
+        const now = new Date();
+        const maturityDate = new Date();
+        maturityDate.setFullYear(maturityDate.getFullYear() + 1); // Default 1 year term
+        
+        const updates: Partial<Account> = {
+          investmentType: 'cd',
+          principal: 1000, // Default principal
+          interestRate: 5.0, // Default 5% APY
+          termMonths: 12, // Default 1 year
+          maturityDate: maturityDate.toISOString(),
+          compoundingFrequency: 'monthly' as const,
+          cdCreatedAt: now.toISOString(),
+          withholdingTaxRate: 0,
+          earlyWithdrawalPenalty: 3, // Default 3% penalty
+        };
+        
+        // Update the account object
+        Object.assign(account, updates);
+        
+        // Update in database
+        try {
+          await this.updateAccountDirect(account.id, updates);
+          hasUpdates = true;
+          console.log('✅ Fixed CD account:', account.name);
+        } catch (error) {
+          console.error('❌ Failed to fix CD account:', account.name, error);
+        }
+      } else if (account.principal || account.interestRate || account.maturityDate) {
+        // Account has some CD fields, so it's probably being created or partially configured
+        console.log('🔍 CD account has some fields, skipping migration:', account.name, {
+          hasPrincipal: !!account.principal,
+          hasInterestRate: !!account.interestRate,
+          hasMaturityDate: !!account.maturityDate,
+          hasCdCreatedAt: !!account.cdCreatedAt
+        });
+      }
+    }
+    
+    if (hasUpdates) {
+      console.log('🔄 CD accounts fixed, reloading...');
+      // Return fresh data after updates
+      return await SupabaseStorageService.getAccounts();
+    }
+    
+    return accounts;
   }
 
   // Get account by ID
@@ -129,13 +236,14 @@ class AccountService {
     return pockets.reduce((sum: number, pocket: { balance: number }) => sum + pocket.balance, 0);
   }
 
-  // Create new account
+  // Create new account (extended to support investment subtypes)
   async createAccount(
     name: string,
     color: string,
     currency: Account['currency'],
     type: Account['type'] = 'normal',
-    stockSymbol?: string
+    stockSymbol?: string,
+    investmentType?: InvestmentType
   ): Promise<Account> {
     if (this.useBackend) {
       try {
@@ -145,13 +253,117 @@ class AccountService {
           currency,
           type,
           stockSymbol,
+          investmentType,
         });
       } catch (error) {
         console.error('Backend API failed, falling back to Supabase:', error);
-        return await this.createAccountDirect(name, color, currency, type, stockSymbol);
+        return await this.createAccountDirect(name, color, currency, type, stockSymbol, investmentType);
       }
     }
-    return await this.createAccountDirect(name, color, currency, type, stockSymbol);
+    return await this.createAccountDirect(name, color, currency, type, stockSymbol, investmentType);
+  }
+
+  // Create CD investment account with specific parameters
+  async createCDAccount(
+    name: string,
+    color: string,
+    currency: Account['currency'],
+    principal: number,
+    interestRate: number,
+    termMonths: number,
+    compoundingFrequency: CompoundingFrequency = 'monthly',
+    earlyWithdrawalPenalty?: number,
+    withholdingTaxRate?: number
+  ): Promise<CDInvestmentAccount> {
+    console.log('🏗️ Creating CD account with parameters:', {
+      name, color, currency, principal, interestRate, termMonths, 
+      compoundingFrequency, earlyWithdrawalPenalty, withholdingTaxRate
+    });
+    
+    // Temporarily disable migration during CD creation to avoid interference
+    this.skipMigration = true;
+    
+    try {
+      // Validate CD-specific parameters
+      if (principal <= 0) {
+        throw new Error('Principal amount must be greater than 0.');
+      }
+      if (interestRate <= 0 || interestRate > 100) {
+        throw new Error('Interest rate must be between 0 and 100.');
+      }
+      if (termMonths <= 0 || termMonths > 600) { // Max 50 years
+        throw new Error('Term must be between 1 and 600 months.');
+      }
+
+      // Calculate maturity date
+      const now = new Date();
+      const maturityDate = new Date();
+      maturityDate.setMonth(maturityDate.getMonth() + termMonths);
+
+      console.log('📅 CD dates calculated:', {
+        createdAt: now.toISOString(),
+        maturityDate: maturityDate.toISOString()
+      });
+
+      const account = await this.createAccountDirect(
+        name,
+        color,
+        currency,
+        'cd', // Use 'cd' type instead of 'investment'
+        undefined, // No stock symbol for CDs
+        'cd'
+      );
+
+      console.log('✅ Basic CD account created:', account.id);
+
+      // Update with CD-specific fields
+      const cdAccount: CDInvestmentAccount = {
+        ...account,
+        type: 'cd', // Use 'cd' type
+        investmentType: 'cd',
+        principal,
+        interestRate,
+        termMonths,
+        maturityDate: maturityDate.toISOString(),
+        compoundingFrequency,
+        earlyWithdrawalPenalty,
+        withholdingTaxRate,
+        cdCreatedAt: now.toISOString(), // Set CD creation date
+      };
+
+      console.log('💾 Updating CD account with fields:', {
+        id: cdAccount.id,
+        investmentType: 'cd',
+        principal,
+        interestRate,
+        termMonths,
+        maturityDate: cdAccount.maturityDate,
+        compoundingFrequency,
+        earlyWithdrawalPenalty,
+        withholdingTaxRate,
+        cdCreatedAt: cdAccount.cdCreatedAt,
+      });
+
+      // Update the account with CD fields
+      await this.updateAccountDirect(cdAccount.id, {
+        investmentType: 'cd',
+        principal,
+        interestRate,
+        termMonths,
+        maturityDate: cdAccount.maturityDate,
+        compoundingFrequency,
+        earlyWithdrawalPenalty,
+        withholdingTaxRate,
+        cdCreatedAt: cdAccount.cdCreatedAt,
+      });
+
+      console.log('✅ CD account created and updated successfully');
+      return cdAccount;
+    } finally {
+      // Re-enable migration after CD creation is complete
+      this.skipMigration = false;
+      console.log('🔄 Re-enabled migration after CD creation');
+    }
   }
 
   // Direct Supabase implementation (fallback)
@@ -160,7 +372,8 @@ class AccountService {
     color: string,
     currency: Account['currency'],
     type: Account['type'] = 'normal',
-    stockSymbol?: string
+    stockSymbol?: string,
+    investmentType?: InvestmentType
   ): Promise<Account> {
     // Validate and sanitize input
     const trimmedName = name.trim();
@@ -184,9 +397,16 @@ class AccountService {
       balance: 0,
       type,
       ...(type === 'investment' && {
-        stockSymbol: stockSymbol?.trim() || 'VOO',
-        montoInvertido: 0,
-        shares: 0,
+        investmentType: investmentType || 'stock', // Default to stock for backward compatibility
+        ...(investmentType !== 'cd' && {
+          stockSymbol: stockSymbol?.trim() || 'VOO',
+          montoInvertido: 0,
+          shares: 0,
+        }),
+      }),
+      ...(type === 'cd' && {
+        investmentType: 'cd',
+        // CD-specific fields will be set later via updateAccountDirect
       }),
     };
 
@@ -210,7 +430,7 @@ class AccountService {
   }
 
   // Direct Supabase implementation (fallback)
-  private async updateAccountDirect(id: string, updates: Partial<Pick<Account, 'name' | 'color' | 'currency'>>): Promise<Account> {
+  private async updateAccountDirect(id: string, updates: Partial<Account>): Promise<Account> {
     const accounts = await this.getAllAccountsDirect();
     const index = accounts.findIndex(acc => acc.id === id);
 
@@ -262,10 +482,12 @@ class AccountService {
     }
 
     // Recalculate balance
-    updatedAccount.balance = await this.calculateAccountBalance(id);
+    const newBalance = await this.calculateAccountBalance(id);
+    updatedAccount.balance = newBalance;
 
-    // Update directly - much faster
-    await SupabaseStorageService.updateAccount(id, updatedAccount);
+    // Update directly - include balance in updates
+    const finalUpdates = { ...updates, balance: newBalance };
+    await SupabaseStorageService.updateAccount(id, finalUpdates);
 
     return updatedAccount;
   }
@@ -457,6 +679,107 @@ class AccountService {
       updatedAccounts.push({ ...account, balance: newBalance });
     }
     await SupabaseStorageService.saveAccounts(updatedAccounts);
+  }
+
+  // ===== CD-SPECIFIC METHODS =====
+
+  // Get all CD accounts
+  async getCDAccounts(): Promise<CDInvestmentAccount[]> {
+    const accounts = await this.getAllAccounts();
+    return accounts.filter((account): account is CDInvestmentAccount => 
+      account.type === 'cd' && account.investmentType === 'cd'
+    ) as CDInvestmentAccount[];
+  }
+
+  // Update CD account with current value calculation
+  async updateCDCurrentValue(cdId: string): Promise<CDInvestmentAccount> {
+    const account = await this.getAccount(cdId);
+    if (!account || account.type !== 'cd' || account.investmentType !== 'cd') {
+      throw new Error('Account is not a CD investment account.');
+    }
+
+    const cdAccount = account as CDInvestmentAccount;
+    const calculation = cdCalculationService.calculateCurrentValue(cdAccount);
+
+    // Update the account with calculated values
+    const updatedAccount: CDInvestmentAccount = {
+      ...cdAccount,
+      currentValue: calculation.currentValue,
+      accruedInterest: calculation.accruedInterest,
+      daysToMaturity: calculation.daysToMaturity,
+    };
+
+    // Update balance to reflect current value
+    await this.updateAccountDirect(cdId, { 
+      balance: calculation.currentValue,
+      currentValue: calculation.currentValue,
+      accruedInterest: calculation.accruedInterest,
+      daysToMaturity: calculation.daysToMaturity,
+    } as any); // Type assertion needed due to Partial<Account> limitations
+
+    return updatedAccount;
+  }
+
+  // Get CDs that are near maturity
+  async getCDsNearMaturity(daysThreshold: number = 30): Promise<CDInvestmentAccount[]> {
+    const cdAccounts = await this.getCDAccounts();
+    return cdAccounts.filter(cd => cdCalculationService.isNearMaturity(cd, daysThreshold));
+  }
+
+  // Get matured CDs
+  async getMaturedCDs(): Promise<CDInvestmentAccount[]> {
+    const cdAccounts = await this.getCDAccounts();
+    return cdAccounts.filter(cd => {
+      const calculation = cdCalculationService.calculateCurrentValue(cd);
+      return calculation.isMatured;
+    });
+  }
+
+  // Update all CD current values (should be called periodically)
+  async updateAllCDCurrentValues(): Promise<void> {
+    const cdAccounts = await this.getCDAccounts();
+    
+    for (const cd of cdAccounts) {
+      try {
+        await this.updateCDCurrentValue(cd.id);
+      } catch (error) {
+        console.error(`Failed to update CD ${cd.name}:`, error);
+      }
+    }
+  }
+
+  // Calculate early withdrawal amount for a CD
+  async calculateCDEarlyWithdrawal(cdId: string, withdrawalDate?: Date): Promise<{
+    currentValue: number;
+    penalty: number;
+    withholdingTax: number;
+    netAmount: number;
+    penaltyPercentage: number;
+    withholdingTaxPercentage: number;
+  }> {
+    const account = await this.getAccount(cdId);
+    if (!account || account.type !== 'cd' || account.investmentType !== 'cd') {
+      throw new Error('Account is not a CD investment account.');
+    }
+
+    const cdAccount = account as CDInvestmentAccount;
+    const currentValue = cdCalculationService.calculateCurrentValue(cdAccount, withdrawalDate);
+    const penalty = cdCalculationService.calculateEarlyWithdrawalPenalty(cdAccount, withdrawalDate);
+    const netAmount = cdCalculationService.calculateEarlyWithdrawalAmount(cdAccount, withdrawalDate);
+
+    // Calculate withholding tax on net interest after penalty
+    const netInterestAfterPenalty = Math.max(0, currentValue.accruedInterest - penalty);
+    const withholdingTaxRate = (cdAccount.withholdingTaxRate || 0) / 100;
+    const withholdingTax = netInterestAfterPenalty * withholdingTaxRate;
+
+    return {
+      currentValue: currentValue.currentValue,
+      penalty,
+      withholdingTax,
+      netAmount,
+      penaltyPercentage: cdAccount.earlyWithdrawalPenalty || 0,
+      withholdingTaxPercentage: cdAccount.withholdingTaxRate || 0,
+    };
   }
 }
 

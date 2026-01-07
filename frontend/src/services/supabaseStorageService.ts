@@ -45,6 +45,16 @@ export class SupabaseStorageService {
       montoInvertido: account.monto_invertido ? parseFloat(account.monto_invertido) : undefined,
       shares: account.shares ? parseFloat(account.shares) : undefined,
       displayOrder: account.display_order,
+      // CD-specific fields
+      investmentType: account.investment_type,
+      principal: account.principal ? parseFloat(account.principal) : undefined,
+      interestRate: account.interest_rate ? parseFloat(account.interest_rate) : undefined,
+      termMonths: account.term_months,
+      maturityDate: account.maturity_date,
+      compoundingFrequency: account.compounding_frequency,
+      earlyWithdrawalPenalty: account.early_withdrawal_penalty ? parseFloat(account.early_withdrawal_penalty) : undefined,
+      withholdingTaxRate: account.withholding_tax_rate ? parseFloat(account.withholding_tax_rate) : undefined,
+      cdCreatedAt: account.cd_created_at,
     }));
   }
 
@@ -65,6 +75,16 @@ export class SupabaseStorageService {
         monto_invertido: account.montoInvertido,
         shares: account.shares,
         display_order: account.displayOrder || 0,
+        // CD-specific fields
+        investment_type: account.investmentType,
+        principal: account.principal,
+        interest_rate: account.interestRate,
+        term_months: account.termMonths,
+        maturity_date: account.maturityDate,
+        compounding_frequency: account.compoundingFrequency,
+        early_withdrawal_penalty: account.earlyWithdrawalPenalty,
+        withholding_tax_rate: account.withholdingTaxRate,
+        cd_created_at: account.cdCreatedAt,
       }));
 
       const { error } = await supabase
@@ -92,6 +112,16 @@ export class SupabaseStorageService {
         monto_invertido: account.montoInvertido,
         shares: account.shares,
         display_order: account.displayOrder || 0,
+        // CD-specific fields
+        investment_type: account.investmentType,
+        principal: account.principal,
+        interest_rate: account.interestRate,
+        term_months: account.termMonths,
+        maturity_date: account.maturityDate,
+        compounding_frequency: account.compoundingFrequency,
+        early_withdrawal_penalty: account.earlyWithdrawalPenalty,
+        withholding_tax_rate: account.withholdingTaxRate,
+        cd_created_at: account.cdCreatedAt,
       });
     
     if (error) throw error;
@@ -111,6 +141,16 @@ export class SupabaseStorageService {
     if (updates.montoInvertido !== undefined) updateData.monto_invertido = updates.montoInvertido;
     if (updates.shares !== undefined) updateData.shares = updates.shares;
     if (updates.displayOrder !== undefined) updateData.display_order = updates.displayOrder;
+    // CD-specific fields
+    if (updates.investmentType !== undefined) updateData.investment_type = updates.investmentType;
+    if (updates.principal !== undefined) updateData.principal = updates.principal;
+    if (updates.interestRate !== undefined) updateData.interest_rate = updates.interestRate;
+    if (updates.termMonths !== undefined) updateData.term_months = updates.termMonths;
+    if (updates.maturityDate !== undefined) updateData.maturity_date = updates.maturityDate;
+    if (updates.compoundingFrequency !== undefined) updateData.compounding_frequency = updates.compoundingFrequency;
+    if (updates.earlyWithdrawalPenalty !== undefined) updateData.early_withdrawal_penalty = updates.earlyWithdrawalPenalty;
+    if (updates.withholdingTaxRate !== undefined) updateData.withholding_tax_rate = updates.withholdingTaxRate;
+    if (updates.cdCreatedAt !== undefined) updateData.cd_created_at = updates.cdCreatedAt;
     
     const { error } = await supabase
       .from('accounts')
