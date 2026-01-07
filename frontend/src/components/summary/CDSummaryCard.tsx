@@ -1,4 +1,4 @@
-import { TrendingUp, AlertTriangle, Landmark, Calendar, Clock, DollarSign } from 'lucide-react';
+import { AlertTriangle, Landmark, Calendar, DollarSign } from 'lucide-react';
 import { format } from 'date-fns';
 import { currencyService } from '../../services/currencyService';
 import { cdCalculationService } from '../../services/cdCalculationService';
@@ -11,8 +11,8 @@ interface CDSummaryCardProps {
 
 const CDSummaryCard = ({ account }: CDSummaryCardProps) => {
   // Calculate current CD values with error handling
-  let calculation;
-  let summary;
+  let calculation: any = null;
+  let summary: any = null;
   let hasError = false;
   
   try {
@@ -24,7 +24,6 @@ const CDSummaryCard = ({ account }: CDSummaryCardProps) => {
   }
 
   // Get display balance
-  const displayBalance = hasError ? 0 : (calculation?.currentValue || 0);
   const netBalance = hasError ? 0 : (
     account.withholdingTaxRate && account.withholdingTaxRate > 0 
       ? calculation?.netCurrentValue || 0

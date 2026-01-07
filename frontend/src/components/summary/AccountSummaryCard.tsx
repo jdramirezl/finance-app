@@ -12,12 +12,22 @@ const AccountSummaryCard = ({ account, pockets }: AccountSummaryCardProps) => {
     // Get account type icon
     const getAccountIcon = () => {
         switch (account.type) {
-            case 'checking':
-                return <CreditCard className="w-4 h-4 text-blue-600 dark:text-blue-400" />;
-            case 'savings':
-                return <PiggyBank className="w-4 h-4 text-green-600 dark:text-green-400" />;
-            case 'cash':
-                return <Banknote className="w-4 h-4 text-amber-600 dark:text-amber-400" />;
+            case 'normal':
+                // Check for specific account subtypes based on name patterns
+                if (account.name.toLowerCase().includes('checking')) {
+                    return <CreditCard className="w-4 h-4 text-blue-600 dark:text-blue-400" />;
+                }
+                if (account.name.toLowerCase().includes('savings')) {
+                    return <PiggyBank className="w-4 h-4 text-green-600 dark:text-green-400" />;
+                }
+                if (account.name.toLowerCase().includes('cash')) {
+                    return <Banknote className="w-4 h-4 text-amber-600 dark:text-amber-400" />;
+                }
+                return <Wallet className="w-4 h-4 text-gray-600 dark:text-gray-400" />;
+            case 'investment':
+                return <Wallet className="w-4 h-4 text-purple-600 dark:text-purple-400" />;
+            case 'cd':
+                return <Wallet className="w-4 h-4 text-amber-600 dark:text-amber-400" />;
             default:
                 return <Wallet className="w-4 h-4 text-gray-600 dark:text-gray-400" />;
         }
@@ -26,12 +36,22 @@ const AccountSummaryCard = ({ account, pockets }: AccountSummaryCardProps) => {
     // Get account type label
     const getAccountTypeLabel = () => {
         switch (account.type) {
-            case 'checking':
-                return 'Checking Account';
-            case 'savings':
-                return 'Savings Account';
-            case 'cash':
-                return 'Cash';
+            case 'normal':
+                // Check for specific account subtypes based on name patterns
+                if (account.name.toLowerCase().includes('checking')) {
+                    return 'Checking Account';
+                }
+                if (account.name.toLowerCase().includes('savings')) {
+                    return 'Savings Account';
+                }
+                if (account.name.toLowerCase().includes('cash')) {
+                    return 'Cash';
+                }
+                return 'Account';
+            case 'investment':
+                return 'Investment Account';
+            case 'cd':
+                return 'Certificate of Deposit';
             default:
                 return 'Account';
         }

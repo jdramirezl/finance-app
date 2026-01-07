@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, Palette, Check } from 'lucide-react';
+import { Palette, Check } from 'lucide-react';
 import Modal from './Modal';
 import Button from './Button';
 

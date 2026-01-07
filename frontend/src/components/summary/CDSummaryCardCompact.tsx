@@ -11,8 +11,8 @@ interface CDSummaryCardCompactProps {
 
 const CDSummaryCardCompact = ({ account }: CDSummaryCardCompactProps) => {
   // Calculate current CD values with error handling
-  let calculation;
-  let summary;
+  let calculation: any = null;
+  let summary: any = null;
   let hasError = false;
   
   try {
@@ -24,7 +24,6 @@ const CDSummaryCardCompact = ({ account }: CDSummaryCardCompactProps) => {
   }
 
   // Get display balance
-  const displayBalance = hasError ? 0 : (calculation?.currentValue || 0);
   const netBalance = hasError ? 0 : (
     account.withholdingTaxRate && account.withholdingTaxRate > 0 
       ? calculation?.netCurrentValue || 0
