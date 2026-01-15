@@ -171,50 +171,36 @@ const SummaryPage = () => {
 
   // Helper to get effective balance for any account type
   const getAccountBalance = (account: Account): number => {
-    console.log('🔍 getAccountBalance called for account:', {
-      id: account.id,
-      name: account.name,
-      type: account.type,
-      investmentType: account.investmentType,
-      balance: account.balance,
-      principal: account.principal,
-      interestRate: account.interestRate,
-      cdCreatedAt: account.cdCreatedAt,
-      maturityDate: account.maturityDate,
-      withholdingTaxRate: account.withholdingTaxRate,
-      compoundingFrequency: account.compoundingFrequency
-    });
-
     if (isCDAccount(account)) {
-      console.log('💰 Processing CD account:', account.name);
       // For CD accounts, use calculated current value
       try {
         // Check if account has all required CD fields
         if (!account.principal || !account.interestRate || !account.maturityDate) {
-          console.warn('⚠️ CD account missing required fields:', {
-            principal: account.principal,
-            interestRate: account.interestRate,
-            cdCreatedAt: account.cdCreatedAt,
-            maturityDate: account.maturityDate
-          });
           return account.balance || 0;
         }
 
         const calculation = cdCalculationService.calculateCurrentValue(account);
-        console.log('📊 CD calculation result:', calculation);
         // Use net value if withholding tax is applied, otherwise use gross value
         const effectiveBalance = account.withholdingTaxRate && account.withholdingTaxRate > 0 
           ? calculation.netCurrentValue 
           : calculation.currentValue;
-        console.log('💵 Effective CD balance:', effectiveBalance);
         return effectiveBalance;
       } catch (error) {
         console.warn('❌ Failed to calculate CD value, falling back to account balance:', error);
         return account.balance || 0;
       }
     }
-    console.log('🏦 Processing normal/investment account, using balance:', account.balance);
-    // For normal and investment accounts, use the regular balance
+    
+    // For stock/ETF investment accounts, use calculated totalValue from investmentData
+    if (account.type === 'investment' && account.stockSymbol) {
+      const data = investmentData.get(account.id);
+      if (data) {
+        return data.totalValue;
+      }
+      return account.balance || 0;
+    }
+    
+    // For normal accounts, use the regular balance
     return account.balance;
   };
 
@@ -239,8 +225,15 @@ const SummaryPage = () => {
 
   useEffect(() => {
     const calculateTotal = async () => {
+      console.log('💰 ===== CONSOLIDATED TOTAL CALCULATION =====');
       let total = 0;
       const validCurrencies = Object.keys(accountsByCurrency).filter(c => c && c.trim());
+      const conversionDetails: Array<{
+        currency: Currency;
+        originalTotal: number;
+        convertedTotal: number;
+        rate: string;
+      }> = [];
 
       for (const currency of validCurrencies) {
         const currencyTotal = getTotalByCurrency(currency as Currency);
@@ -250,16 +243,36 @@ const SummaryPage = () => {
             currency as Currency,
             primaryCurrency
           );
+          
+          // Calculate conversion rate (1 base currency = X target currency)
+          const rate = currencyTotal !== 0 ? converted / currencyTotal : 0;
+          
+          conversionDetails.push({
+            currency: currency as Currency,
+            originalTotal: currencyTotal,
+            convertedTotal: converted,
+            rate: `1 ${currency} = ${rate.toFixed(4)} ${primaryCurrency}`
+          });
+          
           total += converted;
         }
       }
+      
+      // Log detailed breakdown
+      console.log('📊 Currency Breakdown:');
+      conversionDetails.forEach(detail => {
+        console.log(`  ${detail.currency}: ${currencyService.formatCurrency(detail.originalTotal, detail.currency)} → ${currencyService.formatCurrency(detail.convertedTotal, primaryCurrency)} (${detail.rate})`);
+      });
+      console.log(`\n💵 Final Consolidated Total: ${currencyService.formatCurrency(total, primaryCurrency)}`);
+      console.log('============================================\n');
+      
       setConsolidatedTotal(total);
     };
 
     if (accounts.length > 0) {
       calculateTotal();
     }
-  }, [accounts, primaryCurrency]);
+  }, [accounts, primaryCurrency, investmentData]);
 
   // Find fixed expenses pocket
   const fixedPocket = pockets.find((p) => p.type === 'fixed');
