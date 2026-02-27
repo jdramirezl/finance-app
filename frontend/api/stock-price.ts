@@ -40,9 +40,24 @@ export default async function handler(
     });
   } catch (error) {
     console.error('Error fetching stock price:', error);
+    
+    // Log full error details
+    if (error instanceof Error) {
+      console.error('Error name:', error.name);
+      console.error('Error message:', error.message);
+      console.error('Error stack:', error.stack);
+    }
+    
+    // Check if it's a yahoo-finance2 specific error
+    if (error && typeof error === 'object' && 'result' in error) {
+      console.error('Yahoo Finance error result:', (error as any).result);
+    }
+    
     return res.status(500).json({ 
       error: 'Failed to fetch stock price',
-      details: error instanceof Error ? error.message : 'Unknown error'
+      details: error instanceof Error ? error.message : 'Unknown error',
+      errorType: error instanceof Error ? error.name : typeof error,
+      fullError: JSON.stringify(error, Object.getOwnPropertyNames(error))
     });
   }
 }
