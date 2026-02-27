@@ -191,7 +191,13 @@ class InvestmentService {
             const response = await fetch(url);
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({}));
-                throw new Error(errorData.error || `API request failed: ${response.statusText}`);
+                
+                // Check for rate limit error
+                if (errorData.details && errorData.details.includes('Too Many Requests')) {
+                    throw new Error('Yahoo Finance rate limit reached. Please try again in a few minutes.');
+                }
+                
+                throw new Error(errorData.details || errorData.error || `API request failed: ${response.statusText}`);
             }
 
             const data: StockPriceAPIResponse = await response.json();
@@ -353,17 +359,32 @@ class InvestmentService {
         };
     }
 
-    // Debug: Force refresh price (ignores cache, respects rate limit)
+    // Force refresh price (bypasses ALL caches, ignores rate limit)
     async forceRefreshPrice(symbol: string): Promise<number> {
-        // Clear cache for this symbol
+        console.log(`🔄 FORCE REFRESH for ${symbol} - Bypassing all caches`);
+        
+        // Clear local cache
         this.loadPriceCache();
         this.priceCache.delete(symbol);
         this.savePriceCache();
 
-        // Fetch fresh price (will check rate limit)
-        // Note: Backend doesn't have a force refresh endpoint, so we just call getCurrentPrice
-        // which will use cached data if available
-        return await this.getCurrentPrice(symbol);
+        // Clear database cache by deleting the entry
+        try {
+            await supabase
+                .from('stock_prices')
+                .delete()
+                .eq('symbol', symbol);
+            console.log(`🗑️ Cleared database cache for ${symbol}`);
+        } catch (err) {
+            console.warn('Failed to clear database cache:', err);
+        }
+
+        // Fetch fresh price directly from API (bypassing rate limit check)
+        console.log(`📡 Fetching fresh price from Yahoo Finance API for ${symbol}`);
+        const price = await this.fetchPriceFromAPI(symbol);
+        console.log(`✅ Got fresh price: $${price}`);
+        
+        return price;
     }
 
     // Debug: Get full price details with source

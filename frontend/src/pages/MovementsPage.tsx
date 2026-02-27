@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   useAccountsQuery,
@@ -26,6 +26,8 @@ import { useMovementsSort } from '../hooks/useMovementsSort';
 import MovementFilters from '../components/movements/MovementFilters';
 import MovementList from '../components/movements/MovementList';
 import MovementForm from '../components/movements/MovementForm';
+import AccountContextPanel from '../components/movements/AccountContextPanel';
+import QuickCalculator from '../components/movements/QuickCalculator';
 import { format } from 'date-fns';
 
 const EMPTY_ACCOUNTS: Account[] = [];
@@ -281,6 +283,18 @@ const MovementsPage = () => {
     setTemplateName('');
     setDefaultValues({});
   };
+
+  // Get selected pocket balance for calculator
+  const selectedPocketBalance = useMemo(() => {
+    const pocket = pockets.find(p => p.id === selectedPocketId);
+    return pocket ? pocket.balance : null;
+  }, [pockets, selectedPocketId]);
+
+  // Handler for calculator's "Use as Amount" button
+  const handleUseCalculatorAmount = (calculatedAmount: number) => {
+    setAmount(calculatedAmount.toFixed(2));
+  };
+
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -741,40 +755,102 @@ const MovementsPage = () => {
         applyingId={applyingId}
       />
 
-      <Modal
-        isOpen={showForm}
-        onClose={resetFormState}
-        title={editingMovement ? 'Edit Movement' : 'New Movement'}
-        size="lg"
-      >
-        <MovementForm
-          initialData={editingMovement}
-          onSubmit={handleSubmit}
-          onCancel={resetFormState}
-          isSaving={isSaving}
-          selectedAccountId={selectedAccountId}
-          setSelectedAccountId={setSelectedAccountId}
-          selectedPocketId={selectedPocketId}
-          setSelectedPocketId={setSelectedPocketId}
-          selectedSubPocketId={selectedSubPocketId}
-          setSelectedSubPocketId={setSelectedSubPocketId}
-          selectedType={selectedType}
-          setSelectedType={setSelectedType}
-          isFixedExpense={isFixedExpense}
-          setIsFixedExpense={setIsFixedExpense}
-          saveAsTemplate={saveAsTemplate}
-          setSaveAsTemplate={setSaveAsTemplate}
-          templateName={templateName}
-          setTemplateName={setTemplateName}
-          selectedTemplateId={selectedTemplateId}
-          onTemplateSelect={handleTemplateSelect}
-          defaultValues={defaultValues}
-          amount={amount}
-          setAmount={setAmount}
-          notes={notes}
-          setNotes={setNotes}
-        />
-      </Modal>
+      {/* Custom Multi-Modal Layout */}
+      {showForm && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center p-4 sm:p-6 pt-12">
+          {/* Single shared backdrop */}
+          <div
+            className="absolute inset-0 bg-gray-900/40 dark:bg-black/60 backdrop-blur-sm animate-backdrop-in transition-opacity"
+            onClick={resetFormState}
+            aria-hidden="true"
+          />
+
+          {/* Flex container for side-by-side layout */}
+          <div className="relative flex items-start justify-center gap-4 w-full max-w-[1400px] mx-auto">
+            {/* Movement Form (Main) - Centered */}
+            <div className="w-full max-w-2xl">
+              <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-100 dark:border-gray-700 min-h-[calc(100vh-6rem)] max-h-[calc(100vh-6rem)] overflow-y-auto animate-modal-in flex flex-col">
+                <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-700 sticky top-0 bg-white/80 dark:bg-gray-800/80 backdrop-blur-md z-10">
+                  <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">
+                    {editingMovement ? 'Edit Movement' : 'New Movement'}
+                  </h2>
+                  <button
+                    onClick={resetFormState}
+                    className="p-2 -mr-2 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 transition-colors rounded-full hover:bg-gray-100 dark:hover:bg-gray-700/50"
+                    aria-label="Close"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+                <div className="p-6">
+                  <MovementForm
+                    initialData={editingMovement}
+                    onSubmit={handleSubmit}
+                    onCancel={resetFormState}
+                    isSaving={isSaving}
+                    selectedAccountId={selectedAccountId}
+                    setSelectedAccountId={setSelectedAccountId}
+                    selectedPocketId={selectedPocketId}
+                    setSelectedPocketId={setSelectedPocketId}
+                    selectedSubPocketId={selectedSubPocketId}
+                    setSelectedSubPocketId={setSelectedSubPocketId}
+                    selectedType={selectedType}
+                    setSelectedType={setSelectedType}
+                    isFixedExpense={isFixedExpense}
+                    setIsFixedExpense={setIsFixedExpense}
+                    saveAsTemplate={saveAsTemplate}
+                    setSaveAsTemplate={setSaveAsTemplate}
+                    templateName={templateName}
+                    setTemplateName={setTemplateName}
+                    selectedTemplateId={selectedTemplateId}
+                    onTemplateSelect={handleTemplateSelect}
+                    defaultValues={defaultValues}
+                    amount={amount}
+                    setAmount={setAmount}
+                    notes={notes}
+                    setNotes={setNotes}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Right Panels - Side by side with fixed heights */}
+            {selectedAccountId && (
+              <div className="hidden lg:flex flex-col gap-4 w-80 flex-shrink-0 h-[calc(100vh-6rem)]">
+                {/* Account Details - Top Right (60% of height) */}
+                <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-100 dark:border-gray-700 h-[60%] overflow-hidden animate-modal-in flex flex-col">
+                  <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 flex-shrink-0">
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                      Account Details
+                    </h3>
+                  </div>
+                  <div className="flex-1 overflow-y-auto">
+                    <AccountContextPanel
+                      accountId={selectedAccountId}
+                      selectedPocketId={selectedPocketId || null}
+                    />
+                  </div>
+                </div>
+
+                {/* Calculator - Bottom Right (40% of height) */}
+                <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-100 dark:border-gray-700 h-[calc(40%-1rem)] animate-modal-in flex flex-col">
+                  <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 flex-shrink-0">
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                      Quick Calculator
+                    </h3>
+                  </div>
+                  <div className="p-4 flex-1 overflow-y-auto">
+                    <QuickCalculator
+                      selectedPocketBalance={selectedPocketBalance}
+                      onUseAmount={handleUseCalculatorAmount}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       <Modal
         isOpen={showBatchForm}
@@ -801,6 +877,7 @@ const MovementsPage = () => {
         onConfirm={handleConfirm}
         onClose={handleClose}
       />
+
     </div>
   );
 };

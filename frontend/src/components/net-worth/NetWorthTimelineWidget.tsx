@@ -1,6 +1,7 @@
 /**
  * Net Worth Timeline Widget
  * Displays a line chart of the user's net worth over time
+ * Double-click chart points to edit snapshot values
  */
 
 import { useState, useMemo, useEffect } from 'react';
@@ -8,9 +9,16 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsi
 import { useNetWorthSnapshotsQuery } from '../../hooks/queries/useNetWorthSnapshotQueries';
 import { useSettingsQuery } from '../../hooks/queries';
 import { currencyService } from '../../services/currencyService';
+import { netWorthSnapshotService } from '../../services/netWorthSnapshotService';
+import { useQueryClient } from '@tanstack/react-query';
+import { useToast } from '../../hooks/useToast';
+import { useConfirm } from '../../hooks/useConfirm';
 import Card from '../Card';
 import Button from '../Button';
-import { TrendingUp } from 'lucide-react';
+import Input from '../Input';
+import Modal from '../Modal';
+import ConfirmDialog from '../ConfirmDialog';
+import { TrendingUp, Trash2 } from 'lucide-react';
 import { format, parseISO, subDays, subMonths, subYears } from 'date-fns';
 
 type ViewMode = 'total' | 'breakdown';
@@ -19,13 +27,116 @@ type DateRange = '30d' | '6m' | '1y' | 'all';
 const NetWorthTimelineWidget = () => {
     const { data: snapshots = [], isLoading } = useNetWorthSnapshotsQuery();
     const { data: settings } = useSettingsQuery();
+    const queryClient = useQueryClient();
+    const toast = useToast();
+    const { confirm, confirmState, handleClose: handleConfirmClose, handleConfirm } = useConfirm();
+    
     const [viewMode, setViewMode] = useState<ViewMode>('total');
     const [dateRange, setDateRange] = useState<DateRange>('6m');
     const [showVariation, setShowVariation] = useState(false);
+    const [showEditModal, setShowEditModal] = useState(false);
+    const [selectedSnapshot, setSelectedSnapshot] = useState<any>(null);
+    const [editValue, setEditValue] = useState<string>('');
+    const [isSaving, setIsSaving] = useState(false);
 
     const primaryCurrency = settings?.primaryCurrency || 'USD';
 
     const [rates, setRates] = useState<Record<string, number>>({});
+
+    // Handle chart point click
+    const handleDotClick = (data: any) => {
+        console.log('Dot clicked:', data); // Debug log
+        // Find the snapshot by date
+        const snapshot = snapshots.find(s => s.snapshotDate === data.fullDate);
+        if (snapshot) {
+            console.log('Found snapshot:', snapshot); // Debug log
+            setSelectedSnapshot(snapshot);
+            setEditValue(snapshot.totalNetWorth.toString());
+            setShowEditModal(true);
+        } else {
+            console.log('Snapshot not found for date:', data.fullDate); // Debug log
+        }
+    };
+
+    // Custom dot component that handles clicks
+    const CustomDot = (props: any) => {
+        const { cx, cy, fill, payload } = props;
+        return (
+            <circle
+                cx={cx}
+                cy={cy}
+                r={4}
+                fill={fill}
+                stroke={fill}
+                strokeWidth={2}
+                style={{ cursor: 'pointer' }}
+                onClick={() => handleDotClick(payload)}
+            />
+        );
+    };
+
+    // Handle save edit
+    const handleSaveEdit = async () => {
+        if (!selectedSnapshot) return;
+
+        const newValue = parseFloat(editValue);
+        
+        if (isNaN(newValue) || newValue < 0) {
+            toast.error('Please enter a valid positive number');
+            return;
+        }
+
+        setIsSaving(true);
+        try {
+            await netWorthSnapshotService.update(selectedSnapshot.id, {
+                totalNetWorth: newValue
+            });
+            
+            queryClient.invalidateQueries({ queryKey: ['netWorthSnapshots'] });
+            
+            toast.success('Snapshot updated successfully!');
+            setShowEditModal(false);
+            setSelectedSnapshot(null);
+            setEditValue('');
+        } catch (error) {
+            toast.error('Failed to update snapshot');
+            console.error(error);
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    // Handle delete
+    const handleDelete = async () => {
+        if (!selectedSnapshot) return;
+
+        const confirmed = await confirm({
+            title: 'Delete Snapshot',
+            message: `Are you sure you want to delete the snapshot from ${format(parseISO(selectedSnapshot.snapshotDate), 'MMM d, yyyy')}?`,
+            confirmText: 'Delete',
+            cancelText: 'Cancel',
+            variant: 'danger',
+        });
+
+        if (!confirmed) return;
+
+        setIsSaving(true);
+        try {
+            await netWorthSnapshotService.delete(selectedSnapshot.id);
+            
+            queryClient.invalidateQueries({ queryKey: ['netWorthSnapshots'] });
+            
+            toast.success('Snapshot deleted successfully!');
+            setShowEditModal(false);
+            setSelectedSnapshot(null);
+            setEditValue('');
+        } catch (error) {
+            toast.error('Failed to delete snapshot');
+            console.error(error);
+        } finally {
+            setIsSaving(false);
+        }
+    };
 
     // Filter snapshots by date range
     const filteredSnapshots = useMemo(() => {
@@ -67,18 +178,15 @@ const NetWorthTimelineWidget = () => {
         const fetchRates = async () => {
             const newRates: Record<string, number> = {};
 
-            // We need rates for all currencies converting TO primaryCurrency
             const promises = currencies.map(async (currency) => {
                 if (currency === primaryCurrency) {
                     newRates[currency] = 1;
                 } else {
                     try {
-                        // Use async method to ensure we check DB/API
                         const rate = await currencyService.getExchangeRateAsync(currency as any, primaryCurrency);
                         newRates[currency] = rate;
                     } catch (err) {
                         console.error(`Failed to fetch rate for ${currency}`, err);
-                        // Fallback to sync (mock) if fails
                         newRates[currency] = currencyService.getExchangeRate(currency as any, primaryCurrency);
                     }
                 }
@@ -114,23 +222,20 @@ const NetWorthTimelineWidget = () => {
     // Prepare chart data
     const chartData = useMemo(() => {
         if (filteredSnapshots.length === 0) return [];
-        // Wait for rates to be loaded if we have foreign currencies
         const hasForeignCurrency = currencies.some(c => c !== primaryCurrency);
         if (hasForeignCurrency && Object.keys(rates).length === 0) return [];
 
-        // 1. First pass: Process raw values ensuring everything is in Primary Currency
         const processedSnapshots = filteredSnapshots.map(snapshot => {
             const data: any = {
                 date: format(parseISO(snapshot.snapshotDate), 'MMM d'),
                 fullDate: snapshot.snapshotDate,
                 total: snapshot.totalNetWorth,
+                snapshotId: snapshot.id, // Add ID for click handling
             };
 
             if (snapshot.breakdown) {
                 Object.entries(snapshot.breakdown).forEach(([currency, value]) => {
-                    // ALWAYS convert to primary currency for consistent scaling
                     if (currency !== primaryCurrency) {
-                        // Use fetched rate or fallback to 1 (shouldn't happen if we wait)
                         const rate = rates[currency] || 1;
                         data[currency] = value * rate;
                     } else {
@@ -141,21 +246,19 @@ const NetWorthTimelineWidget = () => {
             return data;
         });
 
-        // 2. Second pass: Calculate variation if enabled
         if (showVariation) {
             const baseline = processedSnapshots[0];
             return processedSnapshots.map(snapshot => {
                 const variationData: any = {
                     date: snapshot.date,
                     fullDate: snapshot.fullDate,
+                    snapshotId: snapshot.snapshotId,
                     total: baseline.total !== 0
                         ? ((snapshot.total - baseline.total) / Math.abs(baseline.total)) * 100
                         : 0,
-                    // Store original total for tooltip
                     total_original: snapshot.total,
                 };
 
-                // Process currencies
                 if (viewMode === 'breakdown') {
                     currencies.forEach(currency => {
                         const baseVal = baseline[currency] || 0;
@@ -163,7 +266,6 @@ const NetWorthTimelineWidget = () => {
                         variationData[currency] = baseVal !== 0
                             ? ((currentVal - baseVal) / Math.abs(baseVal)) * 100
                             : 0;
-                        // Store original value for tooltip
                         variationData[`${currency}_original`] = currentVal;
                     });
                 }
@@ -173,7 +275,7 @@ const NetWorthTimelineWidget = () => {
         }
 
         return processedSnapshots;
-    }, [filteredSnapshots, viewMode, showVariation, primaryCurrency, currencies, rates]);
+    }, [filteredSnapshots, viewMode, showVariation, primaryCurrency, currencies, rates, snapshots]);
 
     if (isLoading) {
         return (
@@ -196,147 +298,236 @@ const NetWorthTimelineWidget = () => {
     }
 
     return (
-        <Card>
-            {/* Header */}
-            <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
-                    <TrendingUp className="w-5 h-5" />
-                    Net Worth Timeline
-                </h3>
-                <div className="flex items-center gap-2">
-                    {/* View Mode Toggle */}
-                    <div className="flex rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
-                        <button
-                            onClick={() => setViewMode('total')}
-                            className={`px-3 py-1.5 text-sm font-medium transition-colors ${viewMode === 'total'
-                                ? 'bg-blue-500 text-white'
-                                : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
-                                }`}
-                        >
-                            Total
-                        </button>
-                        <button
-                            onClick={() => setViewMode('breakdown')}
-                            className={`px-3 py-1.5 text-sm font-medium transition-colors ${viewMode === 'breakdown'
-                                ? 'bg-blue-500 text-white'
-                                : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
-                                }`}
-                        >
-                            By Currency
-                        </button>
+        <>
+            <Card>
+                {/* Header */}
+                <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+                        <TrendingUp className="w-5 h-5" />
+                        Net Worth Timeline
+                    </h3>
+                    <div className="flex items-center gap-2">
+                        <div className="flex rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+                            <button
+                                onClick={() => setViewMode('total')}
+                                className={`px-3 py-1.5 text-sm font-medium transition-colors ${viewMode === 'total'
+                                    ? 'bg-blue-500 text-white'
+                                    : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
+                                    }`}
+                            >
+                                Total
+                            </button>
+                            <button
+                                onClick={() => setViewMode('breakdown')}
+                                className={`px-3 py-1.5 text-sm font-medium transition-colors ${viewMode === 'breakdown'
+                                    ? 'bg-blue-500 text-white'
+                                    : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
+                                    }`}
+                            >
+                                By Currency
+                            </button>
+                        </div>
                     </div>
                 </div>
-            </div>
 
-            {/* Controls Row */}
-            <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
-                {/* Date Range Selector */}
-                <div className="flex gap-2">
-                    {(['30d', '6m', '1y', 'all'] as DateRange[]).map(range => (
-                        <Button
-                            key={range}
-                            variant={dateRange === range ? 'primary' : 'ghost'}
-                            size="sm"
-                            onClick={() => setDateRange(range)}
-                        >
-                            {range === '30d' ? '30 Days' : range === '6m' ? '6 Months' : range === '1y' ? '1 Year' : 'All Time'}
-                        </Button>
-                    ))}
+                {/* Controls Row */}
+                <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
+                    <div className="flex gap-2">
+                        {(['30d', '6m', '1y', 'all'] as DateRange[]).map(range => (
+                            <Button
+                                key={range}
+                                variant={dateRange === range ? 'primary' : 'ghost'}
+                                size="sm"
+                                onClick={() => setDateRange(range)}
+                            >
+                                {range === '30d' ? '30 Days' : range === '6m' ? '6 Months' : range === '1y' ? '1 Year' : 'All Time'}
+                            </Button>
+                        ))}
+                    </div>
+
+                    <label className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 cursor-pointer select-none">
+                        <input
+                            type="checkbox"
+                            checked={showVariation}
+                            onChange={(e) => setShowVariation(e.target.checked)}
+                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        />
+                        Show Variation (%)
+                    </label>
                 </div>
 
-                {/* Variation Toggle (Available for both modes) */}
-                <label className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 cursor-pointer select-none">
-                    <input
-                        type="checkbox"
-                        checked={showVariation}
-                        onChange={(e) => setShowVariation(e.target.checked)}
-                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                    />
-                    Show Variation (%)
-                </label>
-            </div>
+                {/* Instruction */}
+                <p className="text-xs text-gray-500 dark:text-gray-400 mb-2 text-center">
+                    💡 Click any point on the chart to edit or delete that snapshot
+                </p>
 
-            {/* Chart */}
-            <div className="h-64">
-                <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={chartData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
-                        <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
-                        <XAxis
-                            dataKey="date"
-                            tick={{ fontSize: 12 }}
-                            className="text-gray-600 dark:text-gray-400"
-                        />
-                        <YAxis
-                            tickFormatter={(value) => showVariation ? `${value.toFixed(0)}%` : formatCurrency(value)}
-                            tick={{ fontSize: 12 }}
-                            width={showVariation ? 50 : 80}
-                            className="text-gray-600 dark:text-gray-400"
-                            domain={showVariation ? [-100, 100] : ['auto', 'auto']}
-                        />
-                        <Tooltip
-                            formatter={(value: number, name: string, entry: any) => {
-                                if (showVariation) {
-                                    // Retrieve original value from payload
-                                    // Key format: "currency_original" or "total_original"
-                                    const originalKey = name === 'Net Worth' ? 'total_original' : `${name}_original`;
-                                    const originalValue = entry.payload[originalKey];
-                                    return [
-                                        `${value.toFixed(2)}% (${originalValue !== undefined ? formatCurrency(originalValue) : 'N/A'})`,
-                                        name
-                                    ];
-                                }
-                                return [formatCurrency(value), name];
-                            }}
-                            labelFormatter={(label) => `Date: ${label}`}
-                            contentStyle={{
-                                backgroundColor: 'var(--tooltip-bg, #fff)',
-                                borderColor: 'var(--tooltip-border, #e5e7eb)',
-                                borderRadius: '8px',
-                            }}
-                        />
-                        <Legend />
-
-                        {viewMode === 'total' ? (
-                            <Line
-                                type="monotone"
-                                dataKey="total"
-                                name="Net Worth"
-                                stroke="#3b82f6"
-                                strokeWidth={2}
-                                dot={{ fill: '#3b82f6', strokeWidth: 2 }}
-                                activeDot={{ r: 6 }}
+                {/* Chart */}
+                <div className="h-64">
+                    <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={chartData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }} onClick={(e: any) => {
+                            if (e && e.activePayload && e.activePayload[0]) {
+                                handleDotClick(e.activePayload[0].payload);
+                            }
+                        }}>
+                            <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
+                            <XAxis
+                                dataKey="date"
+                                tick={{ fontSize: 12 }}
+                                className="text-gray-600 dark:text-gray-400"
                             />
-                        ) : (
-                            currencies.map(currency => (
-                                <Line
-                                    key={currency}
-                                    type="monotone"
-                                    dataKey={currency}
-                                    name={currency}
-                                    stroke={currencyColors[currency] || '#8884d8'}
-                                    strokeWidth={2}
-                                    dot={{ fill: currencyColors[currency] || '#8884d8', strokeWidth: 2 }}
-                                />
-                            ))
-                        )}
-                    </LineChart>
-                </ResponsiveContainer>
-            </div>
+                            <YAxis
+                                tickFormatter={(value) => showVariation ? `${value.toFixed(0)}%` : formatCurrency(value)}
+                                tick={{ fontSize: 12 }}
+                                width={showVariation ? 50 : 80}
+                                className="text-gray-600 dark:text-gray-400"
+                                domain={showVariation ? [-100, 100] : ['auto', 'auto']}
+                            />
+                            <Tooltip
+                                formatter={((value: any, name: any, entry: any) => {
+                                    const displayName = name != null ? String(name) : 'Value';
+                                    if (value === undefined || value === null) return ['N/A', displayName];
+                                    const numValue = typeof value === 'number' ? value : parseFloat(value);
+                                    if (isNaN(numValue)) return ['N/A', displayName];
+                                    if (showVariation) {
+                                        const originalKey = displayName === 'Net Worth' ? 'total_original' : `${displayName}_original`;
+                                        const originalValue = entry.payload[originalKey];
+                                        return [
+                                            `${numValue.toFixed(2)}% (${originalValue !== undefined ? formatCurrency(originalValue) : 'N/A'})`,
+                                            displayName
+                                        ];
+                                    }
+                                    return [formatCurrency(numValue), displayName];
+                                }) as any}
+                                labelFormatter={(label) => `Date: ${label}`}
+                                contentStyle={{
+                                    backgroundColor: 'var(--tooltip-bg, #fff)',
+                                    borderColor: 'var(--tooltip-border, #e5e7eb)',
+                                    borderRadius: '8px',
+                                }}
+                            />
+                            <Legend />
 
-            {/* Latest Value */}
-            {chartData.length > 0 && viewMode === 'total' && (
-                <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-                    <div className="flex items-center justify-between">
-                        <span className="text-sm text-gray-500 dark:text-gray-400">
-                            Latest snapshot: {chartData[chartData.length - 1].fullDate}
-                        </span>
-                        <span className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                            {formatCurrency(chartData[chartData.length - 1].total)}
-                        </span>
-                    </div>
+                            {viewMode === 'total' ? (
+                                <Line
+                                    type="monotone"
+                                    dataKey="total"
+                                    name="Net Worth"
+                                    stroke="#3b82f6"
+                                    strokeWidth={2}
+                                    dot={CustomDot}
+                                    activeDot={{ r: 8, cursor: 'pointer' }}
+                                />
+                            ) : (
+                                currencies.map(currency => (
+                                    <Line
+                                        key={currency}
+                                        type="monotone"
+                                        dataKey={currency}
+                                        name={currency}
+                                        stroke={currencyColors[currency] || '#8884d8'}
+                                        strokeWidth={2}
+                                        dot={(props: any) => <CustomDot {...props} fill={currencyColors[currency] || '#8884d8'} />}
+                                    />
+                                ))
+                            )}
+                        </LineChart>
+                    </ResponsiveContainer>
                 </div>
-            )}
-        </Card>
+
+                {/* Latest Value */}
+                {chartData.length > 0 && viewMode === 'total' && (
+                    <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                        <div className="flex items-center justify-between">
+                            <span className="text-sm text-gray-500 dark:text-gray-400">
+                                Latest snapshot: {chartData[chartData.length - 1].fullDate}
+                            </span>
+                            <span className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                                {formatCurrency(chartData[chartData.length - 1].total)}
+                            </span>
+                        </div>
+                    </div>
+                )}
+            </Card>
+
+            {/* Edit Snapshot Modal */}
+            <Modal
+                isOpen={showEditModal}
+                onClose={() => {
+                    setShowEditModal(false);
+                    setSelectedSnapshot(null);
+                    setEditValue('');
+                }}
+                title="Edit Snapshot"
+                size="md"
+            >
+                {selectedSnapshot && (
+                    <div className="space-y-4">
+                        <div>
+                            <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Date</p>
+                            <p className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                                {format(parseISO(selectedSnapshot.snapshotDate), 'MMMM d, yyyy')}
+                            </p>
+                        </div>
+
+                        <Input
+                            label="Total Net Worth"
+                            type="number"
+                            value={editValue}
+                            onChange={(e) => setEditValue(e.target.value)}
+                            step="0.01"
+                            min="0"
+                            required
+                            className="font-mono"
+                        />
+
+                        <div className="flex justify-between gap-2 pt-4">
+                            <Button
+                                type="button"
+                                variant="danger"
+                                onClick={handleDelete}
+                                loading={isSaving}
+                                className="flex items-center gap-2"
+                            >
+                                <Trash2 className="w-4 h-4" />
+                                Delete
+                            </Button>
+                            <div className="flex gap-2">
+                                <Button
+                                    type="button"
+                                    variant="secondary"
+                                    onClick={() => {
+                                        setShowEditModal(false);
+                                        setSelectedSnapshot(null);
+                                        setEditValue('');
+                                    }}
+                                >
+                                    Cancel
+                                </Button>
+                                <Button
+                                    type="button"
+                                    variant="primary"
+                                    onClick={handleSaveEdit}
+                                    loading={isSaving}
+                                >
+                                    Save Changes
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </Modal>
+
+            <ConfirmDialog
+                isOpen={confirmState.isOpen}
+                title={confirmState.title}
+                message={confirmState.message}
+                confirmText={confirmState.confirmText}
+                cancelText={confirmState.cancelText}
+                variant={confirmState.variant}
+                onConfirm={handleConfirm}
+                onClose={handleConfirmClose}
+            />
+        </>
     );
 };
 

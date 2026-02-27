@@ -15,13 +15,13 @@ interface MovementFormProps {
     selectedPocketId: string;
     setSelectedPocketId: (id: string) => void;
     selectedSubPocketId: string;
-    setSelectedSubPocketId: (id: string) => void; // New prop
+    setSelectedSubPocketId: (id: string) => void;
     selectedType: MovementType;
-    setSelectedType: (type: MovementType) => void; // New prop
-    amount: string; // New prop
-    setAmount: (amount: string) => void; // New prop
-    notes: string; // New prop
-    setNotes: (notes: string) => void; // New prop
+    setSelectedType: (type: MovementType) => void;
+    amount: string;
+    setAmount: (amount: string) => void;
+    notes: string;
+    setNotes: (notes: string) => void;
     isFixedExpense: boolean;
     setIsFixedExpense: (isFixed: boolean) => void;
     saveAsTemplate: boolean;
@@ -79,13 +79,11 @@ const MovementForm = ({
         : null;
 
     // Determine if this is a fixed expense from defaultValues or initialData
-    // const defaultType = defaultValues?.type || initialData?.type || 'EgresoNormal'; // No longer needed as we use selectedType
     const isDefaultFixedExpense = selectedType === 'IngresoFijo' || selectedType === 'EgresoFijo';
 
     const [isTransfer, setIsTransfer] = useState(false);
     const [targetAccountId, setTargetAccountId] = useState('');
     const [targetPocketId, setTargetPocketId] = useState('');
-    // const [selectedSubPocketId, setSelectedSubPocketId] = useState(defaultValues?.fixedExpenseId || initialData?.subPocketId || ''); // Removed local state
 
     const availablePockets = selectedAccountId
         ? pockets.filter(p => p.accountId === selectedAccountId)
@@ -133,215 +131,215 @@ const MovementForm = ({
 
     return (
         <form onSubmit={handleSubmit} className="space-y-4">
-            {!initialData && (
-                <Select
-                    label="Load Template"
-                    value={selectedTemplateId}
-                    onChange={(e) => onTemplateSelect(e.target.value)}
-                    options={[
-                        { value: '', label: 'Start from scratch' },
-                        ...movementTemplates.map(t => ({ value: t.id, label: t.name }))
-                    ]}
-                />
-            )}
+                {!initialData && (
+                    <Select
+                        label="Load Template"
+                        value={selectedTemplateId}
+                        onChange={(e) => onTemplateSelect(e.target.value)}
+                        options={[
+                            { value: '', label: 'Start from scratch' },
+                            ...movementTemplates.map(t => ({ value: t.id, label: t.name }))
+                        ]}
+                    />
+                )}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Select
-                    label="Type"
-                    name="type"
-                    required
-                    value={selectedType}
-                    onChange={(e) => {
-                        const value = e.target.value;
-                        if (value === 'Transfer') {
-                            setIsTransfer(true);
-                            setIsFixedExpense(false);
-                            // Clear selections when switching to transfer
-                            setSelectedAccountId('');
-                            setSelectedPocketId('');
-                        } else {
-                            setIsTransfer(false);
-                            const type = value as MovementType;
-                            setSelectedType(type);
-                            const isFixedType = type === 'IngresoFijo' || type === 'EgresoFijo';
-                            setIsFixedExpense(isFixedType);
-                            
-                            // If switching to fixed expense type, auto-populate will happen via useEffect
-                            // If switching away from fixed expense type, clear selections to allow manual selection
-                            if (!isFixedType) {
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <Select
+                        label="Type"
+                        name="type"
+                        required
+                        value={selectedType}
+                        onChange={(e) => {
+                            const value = e.target.value;
+                            if (value === 'Transfer') {
+                                setIsTransfer(true);
+                                setIsFixedExpense(false);
+                                // Clear selections when switching to transfer
                                 setSelectedAccountId('');
                                 setSelectedPocketId('');
+                            } else {
+                                setIsTransfer(false);
+                                const type = value as MovementType;
+                                setSelectedType(type);
+                                const isFixedType = type === 'IngresoFijo' || type === 'EgresoFijo';
+                                setIsFixedExpense(isFixedType);
+                                
+                                // If switching to fixed expense type, auto-populate will happen via useEffect
+                                // If switching away from fixed expense type, clear selections to allow manual selection
+                                if (!isFixedType) {
+                                    setSelectedAccountId('');
+                                    setSelectedPocketId('');
+                                }
                             }
-                        }
-                    }}
-                    options={movementTypes}
-                />
+                        }}
+                        options={movementTypes}
+                    />
 
-                <Input
-                    type="date"
-                    label="Date"
-                    name="displayedDate"
-                    required
-                    defaultValue={initialData?.displayedDate ? initialData.displayedDate.split('T')[0] : (defaultValues?.date ? defaultValues.date.split('T')[0] : new Date().toISOString().split('T')[0])}
-                />
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Select
-                    label={isTransfer ? "Source Account" : "Account"}
-                    name="accountId"
-                    required
-                    value={selectedAccountId}
-                    onChange={(e) => {
-                        setSelectedAccountId(e.target.value);
-                        setSelectedPocketId('');
-                    }}
-                    options={[
-                        { value: '', label: 'Select Account' },
-                        ...accounts.map(acc => ({ value: acc.id, label: acc.name }))
-                    ]}
-                />
-
-                <Select
-                    label={isTransfer ? "Source Pocket" : "Pocket"}
-                    name="pocketId"
-                    required
-                    value={selectedPocketId}
-                    onChange={(e) => setSelectedPocketId(e.target.value)}
-                    options={[
-                        { value: '', label: 'Select Pocket' },
-                        ...availablePockets.map(p => ({ value: p.id, label: p.name }))
-                    ]}
-                    disabled={!selectedAccountId}
-                />
-            </div>
-
-            {(selectedType === 'IngresoFijo' || selectedType === 'EgresoFijo') && fixedExpenseAccount && fixedExpensePocket && (
-                <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-                    <p className="text-sm text-blue-700 dark:text-blue-300">
-                        ℹ️ Fixed expense account and pocket have been automatically selected: <strong>{fixedExpenseAccount.name}</strong> → <strong>{fixedExpensePocket.name}</strong>
-                    </p>
-                </div>
-            )}
-
-            {isTransfer && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700">
-                    <Select
-                        label="Target Account"
-                        name="targetAccountId" // Not used directly by form data but good for accessibility
+                    <Input
+                        type="date"
+                        label="Date"
+                        name="displayedDate"
                         required
-                        value={targetAccountId}
+                        defaultValue={initialData?.displayedDate ? initialData.displayedDate.split('T')[0] : (defaultValues?.date ? defaultValues.date.split('T')[0] : new Date().toISOString().split('T')[0])}
+                    />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <Select
+                        label={isTransfer ? "Source Account" : "Account"}
+                        name="accountId"
+                        required
+                        value={selectedAccountId}
                         onChange={(e) => {
-                            setTargetAccountId(e.target.value);
-                            setTargetPocketId('');
+                            setSelectedAccountId(e.target.value);
+                            setSelectedPocketId('');
                         }}
                         options={[
-                            { value: '', label: 'Select Target Account' },
+                            { value: '', label: 'Select Account' },
                             ...accounts.map(acc => ({ value: acc.id, label: acc.name }))
                         ]}
                     />
 
                     <Select
-                        label="Target Pocket"
-                        name="targetPocketId" // Not used directly by form data but good for accessibility
+                        label={isTransfer ? "Source Pocket" : "Pocket"}
+                        name="pocketId"
                         required
-                        value={targetPocketId}
-                        onChange={(e) => setTargetPocketId(e.target.value)}
+                        value={selectedPocketId}
+                        onChange={(e) => setSelectedPocketId(e.target.value)}
                         options={[
-                            { value: '', label: 'Select Target Pocket' },
-                            ...availableTargetPockets
-                                .filter(p => !selectedPocketId || p.id !== selectedPocketId) // Prevent transferring to same pocket
-                                .map(p => ({ value: p.id, label: p.name }))
+                            { value: '', label: 'Select Pocket' },
+                            ...availablePockets.map(p => ({ value: p.id, label: p.name }))
                         ]}
-                        disabled={!targetAccountId}
+                        disabled={!selectedAccountId}
                     />
                 </div>
-            )}
 
-            {(isFixedExpense || isDefaultFixedExpense) && availableSubPockets.length > 0 && !isTransfer && (
-                <Select
-                    label="Sub-Pocket (Optional)"
-                    name="subPocketId"
-                    value={selectedSubPocketId}
-                    onChange={(e) => setSelectedSubPocketId(e.target.value)}
-                    options={[
-                        { value: '', label: 'None' },
-                        ...availableSubPockets.map(sp => ({ value: sp.id, label: sp.name }))
-                    ]}
-                />
-            )}
-
-            <Input
-                type="number"
-                label="Amount"
-                name="amount"
-                placeholder={selectedPocketId && pockets.find(p => p.id === selectedPocketId)?.name === 'Shares' ? '0.000000' : '0.00'}
-                step={selectedPocketId && pockets.find(p => p.id === selectedPocketId)?.name === 'Shares' ? '0.000001' : '0.01'}
-                min="0"
-                required
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-            />
-
-            <Input
-                label="Notes"
-                name="notes"
-                placeholder={isTransfer ? "Transfer details..." : "What is this for?"}
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-            />
-
-            <div className="flex items-center gap-2">
-                <input
-                    type="checkbox"
-                    id="isPending"
-                    name="isPending"
-                    defaultChecked={initialData?.isPending}
-                    className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
-                />
-                <label htmlFor="isPending" className="text-sm text-gray-700 dark:text-gray-300">
-                    Mark as Pending (don't apply to balance yet)
-                </label>
-            </div>
-
-            {/* Hidden input to signal transfer mode to parent */}
-            <input type="hidden" name="isTransfer" value={isTransfer.toString()} />
-
-            {!initialData && !isTransfer && (
-                <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
-                    <div className="flex items-center gap-2 mb-2">
-                        <input
-                            type="checkbox"
-                            id="saveAsTemplate"
-                            checked={saveAsTemplate}
-                            onChange={(e) => setSaveAsTemplate(e.target.checked)}
-                            className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
-                        />
-                        <label htmlFor="saveAsTemplate" className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                            Save as Template
-                        </label>
+                {(selectedType === 'IngresoFijo' || selectedType === 'EgresoFijo') && fixedExpenseAccount && fixedExpensePocket && (
+                    <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                        <p className="text-sm text-blue-700 dark:text-blue-300">
+                            ℹ️ Fixed expense account and pocket have been automatically selected: <strong>{fixedExpenseAccount.name}</strong> → <strong>{fixedExpensePocket.name}</strong>
+                        </p>
                     </div>
+                )}
 
-                    {saveAsTemplate && (
-                        <Input
-                            label="Template Name"
-                            value={templateName}
-                            onChange={(e) => setTemplateName(e.target.value)}
-                            placeholder="e.g., Monthly Rent"
-                            required={saveAsTemplate}
+                {isTransfer && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700">
+                        <Select
+                            label="Target Account"
+                            name="targetAccountId"
+                            required
+                            value={targetAccountId}
+                            onChange={(e) => {
+                                setTargetAccountId(e.target.value);
+                                setTargetPocketId('');
+                            }}
+                            options={[
+                                { value: '', label: 'Select Target Account' },
+                                ...accounts.map(acc => ({ value: acc.id, label: acc.name }))
+                            ]}
                         />
-                    )}
-                </div>
-            )}
 
-            <div className="flex justify-end gap-2 pt-4">
-                <Button type="button" variant="secondary" onClick={onCancel}>
-                    Cancel
-                </Button>
-                <Button type="submit" variant="primary" loading={isSaving}>
-                    {initialData ? 'Update Movement' : (isTransfer ? 'Transfer Funds' : 'Create Movement')}
-                </Button>
-            </div>
+                        <Select
+                            label="Target Pocket"
+                            name="targetPocketId"
+                            required
+                            value={targetPocketId}
+                            onChange={(e) => setTargetPocketId(e.target.value)}
+                            options={[
+                                { value: '', label: 'Select Target Pocket' },
+                                ...availableTargetPockets
+                                    .filter(p => !selectedPocketId || p.id !== selectedPocketId)
+                                    .map(p => ({ value: p.id, label: p.name }))
+                            ]}
+                            disabled={!targetAccountId}
+                        />
+                    </div>
+                )}
+
+                {(isFixedExpense || isDefaultFixedExpense) && availableSubPockets.length > 0 && !isTransfer && (
+                    <Select
+                        label="Sub-Pocket (Optional)"
+                        name="subPocketId"
+                        value={selectedSubPocketId}
+                        onChange={(e) => setSelectedSubPocketId(e.target.value)}
+                        options={[
+                            { value: '', label: 'None' },
+                            ...availableSubPockets.map(sp => ({ value: sp.id, label: sp.name }))
+                        ]}
+                    />
+                )}
+
+                <Input
+                    type="number"
+                    label="Amount"
+                    name="amount"
+                    placeholder={selectedPocketId && pockets.find(p => p.id === selectedPocketId)?.name === 'Shares' ? '0.000000' : '0.00'}
+                    step={selectedPocketId && pockets.find(p => p.id === selectedPocketId)?.name === 'Shares' ? '0.000001' : '0.01'}
+                    min="0"
+                    required
+                    value={amount}
+                    onChange={(e) => setAmount(e.target.value)}
+                />
+
+                <Input
+                    label="Notes"
+                    name="notes"
+                    placeholder={isTransfer ? "Transfer details..." : "What is this for?"}
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                />
+
+                <div className="flex items-center gap-2">
+                    <input
+                        type="checkbox"
+                        id="isPending"
+                        name="isPending"
+                        defaultChecked={initialData?.isPending}
+                        className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                    />
+                    <label htmlFor="isPending" className="text-sm text-gray-700 dark:text-gray-300">
+                        Mark as Pending (don't apply to balance yet)
+                    </label>
+                </div>
+
+                {/* Hidden input to signal transfer mode to parent */}
+                <input type="hidden" name="isTransfer" value={isTransfer.toString()} />
+
+                {!initialData && !isTransfer && (
+                    <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+                        <div className="flex items-center gap-2 mb-2">
+                            <input
+                                type="checkbox"
+                                id="saveAsTemplate"
+                                checked={saveAsTemplate}
+                                onChange={(e) => setSaveAsTemplate(e.target.checked)}
+                                className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                            />
+                            <label htmlFor="saveAsTemplate" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                Save as Template
+                            </label>
+                        </div>
+
+                        {saveAsTemplate && (
+                            <Input
+                                label="Template Name"
+                                value={templateName}
+                                onChange={(e) => setTemplateName(e.target.value)}
+                                placeholder="e.g., Monthly Rent"
+                                required={saveAsTemplate}
+                            />
+                        )}
+                    </div>
+                )}
+
+                <div className="flex justify-end gap-2 pt-4">
+                    <Button type="button" variant="secondary" onClick={onCancel}>
+                        Cancel
+                    </Button>
+                    <Button type="submit" variant="primary" loading={isSaving}>
+                        {initialData ? 'Update Movement' : (isTransfer ? 'Transfer Funds' : 'Create Movement')}
+                    </Button>
+                </div>
         </form>
     );
 };
