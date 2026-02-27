@@ -383,16 +383,19 @@ const NetWorthTimelineWidget = () => {
                                 domain={showVariation ? [-100, 100] : ['auto', 'auto']}
                             />
                             <Tooltip
-                                formatter={(value: number, name: string, entry: any) => {
+                                formatter={(value: any, name: string, entry: any) => {
+                                    if (value === undefined || value === null) return ['N/A', name];
+                                    const numValue = typeof value === 'number' ? value : parseFloat(value);
+                                    if (isNaN(numValue)) return ['N/A', name];
                                     if (showVariation) {
                                         const originalKey = name === 'Net Worth' ? 'total_original' : `${name}_original`;
                                         const originalValue = entry.payload[originalKey];
                                         return [
-                                            `${value.toFixed(2)}% (${originalValue !== undefined ? formatCurrency(originalValue) : 'N/A'})`,
+                                            `${numValue.toFixed(2)}% (${originalValue !== undefined ? formatCurrency(originalValue) : 'N/A'})`,
                                             name
                                         ];
                                     }
-                                    return [formatCurrency(value), name];
+                                    return [formatCurrency(numValue), name];
                                 }}
                                 labelFormatter={(label) => `Date: ${label}`}
                                 contentStyle={{
