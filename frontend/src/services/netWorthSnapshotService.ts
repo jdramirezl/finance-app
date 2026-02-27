@@ -36,6 +36,11 @@ export const netWorthSnapshotService = {
         return response;
     },
 
+    update: async (id: string, data: Partial<CreateSnapshotDTO>): Promise<NetWorthSnapshot> => {
+        const response = await api.put<NetWorthSnapshot>(`/api/net-worth-snapshots/${id}`, data);
+        return response;
+    },
+
     delete: async (id: string): Promise<void> => {
         await api.delete(`/api/net-worth-snapshots/${id}`);
     }
