@@ -383,20 +383,21 @@ const NetWorthTimelineWidget = () => {
                                 domain={showVariation ? [-100, 100] : ['auto', 'auto']}
                             />
                             <Tooltip
-                                formatter={(value: any, name: string, entry: any) => {
-                                    if (value === undefined || value === null) return ['N/A', name];
+                                formatter={((value: any, name: any, entry: any) => {
+                                    const displayName = name != null ? String(name) : 'Value';
+                                    if (value === undefined || value === null) return ['N/A', displayName];
                                     const numValue = typeof value === 'number' ? value : parseFloat(value);
-                                    if (isNaN(numValue)) return ['N/A', name];
+                                    if (isNaN(numValue)) return ['N/A', displayName];
                                     if (showVariation) {
-                                        const originalKey = name === 'Net Worth' ? 'total_original' : `${name}_original`;
+                                        const originalKey = displayName === 'Net Worth' ? 'total_original' : `${displayName}_original`;
                                         const originalValue = entry.payload[originalKey];
                                         return [
                                             `${numValue.toFixed(2)}% (${originalValue !== undefined ? formatCurrency(originalValue) : 'N/A'})`,
-                                            name
+                                            displayName
                                         ];
                                     }
-                                    return [formatCurrency(numValue), name];
-                                }}
+                                    return [formatCurrency(numValue), displayName];
+                                }) as any}
                                 labelFormatter={(label) => `Date: ${label}`}
                                 contentStyle={{
                                     backgroundColor: 'var(--tooltip-bg, #fff)',
