@@ -28,7 +28,6 @@ import MovementList from '../components/movements/MovementList';
 import MovementForm from '../components/movements/MovementForm';
 import AccountContextPanel from '../components/movements/AccountContextPanel';
 import QuickCalculator from '../components/movements/QuickCalculator';
-import FloatingPanel from '../components/FloatingPanel';
 import { format } from 'date-fns';
 
 const EMPTY_ACCOUNTS: Account[] = [];
@@ -72,8 +71,6 @@ const MovementsPage = () => {
   // UI State
   const [showForm, setShowForm] = useState(false);
   const [showBatchForm, setShowBatchForm] = useState(false);
-  const [showAccountPanel, setShowAccountPanel] = useState(false);
-  const [showCalculatorPanel, setShowCalculatorPanel] = useState(false);
   const [editingMovement, setEditingMovement] = useState<Movement | null>(null);
   const [error, setError] = useState<string | null>(null);
   // Derived loading state
@@ -273,8 +270,6 @@ const MovementsPage = () => {
 
   const resetFormState = () => {
     setShowForm(false);
-    setShowAccountPanel(false);
-    setShowCalculatorPanel(false);
     setEditingMovement(null);
     setSelectedAccountId('');
     setSelectedPocketId('');
@@ -300,13 +295,6 @@ const MovementsPage = () => {
     setAmount(calculatedAmount.toFixed(2));
   };
 
-  // Auto-show panels when form opens and account is selected
-  useEffect(() => {
-    if (showForm && selectedAccountId) {
-      setShowAccountPanel(true);
-      setShowCalculatorPanel(true);
-    }
-  }, [showForm, selectedAccountId]);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();

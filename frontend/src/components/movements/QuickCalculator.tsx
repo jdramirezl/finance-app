@@ -9,7 +9,7 @@ interface QuickCalculatorProps {
   onUseAmount: (amount: number) => void;
 }
 
-const QuickCalculator = ({ selectedPocketBalance, onUseAmount }: QuickCalculatorProps) => {
+const QuickCalculator = ({ onUseAmount }: QuickCalculatorProps) => {
   const [operand1, setOperand1] = useState<string>('');
   const [operand2, setOperand2] = useState<string>('');
   const [operator, setOperator] = useState<'+' | '-'>('-');
