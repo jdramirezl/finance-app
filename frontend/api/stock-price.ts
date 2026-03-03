@@ -1,5 +1,8 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import yahooFinance from 'yahoo-finance2';
+import YahooFinance from 'yahoo-finance2';
+
+// Initialize YahooFinance instance (required for v3)
+const yahooFinance = new YahooFinance();
 
 export default async function handler(
   req: VercelRequest,
@@ -24,7 +27,7 @@ export default async function handler(
     });
 
     // Extract relevant price data
-    const priceData = result.price;
+    const priceData = result.price as any;
     
     if (!priceData || !priceData.regularMarketPrice) {
       return res.status(404).json({ error: 'Stock data not found' });
