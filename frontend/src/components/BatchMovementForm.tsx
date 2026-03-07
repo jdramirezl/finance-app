@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useImperativeHandle, forwardRef } from 'react';
 import { Plus, Trash2, X } from 'lucide-react';
 import Button from './Button';
 import Input from './Input';
@@ -23,17 +23,23 @@ interface BatchMovementFormProps {
   getSubPocketsByPocket: (pocketId: string) => SubPocket[];
   onSave: (rows: BatchMovementRow[]) => Promise<void>;
   onCancel: () => void;
+  onFocusRow?: (row: BatchMovementRow) => void;
   initialRows?: BatchMovementRow[]; // Optional pre-populated rows
 }
 
-const BatchMovementForm = ({
+export interface BatchMovementFormRef {
+  updateAmount: (id: string, amount: string) => void;
+}
+
+const BatchMovementForm = forwardRef<BatchMovementFormRef, BatchMovementFormProps>(({
   accounts,
   getPocketsByAccount,
   getSubPocketsByPocket,
   onSave,
   onCancel,
+  onFocusRow,
   initialRows,
-}: BatchMovementFormProps) => {
+}: BatchMovementFormProps, ref) => {
   const [rows, setRows] = useState<BatchMovementRow[]>(
     initialRows && initialRows.length > 0
       ? initialRows
@@ -51,6 +57,12 @@ const BatchMovementForm = ({
   );
   const [isSaving, setIsSaving] = useState(false);
   const [markAsPending, setMarkAsPending] = useState(false);
+
+  useImperativeHandle(ref, () => ({
+    updateAmount: (id, amount) => {
+      updateRow(id, { amount });
+    },
+  }));
 
   const movementTypes: { value: MovementType; label: string }[] = [
     { value: 'IngresoNormal', label: 'Normal Income' },
@@ -172,6 +184,7 @@ const BatchMovementForm = ({
           return (
             <div
               key={row.id}
+              onFocus={() => onFocusRow?.(row)}
               className="p-4 border dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-800/50 space-y-3"
             >
               <div className="flex items-center justify-between mb-2">
@@ -192,7 +205,11 @@ const BatchMovementForm = ({
                 <Select
                   label="Type"
                   value={row.type}
-                  onChange={(e) => updateRow(row.id, { type: e.target.value as MovementType })}
+                  onChange={(e) => {
+                    const type = e.target.value as MovementType;
+                    updateRow(row.id, { type });
+                    onFocusRow?.({ ...row, type });
+                  }}
                   required
                   options={movementTypes}
                 />
@@ -200,7 +217,11 @@ const BatchMovementForm = ({
                 <Select
                   label="Account"
                   value={row.accountId}
-                  onChange={(e) => updateRow(row.id, { accountId: e.target.value })}
+                  onChange={(e) => {
+                    const accountId = e.target.value;
+                    updateRow(row.id, { accountId });
+                    onFocusRow?.({ ...row, accountId, pocketId: '' });
+                  }}
                   required
                   options={[
                     { value: '', label: 'Select account' },
@@ -214,7 +235,11 @@ const BatchMovementForm = ({
                 <Select
                   label="Pocket"
                   value={row.pocketId}
-                  onChange={(e) => updateRow(row.id, { pocketId: e.target.value })}
+                  onChange={(e) => {
+                    const pocketId = e.target.value;
+                    updateRow(row.id, { pocketId });
+                    onFocusRow?.({ ...row, pocketId });
+                  }}
                   required
                   disabled={!row.accountId}
                   options={[
@@ -230,7 +255,11 @@ const BatchMovementForm = ({
                   <Select
                     label="Sub-Pocket"
                     value={row.subPocketId || ''}
-                    onChange={(e) => updateRow(row.id, { subPocketId: e.target.value || undefined })}
+                    onChange={(e) => {
+                      const subPocketId = e.target.value || undefined;
+                      updateRow(row.id, { subPocketId });
+                      onFocusRow?.({ ...row, subPocketId });
+                    }}
                     options={[
                       { value: '', label: 'Select sub-pocket (optional)' },
                       ...availableSubPockets.map((subPocket) => ({
@@ -246,7 +275,11 @@ const BatchMovementForm = ({
                   type="number"
                   step={row.pocketId && availablePockets.find(p => p.id === row.pocketId)?.name === 'Shares' ? '0.000001' : '0.01'}
                   value={row.amount}
-                  onChange={(e) => updateRow(row.id, { amount: e.target.value })}
+                  onChange={(e) => {
+                    const amount = e.target.value;
+                    updateRow(row.id, { amount });
+                    onFocusRow?.({ ...row, amount });
+                  }}
                   required
                 />
 
@@ -254,7 +287,11 @@ const BatchMovementForm = ({
                   label="Date"
                   type="date"
                   value={row.displayedDate}
-                  onChange={(e) => updateRow(row.id, { displayedDate: e.target.value })}
+                  onChange={(e) => {
+                    const displayedDate = e.target.value;
+                    updateRow(row.id, { displayedDate });
+                    onFocusRow?.({ ...row, displayedDate });
+                  }}
                   required
                 />
               </div>
@@ -262,7 +299,11 @@ const BatchMovementForm = ({
               <Input
                 label="Notes (optional)"
                 value={row.notes}
-                onChange={(e) => updateRow(row.id, { notes: e.target.value })}
+                onChange={(e) => {
+                  const notes = e.target.value;
+                  updateRow(row.id, { notes });
+                  onFocusRow?.({ ...row, notes });
+                }}
                 placeholder="Add notes..."
               />
             </div>
@@ -287,6 +328,6 @@ const BatchMovementForm = ({
       </div>
     </div>
   );
-};
+});
 
 export default BatchMovementForm;
