@@ -68,12 +68,12 @@ export class CreatePocketUseCase {
       );
     }
 
-    // Requirement 6.2: Check fixed pocket global uniqueness
+    // Requirement 6.2: Check fixed pocket uniqueness within account
     if (dto.type === 'fixed') {
-      const fixedExists = await this.pocketRepo.existsFixedPocketForUser(userId);
+      const fixedExists = await this.pocketRepo.existsFixedPocketInAccount(dto.accountId, userId);
       if (fixedExists) {
         throw new ConflictError(
-          'Only one fixed pocket is allowed per user. A fixed pocket already exists.'
+          'Only one fixed pocket is allowed per account. A fixed pocket already exists in this account.'
         );
       }
     }

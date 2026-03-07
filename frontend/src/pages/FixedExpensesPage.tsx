@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
   useAccountsQuery,
   usePocketsQuery,
@@ -10,8 +10,8 @@ import {
 } from '../hooks/queries';
 import { useToast } from '../hooks/useToast';
 import { useConfirm } from '../hooks/useConfirm';
-import type { SubPocket, FixedExpenseGroup } from '../types';
-import { Plus, Receipt, FolderPlus } from 'lucide-react';
+import type { Account, SubPocket, FixedExpenseGroup } from '../types';
+import { Plus, Receipt, Wallet, Layers, FolderPlus } from 'lucide-react';
 import Modal from '../components/Modal';
 import Button from '../components/Button';
 import Card from '../components/Card';
@@ -25,6 +25,7 @@ import SortableItem from '../components/SortableItem';
 import PageHeader from '../components/PageHeader';
 import EmptyState from '../components/EmptyState';
 import { calculateAporteMensual } from '../utils/fixedExpenseUtils';
+import { FixedExpensesSummary } from '../components/summary';
 
 const FixedExpensesPage = () => {
   // Queries
@@ -58,12 +59,25 @@ const FixedExpensesPage = () => {
   // Derived loading state
   const isLoading = groupsLoading;
 
-  // Find the fixed expenses pocket
-  const fixedPocket = pockets.find((p) => p.type === 'fixed');
-  const fixedSubPockets = fixedPocket ? subPockets.filter(sp => sp.pocketId === fixedPocket.id) : [];
-  const fixedAccount = fixedPocket
-    ? accounts.find((acc) => acc.id === fixedPocket.accountId)
-    : null;
+  // Find all fixed expenses pockets and accounts
+  const fixedPockets = useMemo(() => pockets.filter((p) => p.type === 'fixed'), [pockets]);
+  const fixedSubPockets = useMemo(() => 
+    subPockets.filter(sp => fixedPockets.some(fp => fp.id === sp.pocketId)),
+    [subPockets, fixedPockets]
+  );
+  
+  // Create a map of pocketId to account for quick lookup
+  const pocketAccountMap = useMemo(() => {
+    const map = new Map<string, Account>();
+    fixedPockets.forEach(fp => {
+      const account = accounts.find(a => a.id === fp.accountId);
+      if (account) map.set(fp.id, account);
+    });
+    return map;
+  }, [fixedPockets, accounts]);
+
+  // Representative currency for the global summary
+  const summaryCurrency = fixedPockets[0]?.currency || 'USD';
 
   // Helper function to get sub-pockets for a specific group
   const getSubPocketsByGroup = (groupId: string) => {
@@ -72,8 +86,8 @@ const FixedExpensesPage = () => {
 
 
   const handleCreateMovementsFromFixedExpenses = () => {
-    if (!fixedAccount || !fixedPocket) {
-      toast.error('No fixed expenses account found');
+    if (fixedPockets.length === 0) {
+      toast.error('No fixed expenses accounts found');
       return;
     }
 
@@ -85,16 +99,21 @@ const FixedExpensesPage = () => {
     }
 
     // Create batch rows from enabled sub-pockets
-    const rows: BatchMovementRow[] = enabledSubPockets.map(subPocket => ({
-      id: crypto.randomUUID(),
-      type: 'IngresoFijo' as const, // Fixed Income - money going INTO the fixed expenses pocket
-      accountId: fixedAccount.id,
-      pocketId: fixedPocket.id,
-      subPocketId: subPocket.id,
-      amount: calculateAporteMensual(subPocket.valueTotal, subPocket.periodicityMonths, subPocket.balance).toFixed(2),
-      notes: `Monthly contribution for ${subPocket.name}`,
-      displayedDate: new Date().toISOString().split('T')[0],
-    }));
+    const rows: BatchMovementRow[] = enabledSubPockets.map(subPocket => {
+      const parentPocket = fixedPockets.find(fp => fp.id === subPocket.pocketId);
+      const parentAccount = parentPocket ? accounts.find(a => a.id === parentPocket.accountId) : null;
+      
+      return {
+        id: crypto.randomUUID(),
+        type: 'IngresoFijo' as const, // Fixed Income - money going INTO the fixed expenses pocket
+        accountId: parentAccount?.id || '',
+        pocketId: subPocket.pocketId,
+        subPocketId: subPocket.id,
+        amount: calculateAporteMensual(subPocket.valueTotal, subPocket.periodicityMonths, subPocket.balance).toFixed(2),
+        notes: `Monthly contribution for ${subPocket.name}`,
+        displayedDate: new Date().toISOString().split('T')[0],
+      };
+    });
 
     setBatchRows(rows);
     setShowBatchForm(true);
@@ -176,8 +195,8 @@ const FixedExpensesPage = () => {
   // Calculate total monthly fixed expenses using next payment (accounts for negative balances)
   const calculateTotalFijosMes = () => {
     return fixedSubPockets
-      .filter((sp) => sp.enabled)
-      .reduce((sum, sp) => {
+      .filter((sp: SubPocket) => sp.enabled)
+      .reduce((sum: number, sp: SubPocket) => {
         const aporteMensual = calculateAporteMensual(sp.valueTotal, sp.periodicityMonths, sp.balance);
 
         // Case 1: Negative balance - compensate + normal payment
@@ -246,7 +265,17 @@ const FixedExpensesPage = () => {
     }
   };
 
-  if (!fixedPocket) {
+  // Find all fixed expenses pockets
+  const consolidatedFixedPockets = pockets.filter((p) => p.type === 'fixed');
+  const consolidatedFixedSubPockets = subPockets.filter(sp => consolidatedFixedPockets.some(fp => fp.id === sp.pocketId));
+  
+  // Calculate total money in fixed expenses (simple sum for now)
+  const totalFixedExpensesMoney = consolidatedFixedSubPockets.reduce(
+    (sum, sp) => sum + sp.balance,
+    0
+  );
+
+  if (fixedPockets.length === 0) {
     return (
       <div className="space-y-6">
         <PageHeader title="Fixed Expenses" />
@@ -316,11 +345,9 @@ const FixedExpensesPage = () => {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Fixed Expenses</h1>
-          {fixedAccount && (
-            <p className="text-gray-600 dark:text-gray-400 mt-1">
-              Account: {fixedAccount.name} ({fixedAccount.currency})
-            </p>
-          )}
+          <p className="text-gray-600 dark:text-gray-400 mt-1">
+            Managing {fixedPockets.length} fixed expense {fixedPockets.length === 1 ? 'pocket' : 'pockets'}
+          </p>
         </div>
         <div className="flex gap-2">
           <Button
@@ -350,7 +377,7 @@ const FixedExpensesPage = () => {
         <p className="text-3xl font-bold text-blue-700 dark:text-blue-300">
           {totalFijosMes.toLocaleString(undefined, {
             style: 'currency',
-            currency: fixedAccount?.currency || 'USD',
+            currency: summaryCurrency,
           })}
         </p>
         <p className="text-sm text-blue-600 dark:text-blue-400 mt-1">
@@ -358,9 +385,32 @@ const FixedExpensesPage = () => {
         </p>
       </Card>
 
+      {/* Fixed Expenses Section */}
+      <div className="space-y-4">
+        {consolidatedFixedPockets.length === 0 ? (
+          <EmptyState
+            icon={Wallet}
+            title="No fixed expenses pocket"
+            description="Create a fixed expenses pocket to track your recurring bills."
+          />
+        ) : (
+          <FixedExpensesSummary
+            subPockets={consolidatedFixedSubPockets}
+            groups={fixedExpenseGroups}
+            accounts={accounts}
+            pockets={pockets}
+            totalMoney={totalFixedExpensesMoney}
+            primaryCurrency={summaryCurrency}
+          />
+        )}
+      </div>
+
       {/* Group Management */}
-      <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Expense Groups</h2>
+      <div className="flex items-center justify-between pt-6 border-t dark:border-gray-800">
+        <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+          <Layers className="w-5 h-5 text-blue-500" />
+          Expense Groups
+        </h2>
         <Button
           variant="secondary"
           size="sm"
@@ -397,7 +447,7 @@ const FixedExpensesPage = () => {
                     group={group}
                     subPockets={groupExpenses}
                     allGroups={fixedExpenseGroups}
-                    currency={fixedAccount?.currency || 'USD'}
+                    currency={summaryCurrency}
                     isDefaultGroup={isDefaultGroup}
                     isCollapsed={collapsedGroups.has(group.id)}
                     isToggling={togglingGroupId === group.id}
@@ -424,9 +474,10 @@ const FixedExpensesPage = () => {
                     }}
                     deletingId={deletingId}
                     togglingId={togglingId}
+                    pocketAccountMap={pocketAccountMap}
                   />
                 </SortableItem>
-              );
+               );
             }}
           />
         </div>
@@ -442,10 +493,10 @@ const FixedExpensesPage = () => {
         title={editingSubPocket ? 'Edit Fixed Expense' : 'New Fixed Expense'}
         size="lg"
       >
-        {fixedAccount && (
+        {fixedPockets.length > 0 && (
           <FixedExpenseForm
-            fixedPocketId={fixedPocket.id}
-            fixedAccount={fixedAccount}
+            fixedPockets={fixedPockets}
+            accounts={accounts}
             initialData={editingSubPocket}
             onClose={() => {
               setShowForm(false);

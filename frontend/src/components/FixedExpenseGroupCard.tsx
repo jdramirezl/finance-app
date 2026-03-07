@@ -1,4 +1,4 @@
-import type { FixedExpenseGroup, SubPocket } from '../types';
+import type { FixedExpenseGroup, SubPocket, Account } from '../types';
 import { ChevronDown, ChevronRight, Edit2, Trash2, ToggleLeft, ToggleRight } from 'lucide-react';
 import Button from './Button';
 import AnimatedProgressBar from './AnimatedProgressBar';
@@ -22,6 +22,7 @@ interface FixedExpenseGroupCardProps {
   onMoveToGroup: (subPocketId: string, groupId: string) => void;
   deletingId: string | null;
   togglingId: string | null;
+  pocketAccountMap?: Map<string, Account>;
 }
 
 const FixedExpenseGroupCard = ({
@@ -42,6 +43,7 @@ const FixedExpenseGroupCard = ({
   onMoveToGroup,
   deletingId,
   togglingId,
+  pocketAccountMap,
 }: FixedExpenseGroupCardProps) => {
 
   const enabledCount = subPockets.filter(sp => sp.enabled).length;
@@ -166,6 +168,7 @@ const FixedExpenseGroupCard = ({
               const progress = calculateProgress(subPocket.balance, subPocket.valueTotal);
               const isDeleting = deletingId === subPocket.id;
               const isTogglingExpense = togglingId === subPocket.id;
+              const account = pocketAccountMap?.get(subPocket.pocketId);
 
               return (
                 <div
@@ -180,6 +183,18 @@ const FixedExpenseGroupCard = ({
                           <h4 className={`font-medium text-gray-900 dark:text-gray-100 ${!subPocket.enabled ? 'line-through' : ''}`}>
                             {subPocket.name}
                           </h4>
+                          {account && (
+                            <span 
+                              className="px-1.5 py-0.5 text-[10px] uppercase font-bold rounded border opacity-70"
+                              style={{ 
+                                color: account.color,
+                                borderColor: account.color,
+                                backgroundColor: `${account.color}10`
+                              }}
+                            >
+                              {account.name}
+                            </span>
+                          )}
                           {!subPocket.enabled && (
                             <span className="px-2 py-0.5 text-xs font-medium bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded">
                               Disabled

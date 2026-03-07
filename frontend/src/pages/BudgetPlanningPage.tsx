@@ -2,13 +2,13 @@ import { useEffect, useState } from 'react';
 import { useAccountsQuery, usePocketsQuery, useSubPocketsQuery, useSettingsQuery, useFixedExpenseGroupsQuery, useMovementMutations } from '../hooks/queries';
 import { StorageService } from '../services/storageService';
 import { currencyService } from '../services/currencyService';
+import type { Account, SubPocket, Currency } from '../types';
 import Input from '../components/Input';
 import Button from '../components/Button';
 import Card from '../components/Card';
 import Modal from '../components/Modal';
 import ConfirmDialog from '../components/ConfirmDialog';
 import { Skeleton, SkeletonCard, SkeletonList } from '../components/Skeleton';
-import type { Currency } from '../types';
 import { BudgetSummaryCard, BudgetDistribution, type DistributionEntry } from '../components/budget';
 import ScenarioForm, { type PlanningScenario } from '../components/budget/ScenarioForm';
 import PageHeader from '../components/PageHeader';
@@ -65,15 +65,12 @@ const BudgetPlanningPage = () => {
     });
   }, [initialAmount, distributionEntries, scenarios]);
 
-  // Find fixed expenses pocket and calculate total monthly fixed expenses
-  const fixedPocket = pockets.find((p) => p.type === 'fixed');
-  const fixedSubPockets = fixedPocket ? subPockets.filter(sp => sp.pocketId === fixedPocket.id) : [];
-  const fixedAccount = fixedPocket
-    ? accounts.find((acc) => acc.id === fixedPocket.accountId)
-    : null;
-
+  // Find all fixed expenses pockets and calculate total monthly fixed expenses
+  const fixedPockets = pockets.filter((p) => p.type === 'fixed');
+  const fixedSubPockets = subPockets.filter(sp => fixedPockets.some(fp => fp.id === sp.pocketId));
+  
   const primaryCurrency = settings?.primaryCurrency || 'USD';
-  const budgetCurrency = fixedAccount?.currency || 'USD';
+  const budgetCurrency = fixedPockets[0]?.currency || primaryCurrency;
   const showConversion = primaryCurrency !== budgetCurrency;
 
   // Calculate total monthly fixed expenses (using actual calculation with overflow handling)
@@ -164,6 +161,8 @@ const BudgetPlanningPage = () => {
       const matchedPocket = pockets.find(p => p.name.trim().toLowerCase() === entry.name.trim().toLowerCase());
       const account = matchedPocket ? accounts.find(a => a.id === matchedPocket.accountId) : undefined;
 
+      // Handle the case where the matched pocket might be one of the multiple fixed pockets
+      // (though usually distribution targets normal pockets)
       rows.push({
         id: crypto.randomUUID(),
         type: 'IngresoNormal', // Funding the pocket
@@ -394,7 +393,7 @@ const BudgetPlanningPage = () => {
       )}
 
       {/* Warning if no fixed expenses pocket */}
-      {!fixedPocket && (
+      {fixedPockets.length === 0 && (
         <EmptyState
           icon={Receipt}
           title="No fixed expenses pocket found"
