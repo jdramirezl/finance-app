@@ -334,14 +334,11 @@ const SummaryPage = () => {
     }
   }, [accounts, primaryCurrency, investmentData]);
 
-  // Find fixed expenses pocket
-  const fixedPocket = pockets.find((p) => p.type === 'fixed');
-  const fixedSubPockets = fixedPocket
-    ? subPockets.filter(sp => sp.pocketId === fixedPocket.id)
-    : [];
-  const fixedAccount = fixedPocket
-    ? accounts.find((acc) => acc.id === fixedPocket.accountId)
-    : null;
+  // Find all fixed expenses pockets and consolidated sub-pockets
+  const fixedPockets = pockets.filter((p) => p.type === 'fixed');
+  const fixedSubPockets = subPockets.filter(sp => 
+    fixedPockets.some(fp => fp.id === sp.pocketId)
+  );
 
   // Calculate total money in fixed expenses
   const totalFixedExpensesMoney = fixedSubPockets.reduce(
@@ -453,18 +450,20 @@ const SummaryPage = () => {
 
             {/* Fixed Expenses Section */}
             <div className="space-y-4">
-              {!fixedPocket ? (
+              {fixedSubPockets.length === 0 ? (
                 <EmptyState
                   icon={Wallet}
-                  title="No fixed expenses pocket"
-                  description="Create a fixed expenses pocket to track your recurring bills."
+                  title="No fixed expenses yet"
+                  description="Create fixed expenses to track your recurring bills."
                 />
               ) : (
                 <FixedExpensesSummary
                   subPockets={fixedSubPockets}
                   groups={fixedExpenseGroups}
-                  account={fixedAccount || undefined}
+                  accounts={accounts}
+                  pockets={pockets}
                   totalMoney={totalFixedExpensesMoney}
+                  primaryCurrency={primaryCurrency}
                 />
               )}
             </div>

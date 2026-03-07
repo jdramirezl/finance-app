@@ -42,9 +42,14 @@ const FixedExpenseForm = ({
 
         try {
             if (initialData) {
+                const updates: any = { name, valueTotal, periodicityMonths };
+                if (selectedPocketId !== initialData.pocketId) {
+                    updates.pocketId = selectedPocketId;
+                }
+                
                 await updateSubPocket.mutateAsync({
                     id: initialData.id,
-                    updates: { name, valueTotal, periodicityMonths }
+                    updates
                 });
                 toast.success('Fixed expense updated successfully!');
             } else {
@@ -89,7 +94,7 @@ const FixedExpenseForm = ({
                 </div>
             )}
 
-            {!initialData && fixedPockets.length > 1 && (
+            {fixedPockets.length > 1 && (
                 <div className="space-y-1">
                     <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
                         Account
@@ -109,6 +114,11 @@ const FixedExpenseForm = ({
                             );
                         })}
                     </select>
+                    {initialData && selectedPocketId !== initialData.pocketId && (
+                        <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
+                            Warning: Changing the account will move the expense and all its movements to the new account.
+                        </p>
+                    )}
                 </div>
             )}
 
