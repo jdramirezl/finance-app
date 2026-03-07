@@ -1,4 +1,4 @@
-import { useState, useImperativeHandle, forwardRef } from 'react';
+import { useState, useImperativeHandle, forwardRef, useEffect } from 'react';
 import { Plus, Trash2, X } from 'lucide-react';
 import Button from './Button';
 import Input from './Input';
@@ -24,6 +24,7 @@ interface BatchMovementFormProps {
   onSave: (rows: BatchMovementRow[]) => Promise<void>;
   onCancel: () => void;
   onFocusRow?: (row: BatchMovementRow) => void;
+  onRowsChange?: (rows: BatchMovementRow[]) => void;
   initialRows?: BatchMovementRow[]; // Optional pre-populated rows
 }
 
@@ -38,6 +39,7 @@ const BatchMovementForm = forwardRef<BatchMovementFormRef, BatchMovementFormProp
   onSave,
   onCancel,
   onFocusRow,
+  onRowsChange,
   initialRows,
 }: BatchMovementFormProps, ref) => {
   const [rows, setRows] = useState<BatchMovementRow[]>(
@@ -55,6 +57,11 @@ const BatchMovementForm = forwardRef<BatchMovementFormRef, BatchMovementFormProp
           },
         ]
   );
+
+  // Notify parent of changes
+  useEffect(() => {
+    onRowsChange?.(rows);
+  }, [rows, onRowsChange]);
   const [isSaving, setIsSaving] = useState(false);
   const [markAsPending, setMarkAsPending] = useState(false);
 

@@ -145,19 +145,29 @@ const FixedExpensesSummary = ({
                             const parentPocket = pockets.find(p => p.id === pocketId);
                             const parentAccount = accounts.find(a => a.id === parentPocket?.accountId);
                             const currency = parentAccount?.currency || 'USD';
+                            
+                            // Calculate total for this account (pocket)
+                            const accountTotal = subPockets
+                                .filter(sp => sp.pocketId === pocketId)
+                                .reduce((sum, sp) => sum + sp.balance, 0);
 
                             return (
                                 <Fragment key={pocketId}>
                                     {/* Account Separator */}
                                     <tr className="bg-blue-50/30 dark:bg-blue-900/10">
                                         <td colSpan={4} className="px-4 py-1.5 border-y border-blue-100 dark:border-blue-900/30">
-                                            <div className="flex items-center gap-2">
-                                                <div 
-                                                    className="w-2 h-2 rounded-full" 
-                                                    style={{ backgroundColor: parentAccount?.color }} 
-                                                />
-                                                <span className="text-[10px] font-bold uppercase tracking-widest text-blue-600 dark:text-blue-400">
-                                                    Account: {parentAccount?.name || 'Unknown'} ({currency})
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex items-center gap-2">
+                                                    <div 
+                                                        className="w-2 h-2 rounded-full" 
+                                                        style={{ backgroundColor: parentAccount?.color }} 
+                                                    />
+                                                    <span className="text-[10px] font-bold uppercase tracking-widest text-blue-600 dark:text-blue-400">
+                                                        Account: {parentAccount?.name || 'Unknown'} ({currency})
+                                                    </span>
+                                                </div>
+                                                <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400">
+                                                    Account Total: {currencyService.formatCurrency(accountTotal, currency as Currency)}
                                                 </span>
                                             </div>
                                         </td>
@@ -172,13 +182,21 @@ const FixedExpensesSummary = ({
                                             <Fragment key={group.id}>
                                                 <tr className="bg-gray-50/30 dark:bg-gray-800/20">
                                                     <td colSpan={4} className="px-4 py-1">
-                                                        <div className="flex items-center gap-2">
-                                                            <div
-                                                                className="w-1.5 h-1.5 rounded-full"
-                                                                style={{ backgroundColor: group.color }}
-                                                            />
-                                                            <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">
-                                                                {group.name}
+                                                        <div className="flex items-center justify-between">
+                                                            <div className="flex items-center gap-2">
+                                                                <div
+                                                                    className="w-1.5 h-1.5 rounded-full"
+                                                                    style={{ backgroundColor: group.color }}
+                                                                />
+                                                                <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">
+                                                                    {group.name}
+                                                                </span>
+                                                            </div>
+                                                            <span className="text-[10px] font-bold text-gray-400 dark:text-gray-500">
+                                                                Group Total: {currencyService.formatCurrency(
+                                                                    groupExpenses.reduce((sum, sp) => sum + sp.balance, 0), 
+                                                                    currency as Currency
+                                                                )}
                                                             </span>
                                                         </div>
                                                     </td>
@@ -193,9 +211,19 @@ const FixedExpensesSummary = ({
                                         <>
                                             <tr className="bg-gray-50/30 dark:bg-gray-800/20">
                                                 <td colSpan={4} className="px-4 py-1">
-                                                    <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500 ml-3.5">
-                                                        Default
-                                                    </span>
+                                                    <div className="flex items-center justify-between ml-3.5">
+                                                        <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">
+                                                            Default
+                                                        </span>
+                                                        <span className="text-[10px] font-bold text-gray-400 dark:text-gray-500">
+                                                            Total: {currencyService.formatCurrency(
+                                                                groupedExpenses.defaultExpenses
+                                                                    .filter(sp => sp.pocketId === pocketId)
+                                                                    .reduce((sum, sp) => sum + sp.balance, 0),
+                                                                currency as Currency
+                                                            )}
+                                                        </span>
+                                                    </div>
                                                 </td>
                                             </tr>
                                             {groupedExpenses.defaultExpenses.filter(sp => sp.pocketId === pocketId).map(sp => renderExpenseRow(sp, currency))}

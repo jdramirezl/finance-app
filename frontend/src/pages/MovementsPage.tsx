@@ -105,6 +105,7 @@ const MovementsPage = () => {
   const [activeBatchRowId, setActiveBatchRowId] = useState<string | null>(null);
   const [batchActiveAccountId, setBatchActiveAccountId] = useState<string>('');
   const [batchActivePocketId, setBatchActivePocketId] = useState<string>('');
+  const [batchRows, setBatchRows] = useState<BatchMovementRow[]>([]);
 
   // Orphaned movements
   const [showOrphaned, setShowOrphaned] = useState(false);
@@ -123,6 +124,39 @@ const MovementsPage = () => {
   const { sortedMovementsByMonth, sortField, sortOrder, setSortField, setSortOrder } = useMovementsSort({
     movements: filteredMovements
   });
+
+  // Balance Preview Deltas Calculation
+  const balanceDeltas = useMemo(() => {
+    const accountDeltas: Record<string, number> = {};
+    const pocketDeltas: Record<string, number> = {};
+    const subPocketDeltas: Record<string, number> = {};
+
+    const processRow = (type: MovementType, accId: string, pockId: string, subPockId: string | undefined, amtStr: string) => {
+      if (!accId || !pockId || !amtStr) return;
+      
+      const amt = parseFloat(amtStr) || 0;
+      if (amt === 0) return;
+
+      const isCredit = type === 'IngresoNormal' || type === 'IngresoFijo';
+      const delta = isCredit ? amt : -amt;
+
+      accountDeltas[accId] = (accountDeltas[accId] || 0) + delta;
+      pocketDeltas[pockId] = (pocketDeltas[pockId] || 0) + delta;
+      if (subPockId) {
+        subPocketDeltas[subPockId] = (subPocketDeltas[subPockId] || 0) + delta;
+      }
+    };
+
+    if (showBatchForm) {
+      batchRows.forEach(row => {
+        processRow(row.type, row.accountId, row.pocketId, row.subPocketId, row.amount);
+      });
+    } else if (showForm) {
+      processRow(selectedType, selectedAccountId, selectedPocketId, selectedSubPocketId, amount);
+    }
+
+    return { accountDeltas, pocketDeltas, subPocketDeltas };
+  }, [showBatchForm, showForm, batchRows, selectedType, selectedAccountId, selectedPocketId, selectedSubPocketId, amount]);
 
   // Load Data
   // Load Data handled by React Query
@@ -817,6 +851,7 @@ const MovementsPage = () => {
                       onSave={handleBatchSave}
                       onCancel={resetFormState}
                       onFocusRow={handleBatchRowFocus}
+                      onRowsChange={setBatchRows}
                     />
                   ) : (
                     <MovementForm
@@ -864,6 +899,7 @@ const MovementsPage = () => {
                   <AccountContextPanel
                     accountId={activeAccountId || null}
                     selectedPocketId={activePocketId || null}
+                    deltas={balanceDeltas}
                   />
                 </div>
               </div>
