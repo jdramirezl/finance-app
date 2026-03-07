@@ -15,12 +15,11 @@ import { useToast } from '../hooks/useToast';
 import { useConfirm } from '../hooks/useConfirm';
 import type { Movement, MovementType, Account, Pocket, SubPocket, MovementTemplate } from '../types';
 import { Plus, Trash2, X } from 'lucide-react';
-import Modal from '../components/Modal';
 import Button from '../components/Button';
 import { Skeleton, SkeletonTable } from '../components/Skeleton';
 import Card from '../components/Card';
 import ConfirmDialog from '../components/ConfirmDialog';
-import BatchMovementForm from '../components/BatchMovementForm';
+import BatchMovementForm, { type BatchMovementRow, type BatchMovementFormRef } from '../components/BatchMovementForm';
 import { useMovementsFilter } from '../hooks/useMovementsFilter';
 import { useMovementsSort } from '../hooks/useMovementsSort';
 import MovementFilters from '../components/movements/MovementFilters';
@@ -100,6 +99,12 @@ const MovementsPage = () => {
     fixedExpenseId?: string;
     templateId?: string;
   }>({});
+
+  // Batch Form specific state
+  const batchFormRef = useRef<BatchMovementFormRef>(null);
+  const [activeBatchRowId, setActiveBatchRowId] = useState<string | null>(null);
+  const [batchActiveAccountId, setBatchActiveAccountId] = useState<string>('');
+  const [batchActivePocketId, setBatchActivePocketId] = useState<string>('');
 
   // Orphaned movements
   const [showOrphaned, setShowOrphaned] = useState(false);
@@ -270,6 +275,7 @@ const MovementsPage = () => {
 
   const resetFormState = () => {
     setShowForm(false);
+    setShowBatchForm(false);
     setEditingMovement(null);
     setSelectedAccountId('');
     setSelectedPocketId('');
@@ -282,17 +288,36 @@ const MovementsPage = () => {
     setSaveAsTemplate(false);
     setTemplateName('');
     setDefaultValues({});
+    
+    // Clear batch state
+    setActiveBatchRowId(null);
+    setBatchActiveAccountId('');
+    setBatchActivePocketId('');
   };
 
   // Get selected pocket balance for calculator
+  const activeAccountId = showBatchForm ? batchActiveAccountId : selectedAccountId;
+  const activePocketId = showBatchForm ? batchActivePocketId : selectedPocketId;
+
   const selectedPocketBalance = useMemo(() => {
-    const pocket = pockets.find(p => p.id === selectedPocketId);
+    const pocket = pockets.find(p => p.id === activePocketId);
     return pocket ? pocket.balance : null;
-  }, [pockets, selectedPocketId]);
+  }, [pockets, activePocketId]);
 
   // Handler for calculator's "Use as Amount" button
   const handleUseCalculatorAmount = (calculatedAmount: number) => {
-    setAmount(calculatedAmount.toFixed(2));
+    const formattedAmount = calculatedAmount.toFixed(2);
+    if (showBatchForm && activeBatchRowId) {
+      batchFormRef.current?.updateAmount(activeBatchRowId, formattedAmount);
+    } else {
+      setAmount(formattedAmount);
+    }
+  };
+
+  const handleBatchRowFocus = (row: BatchMovementRow) => {
+    setActiveBatchRowId(row.id);
+    setBatchActiveAccountId(row.accountId);
+    setBatchActivePocketId(row.pocketId);
   };
 
 
@@ -755,8 +780,8 @@ const MovementsPage = () => {
         applyingId={applyingId}
       />
 
-      {/* Custom Multi-Modal Layout */}
-      {showForm && (
+      {/* Custom Multi-Modal Layout for both Single and Batch Forms */}
+      {(showForm || showBatchForm) && (
         <div className="fixed inset-0 z-50 flex items-start justify-center p-4 sm:p-6 pt-12">
           {/* Single shared backdrop */}
           <div
@@ -766,13 +791,13 @@ const MovementsPage = () => {
           />
 
           {/* Flex container for side-by-side layout */}
-          <div className="relative flex items-start justify-center gap-4 w-full max-w-[1400px] mx-auto">
-            {/* Movement Form (Main) - Centered */}
-            <div className="w-full max-w-2xl">
+          <div className={`relative flex items-start justify-center gap-4 w-full ${showBatchForm ? 'max-w-7xl' : 'max-w-[1400px]'} mx-auto`}>
+            {/* Form (Main) - Centered */}
+            <div className={`w-full ${showBatchForm ? 'max-w-4xl' : 'max-w-2xl'}`}>
               <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-100 dark:border-gray-700 min-h-[calc(100vh-6rem)] max-h-[calc(100vh-6rem)] overflow-y-auto animate-modal-in flex flex-col">
                 <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-700 sticky top-0 bg-white/80 dark:bg-gray-800/80 backdrop-blur-md z-10">
                   <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">
-                    {editingMovement ? 'Edit Movement' : 'New Movement'}
+                    {showBatchForm ? 'Batch Add Movements' : (editingMovement ? 'Edit Movement' : 'New Movement')}
                   </h2>
                   <button
                     onClick={resetFormState}
@@ -783,89 +808,84 @@ const MovementsPage = () => {
                   </button>
                 </div>
                 <div className="p-6">
-                  <MovementForm
-                    initialData={editingMovement}
-                    onSubmit={handleSubmit}
-                    onCancel={resetFormState}
-                    isSaving={isSaving}
-                    selectedAccountId={selectedAccountId}
-                    setSelectedAccountId={setSelectedAccountId}
-                    selectedPocketId={selectedPocketId}
-                    setSelectedPocketId={setSelectedPocketId}
-                    selectedSubPocketId={selectedSubPocketId}
-                    setSelectedSubPocketId={setSelectedSubPocketId}
-                    selectedType={selectedType}
-                    setSelectedType={setSelectedType}
-                    isFixedExpense={isFixedExpense}
-                    setIsFixedExpense={setIsFixedExpense}
-                    saveAsTemplate={saveAsTemplate}
-                    setSaveAsTemplate={setSaveAsTemplate}
-                    templateName={templateName}
-                    setTemplateName={setTemplateName}
-                    selectedTemplateId={selectedTemplateId}
-                    onTemplateSelect={handleTemplateSelect}
-                    defaultValues={defaultValues}
-                    amount={amount}
-                    setAmount={setAmount}
-                    notes={notes}
-                    setNotes={setNotes}
-                  />
+                  {showBatchForm ? (
+                    <BatchMovementForm
+                      ref={batchFormRef}
+                      accounts={accounts}
+                      getPocketsByAccount={(accountId) => pockets.filter(p => p.accountId === accountId)}
+                      getSubPocketsByPocket={(pocketId) => subPockets.filter(sp => sp.pocketId === pocketId)}
+                      onSave={handleBatchSave}
+                      onCancel={resetFormState}
+                      onFocusRow={handleBatchRowFocus}
+                    />
+                  ) : (
+                    <MovementForm
+                      initialData={editingMovement}
+                      onSubmit={handleSubmit}
+                      onCancel={resetFormState}
+                      isSaving={isSaving}
+                      selectedAccountId={selectedAccountId}
+                      setSelectedAccountId={setSelectedAccountId}
+                      selectedPocketId={selectedPocketId}
+                      setSelectedPocketId={setSelectedPocketId}
+                      selectedSubPocketId={selectedSubPocketId}
+                      setSelectedSubPocketId={setSelectedSubPocketId}
+                      selectedType={selectedType}
+                      setSelectedType={setSelectedType}
+                      isFixedExpense={isFixedExpense}
+                      setIsFixedExpense={setIsFixedExpense}
+                      saveAsTemplate={saveAsTemplate}
+                      setSaveAsTemplate={setSaveAsTemplate}
+                      templateName={templateName}
+                      setTemplateName={setTemplateName}
+                      selectedTemplateId={selectedTemplateId}
+                      onTemplateSelect={handleTemplateSelect}
+                      defaultValues={defaultValues}
+                      amount={amount}
+                      setAmount={setAmount}
+                      notes={notes}
+                      setNotes={setNotes}
+                    />
+                  )}
                 </div>
               </div>
             </div>
 
-            {/* Right Panels - Side by side with fixed heights */}
-            {selectedAccountId && (
-              <div className="hidden lg:flex flex-col gap-4 w-80 flex-shrink-0 h-[calc(100vh-6rem)]">
-                {/* Account Details - Top Right (60% of height) */}
-                <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-100 dark:border-gray-700 h-[60%] overflow-hidden animate-modal-in flex flex-col">
-                  <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 flex-shrink-0">
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                      Account Details
-                    </h3>
-                  </div>
-                  <div className="flex-1 overflow-y-auto">
-                    <AccountContextPanel
-                      accountId={selectedAccountId}
-                      selectedPocketId={selectedPocketId || null}
-                    />
-                  </div>
+            {/* Right Panels - Persistent side area to prevent layout jumps */}
+            <div className="hidden lg:flex flex-col gap-4 w-80 flex-shrink-0 h-[calc(100vh-6rem)] animate-modal-in">
+              {/* Account Details - Top Section (60% of height) */}
+              <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-100 dark:border-gray-700 h-[60%] overflow-hidden flex flex-col">
+                <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 flex-shrink-0">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                    Account Details
+                  </h3>
                 </div>
-
-                {/* Calculator - Bottom Right (40% of height) */}
-                <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-100 dark:border-gray-700 h-[calc(40%-1rem)] animate-modal-in flex flex-col">
-                  <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 flex-shrink-0">
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                      Quick Calculator
-                    </h3>
-                  </div>
-                  <div className="p-4 flex-1 overflow-y-auto">
-                    <QuickCalculator
-                      selectedPocketBalance={selectedPocketBalance}
-                      onUseAmount={handleUseCalculatorAmount}
-                    />
-                  </div>
+                <div className="flex-1 overflow-y-auto">
+                  <AccountContextPanel
+                    accountId={activeAccountId || null}
+                    selectedPocketId={activePocketId || null}
+                  />
                 </div>
               </div>
-            )}
+
+              {/* Calculator - Bottom Section (40% of height) */}
+              <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-100 dark:border-gray-700 h-[calc(40%-1rem)] flex flex-col">
+                <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 flex-shrink-0">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                    Quick Calculator
+                  </h3>
+                </div>
+                <div className="p-4 flex-1 overflow-y-auto">
+                  <QuickCalculator
+                    selectedPocketBalance={selectedPocketBalance}
+                    onUseAmount={handleUseCalculatorAmount}
+                  />
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       )}
-
-      <Modal
-        isOpen={showBatchForm}
-        onClose={() => setShowBatchForm(false)}
-        title="Batch Add Movements"
-        size="xl"
-      >
-        <BatchMovementForm
-          accounts={accounts}
-          getPocketsByAccount={(accountId) => pockets.filter(p => p.accountId === accountId)}
-          getSubPocketsByPocket={(pocketId) => subPockets.filter(sp => sp.pocketId === pocketId)}
-          onSave={handleBatchSave}
-          onCancel={() => setShowBatchForm(false)}
-        />
-      </Modal>
 
       <ConfirmDialog
         isOpen={confirmState.isOpen}
