@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom';
 import type { Account } from '../../types';
 import { currencyService } from '../../services/currencyService';
 import { TrendingUp, RefreshCw, BarChart3, DollarSign, Percent, Clock } from 'lucide-react';
@@ -28,6 +29,12 @@ const InvestmentCard = ({
     onRefresh,
     isRefreshing,
 }: InvestmentCardProps) => {
+    const navigate = useNavigate();
+
+    const handleAccountClick = () => {
+        navigate(`/accounts?id=${account.id}`);
+    };
+
     const stockSymbol = account.stockSymbol || 'N/A';
     // Use corrected values from data if available, otherwise fall back to account
     const montoInvertido = data?.montoInvertido ?? account.montoInvertido ?? 0;
@@ -49,16 +56,20 @@ const InvestmentCard = ({
         <div className="bg-gradient-to-br from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 rounded-lg p-4 border-l-4" style={{ borderColor: account.color }}>
             {/* Header */}
             <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-3">
+                <div 
+                    className="flex items-center gap-3 cursor-pointer group"
+                    onClick={handleAccountClick}
+                    title="View Account Details"
+                >
                     <div
-                        className="w-10 h-10 rounded-full flex items-center justify-center"
+                        className="w-10 h-10 rounded-full flex items-center justify-center transition-transform group-hover:scale-110"
                         style={{ backgroundColor: `${account.color}20`, border: `2px solid ${account.color}` }}
                     >
                         <TrendingUp className="w-5 h-5" style={{ color: account.color }} />
                     </div>
                     <div>
                         <div className="flex items-center gap-2">
-                            <span className="font-semibold text-lg text-gray-900 dark:text-gray-100">
+                            <span className="font-semibold text-lg text-gray-900 dark:text-gray-100 group-hover:text-purple-600 dark:group-hover:text-purple-400">
                                 {account.name}
                             </span>
                             <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${performanceStatus.color} bg-white dark:bg-gray-800`}>

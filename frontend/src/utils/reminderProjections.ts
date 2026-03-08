@@ -9,7 +9,7 @@ export interface ProjectedReminder extends Reminder {
 export type ReminderWithProjection = Reminder & { isProjected?: boolean; originalReminderId?: string };
 
 /**
- * Generate projected future occurrences for a recurring reminder
+ * Generate projected occurrences for a recurring reminder within a date range
  */
 export function generateProjectedOccurrences(
     reminder: Reminder,
@@ -17,14 +17,14 @@ export function generateProjectedOccurrences(
 ): ProjectedReminder[] {
     const { recurrence } = reminder;
 
-    // Non-recurring reminders don't generate projections
+    // Non-recurring reminders don't generate additional projections
     if (recurrence.type === 'once') {
         return [];
     }
 
     const projections: ProjectedReminder[] = [];
-    const startDate = parseISO(reminder.dueDate);
-    const endDate = addMonths(new Date(), monthsAhead + 1);
+    const baseDate = parseISO(reminder.dueDate);
+    const endRange = addMonths(new Date(), monthsAhead + 1);
 
     // Check end conditions
     const hasEnded = (date: Date, occurrenceCount: number): boolean => {
@@ -37,58 +37,50 @@ export function generateProjectedOccurrences(
         return false;
     };
 
-    let currentDate = startDate;
+    let currentDate = baseDate;
     let occurrenceCount = 0;
 
-    // Generate next occurrences
-    while (isBefore(currentDate, endDate) && !hasEnded(currentDate, occurrenceCount)) {
+    // Generate occurrences
+    while (isBefore(currentDate, endRange) && !hasEnded(currentDate, occurrenceCount)) {
+        // Skip current (base) date as it's handled separately in grouping
+        if (occurrenceCount > 0) {
+            const currentDateStr = format(currentDate, 'yyyy-MM-dd');
+            const exception = reminder.exceptions?.find(e => e.originalDate === currentDateStr);
+
+            if (exception) {
+                if (exception.action === 'deleted') {
+                    // Skip deleted
+                } else if (isBefore(currentDate, endRange)) {
+                    projections.push({
+                        ...reminder,
+                        id: `${reminder.id}_projected_${currentDateStr}`,
+                        title: exception.newTitle || reminder.title,
+                        amount: exception.newAmount ?? reminder.amount,
+                        dueDate: exception.newDate || currentDateStr,
+                        isPaid: exception.isPaid ?? false,
+                        linkedMovementId: exception.linkedMovementId,
+                        isProjected: true,
+                        originalReminderId: reminder.id,
+                    });
+                }
+            } else {
+                // Normal projection
+                if (isBefore(currentDate, endRange)) {
+                    projections.push({
+                        ...reminder,
+                        id: `${reminder.id}_projected_${currentDateStr}`,
+                        dueDate: currentDateStr,
+                        isPaid: false,
+                        isProjected: true,
+                        originalReminderId: reminder.id,
+                    });
+                }
+            }
+        }
+        
         // Get next occurrence date
         currentDate = getNextOccurrence(currentDate, recurrence);
         occurrenceCount++;
-
-        if (hasEnded(currentDate, occurrenceCount)) {
-            break;
-        }
-
-        // Only include future dates that are after current date (ignoring time)
-        // Note: Using startOfDay comparison to allow "today" projections if needed, 
-        // but original logic was strict "after now". Let's keep it but check exceptions.
-
-        const currentDateStr = format(currentDate, 'yyyy-MM-dd');
-        const exception = reminder.exceptions?.find(e => e.originalDate === currentDateStr);
-
-        if (exception) {
-            if (exception.action === 'deleted') {
-                continue; // Skip this occurrence
-            }
-
-            // Apply modification
-            if (isAfter(currentDate, new Date()) && isBefore(currentDate, endDate)) {
-                projections.push({
-                    ...reminder,
-                    id: `${reminder.id}_projected_${currentDateStr}`,
-                    title: exception.newTitle || reminder.title,
-                    amount: exception.newAmount ?? reminder.amount,
-                    dueDate: exception.newDate || currentDateStr,
-                    isPaid: exception.isPaid ?? false,
-                    linkedMovementId: exception.linkedMovementId,
-                    isProjected: true,
-                    originalReminderId: reminder.id,
-                });
-            }
-        } else {
-            // Normal projection
-            if (isAfter(currentDate, new Date()) && isBefore(currentDate, endDate)) {
-                projections.push({
-                    ...reminder,
-                    id: `${reminder.id}_projected_${currentDateStr}`,
-                    dueDate: currentDateStr,
-                    isPaid: false,
-                    isProjected: true,
-                    originalReminderId: reminder.id,
-                });
-            }
-        }
     }
 
     return projections;
@@ -168,8 +160,9 @@ export function groupRemindersByMonth(
 
     reminders.forEach(reminder => {
         // Handle Base Reminder
-        const baseDate = reminder.dueDate;
-        const baseException = reminder.exceptions?.find(e => e.originalDate === baseDate);
+        const baseDateISO = reminder.dueDate;
+        const baseDateStr = baseDateISO.split('T')[0]; // Normalize to YYYY-MM-DD
+        const baseException = reminder.exceptions?.find(e => e.originalDate === baseDateStr);
 
         if (baseException) {
             if (baseException.action === 'modified') {
@@ -178,7 +171,7 @@ export function groupRemindersByMonth(
                     ...reminder,
                     title: baseException.newTitle || reminder.title,
                     amount: baseException.newAmount ?? reminder.amount,
-                    dueDate: baseException.newDate || reminder.dueDate,
+                    dueDate: baseException.newDate || baseDateISO, // Use newDate or original ISO
                     isPaid: baseException.isPaid ?? reminder.isPaid,
                     linkedMovementId: baseException.linkedMovementId || reminder.linkedMovementId,
                     isProjected: false
@@ -186,13 +179,10 @@ export function groupRemindersByMonth(
             }
             // If deleted, do nothing (skip)
         } else {
-            // Add check for if it's paid? No, original logic was just pushing it.
-            // But if it's paid, it's paid.
             allReminders.push({ ...reminder, isProjected: false });
         }
 
-        // Add projected occurrences for recurring reminders
-        // Generate projections even if current occurrence is paid - the schedule continues
+        // Add projected occurrences (including past ones within range)
         if (reminder.recurrence.type !== 'once') {
             const projections = generateProjectedOccurrences(reminder, monthsAhead);
             allReminders.push(...projections);
@@ -201,11 +191,21 @@ export function groupRemindersByMonth(
 
     // Create month buckets
     const months: MonthGroup[] = [];
-    const startMonth = addMonths(startOfMonth(now), -monthsBack);
+    let startMonth = addMonths(startOfMonth(now), -monthsBack);
     const endMonth = addMonths(endOfMonth(now), monthsAhead);
 
+    // Ensure we include any month that has an overdue reminder
+    allReminders.forEach(r => {
+        if (getReminderStatus(r) === 'overdue') {
+            const rMonth = startOfMonth(parseISO(r.dueDate));
+            if (isBefore(rMonth, startMonth)) {
+                startMonth = rMonth;
+            }
+        }
+    });
+
     let currentMonthDate = startMonth;
-    while (isBefore(currentMonthDate, endMonth)) {
+    while (isBefore(currentMonthDate, endMonth) || format(currentMonthDate, 'yyyy-MM') === format(endMonth, 'yyyy-MM')) {
         const year = currentMonthDate.getFullYear();
         const month = currentMonthDate.getMonth();
         const key = format(currentMonthDate, 'yyyy-MM');
@@ -255,7 +255,6 @@ export type ReminderStatus = 'overdue' | 'today' | 'this-week' | 'upcoming' | 'p
  */
 export function getReminderStatus(reminder: ReminderWithProjection): ReminderStatus {
     if (reminder.isPaid) return 'paid';
-    if (reminder.isProjected) return 'projected';
 
     const now = new Date();
     const dueDate = parseISO(reminder.dueDate);
@@ -269,6 +268,8 @@ export function getReminderStatus(reminder: ReminderWithProjection): ReminderSta
     if (dueDateNormalized < today) {
         return 'overdue';
     }
+
+    if (reminder.isProjected) return 'projected';
 
     if (dueDateNormalized.getTime() === today.getTime()) {
         return 'today';
@@ -284,16 +285,27 @@ export function getReminderStatus(reminder: ReminderWithProjection): ReminderSta
 }
 
 /**
- * Count overdue reminders
+ * Count overdue reminders including projections
  */
 export function countOverdueReminders(reminders: Reminder[]): number {
-    return reminders.filter(r => {
-        if (r.isPaid) return false;
-        const dueDate = parseISO(r.dueDate);
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const dueDateNormalized = new Date(dueDate);
-        dueDateNormalized.setHours(0, 0, 0, 0);
-        return dueDateNormalized < today;
-    }).length;
+    // Generate projections to count missed recurring instances
+    const monthsBack = 3; // Look back 3 months for overdue items
+    const grouped = groupRemindersByMonth(reminders, monthsBack, 0);
+    
+    let overdueCount = 0;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    grouped.forEach(month => {
+        if (month.isCurrentMonth || month.isPastMonth) {
+            month.reminders.forEach(r => {
+                const status = getReminderStatus(r);
+                if (status === 'overdue') {
+                    overdueCount++;
+                }
+            });
+        }
+    });
+
+    return overdueCount;
 }

@@ -72,11 +72,25 @@ const MovementForm = ({
     const { data: subPockets = [] } = useSubPocketsQuery();
     const { data: movementTemplates = [] } = useMovementTemplatesQuery();
 
-    // Find the fixed expense account and pocket (there's only one globally)
-    const fixedExpensePocket = pockets.find(p => p.type === 'fixed');
-    const fixedExpenseAccount = fixedExpensePocket 
-        ? accounts.find(a => a.id === fixedExpensePocket.accountId)
-        : null;
+    // Filter accounts and pockets based on movement type
+    const isFixedMove = selectedType === 'IngresoFijo' || selectedType === 'EgresoFijo';
+    
+    const filteredAccounts = isFixedMove
+        ? accounts.filter(acc => pockets.some(p => p.accountId === acc.id && p.type === 'fixed'))
+        : accounts;
+
+    const availablePockets = selectedAccountId
+        ? pockets.filter(p => p.accountId === selectedAccountId)
+        : [];
+
+    const filteredPockets = isFixedMove
+        ? availablePockets.filter(p => p.type === 'fixed')
+        : availablePockets.filter(p => p.type !== 'fixed');
+
+    const fixedPocket = availablePockets.find((p) => p.type === 'fixed');
+    const availableSubPockets = fixedPocket && isFixedExpense
+        ? subPockets.filter(sp => sp.pocketId === fixedPocket.id)
+        : [];
 
     // Determine if this is a fixed expense from defaultValues or initialData
     const isDefaultFixedExpense = selectedType === 'IngresoFijo' || selectedType === 'EgresoFijo';
@@ -85,27 +99,30 @@ const MovementForm = ({
     const [targetAccountId, setTargetAccountId] = useState('');
     const [targetPocketId, setTargetPocketId] = useState('');
 
-    const availablePockets = selectedAccountId
-        ? pockets.filter(p => p.accountId === selectedAccountId)
-        : [];
-
     const availableTargetPockets = targetAccountId
         ? pockets.filter(p => p.accountId === targetAccountId)
         : [];
 
-    const fixedPocket = availablePockets.find((p) => p.type === 'fixed');
-    const availableSubPockets = fixedPocket && isFixedExpense
-        ? subPockets.filter(sp => sp.pocketId === fixedPocket.id)
-        : [];
-
-    // Auto-populate account and pocket when fixed expense type is selected
+    // Auto-populate fixed pocket when account/type changes
     useEffect(() => {
-        if ((selectedType === 'IngresoFijo' || selectedType === 'EgresoFijo') && fixedExpenseAccount && fixedExpensePocket) {
-            // Auto-populate the fixed expense account and pocket
-            setSelectedAccountId(fixedExpenseAccount.id);
-            setSelectedPocketId(fixedExpensePocket.id);
+        if (isFixedMove && selectedAccountId) {
+            const hasFixedPocket = pockets.find(p => p.accountId === selectedAccountId && p.type === 'fixed');
+            if (hasFixedPocket && selectedPocketId !== hasFixedPocket.id) {
+                setSelectedPocketId(hasFixedPocket.id);
+            } else if (!hasFixedPocket) {
+                // If account has no fixed pocket but type is fixed, we should clear account
+                // (Though filteredAccounts should prevent this from being selectable manually)
+                setSelectedAccountId('');
+                setSelectedPocketId('');
+            }
+        } else if (!isFixedMove && selectedPocketId) {
+            // If moved from fixed to normal, clear pocket if it was fixed
+            const currentPocket = pockets.find(p => p.id === selectedPocketId);
+            if (currentPocket?.type === 'fixed') {
+                setSelectedPocketId('');
+            }
         }
-    }, [selectedType, fixedExpenseAccount, fixedExpensePocket, setSelectedAccountId, setSelectedPocketId]);
+    }, [isFixedMove, selectedAccountId, pockets, setSelectedPocketId, setSelectedAccountId, selectedPocketId]);
 
     const movementTypes: { value: MovementType | 'Transfer'; label: string }[] = [
         { value: 'IngresoNormal', label: 'Normal Income' },
@@ -164,11 +181,10 @@ const MovementForm = ({
                                 const isFixedType = type === 'IngresoFijo' || type === 'EgresoFijo';
                                 setIsFixedExpense(isFixedType);
                                 
-                                // If switching to fixed expense type, auto-populate will happen via useEffect
-                                // If switching away from fixed expense type, clear selections to allow manual selection
-                                if (!isFixedType) {
-                                    setSelectedAccountId('');
-                                    setSelectedPocketId('');
+                                // Reset account if it's not valid for the new type selection
+                                if (isFixedType) {
+                                    const hasFixed = pockets.some(p => p.accountId === selectedAccountId && p.type === 'fixed');
+                                    if (!hasFixed) setSelectedAccountId('');
                                 }
                             }
                         }}
@@ -196,7 +212,10 @@ const MovementForm = ({
                         }}
                         options={[
                             { value: '', label: 'Select Account' },
-                            ...accounts.map(acc => ({ value: acc.id, label: acc.name }))
+                            ...filteredAccounts.map(acc => ({ 
+                                value: acc.id, 
+                                label: `${acc.name} (${acc.currency})` 
+                            }))
                         ]}
                     />
 
@@ -208,16 +227,16 @@ const MovementForm = ({
                         onChange={(e) => setSelectedPocketId(e.target.value)}
                         options={[
                             { value: '', label: 'Select Pocket' },
-                            ...availablePockets.map(p => ({ value: p.id, label: p.name }))
+                            ...filteredPockets.map(p => ({ value: p.id, label: p.name }))
                         ]}
                         disabled={!selectedAccountId}
                     />
                 </div>
 
-                {(selectedType === 'IngresoFijo' || selectedType === 'EgresoFijo') && fixedExpenseAccount && fixedExpensePocket && (
+                {isFixedMove && selectedAccountId && fixedPocket && (
                     <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
                         <p className="text-sm text-blue-700 dark:text-blue-300">
-                            ℹ️ Fixed expense account and pocket have been automatically selected: <strong>{fixedExpenseAccount.name}</strong> → <strong>{fixedExpensePocket.name}</strong>
+                            ℹ️ Fixed expense pocket has been automatically selected: <strong>{fixedPocket.name}</strong>
                         </p>
                     </div>
                 )}
@@ -235,7 +254,10 @@ const MovementForm = ({
                             }}
                             options={[
                                 { value: '', label: 'Select Target Account' },
-                                ...accounts.map(acc => ({ value: acc.id, label: acc.name }))
+                                ...accounts.map(acc => ({ 
+                                    value: acc.id, 
+                                    label: `${acc.name} (${acc.currency})` 
+                                }))
                             ]}
                         />
 

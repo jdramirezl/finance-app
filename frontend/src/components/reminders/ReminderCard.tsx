@@ -8,6 +8,7 @@ interface ReminderCardProps {
     onPayNow: (reminder: ReminderWithProjection) => void;
     onEdit: (reminder: ReminderWithProjection) => void;
     onDelete: (reminder: ReminderWithProjection) => void;
+    onMarkAsPaid: (reminder: ReminderWithProjection) => void;
 }
 
 const statusStyles: Record<ReminderStatus, {
@@ -53,7 +54,7 @@ const statusStyles: Record<ReminderStatus, {
     },
 };
 
-const ReminderCard = ({ reminder, onPayNow, onEdit, onDelete }: ReminderCardProps) => {
+const ReminderCard = ({ reminder, onPayNow, onEdit, onDelete, onMarkAsPaid }: ReminderCardProps) => {
     const status = getReminderStatus(reminder);
     const styles = statusStyles[status];
     const isPaid = status === 'paid';
@@ -126,13 +127,22 @@ const ReminderCard = ({ reminder, onPayNow, onEdit, onDelete }: ReminderCardProp
                 {/* Action buttons - visible on hover */}
                 <div className="flex justify-end gap-1 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
                     {!isPaid && !isProjected && (
-                        <button
-                            onClick={() => onPayNow(reminder)}
-                            className="p-1.5 text-green-600 hover:bg-green-100 dark:hover:bg-green-900/30 rounded-lg transition-colors"
-                            title="Pay Now"
-                        >
-                            <DollarSign className="w-4 h-4" />
-                        </button>
+                        <>
+                            <button
+                                onClick={() => onPayNow(reminder)}
+                                className="p-1.5 text-green-600 hover:bg-green-100 dark:hover:bg-green-900/30 rounded-lg transition-colors"
+                                title="Pay Now (create movement)"
+                            >
+                                <DollarSign className="w-4 h-4" />
+                            </button>
+                            <button
+                                onClick={() => onMarkAsPaid(reminder)}
+                                className="p-1.5 text-blue-500 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded-lg transition-colors"
+                                title="Mark as Paid (no new movement)"
+                            >
+                                <Check className="w-4 h-4" />
+                            </button>
+                        </>
                     )}
                     <button
                         onClick={() => onEdit(reminder)}
