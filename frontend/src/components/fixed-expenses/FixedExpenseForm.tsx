@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { SubPocket, Account } from '../../types';
+import type { SubPocket, Account, Pocket } from '../../types';
 import { useSubPocketMutations } from '../../hooks/queries';
 import { useToast } from '../../hooks/useToast';
 import Button from '../Button';
@@ -7,16 +7,16 @@ import Input from '../Input';
 import { calculateAporteMensual } from '../../utils/fixedExpenseUtils';
 
 interface FixedExpenseFormProps {
-    fixedPocketId: string;
-    fixedAccount: Account;
+    fixedPockets: Pocket[];
+    accounts: Account[];
     initialData?: SubPocket | null;
     onClose: () => void;
     onSuccess: () => void;
 }
 
 const FixedExpenseForm = ({
-    fixedPocketId,
-    fixedAccount,
+    fixedPockets,
+    accounts,
     initialData,
     onClose,
     onSuccess,
@@ -24,6 +24,9 @@ const FixedExpenseForm = ({
     const { createSubPocket, updateSubPocket } = useSubPocketMutations();
     const toast = useToast();
     const [isSaving, setIsSaving] = useState(false);
+    const [selectedPocketId, setSelectedPocketId] = useState(initialData?.pocketId || fixedPockets[0]?.id || '');
+    const selectedPocket = fixedPockets.find(p => p.id === selectedPocketId);
+    const selectedAccount = accounts.find(a => a.id === selectedPocket?.accountId);
     const [error, setError] = useState<string | null>(null);
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -39,14 +42,19 @@ const FixedExpenseForm = ({
 
         try {
             if (initialData) {
+                const updates: any = { name, valueTotal, periodicityMonths };
+                if (selectedPocketId !== initialData.pocketId) {
+                    updates.pocketId = selectedPocketId;
+                }
+                
                 await updateSubPocket.mutateAsync({
                     id: initialData.id,
-                    updates: { name, valueTotal, periodicityMonths }
+                    updates
                 });
                 toast.success('Fixed expense updated successfully!');
             } else {
                 await createSubPocket.mutateAsync({
-                    pocketId: fixedPocketId,
+                    pocketId: selectedPocketId,
                     name,
                     valueTotal,
                     periodicityMonths
@@ -83,6 +91,34 @@ const FixedExpenseForm = ({
             {error && (
                 <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
                     <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+                </div>
+            )}
+
+            {fixedPockets.length > 1 && (
+                <div className="space-y-1">
+                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Account
+                    </label>
+                    <select
+                        value={selectedPocketId}
+                        onChange={(e) => setSelectedPocketId(e.target.value)}
+                        className="w-full px-3 py-2 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                        required
+                    >
+                        {fixedPockets.map(pocket => {
+                            const account = accounts.find(a => a.id === pocket.accountId);
+                            return (
+                                <option key={pocket.id} value={pocket.id}>
+                                    {account?.name} ({pocket.currency})
+                                </option>
+                            );
+                        })}
+                    </select>
+                    {initialData && selectedPocketId !== initialData.pocketId && (
+                        <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
+                            Warning: Changing the account will move the expense and all its movements to the new account.
+                        </p>
+                    )}
                 </div>
             )}
 
@@ -128,7 +164,7 @@ const FixedExpenseForm = ({
                         formValues.periodicityMonths
                     ).toLocaleString(undefined, {
                         style: 'currency',
-                        currency: fixedAccount.currency,
+                        currency: selectedAccount?.currency || 'USD',
                     })}
                 </p>
             </div>

@@ -13,7 +13,7 @@ import type { IPocketRepository } from '../../infrastructure/IPocketRepository';
 import type { IAccountRepository } from '../../../accounts/infrastructure/IAccountRepository';
 import type { PocketResponseDTO, MigratePocketDTO } from '../dtos/PocketDTO';
 import { PocketMapper } from '../mappers/PocketMapper';
-import { ValidationError, NotFoundError } from '../../../../shared/errors/AppError';
+import { ValidationError, ConflictError, NotFoundError } from '../../../../shared/errors/AppError';
 import { AccountDomainService } from '../../../accounts/domain/AccountDomainService';
 import { PocketDomainService } from '../../domain/PocketDomainService';
 
@@ -80,6 +80,12 @@ export class MigrateFixedPocketUseCase {
     // Don't allow migration to the same account
     if (pocket.accountId === dto.targetAccountId) {
       throw new ValidationError('Pocket is already in the target account');
+    }
+
+    // Requirement 7.5: Ensure target account doesn't already have a fixed pocket
+    const hasFixedPocket = await this.pocketRepo.existsFixedPocketInAccount(dto.targetAccountId, userId);
+    if (hasFixedPocket) {
+      throw new ConflictError('The target account already has a fixed pocket');
     }
 
     // Requirement 7.2: Update all movements to reference the new account

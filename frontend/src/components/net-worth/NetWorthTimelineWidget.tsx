@@ -1,17 +1,14 @@
 /**
  * Net Worth Timeline Widget
  * Displays a line chart of the user's net worth over time
- * Double-click chart points to edit snapshot values
+ * Click chart points to edit snapshot values
  */
 
 import { useState, useMemo, useEffect } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { useNetWorthSnapshotsQuery } from '../../hooks/queries/useNetWorthSnapshotQueries';
+import { useNetWorthSnapshotsQuery, useNetWorthSnapshotMutations } from '../../hooks/queries/useNetWorthSnapshotQueries';
 import { useSettingsQuery } from '../../hooks/queries';
 import { currencyService } from '../../services/currencyService';
-import { netWorthSnapshotService } from '../../services/netWorthSnapshotService';
-import { useQueryClient } from '@tanstack/react-query';
-import { useToast } from '../../hooks/useToast';
 import { useConfirm } from '../../hooks/useConfirm';
 import Card from '../Card';
 import Button from '../Button';
@@ -27,8 +24,7 @@ type DateRange = '30d' | '6m' | '1y' | 'all';
 const NetWorthTimelineWidget = () => {
     const { data: snapshots = [], isLoading } = useNetWorthSnapshotsQuery();
     const { data: settings } = useSettingsQuery();
-    const queryClient = useQueryClient();
-    const toast = useToast();
+    const { updateMutation, deleteMutation } = useNetWorthSnapshotMutations();
     const { confirm, confirmState, handleClose: handleConfirmClose, handleConfirm } = useConfirm();
     
     const [viewMode, setViewMode] = useState<ViewMode>('total');
@@ -37,7 +33,6 @@ const NetWorthTimelineWidget = () => {
     const [showEditModal, setShowEditModal] = useState(false);
     const [selectedSnapshot, setSelectedSnapshot] = useState<any>(null);
     const [editValue, setEditValue] = useState<string>('');
-    const [isSaving, setIsSaving] = useState(false);
 
     const primaryCurrency = settings?.primaryCurrency || 'USD';
 
@@ -45,33 +40,47 @@ const NetWorthTimelineWidget = () => {
 
     // Handle chart point click
     const handleDotClick = (data: any) => {
-        console.log('Dot clicked:', data); // Debug log
-        // Find the snapshot by date
-        const snapshot = snapshots.find(s => s.snapshotDate === data.fullDate);
+        if (!data) return;
+        
+        // Find the snapshot by snapshotId first (most reliable), then fallback to date
+        const snapshotId = data.snapshotId;
+        const snapshot = snapshots.find(s => s.id === snapshotId) || 
+                         snapshots.find(s => s.snapshotDate === data.fullDate);
+                         
         if (snapshot) {
-            console.log('Found snapshot:', snapshot); // Debug log
             setSelectedSnapshot(snapshot);
             setEditValue(snapshot.totalNetWorth.toString());
             setShowEditModal(true);
-        } else {
-            console.log('Snapshot not found for date:', data.fullDate); // Debug log
         }
     };
 
-    // Custom dot component that handles clicks
+    // Custom dot component with better hit area and visibility
     const CustomDot = (props: any) => {
-        const { cx, cy, fill, payload } = props;
+        const { cx, cy, fill, payload, value, r = 5, strokeWidth = 2 } = props;
+        if (value === null || value === undefined) return null;
+        
         return (
-            <circle
-                cx={cx}
-                cy={cy}
-                r={4}
-                fill={fill}
-                stroke={fill}
-                strokeWidth={2}
-                style={{ cursor: 'pointer' }}
-                onClick={() => handleDotClick(payload)}
-            />
+            <g 
+                className="cursor-pointer"
+                onClick={(e) => {
+                    e.stopPropagation();
+                    handleDotClick(payload);
+                }}
+            >
+                {/* Larger transparent hit area */}
+                <circle cx={cx} cy={cy} r={12} fill="transparent" />
+                {/* Visible dot */}
+                <circle
+                    cx={cx}
+                    cy={cy}
+                    r={r}
+                    fill={fill}
+                    stroke="#fff"
+                    strokeWidth={strokeWidth}
+                    className="transition-all duration-200"
+                    style={{ filter: 'drop-shadow(0px 2px 4px rgba(0,0,0,0.2))' }}
+                />
+            </g>
         );
     };
 
@@ -82,28 +91,15 @@ const NetWorthTimelineWidget = () => {
         const newValue = parseFloat(editValue);
         
         if (isNaN(newValue) || newValue < 0) {
-            toast.error('Please enter a valid positive number');
             return;
         }
 
-        setIsSaving(true);
-        try {
-            await netWorthSnapshotService.update(selectedSnapshot.id, {
-                totalNetWorth: newValue
-            });
-            
-            queryClient.invalidateQueries({ queryKey: ['netWorthSnapshots'] });
-            
-            toast.success('Snapshot updated successfully!');
-            setShowEditModal(false);
-            setSelectedSnapshot(null);
-            setEditValue('');
-        } catch (error) {
-            toast.error('Failed to update snapshot');
-            console.error(error);
-        } finally {
-            setIsSaving(false);
-        }
+        await updateMutation.mutateAsync({
+            id: selectedSnapshot.id,
+            data: { totalNetWorth: newValue }
+        });
+        
+        setShowEditModal(false);
     };
 
     // Handle delete
@@ -120,22 +116,8 @@ const NetWorthTimelineWidget = () => {
 
         if (!confirmed) return;
 
-        setIsSaving(true);
-        try {
-            await netWorthSnapshotService.delete(selectedSnapshot.id);
-            
-            queryClient.invalidateQueries({ queryKey: ['netWorthSnapshots'] });
-            
-            toast.success('Snapshot deleted successfully!');
-            setShowEditModal(false);
-            setSelectedSnapshot(null);
-            setEditValue('');
-        } catch (error) {
-            toast.error('Failed to delete snapshot');
-            console.error(error);
-        } finally {
-            setIsSaving(false);
-        }
+        await deleteMutation.mutateAsync(selectedSnapshot.id);
+        setShowEditModal(false);
     };
 
     // Filter snapshots by date range
@@ -186,7 +168,6 @@ const NetWorthTimelineWidget = () => {
                         const rate = await currencyService.getExchangeRateAsync(currency as any, primaryCurrency);
                         newRates[currency] = rate;
                     } catch (err) {
-                        console.error(`Failed to fetch rate for ${currency}`, err);
                         newRates[currency] = currencyService.getExchangeRate(currency as any, primaryCurrency);
                     }
                 }
@@ -230,23 +211,19 @@ const NetWorthTimelineWidget = () => {
                 date: format(parseISO(snapshot.snapshotDate), 'MMM d'),
                 fullDate: snapshot.snapshotDate,
                 total: snapshot.totalNetWorth,
-                snapshotId: snapshot.id, // Add ID for click handling
+                snapshotId: snapshot.id,
             };
 
             if (snapshot.breakdown) {
                 Object.entries(snapshot.breakdown).forEach(([currency, value]) => {
-                    if (currency !== primaryCurrency) {
-                        const rate = rates[currency] || 1;
-                        data[currency] = value * rate;
-                    } else {
-                        data[currency] = value;
-                    }
+                    const rate = rates[currency] || 1;
+                    data[currency] = (currency === primaryCurrency) ? (value as number) : (value as number) * rate;
                 });
             }
             return data;
         });
 
-        if (showVariation) {
+        if (showVariation && processedSnapshots.length > 0) {
             const baseline = processedSnapshots[0];
             return processedSnapshots.map(snapshot => {
                 const variationData: any = {
@@ -275,7 +252,7 @@ const NetWorthTimelineWidget = () => {
         }
 
         return processedSnapshots;
-    }, [filteredSnapshots, viewMode, showVariation, primaryCurrency, currencies, rates, snapshots]);
+    }, [filteredSnapshots, viewMode, showVariation, primaryCurrency, currencies, rates]);
 
     if (isLoading) {
         return (
@@ -364,11 +341,10 @@ const NetWorthTimelineWidget = () => {
                 {/* Chart */}
                 <div className="h-64">
                     <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={chartData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }} onClick={(e: any) => {
-                            if (e && e.activePayload && e.activePayload[0]) {
-                                handleDotClick(e.activePayload[0].payload);
-                            }
-                        }}>
+                        <LineChart 
+                            data={chartData} 
+                            margin={{ top: 5, right: 20, left: 10, bottom: 5 }}
+                        >
                             <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
                             <XAxis
                                 dataKey="date"
@@ -414,8 +390,8 @@ const NetWorthTimelineWidget = () => {
                                     name="Net Worth"
                                     stroke="#3b82f6"
                                     strokeWidth={2}
-                                    dot={CustomDot}
-                                    activeDot={{ r: 8, cursor: 'pointer' }}
+                                    dot={<CustomDot />}
+                                    activeDot={<CustomDot r={8} strokeWidth={3} />}
                                 />
                             ) : (
                                 currencies.map(currency => (
@@ -427,6 +403,7 @@ const NetWorthTimelineWidget = () => {
                                         stroke={currencyColors[currency] || '#8884d8'}
                                         strokeWidth={2}
                                         dot={(props: any) => <CustomDot {...props} fill={currencyColors[currency] || '#8884d8'} />}
+                                        activeDot={(props: any) => <CustomDot {...props} fill={currencyColors[currency] || '#8884d8'} r={8} strokeWidth={3} />}
                                     />
                                 ))
                             )}
@@ -485,7 +462,7 @@ const NetWorthTimelineWidget = () => {
                                 type="button"
                                 variant="danger"
                                 onClick={handleDelete}
-                                loading={isSaving}
+                                loading={deleteMutation.isPending}
                                 className="flex items-center gap-2"
                             >
                                 <Trash2 className="w-4 h-4" />
@@ -507,7 +484,7 @@ const NetWorthTimelineWidget = () => {
                                     type="button"
                                     variant="primary"
                                     onClick={handleSaveEdit}
-                                    loading={isSaving}
+                                    loading={updateMutation.isPending}
                                 >
                                     Save Changes
                                 </Button>
@@ -532,3 +509,4 @@ const NetWorthTimelineWidget = () => {
 };
 
 export default NetWorthTimelineWidget;
+

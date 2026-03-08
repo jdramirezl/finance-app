@@ -6,9 +6,10 @@ interface MonthSectionProps {
     onPayNow: (reminder: ReminderWithProjection) => void;
     onEdit: (reminder: ReminderWithProjection) => void;
     onDelete: (reminder: ReminderWithProjection) => void;
+    onMarkAsPaid: (reminder: ReminderWithProjection) => void;
 }
 
-const MonthSection = ({ monthGroup, onPayNow, onEdit, onDelete }: MonthSectionProps) => {
+const MonthSection = ({ monthGroup, onPayNow, onEdit, onDelete, onMarkAsPaid }: MonthSectionProps) => {
     const { label, reminders, isCurrentMonth, isPastMonth } = monthGroup;
 
     if (reminders.length === 0) {
@@ -54,6 +55,7 @@ const MonthSection = ({ monthGroup, onPayNow, onEdit, onDelete }: MonthSectionPr
                         onPayNow={onPayNow}
                         onEdit={onEdit}
                         onDelete={onDelete}
+                        onMarkAsPaid={onMarkAsPaid}
                     />
                 ))}
             </div>

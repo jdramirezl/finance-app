@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom';
 import { AlertTriangle, Landmark, Calendar, DollarSign } from 'lucide-react';
 import { format } from 'date-fns';
 import { currencyService } from '../../services/currencyService';
@@ -10,6 +11,12 @@ interface CDSummaryCardProps {
 }
 
 const CDSummaryCard = ({ account }: CDSummaryCardProps) => {
+  const navigate = useNavigate();
+
+  const handleAccountClick = () => {
+    navigate(`/accounts?id=${account.id}`);
+  };
+  
   // Calculate current CD values with error handling
   let calculation: any = null;
   let summary: any = null;
@@ -76,16 +83,20 @@ const CDSummaryCard = ({ account }: CDSummaryCardProps) => {
     <div className="bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 rounded-lg p-4 border-l-4" style={{ borderColor: account.color }}>
       {/* Header */}
       <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-3">
+        <div 
+          className="flex items-center gap-3 cursor-pointer group"
+          onClick={handleAccountClick}
+          title="View Account Details"
+        >
           <div
-            className="w-10 h-10 rounded-full flex items-center justify-center"
+            className="w-10 h-10 rounded-full flex items-center justify-center transition-transform group-hover:scale-110"
             style={{ backgroundColor: `${account.color}20`, border: `2px solid ${account.color}` }}
           >
             <Landmark className="w-5 h-5" style={{ color: account.color }} />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="font-semibold text-lg text-gray-900 dark:text-gray-100">
+              <span className="font-semibold text-lg text-gray-900 dark:text-gray-100 group-hover:text-amber-600 dark:group-hover:text-amber-400">
                 {account.name}
               </span>
               <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${getStatusColor()}`}>

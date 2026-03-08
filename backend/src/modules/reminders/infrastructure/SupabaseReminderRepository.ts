@@ -117,22 +117,33 @@ export class SupabaseReminderRepository implements IReminderRepository {
     }
 
     async createException(data: CreateExceptionDTO): Promise<ReminderException> {
+        const insertData: any = {
+            reminder_id: data.reminderId,
+            original_date: data.originalDate,
+            action: data.action,
+        };
+
+        if (data.newTitle !== undefined) insertData.new_title = data.newTitle;
+        if (data.newAmount !== undefined) insertData.new_amount = data.newAmount;
+        if (data.newDate !== undefined) insertData.new_date = data.newDate;
+        if (data.isPaid !== undefined) insertData.is_paid = data.isPaid;
+        if (data.linkedMovementId !== undefined) insertData.linked_movement_id = data.linkedMovementId;
+
         const { data: created, error } = await this.ensureClient()
             .from('reminder_exceptions')
-            .insert({
-                reminder_id: data.reminderId,
-                original_date: data.originalDate,
-                action: data.action,
-                new_title: data.newTitle,
-                new_amount: data.newAmount,
-                new_date: data.newDate,
-                is_paid: data.isPaid,
-                linked_movement_id: data.linkedMovementId,
-            })
+            .upsert(insertData, { onConflict: 'reminder_id,original_date' })
             .select()
             .single();
 
-        if (error) throw new Error(error.message);
+        if (error) {
+            console.error('❌ Supabase error in createException:', error);
+            throw new Error(error.message);
+        }
+        
+        if (!created) {
+            throw new Error('Failed to create reminder exception: No data returned');
+        }
+
         return this.mapExceptionToDomain(created);
     }
 

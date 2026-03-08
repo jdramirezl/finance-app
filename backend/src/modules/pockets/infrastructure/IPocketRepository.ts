@@ -45,6 +45,11 @@ export interface IPocketRepository {
   ): Promise<boolean>;
 
   /**
+   * Check if a fixed pocket exists in a specific account
+   */
+  existsFixedPocketInAccount(accountId: string, userId: string): Promise<boolean>;
+
+  /**
    * Check if a fixed pocket exists for the user (global uniqueness)
    */
   existsFixedPocketForUser(userId: string): Promise<boolean>;

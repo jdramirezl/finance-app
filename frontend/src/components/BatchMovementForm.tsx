@@ -1,4 +1,4 @@
-import { useState, useImperativeHandle, forwardRef } from 'react';
+import { useState, useImperativeHandle, forwardRef, useEffect } from 'react';
 import { Plus, Trash2, X } from 'lucide-react';
 import Button from './Button';
 import Input from './Input';
@@ -24,6 +24,7 @@ interface BatchMovementFormProps {
   onSave: (rows: BatchMovementRow[]) => Promise<void>;
   onCancel: () => void;
   onFocusRow?: (row: BatchMovementRow) => void;
+  onRowsChange?: (rows: BatchMovementRow[]) => void;
   initialRows?: BatchMovementRow[]; // Optional pre-populated rows
 }
 
@@ -38,6 +39,7 @@ const BatchMovementForm = forwardRef<BatchMovementFormRef, BatchMovementFormProp
   onSave,
   onCancel,
   onFocusRow,
+  onRowsChange,
   initialRows,
 }: BatchMovementFormProps, ref) => {
   const [rows, setRows] = useState<BatchMovementRow[]>(
@@ -55,6 +57,11 @@ const BatchMovementForm = forwardRef<BatchMovementFormRef, BatchMovementFormProp
           },
         ]
   );
+
+  // Notify parent of changes
+  useEffect(() => {
+    onRowsChange?.(rows);
+  }, [rows, onRowsChange]);
   const [isSaving, setIsSaving] = useState(false);
   const [markAsPending, setMarkAsPending] = useState(false);
 
@@ -101,6 +108,45 @@ const BatchMovementForm = forwardRef<BatchMovementFormRef, BatchMovementFormProp
           if (updates.accountId !== undefined && updates.accountId !== row.accountId) {
             updated.pocketId = '';
             updated.subPocketId = undefined;
+
+            // If we have an account and it's a fixed movement, auto-select the fixed pocket
+            const isFixedMove = updated.type === 'IngresoFijo' || updated.type === 'EgresoFijo';
+            if (isFixedMove && updated.accountId) {
+              const accountPockets = getPocketsByAccount(updated.accountId);
+              const fixedPock = accountPockets.find(p => p.type === 'fixed');
+              if (fixedPock) {
+                updated.pocketId = fixedPock.id;
+              }
+            }
+          }
+
+          // If type changes, apply filtering rules
+          if (updates.type !== undefined && updates.type !== row.type) {
+            const wasFixed = row.type === 'IngresoFijo' || row.type === 'EgresoFijo';
+            const isNowFixed = updates.type === 'IngresoFijo' || updates.type === 'EgresoFijo';
+
+            if (isNowFixed && !wasFixed) {
+              // Transitionally check if current account is valid for fixed
+              if (updated.accountId) {
+                const accountPockets = getPocketsByAccount(updated.accountId);
+                const fixedPock = accountPockets.find(p => p.type === 'fixed');
+                if (fixedPock) {
+                  updated.pocketId = fixedPock.id;
+                } else {
+                  // Current account has no fixed pocket, clear it
+                  updated.accountId = '';
+                  updated.pocketId = '';
+                }
+              }
+            } else if (!isNowFixed && wasFixed) {
+              // Moved from fixed to normal, clear pocket if it was fixed
+              if (updated.pocketId) {
+                const currentPocket = getPocketsByAccount(updated.accountId).find(p => p.id === updated.pocketId);
+                if (currentPocket?.type === 'fixed') {
+                  updated.pocketId = '';
+                }
+              }
+            }
           }
           
           // Reset subPocket if pocket changes
@@ -176,9 +222,21 @@ const BatchMovementForm = forwardRef<BatchMovementFormRef, BatchMovementFormProp
 
       <div className="space-y-3 max-h-[60vh] overflow-y-auto">
         {rows.map((row, index) => {
-          const availablePockets = row.accountId ? getPocketsByAccount(row.accountId) : [];
           const isFixedExpense = row.type === 'IngresoFijo' || row.type === 'EgresoFijo';
-          const fixedPocket = availablePockets.find((p) => p.type === 'fixed');
+          
+          // Filter accounts: show all for normal, only those with fixed pockets for fixed movements
+          const filteredAccounts = isFixedExpense
+            ? accounts.filter(acc => getPocketsByAccount(acc.id).some(p => p.type === 'fixed'))
+            : accounts;
+
+          const allAccountPockets = row.accountId ? getPocketsByAccount(row.accountId) : [];
+          
+          // Filter pockets: only fixed for fixed movements, exclude fixed for normal movements
+          const filteredPockets = isFixedExpense
+            ? allAccountPockets.filter(p => p.type === 'fixed')
+            : allAccountPockets.filter(p => p.type !== 'fixed');
+
+          const fixedPocket = allAccountPockets.find((p) => p.type === 'fixed');
           const availableSubPockets = fixedPocket && isFixedExpense ? getSubPocketsByPocket(fixedPocket.id) : [];
 
           return (
@@ -225,7 +283,7 @@ const BatchMovementForm = forwardRef<BatchMovementFormRef, BatchMovementFormProp
                   required
                   options={[
                     { value: '', label: 'Select account' },
-                    ...accounts.map((account) => ({
+                    ...filteredAccounts.map((account) => ({
                       value: account.id,
                       label: `${account.name} (${account.currency})`,
                     })),
@@ -244,7 +302,7 @@ const BatchMovementForm = forwardRef<BatchMovementFormRef, BatchMovementFormProp
                   disabled={!row.accountId}
                   options={[
                     { value: '', label: 'Select pocket' },
-                    ...availablePockets.map((pocket) => ({
+                    ...filteredPockets.map((pocket) => ({
                       value: pocket.id,
                       label: pocket.name,
                     })),
@@ -273,7 +331,7 @@ const BatchMovementForm = forwardRef<BatchMovementFormRef, BatchMovementFormProp
                 <Input
                   label="Amount"
                   type="number"
-                  step={row.pocketId && availablePockets.find(p => p.id === row.pocketId)?.name === 'Shares' ? '0.000001' : '0.01'}
+                  step={row.pocketId && filteredPockets.find(p => p.id === row.pocketId)?.name === 'Shares' ? '0.000001' : '0.01'}
                   value={row.amount}
                   onChange={(e) => {
                     const amount = e.target.value;

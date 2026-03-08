@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom';
 import { AlertTriangle, Landmark } from 'lucide-react';
 import { format } from 'date-fns';
 import { currencyService } from '../../services/currencyService';
@@ -10,6 +11,12 @@ interface CDSummaryCardCompactProps {
 }
 
 const CDSummaryCardCompact = ({ account }: CDSummaryCardCompactProps) => {
+  const navigate = useNavigate();
+
+  const handleAccountClick = () => {
+    navigate(`/accounts?id=${account.id}`);
+  };
+  
   // Calculate current CD values with error handling
   let calculation: any = null;
   let summary: any = null;
@@ -61,12 +68,16 @@ const CDSummaryCardCompact = ({ account }: CDSummaryCardCompactProps) => {
     <div className="border-l-4 pl-4" style={{ borderColor: account.color }}>
       {/* Header - similar to regular accounts */}
       <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-2">
+        <div 
+          className="flex items-center gap-2 cursor-pointer group"
+          onClick={handleAccountClick}
+          title="View Account Details"
+        >
           <div
-            className="w-3 h-3 rounded-full"
+            className="w-3 h-3 rounded-full transition-transform group-hover:scale-125"
             style={{ backgroundColor: account.color }}
           />
-          <span className="font-semibold text-lg text-gray-900 dark:text-gray-100">
+          <span className="font-semibold text-lg text-gray-900 dark:text-gray-100 group-hover:text-amber-600 dark:group-hover:text-amber-400">
             {account.name}
           </span>
           <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${getStatusColor()}`}>

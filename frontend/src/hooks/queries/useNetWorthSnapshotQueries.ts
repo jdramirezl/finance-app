@@ -35,6 +35,18 @@ export const useNetWorthSnapshotMutations = () => {
         },
     });
 
+    const updateMutation = useMutation({
+        mutationFn: ({ id, data }: { id: string, data: Partial<CreateSnapshotDTO> }) => 
+            netWorthSnapshotService.update(id, data),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['netWorthSnapshots'] });
+            toast.success('Snapshot updated');
+        },
+        onError: (error: any) => {
+            toast.error(error.response?.data?.error || 'Failed to update snapshot');
+        },
+    });
+
     const deleteMutation = useMutation({
         mutationFn: (id: string) => netWorthSnapshotService.delete(id),
         onSuccess: () => {
@@ -46,5 +58,5 @@ export const useNetWorthSnapshotMutations = () => {
         },
     });
 
-    return { createMutation, deleteMutation };
+    return { createMutation, updateMutation, deleteMutation };
 };

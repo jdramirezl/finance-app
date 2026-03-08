@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom';
 import type { Account, Pocket } from '../../types';
 import { currencyService } from '../../services/currencyService';
 import { Wallet, CreditCard, Banknote, PiggyBank, Lock } from 'lucide-react';
@@ -9,6 +10,12 @@ interface AccountSummaryCardProps {
 }
 
 const AccountSummaryCard = ({ account, pockets }: AccountSummaryCardProps) => {
+    const navigate = useNavigate();
+
+    const handleAccountClick = () => {
+        navigate(`/accounts?id=${account.id}`);
+    };
+    
     // Get account type icon
     const getAccountIcon = () => {
         switch (account.type) {
@@ -68,16 +75,20 @@ const AccountSummaryCard = ({ account, pockets }: AccountSummaryCardProps) => {
         <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4 border-l-4" style={{ borderColor: account.color }}>
             {/* Header */}
             <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-3">
+                <div 
+                    className="flex items-center gap-3 cursor-pointer group"
+                    onClick={handleAccountClick}
+                    title="View Account Details"
+                >
                     <div
-                        className="w-10 h-10 rounded-full flex items-center justify-center"
+                        className="w-10 h-10 rounded-full flex items-center justify-center transition-transform group-hover:scale-110"
                         style={{ backgroundColor: `${account.color}20`, border: `2px solid ${account.color}` }}
                     >
                         {getAccountIcon()}
                     </div>
                     <div>
                         <div className="flex items-center gap-2">
-                            <span className="font-semibold text-lg text-gray-900 dark:text-gray-100">
+                            <span className="font-semibold text-lg text-gray-900 dark:text-gray-100 group-hover:text-blue-600 dark:group-hover:text-blue-400">
                                 {account.name}
                             </span>
                             <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300">

@@ -41,6 +41,17 @@ export class NetWorthSnapshotController {
         }
     };
 
+    update = async (req: Request, res: Response) => {
+        try {
+            const { id } = req.params;
+            const snapshot = await this.service.updateSnapshot(id, req.body);
+            res.json(snapshot);
+        } catch (error) {
+            console.error('Error in update snapshot:', error);
+            res.status(500).json({ error: error instanceof Error ? error.message : 'Unknown error' });
+        }
+    };
+
     delete = async (req: Request, res: Response) => {
         try {
             const { id } = req.params;

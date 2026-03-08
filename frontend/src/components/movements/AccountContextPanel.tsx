@@ -2,15 +2,19 @@ import { useMemo } from 'react';
 import { useAccountsQuery, usePocketsQuery, useSubPocketsQuery } from '../../hooks/queries';
 import { formatCurrency } from '../../utils/formatCurrency';
 import { CheckCircle2 } from 'lucide-react';
-import SelectableValue from '../SelectableValue';
 
 interface AccountContextPanelProps {
   accountId: string | null;
   selectedPocketId: string | null;
   className?: string;
+  deltas?: {
+    accountDeltas: Record<string, number>;
+    pocketDeltas: Record<string, number>;
+    subPocketDeltas: Record<string, number>;
+  };
 }
 
-const AccountContextPanel = ({ accountId, selectedPocketId, className = '' }: AccountContextPanelProps) => {
+const AccountContextPanel = ({ accountId, selectedPocketId, className = '', deltas }: AccountContextPanelProps) => {
   const { data: accounts = [] } = useAccountsQuery();
   const { data: allPockets = [] } = usePocketsQuery();
   const { data: allSubPockets = [] } = useSubPocketsQuery();
@@ -38,6 +42,36 @@ const AccountContextPanel = ({ accountId, selectedPocketId, className = '' }: Ac
     );
   }
 
+  const renderBalancePreview = (current: number, delta: number, currency: string, isSmall = false) => {
+    if (!delta || delta === 0) {
+      return (
+        <p className={`${isSmall ? 'text-sm font-semibold' : 'text-2xl font-bold text-blue-600 dark:text-blue-400'}`}>
+          {formatCurrency(current, currency)}
+        </p>
+      );
+    }
+
+    const next = current + delta;
+    const isIncrease = delta > 0;
+
+    return (
+      <div className="flex flex-col items-end">
+        <p className="text-[10px] text-gray-400 dark:text-gray-500 line-through leading-none mb-1">
+          {formatCurrency(current, currency)}
+        </p>
+        <p className={`
+          ${isSmall ? 'text-sm font-bold' : 'text-2xl font-bold'}
+          ${isIncrease ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}
+          leading-none
+        `}>
+          {formatCurrency(next, currency)}
+        </p>
+      </div>
+    );
+  };
+
+  const accountDelta = deltas?.accountDeltas[accountId] || 0;
+
   return (
     <div className={`flex flex-col h-full ${className}`}>
       {/* Account Header */}
@@ -45,9 +79,7 @@ const AccountContextPanel = ({ accountId, selectedPocketId, className = '' }: Ac
         <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-1">
           {account.name}
         </h3>
-        <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-          {formatCurrency(account.balance, account.currency)}
-        </p>
+        {renderBalancePreview(account.balance, accountDelta, account.currency)}
         <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
           Total Balance
         </p>
@@ -103,20 +135,19 @@ const AccountContextPanel = ({ accountId, selectedPocketId, className = '' }: Ac
                         )}
                       </div>
                       <div className="text-right flex-shrink-0">
-                        <SelectableValue
-                          id={`pocket-balance-${pocket.id}`}
-                          value={pocket.balance}
-                          currency={pocket.currency}
-                          className={`
-                            text-sm font-semibold
-                            ${isSelected 
-                              ? 'text-blue-700 dark:text-blue-300' 
-                              : 'text-gray-900 dark:text-gray-100'
-                            }
-                          `}
-                        >
-                          {formatCurrency(pocket.balance, pocket.currency)}
-                        </SelectableValue>
+                        <div className={`
+                          ${isSelected 
+                            ? 'text-blue-700 dark:text-blue-300' 
+                            : 'text-gray-900 dark:text-gray-100'
+                          }
+                        `}>
+                          {renderBalancePreview(
+                            pocket.balance, 
+                            deltas?.pocketDeltas[pocket.id] || 0, 
+                            pocket.currency, 
+                            true
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -133,14 +164,14 @@ const AccountContextPanel = ({ accountId, selectedPocketId, className = '' }: Ac
                             <p className="text-xs font-medium text-purple-700 dark:text-purple-300 truncate">
                               {subPocket.name}
                             </p>
-                            <SelectableValue
-                              id={`subpocket-balance-${subPocket.id}`}
-                              value={subPocket.balance}
-                              currency={pocket.currency}
-                              className="text-xs font-semibold text-purple-600 dark:text-purple-400"
-                            >
-                              {formatCurrency(subPocket.balance, pocket.currency)}
-                            </SelectableValue>
+                            <div className="text-xs font-semibold text-purple-600 dark:text-purple-400">
+                              {renderBalancePreview(
+                                subPocket.balance,
+                                deltas?.subPocketDeltas[subPocket.id] || 0,
+                                pocket.currency,
+                                true
+                              )}
+                            </div>
                           </div>
                         </div>
                       ))}

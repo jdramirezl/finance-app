@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { useLocation } from 'react-router-dom';
 import { useAccountsQuery, usePocketsQuery, useAccountMutations, usePocketMutations } from '../hooks/queries';
 import { useToast } from '../hooks/useToast';
 import { useConfirm } from '../hooks/useConfirm';
@@ -25,6 +26,7 @@ const AccountsPage = () => {
   const { data: accounts = [], isLoading: accountsLoading } = useAccountsQuery();
   const { data: pockets = [], isLoading: pocketsLoading } = usePocketsQuery();
   const queryClient = useQueryClient();
+  const location = useLocation();
 
   // Mutations
   const {
@@ -45,6 +47,18 @@ const AccountsPage = () => {
 
   // Local State
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
+
+  // Deep linking: select account from URL parameter
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const id = params.get('id');
+    if (id && accounts.length > 0) {
+      const accountExists = accounts.some(a => a.id === id);
+      if (accountExists) {
+        setSelectedAccountId(id);
+      }
+    }
+  }, [location.search, accounts]);
 
   const toast = useToast();
   const { confirm, confirmState, handleClose, handleConfirm } = useConfirm();

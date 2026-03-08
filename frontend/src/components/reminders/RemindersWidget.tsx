@@ -7,6 +7,7 @@ import Button from '../Button';
 import Card from '../Card';
 import MonthSection from './MonthSection';
 import RecurrenceActionModal from './RecurrenceActionModal';
+import MarkAsPaidModal from './MarkAsPaidModal';
 import { useNavigate } from 'react-router-dom';
 import { groupRemindersByMonth, countOverdueReminders, type ReminderWithProjection } from '../../utils/reminderProjections';
 
@@ -26,6 +27,8 @@ const RemindersWidget = () => {
         type: 'edit' | 'delete';
         reminder: ReminderWithProjection | null;
     }>({ isOpen: false, type: 'edit', reminder: null });
+
+    const [markAsPaidReminder, setMarkAsPaidReminder] = useState<ReminderWithProjection | null>(null);
 
     // Group reminders by month (1 month back, 2 months ahead)
     const monthGroups = groupRemindersByMonth(reminders, 1, 2);
@@ -79,6 +82,43 @@ const RemindersWidget = () => {
         }
     };
 
+    const handleMarkAsPaid = (reminder: ReminderWithProjection) => {
+        setMarkAsPaidReminder(reminder);
+    };
+
+    const handleConfirmMarkAsPaid = async (movementId?: string) => {
+        if (!markAsPaidReminder) return;
+
+        const originalId = markAsPaidReminder.originalReminderId || markAsPaidReminder.id;
+
+        try {
+            if (markAsPaidReminder.recurrence.type === 'once') {
+                await updateMutation.mutateAsync({
+                    id: originalId,
+                    data: {
+                        isPaid: true,
+                        linkedMovementId: movementId
+                    }
+                });
+            } else {
+                // Create exception
+                await createExceptionMutation.mutateAsync({
+                    id: originalId,
+                    data: {
+                        originalDate: markAsPaidReminder.dueDate.split('T')[0],
+                        action: 'modified',
+                        isPaid: true,
+                        linkedMovementId: movementId
+                    }
+                });
+            }
+        } catch (error) {
+            console.error('Failed to mark as paid:', error);
+        } finally {
+            setMarkAsPaidReminder(null);
+        }
+    };
+
     const handleRecurrenceAction = async (scope: 'this' | 'all' | 'future') => {
         const { type, reminder } = recurrenceModal;
         if (!reminder) return;
@@ -93,7 +133,7 @@ const RemindersWidget = () => {
                 await createExceptionMutation.mutateAsync({
                     id: originalId,
                     data: {
-                        originalDate: reminder.dueDate,
+                        originalDate: reminder.dueDate.split('T')[0],
                         action: 'deleted'
                     }
                 });
@@ -153,13 +193,11 @@ const RemindersWidget = () => {
                 await createExceptionMutation.mutateAsync({
                     id: originalId,
                     data: {
-                        originalDate: editingReminder.dueDate,
+                        originalDate: editingReminder.dueDate.split('T')[0],
                         action: 'modified',
                         newTitle: data.title,
                         newAmount: data.amount,
                         newDate: data.dueDate,
-                        // Note: If isPaid status was changed in form, handle it? 
-                        // ReminderForm doesn't typically toggle isPaid.
                     }
                 });
             } else if (splitDate) {
@@ -241,6 +279,7 @@ const RemindersWidget = () => {
                                     onPayNow={handlePayNow}
                                     onEdit={handleEdit}
                                     onDelete={handleDelete}
+                                    onMarkAsPaid={handleMarkAsPaid}
                                 />
                             </div>
                         ))
@@ -275,6 +314,14 @@ const RemindersWidget = () => {
                 onClose={() => setRecurrenceModal(prev => ({ ...prev, isOpen: false }))}
                 onAction={handleRecurrenceAction}
                 actionType={recurrenceModal.type}
+            />
+
+            {/* Mark as Paid Modal */}
+            <MarkAsPaidModal
+                isOpen={!!markAsPaidReminder}
+                onClose={() => setMarkAsPaidReminder(null)}
+                onConfirm={handleConfirmMarkAsPaid}
+                reminder={markAsPaidReminder}
             />
         </div>
     );

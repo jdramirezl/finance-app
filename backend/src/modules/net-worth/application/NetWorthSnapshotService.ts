@@ -20,6 +20,10 @@ export class NetWorthSnapshotService {
         return this.repository.create(userId, data);
     }
 
+    async updateSnapshot(id: string, data: Partial<CreateSnapshotDTO>): Promise<NetWorthSnapshot> {
+        return this.repository.update(id, data);
+    }
+
     async deleteSnapshot(id: string): Promise<void> {
         return this.repository.delete(id);
     }

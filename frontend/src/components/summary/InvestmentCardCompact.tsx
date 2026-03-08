@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom';
 import type { Account } from '../../types';
 import { currencyService } from '../../services/currencyService';
 import { TrendingUp, RefreshCw } from 'lucide-react';
@@ -28,6 +29,12 @@ const InvestmentCardCompact = ({
     onRefresh,
     isRefreshing,
 }: InvestmentCardCompactProps) => {
+    const navigate = useNavigate();
+
+    const handleAccountClick = () => {
+        navigate(`/accounts?id=${account.id}`);
+    };
+
     const stockSymbol = account.stockSymbol || 'N/A';
     // Use corrected values from data if available, otherwise fall back to account
     const montoInvertido = data?.montoInvertido ?? account.montoInvertido ?? 0;
@@ -36,12 +43,16 @@ const InvestmentCardCompact = ({
     return (
         <div className="border-l-4 pl-4" style={{ borderColor: account.color }}>
             <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2">
+                <div 
+                    className="flex items-center gap-2 cursor-pointer group"
+                    onClick={handleAccountClick}
+                    title="View Account Details"
+                >
                     <div
-                        className="w-3 h-3 rounded-full"
+                        className="w-3 h-3 rounded-full transition-transform group-hover:scale-125"
                         style={{ backgroundColor: account.color }}
                     />
-                    <span className="font-semibold text-lg text-gray-900 dark:text-gray-100">
+                    <span className="font-semibold text-lg text-gray-900 dark:text-gray-100 group-hover:text-purple-600 dark:group-hover:text-purple-400">
                         {account.name}
                     </span>
                     <TrendingUp className="w-4 h-4 text-purple-600 dark:text-purple-400" />

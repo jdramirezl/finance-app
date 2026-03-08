@@ -170,6 +170,25 @@ export class SupabasePocketRepository implements IPocketRepository {
   }
 
   /**
+   * Check if a fixed pocket exists in a specific account
+   */
+  async existsFixedPocketInAccount(accountId: string, userId: string): Promise<boolean> {
+    const { data, error } = await this.ensureClient()
+      .from('pockets')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('account_id', accountId)
+      .eq('type', 'fixed')
+      .limit(1);
+
+    if (error) {
+      throw new DatabaseError(`Failed to check fixed pocket existence in account: ${error.message}`);
+    }
+
+    return data !== null && data.length > 0;
+  }
+
+  /**
    * Check if a fixed pocket exists for the user (global uniqueness)
    */
   async existsFixedPocketForUser(userId: string): Promise<boolean> {

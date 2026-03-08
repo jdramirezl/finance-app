@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom';
 import type { Account, Pocket } from '../../types';
 import { currencyService } from '../../services/currencyService';
 import SelectableValue from '../SelectableValue';
@@ -8,15 +9,25 @@ interface AccountSummaryCardCompactProps {
 }
 
 const AccountSummaryCardCompact = ({ account, pockets }: AccountSummaryCardCompactProps) => {
+    const navigate = useNavigate();
+
+    const handleAccountClick = () => {
+        navigate(`/accounts?id=${account.id}`);
+    };
+
     return (
         <div className="border-l-4 pl-4" style={{ borderColor: account.color }}>
             <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2">
+                <div 
+                    className="flex items-center gap-2 cursor-pointer group"
+                    onClick={handleAccountClick}
+                    title="View Account Details"
+                >
                     <div
-                        className="w-3 h-3 rounded-full"
+                        className="w-3 h-3 rounded-full transition-transform group-hover:scale-125"
                         style={{ backgroundColor: account.color }}
                     />
-                    <span className="font-semibold text-lg text-gray-900 dark:text-gray-100">
+                    <span className="font-semibold text-lg text-gray-900 dark:text-gray-100 group-hover:text-blue-600 dark:group-hover:text-blue-400">
                         {account.name}
                     </span>
                 </div>
