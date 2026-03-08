@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useAccountsQuery, usePocketsQuery, useSubPocketsQuery, useSettingsQuery, useFixedExpenseGroupsQuery, useMovementMutations } from '../hooks/queries';
 import { StorageService } from '../services/storageService';
 import { currencyService } from '../services/currencyService';
-import type { Account, SubPocket, Currency } from '../types';
+import type { Currency } from '../types';
 import Input from '../components/Input';
 import Button from '../components/Button';
 import Card from '../components/Card';
