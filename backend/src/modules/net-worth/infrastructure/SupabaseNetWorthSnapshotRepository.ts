@@ -80,6 +80,23 @@ export class SupabaseNetWorthSnapshotRepository implements INetWorthSnapshotRepo
         return this.mapToDomain(data);
     }
 
+    async update(id: string, dto: Partial<CreateSnapshotDTO>): Promise<NetWorthSnapshot> {
+        const updateData: any = {};
+        if (dto.totalNetWorth !== undefined) updateData.total_net_worth = dto.totalNetWorth;
+        if (dto.baseCurrency !== undefined) updateData.base_currency = dto.baseCurrency;
+        if (dto.breakdown !== undefined) updateData.breakdown = dto.breakdown;
+
+        const { data, error } = await this.ensureClient()
+            .from('net_worth_snapshots')
+            .update(updateData)
+            .eq('id', id)
+            .select()
+            .single();
+
+        if (error) throw new DatabaseError(error.message);
+        return this.mapToDomain(data);
+    }
+
     async delete(id: string): Promise<void> {
         const { error } = await this.ensureClient()
             .from('net_worth_snapshots')

@@ -64,13 +64,20 @@ export class ReminderController {
     createException = async (req: Request, res: Response) => {
         try {
             const { id } = req.params;
+            console.log(`📝 Creating reminder exception for ID: ${id}`, req.body);
+            
             // Merge reminderId from params with body data
             const exceptionData = { ...req.body, reminderId: id };
             const exception = await this.reminderService.createException(exceptionData);
+            
+            console.log(`✅ Exception created successfully: ${exception.id}`);
             res.status(201).json(exception);
         } catch (error) {
-            console.error('Error in createException:', error);
-            res.status(500).json({ error: error instanceof Error ? error.message : 'Unknown error' });
+            console.error('❌ Error in createException:', error);
+            res.status(500).json({ 
+                error: error instanceof Error ? error.message : 'Unknown error',
+                details: error
+            });
         }
     };
 
