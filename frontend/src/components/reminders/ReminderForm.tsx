@@ -3,7 +3,7 @@ import { useFixedExpenseGroupsQuery, useMovementTemplatesQuery, useSubPocketsQue
 import Button from '../Button';
 import Input from '../Input';
 import Select from '../Select';
-import type { CreateReminderDTO, UpdateReminderDTO, Reminder, RecurrenceType, RecurrenceEndType } from '../../services/reminderService';
+import type { CreateReminderDTO, UpdateReminderDTO, Reminder, RecurrenceType, RecurrenceEndType, RecurrencePeriod } from '../../services/reminderService';
 
 interface ReminderFormProps {
     initialData?: Reminder;
@@ -21,6 +21,23 @@ const DAYS_OF_WEEK = [
     { value: 5, label: 'Fri' },
     { value: 6, label: 'Sat' },
 ];
+
+// Returns a fresh default form state. Uses a factory (not a const) so that
+// `dueDate` reflects the current day each time the form is opened/reset.
+const getDefaultFormState = () => ({
+    title: '',
+    amount: '',
+    dueDate: new Date().toISOString().split('T')[0],
+    recurrenceType: 'once' as RecurrenceType,
+    recurrenceInterval: 1,
+    recurrenceDaysOfWeek: [] as number[],
+    recurrenceEndType: 'never' as RecurrenceEndType,
+    recurrenceEndCount: 1,
+    recurrenceEndDate: '',
+    customPeriod: 'monthly' as RecurrencePeriod,
+    fixedExpenseId: '',
+    templateId: '',
+});
 
 const ReminderForm = ({
     initialData,
@@ -44,19 +61,7 @@ const ReminderForm = ({
             amount: sp.valueTotal || 0
         }));
 
-    const [formData, setFormData] = useState({
-        title: '',
-        amount: '',
-        dueDate: new Date().toISOString().split('T')[0],
-        recurrenceType: 'once' as RecurrenceType,
-        recurrenceInterval: 1,
-        recurrenceDaysOfWeek: [] as number[],
-        recurrenceEndType: 'never' as RecurrenceEndType,
-        recurrenceEndCount: 1,
-        recurrenceEndDate: '',
-        fixedExpenseId: '',
-        templateId: '',
-    });
+    const [formData, setFormData] = useState(getDefaultFormState);
 
     useEffect(() => {
         if (initialData) {
@@ -70,9 +75,14 @@ const ReminderForm = ({
                 recurrenceEndType: initialData.recurrence.endType,
                 recurrenceEndCount: initialData.recurrence.endCount || 1,
                 recurrenceEndDate: initialData.recurrence.endDate ? new Date(initialData.recurrence.endDate).toISOString().split('T')[0] : '',
+                customPeriod: initialData.recurrence.customPeriod || 'monthly',
                 fixedExpenseId: initialData.fixedExpenseId || '',
                 templateId: initialData.templateId || '',
             });
+        } else {
+            // Reset to defaults when switching from edit to create mode.
+            // Without this, the form retains the previously-edited reminder's data.
+            setFormData(getDefaultFormState());
         }
     }, [initialData]);
 
@@ -133,6 +143,7 @@ const ReminderForm = ({
                 endType: formData.recurrenceEndType,
                 endCount: formData.recurrenceEndType === 'after' ? formData.recurrenceEndCount : undefined,
                 endDate: formData.recurrenceEndType === 'on_date' ? new Date(formData.recurrenceEndDate).toISOString() : undefined,
+                customPeriod: formData.recurrenceType === 'custom' ? formData.customPeriod : undefined,
             },
             fixedExpenseId: formData.fixedExpenseId || undefined,
             templateId: formData.templateId || undefined,
@@ -215,8 +226,8 @@ const ReminderForm = ({
                         />
                         <Select
                             label="Period"
-                            name="recurrenceType"
-                            value={formData.recurrenceType}
+                            name="customPeriod"
+                            value={formData.customPeriod}
                             onChange={handleChange}
                             options={[
                                 { value: 'daily', label: 'Days' },

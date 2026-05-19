@@ -123,35 +123,50 @@ const RemindersWidget = () => {
         const { type, reminder } = recurrenceModal;
         if (!reminder) return;
 
-        setRecurrenceModal(prev => ({ ...prev, isOpen: false }));
-
         const originalId = reminder.originalReminderId || reminder.id;
+        const closeRecurrenceModal = () => setRecurrenceModal(prev => ({ ...prev, isOpen: false }));
 
         if (type === 'delete') {
-            if (scope === 'this') {
-                // Delete this occurrence only (Create Exception)
-                await createExceptionMutation.mutateAsync({
-                    id: originalId,
-                    data: {
-                        originalDate: reminder.dueDate.split('T')[0],
-                        action: 'deleted'
+            try {
+                if (scope === 'this') {
+                    // Delete this occurrence only (Create Exception)
+                    await createExceptionMutation.mutateAsync({
+                        id: originalId,
+                        data: {
+                            originalDate: reminder.dueDate.split('T')[0],
+                            action: 'deleted'
+                        }
+                    });
+                } else if (scope === 'future') {
+                    // Delete this and future events (Split Series)
+                    if (!confirm('Are you sure you want to delete this and all following reminders?')) {
+                        closeRecurrenceModal();
+                        return;
                     }
-                });
-            } else if (scope === 'future') {
-                // Delete this and future events (Split Series)
-                if (confirm('Are you sure you want to delete this and all following reminders?')) {
                     await splitMutation.mutateAsync({
                         id: originalId,
                         splitDate: reminder.dueDate
                     });
-                }
-            } else {
-                // Delete entire series
-                if (confirm('Are you sure you want to delete this recurring reminder series?')) {
+                } else {
+                    // Delete entire series
+                    if (!confirm('Are you sure you want to delete this recurring reminder series?')) {
+                        closeRecurrenceModal();
+                        return;
+                    }
                     await deleteMutation.mutateAsync(originalId);
                 }
+                // Only close on success — on error the underlying mutation's onError
+                // shows a toast (see useReminderQueries) and the modal remains open
+                // so the user can retry.
+                closeRecurrenceModal();
+            } catch (error) {
+                // Mutation hooks display the toast via onError. Log here for debugging
+                // and intentionally keep the recurrence modal open for the user.
+                console.error('Failed to delete recurring reminder:', error);
             }
         } else if (type === 'edit') {
+            // Edit branches are synchronous: they hand off to the form modal.
+            closeRecurrenceModal();
             if (scope === 'this') {
                 // Edit this occurrence only
                 setEditingReminder(reminder);

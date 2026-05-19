@@ -2,6 +2,7 @@ import { apiClient as api } from './apiClient';
 
 export type RecurrenceType = 'once' | 'daily' | 'weekly' | 'monthly' | 'yearly' | 'custom';
 export type RecurrenceEndType = 'never' | 'after' | 'on_date';
+export type RecurrencePeriod = Exclude<RecurrenceType, 'once' | 'custom'>;
 
 export interface RecurrenceConfig {
     type: RecurrenceType;
@@ -10,6 +11,9 @@ export interface RecurrenceConfig {
     endType: RecurrenceEndType;
     endCount?: number;
     endDate?: string;
+    // For custom recurrence: the unit that `interval` is measured in
+    // (e.g. interval=3, customPeriod='weekly' = "every 3 weeks")
+    customPeriod?: RecurrencePeriod;
 }
 
 export interface ReminderException {

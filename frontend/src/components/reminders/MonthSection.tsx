@@ -50,7 +50,10 @@ const MonthSection = ({ monthGroup, onPayNow, onEdit, onDelete, onMarkAsPaid }: 
             <div className="space-y-2 px-1">
                 {reminders.map(reminder => (
                     <ReminderCard
-                        key={reminder.id}
+                        // Composite key: projected occurrences of recurring reminders
+                        // share the same `id` as the original, so we include
+                        // `dueDate` to keep keys unique within a month group.
+                        key={`${reminder.id}-${reminder.dueDate}`}
                         reminder={reminder}
                         onPayNow={onPayNow}
                         onEdit={onEdit}
