@@ -481,12 +481,9 @@ class AccountService {
       await SupabaseStorageService.savePockets(allPockets);
     }
 
-    // Recalculate balance
-    const newBalance = await this.calculateAccountBalance(id);
-    updatedAccount.balance = newBalance;
-
-    // Update directly - include balance in updates
-    const finalUpdates = { ...updates, balance: newBalance };
+    // Update directly - balance is managed by database triggers, don't include it
+    const finalUpdates = { ...updates };
+    delete (finalUpdates as Record<string, unknown>).balance;
     await SupabaseStorageService.updateAccount(id, finalUpdates);
 
     return updatedAccount;
@@ -661,24 +658,14 @@ class AccountService {
     await SupabaseStorageService.saveAccounts(updatedAccounts);
   }
 
-  // Recalculate single account balance
-  async recalculateAccountBalance(accountId: string): Promise<void> {
-    const account = await this.getAccount(accountId);
-    if (account) {
-      const newBalance = await this.calculateAccountBalance(accountId);
-      await SupabaseStorageService.updateAccount(accountId, { balance: newBalance });
-    }
+  // Balance recalculation is handled by database triggers.
+  // Kept as no-ops for backward compatibility with callers.
+  async recalculateAccountBalance(_accountId: string): Promise<void> {
+    // No-op: database triggers handle balance calculation
   }
 
-  // Recalculate all account balances (useful after movements)
   async recalculateAllBalances(): Promise<void> {
-    const accounts = await this.getAllAccounts();
-    const updatedAccounts = [];
-    for (const account of accounts) {
-      const newBalance = await this.calculateAccountBalance(account.id);
-      updatedAccounts.push({ ...account, balance: newBalance });
-    }
-    await SupabaseStorageService.saveAccounts(updatedAccounts);
+    // No-op: database triggers handle balance calculation
   }
 
   // ===== CD-SPECIFIC METHODS =====

@@ -234,11 +234,10 @@ class PocketService {
 
     const updatedPocket = { ...pocket, ...updates };
 
-    // Recalculate balance
-    updatedPocket.balance = await this.calculatePocketBalance(id);
-
-    // Update directly - much faster
-    await SupabaseStorageService.updatePocket(id, updatedPocket);
+    // Update directly - balance is managed by database triggers, don't recalculate
+    const pocketUpdates = { ...updates };
+    delete (pocketUpdates as Record<string, unknown>).balance;
+    await SupabaseStorageService.updatePocket(id, pocketUpdates);
 
     // Note: Account balance will be recalculated by store when it reloads
 

@@ -1,4 +1,4 @@
-import type { Movement, MovementType, Pocket, Account } from '../types';
+import type { Movement, MovementType } from '../types';
 import { SupabaseStorageService } from './supabaseStorageService';
 import { generateId } from '../utils/idGenerator';
 import { format } from 'date-fns';
@@ -251,71 +251,9 @@ class MovementService {
     return monthMovements.slice(offset, offset + limit);
   }
 
-  // Update pocket balance based on movement
-  private async updatePocketBalance(
-    pocketId: string,
-    amount: number,
-    isIncome: boolean
-  ): Promise<void> {
-    const pocketService = await getPocketService();
-    const pocket = await pocketService.getPocket(pocketId);
-    if (!pocket) return;
+  // Balance updates are handled by database triggers (calculate_pocket_balance)
+  // on every movement INSERT/UPDATE/DELETE. No manual balance manipulation needed.
 
-    const newBalance = isIncome ? pocket.balance + amount : pocket.balance - amount;
-
-    // Update directly - much faster
-    await SupabaseStorageService.updatePocket(pocketId, { balance: newBalance });
-
-    // Note: Account balance will be recalculated by store when it reloads
-  }
-
-  // Update sub-pocket balance for fixed expenses
-  private async updateSubPocketBalance(
-    subPocketId: string,
-    amount: number,
-    isIncome: boolean
-  ): Promise<void> {
-    const subPocketService = await getSubPocketService();
-    const subPocket = await subPocketService.getSubPocket(subPocketId);
-    if (!subPocket) return;
-
-    const newBalance = isIncome ? subPocket.balance + amount : subPocket.balance - amount;
-
-    // Update directly - much faster
-    await SupabaseStorageService.updateSubPocket(subPocketId, { balance: newBalance });
-
-    // Note: Pocket and account balances will be recalculated by store when it reloads
-  }
-
-  // Sync investment account fields with pocket balances
-  private async syncInvestmentAccount(accountId: string): Promise<void> {
-    const accountService = await getAccountService();
-    const account = await accountService.getAccount(accountId);
-    if (!account || account.type !== 'investment') return;
-
-    const pocketService = await getPocketService();
-    const pockets = await pocketService.getPocketsByAccount(accountId);
-
-    const investedPocket = pockets.find((p: Pocket) => p.name === 'Invested Money');
-    const sharesPocket = pockets.find((p: Pocket) => p.name === 'Shares');
-
-    const updates: Partial<Account> = {};
-    const changes: string[] = [];
-    
-    if (investedPocket && investedPocket.balance !== account.montoInvertido) {
-      updates.montoInvertido = investedPocket.balance;
-      changes.push(`montoInvertido: ${account.montoInvertido} → ${investedPocket.balance}`);
-    }
-    if (sharesPocket && sharesPocket.balance !== account.shares) {
-      updates.shares = sharesPocket.balance;
-      changes.push(`shares: ${account.shares} → ${sharesPocket.balance}`);
-    }
-
-    if (changes.length > 0) {
-      console.log(`💰 Syncing investment account "${account.name}": ${changes.join(', ')}`);
-      await SupabaseStorageService.updateAccount(accountId, updates);
-    }
-  }
 
   // Create new movement
   async createMovement(
@@ -474,26 +412,8 @@ class MovementService {
     // Insert directly - much faster
     await SupabaseStorageService.insertMovement(movement);
 
-    // If pending, don't apply balance changes yet
-    if (isPending) {
-      return movement;
-    }
-
-    // Update balances based on movement type
-    const isIncome = type === 'IngresoNormal' || type === 'IngresoFijo';
-
-    if (subPocketId) {
-      // Fixed expense movement
-      await this.updateSubPocketBalance(subPocketId, amount, isIncome);
-    } else {
-      // Normal pocket movement
-      await this.updatePocketBalance(pocketId, amount, isIncome);
-    }
-
-    // If this is an investment account, sync the account fields with pocket balances
-    if (account.type === 'investment') {
-      await this.syncInvestmentAccount(accountId);
-    }
+    // Balance updates are handled automatically by database triggers
+    // (calculate_pocket_balance fires on INSERT)
 
     return movement;
   }
@@ -529,35 +449,7 @@ class MovementService {
     const oldMovement = movements[index];
     const updatedMovement = { ...oldMovement, ...updates };
 
-    const accountService = await getAccountService();
-    const oldAccount = await accountService.getAccount(oldMovement.accountId);
-    const newAccount = await accountService.getAccount(updatedMovement.accountId);
-
-    // Revert old balance changes
-    const oldIsIncome = oldMovement.type === 'IngresoNormal' || oldMovement.type === 'IngresoFijo';
-    if (oldMovement.subPocketId) {
-      await this.updateSubPocketBalance(oldMovement.subPocketId, oldMovement.amount, !oldIsIncome);
-    } else {
-      await this.updatePocketBalance(oldMovement.pocketId, oldMovement.amount, !oldIsIncome);
-    }
-
-    // Apply new balance changes
-    const newIsIncome = updatedMovement.type === 'IngresoNormal' || updatedMovement.type === 'IngresoFijo';
-    if (updatedMovement.subPocketId) {
-      await this.updateSubPocketBalance(updatedMovement.subPocketId, updatedMovement.amount, newIsIncome);
-    } else {
-      await this.updatePocketBalance(updatedMovement.pocketId, updatedMovement.amount, newIsIncome);
-    }
-
-    // Sync investment accounts if needed
-    if (oldAccount && oldAccount.type === 'investment') {
-      await this.syncInvestmentAccount(oldMovement.accountId);
-    }
-    if (newAccount && newAccount.type === 'investment' && newAccount.id !== oldAccount?.id) {
-      await this.syncInvestmentAccount(updatedMovement.accountId);
-    }
-
-    // Update directly - much faster
+    // Update directly - balance recalculation handled by database triggers
     await SupabaseStorageService.updateMovement(id, updates);
 
     return updatedMovement;
@@ -584,23 +476,7 @@ class MovementService {
       throw new Error(`Movement with id "${id}" not found.`);
     }
 
-    const accountService = await getAccountService();
-    const account = await accountService.getAccount(movement.accountId);
-
-    // Revert balance changes
-    const isIncome = movement.type === 'IngresoNormal' || movement.type === 'IngresoFijo';
-    if (movement.subPocketId) {
-      await this.updateSubPocketBalance(movement.subPocketId, movement.amount, !isIncome);
-    } else {
-      await this.updatePocketBalance(movement.pocketId, movement.amount, !isIncome);
-    }
-
-    // Sync investment account if needed
-    if (account && account.type === 'investment') {
-      await this.syncInvestmentAccount(movement.accountId);
-    }
-
-    // Delete directly - much faster
+    // Delete directly - balance recalculation handled by database triggers
     await SupabaseStorageService.deleteMovement(id);
   }
 
@@ -653,26 +529,8 @@ class MovementService {
       throw new Error('Movement is already applied.');
     }
 
-    // Mark as applied
+    // Mark as applied - trigger will recalculate balance since is_pending changes
     await SupabaseStorageService.updateMovement(id, { isPending: false });
-
-    // Now apply the balance changes
-    const isIncome = movement.type === 'IngresoNormal' || movement.type === 'IngresoFijo';
-    const accountService = await getAccountService();
-    const account = await accountService.getAccount(movement.accountId);
-
-    if (movement.subPocketId) {
-      // Fixed expense movement
-      await this.updateSubPocketBalance(movement.subPocketId, movement.amount, isIncome);
-    } else {
-      // Normal pocket movement
-      await this.updatePocketBalance(movement.pocketId, movement.amount, isIncome);
-    }
-
-    // Sync investment account if needed
-    if (account && account.type === 'investment') {
-      await this.syncInvestmentAccount(movement.accountId);
-    }
 
     return { ...movement, isPending: false };
   }
@@ -701,25 +559,7 @@ class MovementService {
       throw new Error('Movement is already pending.');
     }
 
-    // Revert the balance changes (opposite of apply)
-    const isIncome = movement.type === 'IngresoNormal' || movement.type === 'IngresoFijo';
-    const accountService = await getAccountService();
-    const account = await accountService.getAccount(movement.accountId);
-
-    if (movement.subPocketId) {
-      // Fixed expense movement - revert by doing opposite
-      await this.updateSubPocketBalance(movement.subPocketId, movement.amount, !isIncome);
-    } else {
-      // Normal pocket movement - revert by doing opposite
-      await this.updatePocketBalance(movement.pocketId, movement.amount, !isIncome);
-    }
-
-    // Sync investment account if needed
-    if (account && account.type === 'investment') {
-      await this.syncInvestmentAccount(movement.accountId);
-    }
-
-    // Mark as pending
+    // Mark as pending - trigger will recalculate balance since is_pending changes
     await SupabaseStorageService.updateMovement(id, { isPending: true });
 
     return { ...movement, isPending: true };
@@ -833,71 +673,12 @@ class MovementService {
     }
   }
 
-  // Recalculate ALL pocket balances from movements (excluding pending)
+  // Balance recalculation is handled by database triggers.
+  // This method is kept as a no-op for backward compatibility with callers (e.g., SettingsPage).
+  // The triggers on the movements table automatically maintain pocket and account balances.
   async recalculateAllPocketBalances(): Promise<void> {
-
-    const pocketService = await getPocketService();
-    const accountService = await getAccountService();
-
-    const pockets = await pocketService.getAllPockets();
-    let changedCount = 0;
-
-    for (const pocket of pockets) {
-      const oldBalance = pocket.balance;
-      let newBalance = 0;
-
-      if (pocket.type === 'fixed') {
-        // Fixed pockets: calculate from sub-pockets
-        const subPocketService = await getSubPocketService();
-        const subPockets = await subPocketService.getSubPocketsByPocket(pocket.id);
-
-        // Recalculate each sub-pocket balance from movements
-        for (const subPocket of subPockets) {
-          const movements = await this.getAllMovements();
-          const subPocketMovements = movements.filter(m => m.subPocketId === subPocket.id);
-
-          const balance = subPocketMovements
-            .filter(m => !m.isPending) // Exclude pending
-            .reduce((sum, m) => {
-              const isIncome = m.type === 'IngresoFijo';
-              return sum + (isIncome ? m.amount : -m.amount);
-            }, 0);
-
-          if (balance !== subPocket.balance) {
-            await SupabaseStorageService.updateSubPocket(subPocket.id, { balance });
-          }
-        }
-
-        // Now sum sub-pocket balances for the fixed pocket
-        const updatedSubPockets = await subPocketService.getSubPocketsByPocket(pocket.id);
-        newBalance = updatedSubPockets.reduce((sum: number, sp: { balance: number }) => sum + sp.balance, 0);
-        await SupabaseStorageService.updatePocket(pocket.id, { balance: newBalance });
-      } else {
-        // Normal pockets: calculate from movements
-        const movements = await this.getMovementsByPocket(pocket.id);
-
-        newBalance = movements
-          .filter(m => !m.isPending) // Exclude pending
-          .reduce((sum, m) => {
-            const isIncome = m.type === 'IngresoNormal';
-            return sum + (isIncome ? m.amount : -m.amount);
-          }, 0);
-
-        await SupabaseStorageService.updatePocket(pocket.id, { balance: newBalance });
-      }
-
-      if (oldBalance !== newBalance) {
-        changedCount++;
-      }
-    }
-
-    // Recalculate all account balances
-    await accountService.recalculateAllBalances();
-
-    if (changedCount > 0) {
-      console.log(`🔄 Recalculated ${pockets.length} pockets: ${changedCount} had balance changes`);
-    }
-
+    // No-op: database triggers handle balance calculation
+    // If balances are out of sync, run the SQL from migration 002 directly.
   }
 
   // Mark movements as orphaned (soft delete) - FAST, no lookups needed

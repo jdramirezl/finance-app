@@ -69,7 +69,7 @@ export class SupabaseStorageService {
         name: account.name,
         color: account.color,
         currency: account.currency,
-        balance: account.balance,
+        // balance intentionally excluded — managed by database triggers
         type: account.type || 'normal',
         stock_symbol: account.stockSymbol,
         monto_invertido: account.montoInvertido,
@@ -106,7 +106,7 @@ export class SupabaseStorageService {
         name: account.name,
         color: account.color,
         currency: account.currency,
-        balance: account.balance,
+        // balance intentionally excluded — managed by database triggers
         type: account.type || 'normal',
         stock_symbol: account.stockSymbol,
         monto_invertido: account.montoInvertido,
@@ -135,7 +135,7 @@ export class SupabaseStorageService {
     if (updates.name !== undefined) updateData.name = updates.name;
     if (updates.color !== undefined) updateData.color = updates.color;
     if (updates.currency !== undefined) updateData.currency = updates.currency;
-    if (updates.balance !== undefined) updateData.balance = updates.balance;
+    // balance intentionally excluded — managed by database triggers
     if (updates.type !== undefined) updateData.type = updates.type;
     if (updates.stockSymbol !== undefined) updateData.stock_symbol = updates.stockSymbol;
     if (updates.montoInvertido !== undefined) updateData.monto_invertido = updates.montoInvertido;
@@ -206,7 +206,7 @@ export class SupabaseStorageService {
         account_id: pocket.accountId,
         name: pocket.name,
         type: pocket.type,
-        balance: pocket.balance,
+        // balance intentionally excluded — managed by database triggers
         currency: pocket.currency,
         display_order: pocket.displayOrder || 0,
       }));
@@ -230,7 +230,7 @@ export class SupabaseStorageService {
         account_id: pocket.accountId,
         name: pocket.name,
         type: pocket.type,
-        balance: pocket.balance,
+        // balance intentionally excluded — managed by database triggers
         currency: pocket.currency,
         display_order: pocket.displayOrder || 0,
       });
