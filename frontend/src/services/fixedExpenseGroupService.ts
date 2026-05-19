@@ -258,24 +258,16 @@ class FixedExpenseGroupService {
 
   // Direct Supabase implementation (fallback)
   private async reorderDirect(ids: string[]): Promise<void> {
-    try {
-      // Use individual updates to avoid RLS/Not-Null constraint issues with upsert
-      for (let i = 0; i < ids.length; i++) {
-        const id = ids[i];
-        const { error } = await supabase
+    const now = new Date().toISOString();
+    await Promise.all(
+      ids.map((id, i) =>
+        supabase
           .from('fixed_expense_groups')
-          .update({
-            display_order: i,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', id);
-
-        if (error) throw error;
-      }
-    } catch (error) {
-      console.error('Error reordering fixed expense groups:', error);
-      throw error;
-    }
+          .update({ display_order: i, updated_at: now })
+          .eq('id', id)
+          .then(({ error }) => { if (error) throw error; })
+      )
+    );
   }
 }
 

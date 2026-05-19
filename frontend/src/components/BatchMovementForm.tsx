@@ -1,4 +1,4 @@
-import { useState, useImperativeHandle, forwardRef, useEffect } from 'react';
+import { useState, useImperativeHandle, forwardRef } from 'react';
 import { Plus, Trash2, X } from 'lucide-react';
 import Button from './Button';
 import Input from './Input';
@@ -58,10 +58,7 @@ const BatchMovementForm = forwardRef<BatchMovementFormRef, BatchMovementFormProp
         ]
   );
 
-  // Notify parent of changes
-  useEffect(() => {
-    onRowsChange?.(rows);
-  }, [rows, onRowsChange]);
+  // onRowsChange is called directly in addRow/removeRow/updateRow — no useEffect needed
   const [isSaving, setIsSaving] = useState(false);
   const [markAsPending, setMarkAsPending] = useState(false);
 
@@ -79,23 +76,27 @@ const BatchMovementForm = forwardRef<BatchMovementFormRef, BatchMovementFormProp
   ];
 
   const addRow = () => {
-    setRows([
+    const newRows = [
       ...rows,
       {
         id: crypto.randomUUID(),
-        type: 'IngresoNormal',
+        type: 'IngresoNormal' as MovementType,
         accountId: '',
         pocketId: '',
         amount: '',
         notes: '',
         displayedDate: new Date().toISOString().split('T')[0],
       },
-    ]);
+    ];
+    setRows(newRows);
+    onRowsChange?.(newRows);
   };
 
   const removeRow = (id: string) => {
     if (rows.length === 1) return; // Keep at least one row
-    setRows(rows.filter((row) => row.id !== id));
+    const newRows = rows.filter((row) => row.id !== id);
+    setRows(newRows);
+    onRowsChange?.(newRows);
   };
 
   const updateRow = (id: string, updates: Partial<BatchMovementRow>) => {

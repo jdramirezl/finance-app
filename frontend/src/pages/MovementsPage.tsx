@@ -714,10 +714,16 @@ const MovementsPage = () => {
                   if (!confirmed) return;
 
                   try {
-                    for (const id of selectedMovementIds) {
-                      await applyPendingMovement.mutateAsync(id);
+                    const results = await Promise.allSettled(
+                      Array.from(selectedMovementIds).map(id => applyPendingMovement.mutateAsync(id))
+                    );
+                    const succeeded = results.filter(r => r.status === 'fulfilled').length;
+                    const failed = results.filter(r => r.status === 'rejected').length;
+                    if (failed > 0) {
+                      toast.error(`${succeeded} applied, ${failed} failed`);
+                    } else {
+                      toast.success(`Applied ${succeeded} movement(s)`);
                     }
-                    toast.success(`Applied ${selectedMovementIds.size} movement(s)`);
                     setSelectedMovementIds(new Set());
                   } catch (err: any) {
                     toast.error(err.message || 'Failed to apply movements');
@@ -740,10 +746,16 @@ const MovementsPage = () => {
                   if (!confirmed) return;
 
                   try {
-                    for (const id of selectedMovementIds) {
-                      await markAsPending.mutateAsync(id);
+                    const results = await Promise.allSettled(
+                      Array.from(selectedMovementIds).map(id => markAsPending.mutateAsync(id))
+                    );
+                    const succeeded = results.filter(r => r.status === 'fulfilled').length;
+                    const failed = results.filter(r => r.status === 'rejected').length;
+                    if (failed > 0) {
+                      toast.error(`${succeeded} marked, ${failed} failed`);
+                    } else {
+                      toast.success(`Marked ${succeeded} movement(s) as pending`);
                     }
-                    toast.success(`Marked ${selectedMovementIds.size} movement(s) as pending`);
                     setSelectedMovementIds(new Set());
                   } catch (err: any) {
                     toast.error(err.message || 'Failed to mark as pending');
@@ -766,10 +778,16 @@ const MovementsPage = () => {
                   if (!confirmed) return;
 
                   try {
-                    for (const id of selectedMovementIds) {
-                      await deleteMovement.mutateAsync(id);
+                    const results = await Promise.allSettled(
+                      Array.from(selectedMovementIds).map(id => deleteMovement.mutateAsync(id))
+                    );
+                    const succeeded = results.filter(r => r.status === 'fulfilled').length;
+                    const failed = results.filter(r => r.status === 'rejected').length;
+                    if (failed > 0) {
+                      toast.error(`${succeeded} deleted, ${failed} failed`);
+                    } else {
+                      toast.success(`Deleted ${succeeded} movement(s)`);
                     }
-                    toast.success(`Deleted ${selectedMovementIds.size} movement(s)`);
                     setSelectedMovementIds(new Set());
                   } catch (err: any) {
                     toast.error(err.message || 'Failed to delete movements');

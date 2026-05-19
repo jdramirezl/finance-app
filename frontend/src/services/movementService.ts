@@ -602,26 +602,36 @@ class MovementService {
 
   // Delete all movements by account (for cascade delete)
   async deleteMovementsByAccount(accountId: string): Promise<number> {
-    const movements = await this.getAllMovements();
-    const accountMovements = movements.filter(m => m.accountId === accountId);
-
-    for (const movement of accountMovements) {
-      await SupabaseStorageService.deleteMovement(movement.id);
+    const { data } = await supabase
+      .from('movements')
+      .select('id')
+      .eq('account_id', accountId);
+    const count = data?.length || 0;
+    if (count > 0) {
+      const { error } = await supabase
+        .from('movements')
+        .delete()
+        .eq('account_id', accountId);
+      if (error) throw error;
     }
-
-    return accountMovements.length;
+    return count;
   }
 
   // Delete all movements by pocket (for cascade delete)
   async deleteMovementsByPocket(pocketId: string): Promise<number> {
-    const movements = await this.getAllMovements();
-    const pocketMovements = movements.filter(m => m.pocketId === pocketId);
-
-    for (const movement of pocketMovements) {
-      await SupabaseStorageService.deleteMovement(movement.id);
+    const { data } = await supabase
+      .from('movements')
+      .select('id')
+      .eq('pocket_id', pocketId);
+    const count = data?.length || 0;
+    if (count > 0) {
+      const { error } = await supabase
+        .from('movements')
+        .delete()
+        .eq('pocket_id', pocketId);
+      if (error) throw error;
     }
-
-    return pocketMovements.length;
+    return count;
   }
 
   // Find orphaned movements that match an account/pocket (for restoration)
@@ -704,47 +714,57 @@ class MovementService {
     // If balances are out of sync, run the SQL from migration 002 directly.
   }
 
-  // Mark movements as orphaned (soft delete) - FAST, no lookups needed
+  // Mark movements as orphaned (soft delete) — bulk operation
   async markMovementsAsOrphaned(id: string, type: 'account' | 'pocket'): Promise<number> {
-    const movements = await this.getAllMovements();
-
-    const targetMovements = type === 'account'
-      ? movements.filter(m => m.accountId === id)
-      : movements.filter(m => m.pocketId === id);
-
-    // Get account/pocket services for name lookup
+    // Get account/pocket name BEFORE orphaning
     const accountService = await getAccountService();
     const pocketService = await getPocketService();
 
-    // Mark all as orphaned and save original info for restoration
-    for (const movement of targetMovements) {
-      // Get original account and pocket info for MATCHING (not by ID!)
-      const account = await accountService.getAccount(movement.accountId);
-      // Only fetch pocket if pocketId exists (not null/undefined)
-      const pocket = movement.pocketId ? await pocketService.getPocket(movement.pocketId) : null;
+    let orphanedAccountName = 'Unknown';
+    let orphanedAccountCurrency = 'USD';
+    let orphanedPocketName = 'Unknown';
 
-      await SupabaseStorageService.updateMovement(movement.id, {
-        isOrphaned: true,
-        orphanedAccountName: account?.name || 'Unknown',
-        orphanedAccountCurrency: account?.currency || 'USD',
-        orphanedPocketName: pocket?.name || 'Unknown',
-      });
+    if (type === 'account') {
+      const account = await accountService.getAccount(id);
+      orphanedAccountName = account?.name || 'Unknown';
+      orphanedAccountCurrency = account?.currency || 'USD';
+    } else {
+      const pocket = await pocketService.getPocket(id);
+      orphanedPocketName = pocket?.name || 'Unknown';
+      if (pocket) {
+        const account = await accountService.getAccount(pocket.accountId);
+        orphanedAccountName = account?.name || 'Unknown';
+        orphanedAccountCurrency = account?.currency || 'USD';
+      }
     }
 
-    return targetMovements.length;
+    // Bulk update all matching movements
+    const filterCol = type === 'account' ? 'account_id' : 'pocket_id';
+    const { data, error } = await supabase
+      .from('movements')
+      .update({
+        is_orphaned: true,
+        orphaned_account_name: orphanedAccountName,
+        orphaned_account_currency: orphanedAccountCurrency,
+        orphaned_pocket_name: orphanedPocketName,
+      })
+      .eq(filterCol, id)
+      .select('id');
+
+    if (error) throw error;
+    return data?.length || 0;
   }
 
   // Update movements' accountId when migrating a pocket to another account
   async updateMovementsAccountForPocket(pocketId: string, newAccountId: string): Promise<number> {
-    const movements = await this.getMovementsByPocket(pocketId);
+    const { data, error } = await supabase
+      .from('movements')
+      .update({ account_id: newAccountId })
+      .eq('pocket_id', pocketId)
+      .select('id');
 
-    for (const movement of movements) {
-      await SupabaseStorageService.updateMovement(movement.id, {
-        accountId: newAccountId,
-      });
-    }
-
-    return movements.length;
+    if (error) throw error;
+    return data?.length || 0;
   }
 }
 
