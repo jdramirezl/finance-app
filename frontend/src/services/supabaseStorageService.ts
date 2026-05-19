@@ -563,21 +563,22 @@ export class SupabaseStorageService {
 
   static async saveBudgetEntries(entries: BudgetEntry[]): Promise<void> {
     const userId = await this.getUserId();
-    
-    await supabase.from('budget_entries').delete().eq('user_id', userId);
-    
-    if (entries.length > 0) {
-      const entriesToInsert = entries.map(entry => ({
-        id: entry.id,
-        user_id: userId,
-        name: entry.name,
-        amount: entry.amount,
-        display_order: entry.display_order || 0,
-      }));
 
-      const { error } = await supabase.from('budget_entries').insert(entriesToInsert);
-      if (error) throw error;
-    }
+    // Atomic delete-then-insert via RPC. The PostgreSQL function runs both
+    // statements in one transaction, so a failed insert no longer leaves the
+    // user with empty budget data.
+    const payload = entries.map(entry => ({
+      id: entry.id,
+      name: entry.name,
+      amount: entry.amount,
+      display_order: entry.display_order ?? 0,
+    }));
+
+    const { error } = await supabase.rpc('save_budget_entries_atomic', {
+      p_user_id: userId,
+      p_entries: JSON.stringify(payload),
+    });
+    if (error) throw error;
   }
 
   // Movement Templates

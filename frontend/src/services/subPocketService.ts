@@ -182,7 +182,7 @@ class SubPocketService {
     }
 
     // Validate uniqueness
-    if (!this.validateSubPocketUniqueness(pocketId, trimmedName)) {
+    if (!(await this.validateSubPocketUniqueness(pocketId, trimmedName))) {
       throw new Error(`A sub-pocket with name "${trimmedName}" already exists in this pocket.`);
     }
 

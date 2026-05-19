@@ -3,6 +3,7 @@ import { SupabaseStorageService } from './supabaseStorageService';
 import { generateId } from '../utils/idGenerator';
 import { format } from 'date-fns';
 import { apiClient } from './apiClient';
+import { supabase } from '../lib/supabase';
 
 // Lazy getters to avoid circular dependencies
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -35,6 +36,26 @@ const getAccountService = async () => {
   }
   return accountServiceCache;
 };
+
+// Maps a raw movements row (snake_case columns from the DB) into the
+// camelCase Movement type used throughout the frontend.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const mapMovementRow = (row: any): Movement => ({
+  id: row.id,
+  type: row.type,
+  accountId: row.account_id,
+  pocketId: row.pocket_id,
+  subPocketId: row.sub_pocket_id ?? undefined,
+  amount: typeof row.amount === 'string' ? parseFloat(row.amount) : row.amount,
+  notes: row.notes ?? undefined,
+  displayedDate: row.displayed_date,
+  createdAt: row.created_at,
+  isPending: row.is_pending ?? false,
+  isOrphaned: row.is_orphaned ?? false,
+  orphanedAccountName: row.orphaned_account_name ?? undefined,
+  orphanedAccountCurrency: row.orphaned_account_currency ?? undefined,
+  orphanedPocketName: row.orphaned_pocket_name ?? undefined,
+});
 
 class MovementService {
   // Feature flag to control backend usage
@@ -325,31 +346,33 @@ class MovementService {
     displayedDate: string,
     notes?: string
   ): Promise<{ expense: Movement; income: Movement }> {
-    // 1. Create Expense (Source)
-    const expense = await this.createMovementDirect(
-      'EgresoNormal',
-      sourceAccountId,
-      sourcePocketId,
-      amount,
-      notes ? `Transfer to target: ${notes}` : 'Transfer to target',
-      displayedDate,
-      undefined,
-      false
-    );
+    // Get the current user so the RPC can authorize the write.
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError) throw userError;
+    if (!user) throw new Error('User not authenticated');
 
-    // 2. Create Income (Target)
-    const income = await this.createMovementDirect(
-      'IngresoNormal',
-      targetAccountId,
-      targetPocketId,
-      amount,
-      notes ? `Transfer from source: ${notes}` : 'Transfer from source',
-      displayedDate,
-      undefined,
-      false
-    );
+    // Single atomic call: both movements are inserted in one transaction.
+    // If either insert fails, both are rolled back so money cannot vanish.
+    const { data, error } = await supabase.rpc('create_transfer', {
+      p_user_id: user.id,
+      p_source_account_id: sourceAccountId,
+      p_source_pocket_id: sourcePocketId,
+      p_target_account_id: targetAccountId,
+      p_target_pocket_id: targetPocketId,
+      p_amount: amount,
+      p_displayed_date: displayedDate,
+      p_notes: notes ?? null,
+    });
 
-    return { expense, income };
+    if (error) throw error;
+    if (!data || !data.expense || !data.income) {
+      throw new Error('create_transfer RPC returned unexpected payload');
+    }
+
+    return {
+      expense: mapMovementRow(data.expense),
+      income: mapMovementRow(data.income),
+    };
   }
 
   // Direct Supabase implementation (fallback)
