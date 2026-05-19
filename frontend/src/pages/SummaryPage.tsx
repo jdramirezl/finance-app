@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useAccountsQuery, usePocketsQuery, useSettingsQuery, useSubPocketsQuery, useFixedExpenseGroupsQuery } from '../hooks/queries';
 import { currencyService } from '../services/currencyService';
 import { cdCalculationService } from '../services/cdCalculationService';
@@ -24,11 +24,35 @@ import FloatingStatsBar from '../components/summary/FloatingStatsBar';
 
 const SummaryPage = () => {
   // TanStack Query hooks
-  const { data: accounts = [], isLoading: accountsLoading } = useAccountsQuery();
-  const { data: pockets = [], isLoading: pocketsLoading } = usePocketsQuery();
-  const { data: settings, isLoading: settingsLoading } = useSettingsQuery();
-  const { data: subPockets = [], isLoading: subPocketsLoading } = useSubPocketsQuery();
-  const { data: fixedExpenseGroups = [] } = useFixedExpenseGroupsQuery();
+  const {
+    data: accounts = [],
+    isLoading: accountsLoading,
+    isError: accountsIsError,
+    error: accountsError,
+  } = useAccountsQuery();
+  const {
+    data: pockets = [],
+    isLoading: pocketsLoading,
+    isError: pocketsIsError,
+    error: pocketsError,
+  } = usePocketsQuery();
+  const {
+    data: settings,
+    isLoading: settingsLoading,
+    isError: settingsIsError,
+    error: settingsError,
+  } = useSettingsQuery();
+  const {
+    data: subPockets = [],
+    isLoading: subPocketsLoading,
+    isError: subPocketsIsError,
+    error: subPocketsError,
+  } = useSubPocketsQuery();
+  const {
+    data: fixedExpenseGroups = [],
+    isError: fixedExpenseGroupsIsError,
+    error: fixedExpenseGroupsError,
+  } = useFixedExpenseGroupsQuery();
 
   // Auto-snapshot on load
   useAutoNetWorthSnapshot();
@@ -42,59 +66,98 @@ const SummaryPage = () => {
 
   // Combine loading states
   const isLoading = accountsLoading || pocketsLoading || settingsLoading || subPocketsLoading;
-  const error = null; // TanStack Query handles errors internally
+
+  // Combine error states from all queries
+  const isError =
+    accountsIsError ||
+    pocketsIsError ||
+    settingsIsError ||
+    subPocketsIsError ||
+    fixedExpenseGroupsIsError;
+  const queryError =
+    accountsError ||
+    pocketsError ||
+    settingsError ||
+    subPocketsError ||
+    fixedExpenseGroupsError;
 
   // Load investment prices
   useEffect(() => {
+    let ignore = false;
+
     const loadInvestmentPrices = async () => {
-      const investmentAccounts = accounts.filter(acc => acc.type === 'investment' && acc.stockSymbol);
-      if (investmentAccounts.length === 0) return;
+      const investmentAccounts = accounts.filter(
+        (acc) => acc.type === 'investment' && acc.stockSymbol
+      );
+      if (investmentAccounts.length === 0) {
+        if (!ignore) {
+          setInvestmentData(new Map());
+        }
+        return;
+      }
 
       setLoadingInvestments(true);
-      const newData = new Map<string, InvestmentData>();
 
-      for (const account of investmentAccounts) {
-        try {
+      // Fetch prices in parallel — sequential awaits previously serialized requests.
+      const results = await Promise.all(
+        investmentAccounts.map(async (account) => {
           // Get fresh values from pocket balances (source of truth)
-          const investedPocket = pockets.find(p => p.accountId === account.id && p.name === 'Invested Money');
-          const sharesPocket = pockets.find(p => p.accountId === account.id && p.name === 'Shares');
+          const investedPocket = pockets.find(
+            (p) => p.accountId === account.id && p.name === 'Invested Money'
+          );
+          const sharesPocket = pockets.find(
+            (p) => p.accountId === account.id && p.name === 'Shares'
+          );
 
           // Use pocket balances as source of truth instead of account fields
           const montoInvertido = investedPocket?.balance || 0;
           const shares = sharesPocket?.balance || 0;
 
-          // Create a temporary account object with correct values
           const accountWithCorrectValues = {
             ...account,
             montoInvertido,
             shares,
           };
 
-          if (account.stockSymbol) {
-            const data = await investmentService.updateInvestmentAccount(accountWithCorrectValues);
-            // Include the correct values in the data object
-            newData.set(account.id, {
-              ...data,
-              montoInvertido,
-              shares,
-            });
+          try {
+            if (!account.stockSymbol) {
+              return null;
+            }
+            const data = await investmentService.updateInvestmentAccount(
+              accountWithCorrectValues
+            );
+            return {
+              id: account.id,
+              data: {
+                ...data,
+                montoInvertido,
+                shares,
+              } satisfies InvestmentData,
+            };
+          } catch {
+            // Failure fallback — surface zero price with negative gains so UI degrades gracefully.
+            return {
+              id: account.id,
+              data: {
+                precioActual: 0,
+                totalValue: 0,
+                gainsUSD: -montoInvertido,
+                gainsPct: -100,
+                lastUpdated: null,
+                montoInvertido,
+                shares,
+              } satisfies InvestmentData,
+            };
           }
-        } catch (error) {
-          console.error(`Error loading price for ${account.stockSymbol}:`, error);
-          // Use pocket balances for error case too
-          const investedPocket = pockets.find(p => p.accountId === account.id && p.name === 'Invested Money');
-          const sharesPocket = pockets.find(p => p.accountId === account.id && p.name === 'Shares');
-          const montoInvertido = investedPocket?.balance || 0;
-          const shares = sharesPocket?.balance || 0;
-          newData.set(account.id, {
-            precioActual: 0,
-            totalValue: 0,
-            gainsUSD: -montoInvertido,
-            gainsPct: -100,
-            lastUpdated: null,
-            montoInvertido,
-            shares,
-          });
+        })
+      );
+
+      if (ignore) return;
+
+      const newData = new Map<string, InvestmentData>();
+      for (const entry of results) {
+        if (entry) {
+          newData.set(entry.id, entry.data);
         }
       }
 
@@ -103,6 +166,10 @@ const SummaryPage = () => {
     };
 
     loadInvestmentPrices();
+
+    return () => {
+      ignore = true;
+    };
   }, [accounts, pockets]);
 
   // Refresh price for a specific investment account with triple-click force refresh
@@ -202,7 +269,6 @@ const SummaryPage = () => {
 
       toast.success(`Price ${isForceRefresh ? 'force ' : ''}refreshed: ${account.stockSymbol} = ${currencyService.formatCurrency(data, account.currency)}`);
     } catch (error) {
-      console.error('Error refreshing price:', error);
       toast.error(error instanceof Error ? error.message : 'Failed to refresh price');
     } finally {
       setRefreshingPrices(prev => {
@@ -245,8 +311,7 @@ const SummaryPage = () => {
           ? calculation.netCurrentValue 
           : calculation.currentValue;
         return effectiveBalance;
-      } catch (error) {
-        console.warn('❌ Failed to calculate CD value, falling back to account balance:', error);
+      } catch {
         return account.balance || 0;
       }
     }
@@ -265,13 +330,15 @@ const SummaryPage = () => {
   };
 
   // Group accounts by currency
-  const accountsByCurrency = accounts.reduce((acc, account) => {
-    if (!acc[account.currency]) {
-      acc[account.currency] = [];
-    }
-    acc[account.currency].push(account);
-    return acc;
-  }, {} as Record<Currency, Account[]>);
+  const accountsByCurrency = useMemo(() => {
+    return accounts.reduce((acc, account) => {
+      if (!acc[account.currency]) {
+        acc[account.currency] = [];
+      }
+      acc[account.currency].push(account);
+      return acc;
+    }, {} as Record<Currency, Account[]>);
+  }, [accounts]);
 
   // Calculate total by currency using effective balance
   const getTotalByCurrency = (currency: Currency): number => {
@@ -284,16 +351,11 @@ const SummaryPage = () => {
   const [consolidatedTotal, setConsolidatedTotal] = useState<number>(0);
 
   useEffect(() => {
+    let ignore = false;
+
     const calculateTotal = async () => {
-      console.log('💰 ===== CONSOLIDATED TOTAL CALCULATION =====');
       let total = 0;
-      const validCurrencies = Object.keys(accountsByCurrency).filter(c => c && c.trim());
-      const conversionDetails: Array<{
-        currency: Currency;
-        originalTotal: number;
-        convertedTotal: number;
-        rate: string;
-      }> = [];
+      const validCurrencies = Object.keys(accountsByCurrency).filter((c) => c && c.trim());
 
       for (const currency of validCurrencies) {
         const currencyTotal = getTotalByCurrency(currency as Currency);
@@ -303,35 +365,22 @@ const SummaryPage = () => {
             currency as Currency,
             primaryCurrency
           );
-          
-          // Calculate conversion rate (1 base currency = X target currency)
-          const rate = currencyTotal !== 0 ? converted / currencyTotal : 0;
-          
-          conversionDetails.push({
-            currency: currency as Currency,
-            originalTotal: currencyTotal,
-            convertedTotal: converted,
-            rate: `1 ${currency} = ${rate.toFixed(4)} ${primaryCurrency}`
-          });
-          
           total += converted;
         }
       }
-      
-      // Log detailed breakdown
-      console.log('📊 Currency Breakdown:');
-      conversionDetails.forEach(detail => {
-        console.log(`  ${detail.currency}: ${currencyService.formatCurrency(detail.originalTotal, detail.currency)} → ${currencyService.formatCurrency(detail.convertedTotal, primaryCurrency)} (${detail.rate})`);
-      });
-      console.log(`\n💵 Final Consolidated Total: ${currencyService.formatCurrency(total, primaryCurrency)}`);
-      console.log('============================================\n');
-      
+
+      if (ignore) return;
+
       setConsolidatedTotal(total);
     };
 
     if (accounts.length > 0) {
       calculateTotal();
     }
+
+    return () => {
+      ignore = true;
+    };
   }, [accounts, primaryCurrency, investmentData]);
 
   // Find all fixed expenses pockets and consolidated sub-pockets
@@ -347,13 +396,15 @@ const SummaryPage = () => {
   );
 
   // Sort accounts: investment first, then by currency
-  const sortedCurrencies = Object.keys(accountsByCurrency).sort((a, b) => {
-    const aHasInvestment = accountsByCurrency[a as Currency].some((acc) => acc.type === 'investment');
-    const bHasInvestment = accountsByCurrency[b as Currency].some((acc) => acc.type === 'investment');
-    if (aHasInvestment && !bHasInvestment) return -1;
-    if (!aHasInvestment && bHasInvestment) return 1;
-    return a.localeCompare(b);
-  });
+  const sortedCurrencies = useMemo(() => {
+    return Object.keys(accountsByCurrency).sort((a, b) => {
+      const aHasInvestment = accountsByCurrency[a as Currency].some((acc) => acc.type === 'investment');
+      const bHasInvestment = accountsByCurrency[b as Currency].some((acc) => acc.type === 'investment');
+      if (aHasInvestment && !bHasInvestment) return -1;
+      if (!aHasInvestment && bHasInvestment) return 1;
+      return a.localeCompare(b);
+    });
+  }, [accountsByCurrency]);
 
   // Prepare totals map for TotalsSummary
   const totalsByCurrency = sortedCurrencies.reduce((acc, currency) => {
@@ -376,13 +427,18 @@ const SummaryPage = () => {
   }
 
   // Error state
-  if (error) {
+  if (isError) {
+    const errorMessage =
+      queryError instanceof Error
+        ? queryError.message
+        : 'An unexpected error occurred while loading your data.';
+
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
           <div className="text-red-600 dark:text-red-400 text-xl mb-4">⚠️</div>
           <p className="text-gray-900 dark:text-gray-100 font-semibold mb-2">Error Loading Data</p>
-          <p className="text-gray-600 dark:text-gray-400 mb-4">{error}</p>
+          <p className="text-gray-600 dark:text-gray-400 mb-4">{errorMessage}</p>
           <button
             onClick={() => window.location.reload()}
             className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
