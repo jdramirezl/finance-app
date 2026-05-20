@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { Plus, AlertTriangle, Calendar } from 'lucide-react';
 import { useRemindersQuery, useReminderMutations } from '../../hooks/queries';
+import { useReminderActions } from '../../hooks/useReminderActions';
 import Modal from '../Modal';
 import ReminderForm from './ReminderForm';
 import Button from '../Button';
@@ -8,31 +9,33 @@ import Card from '../Card';
 import MonthSection from './MonthSection';
 import RecurrenceActionModal from './RecurrenceActionModal';
 import MarkAsPaidModal from './MarkAsPaidModal';
-import { useNavigate } from 'react-router-dom';
-import { useConfirmDialog } from '../../contexts/ConfirmDialogContext';
-import { groupRemindersByMonth, countOverdueReminders, type ReminderWithProjection } from '../../utils/reminderProjections';
-import { toDateOnly } from '../../utils/dateUtils';
-import type { CreateReminderDTO, UpdateReminderDTO } from '../../services/reminderService';
+import { groupRemindersByMonth, countOverdueReminders } from '../../utils/reminderProjections';
 
 const RemindersWidget = () => {
-    const navigate = useNavigate();
     const { data: reminders = [], isLoading } = useRemindersQuery();
-    const { deleteMutation, createMutation, updateMutation, createExceptionMutation, splitMutation } = useReminderMutations();
+    const mutations = useReminderMutations();
     const scrollContainerRef = useRef<HTMLDivElement>(null);
-    const { confirm } = useConfirmDialog();
 
-    const [isFormOpen, setIsFormOpen] = useState(false);
-    const [editingReminder, setEditingReminder] = useState<ReminderWithProjection | null>(null);
-    const [isEditingException, setIsEditingException] = useState(false);
-    const [splitDate, setSplitDate] = useState<string | null>(null);
-
-    const [recurrenceModal, setRecurrenceModal] = useState<{
-        isOpen: boolean;
-        type: 'edit' | 'delete';
-        reminder: ReminderWithProjection | null;
-    }>({ isOpen: false, type: 'edit', reminder: null });
-
-    const [markAsPaidReminder, setMarkAsPaidReminder] = useState<ReminderWithProjection | null>(null);
+    const {
+        isFormOpen,
+        editingReminder,
+        isEditingException,
+        openCreateForm,
+        closeForm,
+        recurrenceModal,
+        closeRecurrenceModal,
+        markAsPaidReminder,
+        closeMarkAsPaid,
+        handlePayNow,
+        handleEdit,
+        handleDelete,
+        handleMarkAsPaid,
+        handleConfirmMarkAsPaid,
+        handleRecurrenceAction,
+        handleCreate,
+        handleUpdate,
+        isSaving,
+    } = useReminderActions({ reminders, mutations });
 
     // Group reminders by month (1 month back, 2 months ahead). Memoized so we
     // don't re-bucket the entire list on every keystroke in unrelated state.
@@ -55,223 +58,6 @@ const RemindersWidget = () => {
         }
     }, [monthGroups.length]);
 
-    // Stable handlers passed to memoized MonthSection -> ReminderCard. Without
-    // useCallback these would be re-created on every keystroke in the modal.
-    const handlePayNow = useCallback(
-        (reminder: ReminderWithProjection) => {
-            const params = new URLSearchParams();
-            params.set('action', 'new');
-            params.set('amount', reminder.amount.toString());
-            params.set('notes', reminder.title);
-            params.set('date', reminder.dueDate);
-
-            if (reminder.templateId) params.set('templateId', reminder.templateId);
-            if (reminder.fixedExpenseId) params.set('fixedExpenseId', reminder.fixedExpenseId);
-
-            // Use original reminder ID for projected reminders
-            const reminderId = reminder.originalReminderId || reminder.id;
-            params.set('reminderId', reminderId);
-
-            navigate(`/movements?${params.toString()}`);
-        },
-        [navigate]
-    );
-
-    const handleEdit = useCallback(
-        (reminder: ReminderWithProjection) => {
-            if (reminder.recurrence.type !== 'once') {
-                setRecurrenceModal({ isOpen: true, type: 'edit', reminder });
-            } else {
-                setEditingReminder(reminder);
-                setIsEditingException(false);
-                setIsFormOpen(true);
-            }
-        },
-        []
-    );
-
-    const handleDelete = useCallback(
-        async (reminder: ReminderWithProjection) => {
-            if (reminder.recurrence.type !== 'once') {
-                setRecurrenceModal({ isOpen: true, type: 'delete', reminder });
-                return;
-            }
-
-            const ok = await confirm({
-                title: 'Delete Reminder',
-                message: 'Are you sure you want to delete this reminder?',
-                confirmText: 'Delete',
-                cancelText: 'Cancel',
-                variant: 'danger',
-            });
-            if (!ok) return;
-
-            deleteMutation.mutate(reminder.id);
-        },
-        [confirm, deleteMutation]
-    );
-
-    const handleMarkAsPaid = useCallback((reminder: ReminderWithProjection) => {
-        setMarkAsPaidReminder(reminder);
-    }, []);
-
-    const handleConfirmMarkAsPaid = async (movementId?: string) => {
-        if (!markAsPaidReminder) return;
-
-        const originalId = markAsPaidReminder.originalReminderId || markAsPaidReminder.id;
-
-        try {
-            if (markAsPaidReminder.recurrence.type === 'once') {
-                await updateMutation.mutateAsync({
-                    id: originalId,
-                    data: {
-                        isPaid: true,
-                        linkedMovementId: movementId
-                    }
-                });
-            } else {
-                // Create exception
-                await createExceptionMutation.mutateAsync({
-                    id: originalId,
-                    data: {
-                        originalDate: toDateOnly(markAsPaidReminder.dueDate),
-                        action: 'modified',
-                        isPaid: true,
-                        linkedMovementId: movementId
-                    }
-                });
-            }
-        } catch {
-            // Toast is shown by the mutation's onError handler.
-        } finally {
-            setMarkAsPaidReminder(null);
-        }
-    };
-
-    const handleRecurrenceAction = async (scope: 'this' | 'all' | 'future') => {
-        const { type, reminder } = recurrenceModal;
-        if (!reminder) return;
-
-        const originalId = reminder.originalReminderId || reminder.id;
-        const closeRecurrenceModal = () => setRecurrenceModal(prev => ({ ...prev, isOpen: false }));
-
-        if (type === 'delete') {
-            try {
-                if (scope === 'this') {
-                    // Delete this occurrence only (Create Exception)
-                    await createExceptionMutation.mutateAsync({
-                        id: originalId,
-                        data: {
-                            originalDate: toDateOnly(reminder.dueDate),
-                            action: 'deleted'
-                        }
-                    });
-                } else if (scope === 'future') {
-                    // Delete this and future events (Split Series)
-                    const ok = await confirm({
-                        title: 'Delete Future Reminders',
-                        message: 'Are you sure you want to delete this and all following reminders?',
-                        confirmText: 'Delete',
-                        cancelText: 'Cancel',
-                        variant: 'danger',
-                    });
-                    if (!ok) {
-                        closeRecurrenceModal();
-                        return;
-                    }
-                    await splitMutation.mutateAsync({
-                        id: originalId,
-                        splitDate: reminder.dueDate
-                    });
-                } else {
-                    // Delete entire series
-                    const ok = await confirm({
-                        title: 'Delete Recurring Series',
-                        message: 'Are you sure you want to delete this recurring reminder series?',
-                        confirmText: 'Delete Series',
-                        cancelText: 'Cancel',
-                        variant: 'danger',
-                    });
-                    if (!ok) {
-                        closeRecurrenceModal();
-                        return;
-                    }
-                    await deleteMutation.mutateAsync(originalId);
-                }
-                // Only close on success — on error the underlying mutation's onError
-                // shows a toast (see useReminderQueries) and the modal remains open
-                // so the user can retry.
-                closeRecurrenceModal();
-            } catch {
-                // Mutation hooks display the toast via onError. Keep the recurrence
-                // modal open so the user can retry the action.
-            }
-        } else if (type === 'edit') {
-            // Edit branches are synchronous: they hand off to the form modal.
-            closeRecurrenceModal();
-            if (scope === 'this') {
-                // Edit this occurrence only
-                setEditingReminder(reminder);
-                setIsEditingException(true);
-                setSplitDate(null);
-                setIsFormOpen(true);
-            } else if (scope === 'future') {
-                // Edit this and future events
-                setEditingReminder(reminder);
-                setIsEditingException(false);
-                setSplitDate(reminder.dueDate);
-                setIsFormOpen(true);
-            } else {
-                // Edit entire series
-                const original = reminders.find(r => r.id === originalId);
-                if (original) {
-                    setEditingReminder(original);
-                    setIsEditingException(false);
-                    setSplitDate(null);
-                    setIsFormOpen(true);
-                }
-            }
-        }
-    };
-
-    const handleCreate = async (data: CreateReminderDTO | UpdateReminderDTO) => {
-        await createMutation.mutateAsync(data as CreateReminderDTO);
-        setIsFormOpen(false);
-    };
-
-    const handleUpdate = async (data: CreateReminderDTO | UpdateReminderDTO) => {
-        if (editingReminder) {
-            const originalId = editingReminder.originalReminderId ?? editingReminder.id;
-
-            if (isEditingException) {
-                // Determine original date (the one we clicked on, NOT the new date in form)
-                // editingReminder.dueDate holds the initial date of the occurrence we clicked.
-                await createExceptionMutation.mutateAsync({
-                    id: originalId,
-                    data: {
-                        originalDate: toDateOnly(editingReminder.dueDate),
-                        action: 'modified',
-                        newTitle: data.title,
-                        newAmount: data.amount,
-                        newDate: data.dueDate,
-                    }
-                });
-            } else if (splitDate) {
-                // Split series (Edit This and Future)
-                await splitMutation.mutateAsync({
-                    id: originalId,
-                    splitDate,
-                    newDetails: data as CreateReminderDTO,
-                });
-            } else {
-                await updateMutation.mutateAsync({ id: editingReminder.id, data: data as UpdateReminderDTO });
-            }
-            setEditingReminder(null);
-            setSplitDate(null);
-            setIsFormOpen(false);
-        }
-    };
-
     if (isLoading) {
         return <div className="animate-pulse h-48 bg-gray-100 dark:bg-gray-800 rounded-lg"></div>;
     }
@@ -290,11 +76,7 @@ const RemindersWidget = () => {
                     <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => {
-                            setEditingReminder(null);
-                            setIsEditingException(false);
-                            setIsFormOpen(true);
-                        }}
+                        onClick={openCreateForm}
                         className="!p-1.5"
                         aria-label="Add new reminder"
                         title="Add new reminder"
@@ -348,28 +130,22 @@ const RemindersWidget = () => {
             {/* Modal */}
             <Modal
                 isOpen={isFormOpen}
-                onClose={() => {
-                    setIsFormOpen(false);
-                    setEditingReminder(null);
-                }}
+                onClose={closeForm}
                 title={editingReminder ? (isEditingException ? 'Edit This Occurrence' : 'Edit Reminder') : 'New Reminder'}
                 size="lg"
             >
                 <ReminderForm
                     initialData={editingReminder ?? undefined}
                     onSubmit={editingReminder ? handleUpdate : handleCreate}
-                    onCancel={() => {
-                        setIsFormOpen(false);
-                        setEditingReminder(null);
-                    }}
-                    isSaving={createMutation.isPending || updateMutation.isPending || createExceptionMutation.isPending}
+                    onCancel={closeForm}
+                    isSaving={isSaving}
                 />
             </Modal>
 
             {/* Recurrence Action Modal */}
             <RecurrenceActionModal
                 isOpen={recurrenceModal.isOpen}
-                onClose={() => setRecurrenceModal(prev => ({ ...prev, isOpen: false }))}
+                onClose={closeRecurrenceModal}
                 onAction={handleRecurrenceAction}
                 actionType={recurrenceModal.type}
             />
@@ -377,7 +153,7 @@ const RemindersWidget = () => {
             {/* Mark as Paid Modal */}
             <MarkAsPaidModal
                 isOpen={!!markAsPaidReminder}
-                onClose={() => setMarkAsPaidReminder(null)}
+                onClose={closeMarkAsPaid}
                 onConfirm={handleConfirmMarkAsPaid}
                 reminder={markAsPaidReminder}
             />
