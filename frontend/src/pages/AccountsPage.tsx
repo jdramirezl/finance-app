@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Plus, Wallet } from 'lucide-react';
 import {
@@ -47,18 +47,18 @@ const AccountsPage = () => {
   const [editingCD, setEditingCD] = useState<CDInvestmentAccount | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const closeAccountForm = () => {
+  const closeAccountForm = useCallback(() => {
     setShowAccountForm(false);
     setEditingAccount(null);
-  };
-  const closeCDForm = () => {
+  }, []);
+  const closeCDForm = useCallback(() => {
     setShowCDForm(false);
     setEditingCD(null);
-  };
-  const switchToCDForm = () => {
+  }, []);
+  const switchToCDForm = useCallback(() => {
     setShowAccountForm(false);
     setShowCDForm(true);
-  };
+  }, []);
 
   const accountActions = useAccountActions({
     accounts,
@@ -82,6 +82,46 @@ const AccountsPage = () => {
     }
   }, [location.search, accounts]);
 
+  // Build a single set of which accounts are "fixed-expense" accounts so the
+  // per-row check below stays O(1) instead of O(pockets) per row.
+  const fixedExpenseAccountIds = useMemo(() => {
+    const set = new Set<string>();
+    for (const p of pockets) {
+      if (p.type === 'fixed') set.add(p.accountId);
+    }
+    return set;
+  }, [pockets]);
+
+  // Stable, id-based handlers passed to memoized AccountCard/CDAccountCard so
+  // they can skip re-renders when other accounts change.
+  const handleSelectAccount = useCallback((account: Account) => {
+    setSelectedAccountId(account.id);
+  }, []);
+  const handleEditAccount = useCallback((account: Account) => {
+    setEditingAccount(account);
+    setShowAccountForm(true);
+  }, []);
+  const handleEditCD = useCallback((account: CDInvestmentAccount) => {
+    setEditingCD(account);
+    setShowCDForm(true);
+  }, []);
+  const handleDeleteAccount = useCallback(
+    (id: string) => {
+      void accountActions.handleDeleteAccount(id);
+    },
+    [accountActions]
+  );
+
+  // Sort accounts for display — useMemo to skip the spread+sort when nothing
+  // relevant changes (e.g. while typing in the form).
+  const sortedAccounts = useMemo(
+    () =>
+      [...accounts].sort(
+        (a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0)
+      ),
+    [accounts]
+  );
+
   if (accountsLoading || pocketsLoading) {
     return (
       <div className="space-y-6">
@@ -100,9 +140,6 @@ const AccountsPage = () => {
   const selectedAccountPockets = selectedAccountId
     ? pockets.filter((p) => p.accountId === selectedAccountId)
     : [];
-  const sortedAccounts = [...accounts].sort(
-    (a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0)
-  );
 
   // Mobile shows either the list OR the detail panel based on selection;
   // desktop always shows both side-by-side.
@@ -130,8 +167,9 @@ const AccountsPage = () => {
                 setShowAccountForm(true);
                 setEditingAccount(null);
               }}
+              aria-label="Create new account"
             >
-              <Plus className="w-5 h-5" />
+              <Plus className="w-5 h-5" aria-hidden="true" />
               <span className="hidden sm:inline">New Account</span>
             </Button>
           }
@@ -171,26 +209,18 @@ const AccountsPage = () => {
                     <CDAccountCard
                       account={account}
                       isSelected={selectedAccountId === account.id}
-                      onSelect={() => setSelectedAccountId(account.id)}
-                      onEdit={() => {
-                        setEditingCD(account);
-                        setShowCDForm(true);
-                      }}
-                      onDelete={() => accountActions.handleDeleteAccount(account.id)}
+                      onSelect={handleSelectAccount}
+                      onEdit={handleEditCD}
+                      onDelete={handleDeleteAccount}
                     />
                   ) : (
                     <AccountCard
                       account={account}
                       isSelected={selectedAccountId === account.id}
-                      onSelect={() => setSelectedAccountId(account.id)}
-                      onEdit={() => {
-                        setEditingAccount(account);
-                        setShowAccountForm(true);
-                      }}
-                      onDelete={() => accountActions.handleDeleteAccount(account.id)}
-                      isFixedExpensesAccount={pockets.some(
-                        (p) => p.accountId === account.id && p.type === 'fixed'
-                      )}
+                      onSelect={handleSelectAccount}
+                      onEdit={handleEditAccount}
+                      onDelete={handleDeleteAccount}
+                      isFixedExpensesAccount={fixedExpenseAccountIds.has(account.id)}
                     />
                   )}
                 </SortableItem>

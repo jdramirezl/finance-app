@@ -1,27 +1,38 @@
+import { memo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AlertTriangle, Landmark, Calendar, DollarSign } from 'lucide-react';
 import { format } from 'date-fns';
 import { currencyService } from '../../services/currencyService';
 import { cdCalculationService } from '../../services/cdCalculationService';
 import SelectableValue from '../SelectableValue';
-import type { CDInvestmentAccount } from '../../types';
+import type { CDInvestmentAccount, CDCalculationResult } from '../../types';
+
+// `generateCDSummary` returns a richer ad-hoc shape on top of the
+// calculation result; we use the inferred return type so the card stays
+// in sync with the service.
+type CDSummary = ReturnType<typeof cdCalculationService.generateCDSummary>;
 
 interface CDSummaryCardProps {
   account: CDInvestmentAccount;
 }
 
+/**
+ * Renders a single Certificate of Deposit summary card on the summary
+ * page. Memoized so unrelated re-renders on the summary page don't
+ * re-trigger the (relatively expensive) CD calculation for every CD card.
+ */
 const CDSummaryCard = ({ account }: CDSummaryCardProps) => {
   const navigate = useNavigate();
 
   const handleAccountClick = () => {
     navigate(`/accounts?id=${account.id}`);
   };
-  
+
   // Calculate current CD values with error handling
-  let calculation: any = null;
-  let summary: any = null;
+  let calculation: CDCalculationResult | null = null;
+  let summary: CDSummary | null = null;
   let hasError = false;
-  
+
   try {
     calculation = cdCalculationService.calculateCurrentValue(account);
     summary = cdCalculationService.generateCDSummary(account);
@@ -32,7 +43,7 @@ const CDSummaryCard = ({ account }: CDSummaryCardProps) => {
 
   // Get display balance
   const netBalance = hasError ? 0 : (
-    account.withholdingTaxRate && account.withholdingTaxRate > 0 
+    account.withholdingTaxRate && account.withholdingTaxRate > 0
       ? calculation?.netCurrentValue || 0
       : calculation?.currentValue || 0
   );
@@ -70,10 +81,10 @@ const CDSummaryCard = ({ account }: CDSummaryCardProps) => {
     const startDate = new Date(account.cdCreatedAt);
     const endDate = new Date(account.maturityDate);
     const currentDate = new Date();
-    
+
     const totalDuration = endDate.getTime() - startDate.getTime();
     const elapsed = currentDate.getTime() - startDate.getTime();
-    
+
     return Math.min(Math.max((elapsed / totalDuration) * 100, 0), 100);
   };
 
@@ -83,7 +94,7 @@ const CDSummaryCard = ({ account }: CDSummaryCardProps) => {
     <div className="bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 rounded-lg p-4 border-l-4" style={{ borderColor: account.color }}>
       {/* Header */}
       <div className="flex items-center justify-between mb-3">
-        <div 
+        <div
           className="flex items-center gap-3 cursor-pointer group"
           onClick={handleAccountClick}
           title="View Account Details"
@@ -92,7 +103,7 @@ const CDSummaryCard = ({ account }: CDSummaryCardProps) => {
             className="w-10 h-10 rounded-full flex items-center justify-center transition-transform group-hover:scale-110"
             style={{ backgroundColor: `${account.color}20`, border: `2px solid ${account.color}` }}
           >
-            <Landmark className="w-5 h-5" style={{ color: account.color }} />
+            <Landmark className="w-5 h-5" style={{ color: account.color }} aria-hidden="true" />
           </div>
           <div>
             <div className="flex items-center gap-2">
@@ -143,35 +154,35 @@ const CDSummaryCard = ({ account }: CDSummaryCardProps) => {
           <div className="grid grid-cols-3 gap-3 mb-4">
             <div className="bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700 text-center">
               <div className="flex items-center justify-center gap-1 mb-1">
-                <DollarSign className="w-3 h-3 text-gray-600 dark:text-gray-400" />
+                <DollarSign className="w-3 h-3 text-gray-600 dark:text-gray-400" aria-hidden="true" />
                 <span className="text-xs font-medium text-gray-700 dark:text-gray-300">Interest</span>
               </div>
               <div className="text-sm font-bold text-green-600 dark:text-green-400">
-                <SelectableValue 
-                  id={`cd-interest-${account.id}`} 
-                  value={account.withholdingTaxRate && account.withholdingTaxRate > 0 ? calculation.netInterest : calculation.accruedInterest} 
+                <SelectableValue
+                  id={`cd-interest-${account.id}`}
+                  value={account.withholdingTaxRate && account.withholdingTaxRate > 0 ? calculation.netInterest : calculation.accruedInterest}
                   currency={account.currency}
                 >
                   +{currencyService.formatCurrency(
-                    account.withholdingTaxRate && account.withholdingTaxRate > 0 
-                      ? calculation.netInterest 
-                      : calculation.accruedInterest, 
+                    account.withholdingTaxRate && account.withholdingTaxRate > 0
+                      ? calculation.netInterest
+                      : calculation.accruedInterest,
                     account.currency
                   )}
                 </SelectableValue>
               </div>
             </div>
-            
+
             <div className="bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700 text-center">
               <div className="flex items-center justify-center gap-1 mb-1">
-                <Calendar className="w-3 h-3 text-gray-600 dark:text-gray-400" />
+                <Calendar className="w-3 h-3 text-gray-600 dark:text-gray-400" aria-hidden="true" />
                 <span className="text-xs font-medium text-gray-700 dark:text-gray-300">Maturity</span>
               </div>
               <div className="text-sm font-bold text-gray-900 dark:text-gray-100">
                 {format(new Date(account.maturityDate), 'MMM dd')}
               </div>
             </div>
-            
+
             <div className="bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700 text-center">
               <div className="flex items-center justify-center gap-1 mb-1">
                 <span className="text-lg font-bold" style={{ color: account.color }}>%</span>
@@ -209,14 +220,14 @@ const CDSummaryCard = ({ account }: CDSummaryCardProps) => {
       {/* Withholding Tax Warning */}
       {account.withholdingTaxRate && account.withholdingTaxRate > 0 && (
         <div className="flex items-center gap-2 text-xs text-red-600 dark:text-red-400 mt-3 p-2 bg-red-50 dark:bg-red-900/20 rounded-md">
-          <AlertTriangle className="w-3 h-3 flex-shrink-0" />
+          <AlertTriangle className="w-3 h-3 flex-shrink-0" aria-hidden="true" />
           <span>{account.withholdingTaxRate}% withholding tax will be deducted from interest earnings.</span>
         </div>
       )}
 
       {hasError && (
         <div className="flex items-center gap-2 text-xs text-red-600 dark:text-red-400 mt-3 p-2 bg-red-50 dark:bg-red-900/20 rounded-md">
-          <AlertTriangle className="w-3 h-3 flex-shrink-0" />
+          <AlertTriangle className="w-3 h-3 flex-shrink-0" aria-hidden="true" />
           <span>Error calculating CD values. Please check configuration.</span>
         </div>
       )}
@@ -224,4 +235,4 @@ const CDSummaryCard = ({ account }: CDSummaryCardProps) => {
   );
 };
 
-export default CDSummaryCard;
+export default memo(CDSummaryCard);

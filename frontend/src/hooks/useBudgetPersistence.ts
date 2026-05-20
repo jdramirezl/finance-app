@@ -1,8 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import type { DistributionEntry } from '../components/budget';
 import type { PlanningScenario } from '../components/budget/ScenarioForm';
+import { useDebouncedEffect } from './useDebouncedEffect';
 
 const BUDGET_PLANNING_KEY = 'finance_app_budget_planning';
+const PERSIST_DELAY_MS = 500;
 
 export interface BudgetPlanningData {
   initialAmount: number;
@@ -49,7 +51,9 @@ export interface UseBudgetPersistenceResult {
  * device-local UI state (initial amount, distribution percentages, what-if
  * scenarios) and never round-trips to the backend.
  *
- * State is loaded once on mount and saved on every change.
+ * State is loaded once on mount; writes are debounced by {@link PERSIST_DELAY_MS}
+ * so rapid edits (typing an amount, dragging a percentage) coalesce into a
+ * single `localStorage.setItem` once the user pauses.
  */
 export const useBudgetPersistence = (): UseBudgetPersistenceResult => {
   const initial = loadBudgetPlanning();
@@ -61,9 +65,15 @@ export const useBudgetPersistence = (): UseBudgetPersistenceResult => {
     initial.scenarios || []
   );
 
-  useEffect(() => {
-    saveBudgetPlanning({ initialAmount, distributionEntries, scenarios });
-  }, [initialAmount, distributionEntries, scenarios]);
+  // Debounced persist: every keystroke or drag updates state in memory, but
+  // we only touch localStorage 500ms after the user stops changing things.
+  useDebouncedEffect(
+    () => {
+      saveBudgetPlanning({ initialAmount, distributionEntries, scenarios });
+    },
+    [initialAmount, distributionEntries, scenarios],
+    PERSIST_DELAY_MS
+  );
 
   return {
     initialAmount,

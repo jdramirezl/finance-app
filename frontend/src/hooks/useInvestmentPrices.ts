@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { currencyService } from '../services/currencyService';
 import { investmentService } from '../services/investmentService';
 import type { Account, Pocket } from '../types';
@@ -124,102 +124,108 @@ export const useInvestmentPrices = ({
     };
   }, [accounts, pockets]);
 
-  const handleRefreshPrice = async (account: Account) => {
-    if (!account.stockSymbol) return;
+  // Memoized so the handler keeps a stable identity when its inputs don't
+  // change. Memoized children receiving onRefresh (e.g. InvestmentCard) can
+  // then skip re-renders on unrelated parent updates.
+  const handleRefreshPrice = useCallback(
+    async (account: Account) => {
+      if (!account.stockSymbol) return;
 
-    const now = Date.now();
-    const currentClick = clickCounts.get(account.id);
-    const lastClick = currentClick?.timestamp || 0;
-    const clickCount =
-      now - lastClick < CLICK_TIMEOUT ? (currentClick?.count || 0) + 1 : 1;
+      const now = Date.now();
+      const currentClick = clickCounts.get(account.id);
+      const lastClick = currentClick?.timestamp || 0;
+      const clickCount =
+        now - lastClick < CLICK_TIMEOUT ? (currentClick?.count || 0) + 1 : 1;
 
-    setClickCounts((prev) => {
-      const next = new Map(prev);
-      next.set(account.id, { count: clickCount, timestamp: now });
-      return next;
-    });
+      setClickCounts((prev) => {
+        const next = new Map(prev);
+        next.set(account.id, { count: clickCount, timestamp: now });
+        return next;
+      });
 
-    if (clickCount === 1) {
-      toast.info('2 more clicks to force refresh');
-    } else if (clickCount === 2) {
-      toast.info('1 more click to force refresh');
-    } else if (clickCount >= FORCE_CLICK_THRESHOLD) {
-      const lastForce = lastForceRefresh.get(account.id) || 0;
-      const sinceLastForce = now - lastForce;
+      if (clickCount === 1) {
+        toast.info('2 more clicks to force refresh');
+      } else if (clickCount === 2) {
+        toast.info('1 more click to force refresh');
+      } else if (clickCount >= FORCE_CLICK_THRESHOLD) {
+        const lastForce = lastForceRefresh.get(account.id) || 0;
+        const sinceLastForce = now - lastForce;
 
-      if (sinceLastForce < FORCE_REFRESH_COOLDOWN) {
-        const secondsLeft = Math.ceil(
-          (FORCE_REFRESH_COOLDOWN - sinceLastForce) / 1000
-        );
-        toast.error(
-          `Please wait ${secondsLeft} seconds before force refreshing again`
-        );
+        if (sinceLastForce < FORCE_REFRESH_COOLDOWN) {
+          const secondsLeft = Math.ceil(
+            (FORCE_REFRESH_COOLDOWN - sinceLastForce) / 1000
+          );
+          toast.error(
+            `Please wait ${secondsLeft} seconds before force refreshing again`
+          );
+          setClickCounts((prev) => {
+            const next = new Map(prev);
+            next.delete(account.id);
+            return next;
+          });
+          return;
+        }
+
+        toast.info('Forcing refresh...');
+        setLastForceRefresh((prev) => {
+          const next = new Map(prev);
+          next.set(account.id, now);
+          return next;
+        });
         setClickCounts((prev) => {
           const next = new Map(prev);
           next.delete(account.id);
           return next;
         });
-        return;
       }
 
-      toast.info('Forcing refresh...');
-      setLastForceRefresh((prev) => {
-        const next = new Map(prev);
-        next.set(account.id, now);
-        return next;
-      });
-      setClickCounts((prev) => {
-        const next = new Map(prev);
-        next.delete(account.id);
-        return next;
-      });
-    }
+      setRefreshingPrices((prev) => new Set(prev).add(account.id));
 
-    setRefreshingPrices((prev) => new Set(prev).add(account.id));
+      try {
+        const { montoInvertido, shares } = findInvestmentPocketBalances(
+          account.id,
+          pockets
+        );
+        const accountWithCorrectValues = { ...account, montoInvertido, shares };
 
-    try {
-      const { montoInvertido, shares } = findInvestmentPocketBalances(
-        account.id,
-        pockets
-      );
-      const accountWithCorrectValues = { ...account, montoInvertido, shares };
+        const isForceRefresh = clickCount >= FORCE_CLICK_THRESHOLD;
+        const price = isForceRefresh
+          ? await investmentService.forceRefreshPrice(account.stockSymbol)
+          : await investmentService.getCurrentPrice(account.stockSymbol);
 
-      const isForceRefresh = clickCount >= FORCE_CLICK_THRESHOLD;
-      const price = isForceRefresh
-        ? await investmentService.forceRefreshPrice(account.stockSymbol)
-        : await investmentService.getCurrentPrice(account.stockSymbol);
+        const values = investmentService.calculateInvestmentValues(
+          accountWithCorrectValues,
+          price
+        );
+        const lastUpdated = investmentService.getPriceTimestamp(account.stockSymbol);
 
-      const values = investmentService.calculateInvestmentValues(
-        accountWithCorrectValues,
-        price
-      );
-      const lastUpdated = investmentService.getPriceTimestamp(account.stockSymbol);
-
-      setInvestmentData((prev) => {
-        const next = new Map(prev);
-        next.set(account.id, {
-          precioActual: price,
-          ...values,
-          lastUpdated,
-          montoInvertido,
-          shares,
+        setInvestmentData((prev) => {
+          const next = new Map(prev);
+          next.set(account.id, {
+            precioActual: price,
+            ...values,
+            lastUpdated,
+            montoInvertido,
+            shares,
+          });
+          return next;
         });
-        return next;
-      });
 
-      toast.success(
-        `Price ${isForceRefresh ? 'force ' : ''}refreshed: ${account.stockSymbol} = ${currencyService.formatCurrency(price, account.currency)}`
-      );
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to refresh price');
-    } finally {
-      setRefreshingPrices((prev) => {
-        const next = new Set(prev);
-        next.delete(account.id);
-        return next;
-      });
-    }
-  };
+        toast.success(
+          `Price ${isForceRefresh ? 'force ' : ''}refreshed: ${account.stockSymbol} = ${currencyService.formatCurrency(price, account.currency)}`
+        );
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : 'Failed to refresh price');
+      } finally {
+        setRefreshingPrices((prev) => {
+          const next = new Set(prev);
+          next.delete(account.id);
+          return next;
+        });
+      }
+    },
+    [clickCounts, lastForceRefresh, pockets, toast]
+  );
 
   return {
     investmentData,

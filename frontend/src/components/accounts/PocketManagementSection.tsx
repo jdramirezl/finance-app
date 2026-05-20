@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Plus } from 'lucide-react';
 import type { Account, Pocket } from '../../types';
 import Button from '../Button';
@@ -46,10 +46,10 @@ const PocketManagementSection = ({
   const [showForm, setShowForm] = useState(false);
   const [editingPocket, setEditingPocket] = useState<Pocket | null>(null);
 
-  const closeForm = () => {
+  const closeForm = useCallback(() => {
     setShowForm(false);
     setEditingPocket(null);
-  };
+  }, []);
 
   const actions = usePocketActions({
     accounts,
@@ -62,8 +62,30 @@ const PocketManagementSection = ({
     closePocketForm: closeForm,
   });
 
-  const sortedPockets = [...pockets].sort(
-    (a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0)
+  // Stable handlers passed to memoized PocketCard.
+  const handleEditPocket = useCallback((pocket: Pocket) => {
+    setEditingPocket(pocket);
+    setShowForm(true);
+  }, []);
+  const handleDeletePocket = useCallback(
+    (id: string) => {
+      void actions.handleDeletePocket(id);
+    },
+    [actions]
+  );
+  const handleMigratePocket = useCallback(
+    (pocket: Pocket) => {
+      actions.migration.open(pocket.id);
+    },
+    [actions]
+  );
+
+  const sortedPockets = useMemo(
+    () =>
+      [...pockets].sort(
+        (a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0)
+      ),
+    [pockets]
   );
 
   const handleSubmit = editingPocket
@@ -84,8 +106,9 @@ const PocketManagementSection = ({
             setShowForm(true);
             setEditingPocket(null);
           }}
+          aria-label="Create new pocket"
         >
-          <Plus className="w-4 h-4" />
+          <Plus className="w-4 h-4" aria-hidden="true" />
           <span className="hidden sm:inline ml-1">New Pocket</span>
         </Button>
       </div>
@@ -114,16 +137,11 @@ const PocketManagementSection = ({
             <SortableItem key={pocket.id} id={pocket.id}>
               <PocketCard
                 pocket={pocket}
-                onEdit={() => {
-                  setEditingPocket(pocket);
-                  setShowForm(true);
-                }}
-                onDelete={() => actions.handleDeletePocket(pocket.id)}
-                onMigrate={
-                  pocket.type === 'fixed'
-                    ? () => actions.migration.open(pocket.id)
-                    : undefined
-                }
+                onEdit={handleEditPocket}
+                onDelete={handleDeletePocket}
+                // PocketCard hides the migrate button for non-fixed pockets,
+                // so we always pass the same stable handler.
+                onMigrate={handleMigratePocket}
               />
             </SortableItem>
           )}

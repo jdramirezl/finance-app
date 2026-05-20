@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { Receipt } from 'lucide-react';
 import type { Account, Currency, FixedExpenseGroup, SubPocket } from '../../types';
 import EmptyState from '../EmptyState';
@@ -49,6 +50,23 @@ const FixedExpensesList = ({
   onToggleExpense,
   onMoveToGroup,
 }: FixedExpensesListProps) => {
+  // Bucket sub-pockets by group once so each group card receives a stable
+  // array reference. Without this, every group card would receive a fresh
+  // filter() result on every parent re-render and React.memo couldn't help.
+  const subPocketsByGroup = useMemo(() => {
+    const map = new Map<string, SubPocket[]>();
+    for (const sp of fixedSubPockets) {
+      const groupId = sp.groupId ?? '';
+      const list = map.get(groupId);
+      if (list) {
+        list.push(sp);
+      } else {
+        map.set(groupId, [sp]);
+      }
+    }
+    return map;
+  }, [fixedSubPockets]);
+
   if (fixedSubPockets.length === 0) {
     return (
       <EmptyState
@@ -66,7 +84,7 @@ const FixedExpensesList = ({
         getId={(item) => item.id}
         onReorder={onReorderGroups}
         renderItem={(group) => {
-          const groupExpenses = fixedSubPockets.filter((sp) => sp.groupId === group.id);
+          const groupExpenses = subPocketsByGroup.get(group.id) ?? [];
           const isDefault = group.name === 'Default';
 
           return (
@@ -79,10 +97,10 @@ const FixedExpensesList = ({
                 isDefaultGroup={isDefault}
                 isCollapsed={collapsedGroups.has(group.id)}
                 isToggling={togglingGroupId === group.id}
-                onToggleCollapse={() => onToggleCollapse(group.id)}
-                onToggleGroup={(enabled) => onToggleGroup(group.id, enabled)}
-                onEditGroup={() => onEditGroup(group)}
-                onDeleteGroup={() => onDeleteGroup(group)}
+                onToggleCollapse={onToggleCollapse}
+                onToggleGroup={onToggleGroup}
+                onEditGroup={onEditGroup}
+                onDeleteGroup={onDeleteGroup}
                 onEditExpense={onEditExpense}
                 onDeleteExpense={onDeleteExpense}
                 onToggleExpense={onToggleExpense}

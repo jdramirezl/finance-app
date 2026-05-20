@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { Account } from '../../types';
 import { currencyService } from '../../services/currencyService';
@@ -19,10 +20,20 @@ export interface InvestmentData {
 interface InvestmentCardProps {
     account: Account;
     data?: InvestmentData;
-    onRefresh: () => void;
+    /**
+     * Receives the account so the parent can hold a stable callback (via
+     * useCallback) instead of creating `onRefresh={() => refresh(account)}`
+     * per row.
+     */
+    onRefresh: (account: Account) => void;
     isRefreshing: boolean;
 }
 
+/**
+ * Renders an investment account card on the summary page. Memoized so
+ * refreshing one investment's price does not re-render every other
+ * account/CD card on the page.
+ */
 const InvestmentCard = ({
     account,
     data,
@@ -56,7 +67,7 @@ const InvestmentCard = ({
         <div className="bg-gradient-to-br from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 rounded-lg p-4 border-l-4" style={{ borderColor: account.color }}>
             {/* Header */}
             <div className="flex items-center justify-between mb-3">
-                <div 
+                <div
                     className="flex items-center gap-3 cursor-pointer group"
                     onClick={handleAccountClick}
                     title="View Account Details"
@@ -65,7 +76,7 @@ const InvestmentCard = ({
                         className="w-10 h-10 rounded-full flex items-center justify-center transition-transform group-hover:scale-110"
                         style={{ backgroundColor: `${account.color}20`, border: `2px solid ${account.color}` }}
                     >
-                        <TrendingUp className="w-5 h-5" style={{ color: account.color }} />
+                        <TrendingUp className="w-5 h-5" style={{ color: account.color }} aria-hidden="true" />
                     </div>
                     <div>
                         <div className="flex items-center gap-2">
@@ -77,7 +88,7 @@ const InvestmentCard = ({
                             </span>
                         </div>
                         <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
-                            <BarChart3 className="w-3 h-3" />
+                            <BarChart3 className="w-3 h-3" aria-hidden="true" />
                             <span>Investment • {stockSymbol}</span>
                         </div>
                     </div>
@@ -105,7 +116,7 @@ const InvestmentCard = ({
                     <div className="grid grid-cols-2 gap-4 mb-4">
                         <div className="bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700 text-center">
                             <div className="flex items-center justify-center gap-2 mb-1">
-                                <Percent className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+                                <Percent className="w-4 h-4 text-gray-600 dark:text-gray-400" aria-hidden="true" />
                                 <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Gains</span>
                             </div>
                             <div className={`text-lg font-bold ${data.gainsPct >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
@@ -114,7 +125,7 @@ const InvestmentCard = ({
                         </div>
                         <div className="bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700 text-center">
                             <div className="flex items-center justify-center gap-2 mb-1">
-                                <DollarSign className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+                                <DollarSign className="w-4 h-4 text-gray-600 dark:text-gray-400" aria-hidden="true" />
                                 <span className="text-sm font-medium text-gray-700 dark:text-gray-300">P&L</span>
                             </div>
                             <div className={`text-lg font-bold ${data.gainsUSD >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
@@ -135,26 +146,28 @@ const InvestmentCard = ({
                                 </SelectableValue>
                             </span>
                         </div>
-                        
+
                         <div className="flex items-center justify-between py-2 px-3 bg-white dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700">
                             <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Total Shares</span>
                             <span className="font-mono font-semibold text-gray-900 dark:text-gray-100">
                                 {shares.toFixed(6)}
                             </span>
                         </div>
-                        
+
                         <div className="flex items-center justify-between py-2 px-3 bg-white dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700">
                             <div className="flex items-center gap-2">
                                 <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Share Price</span>
                                 <Button
                                     variant="ghost"
                                     size="sm"
-                                    onClick={onRefresh}
+                                    onClick={() => onRefresh(account)}
                                     loading={isRefreshing}
                                     disabled={isRefreshing}
                                     className="p-1 h-6 w-6"
+                                    aria-label={`Refresh ${account.stockSymbol || 'investment'} share price`}
+                                    title="Refresh share price"
                                 >
-                                    <RefreshCw className={`w-3 h-3 ${isRefreshing ? 'animate-spin' : ''}`} />
+                                    <RefreshCw className={`w-3 h-3 ${isRefreshing ? 'animate-spin' : ''}`} aria-hidden="true" />
                                 </Button>
                             </div>
                             <span className="font-mono font-semibold text-gray-900 dark:text-gray-100">
@@ -164,7 +177,7 @@ const InvestmentCard = ({
 
                         {data.lastUpdated && (
                             <div className="flex items-center justify-center gap-2 text-xs text-gray-500 dark:text-gray-400 pt-2">
-                                <Clock className="w-3 h-3" />
+                                <Clock className="w-3 h-3" aria-hidden="true" />
                                 <span>Last updated {formatDistanceToNow(data.lastUpdated, { addSuffix: true })}</span>
                             </div>
                         )}
@@ -175,4 +188,4 @@ const InvestmentCard = ({
     );
 };
 
-export default InvestmentCard;
+export default memo(InvestmentCard);

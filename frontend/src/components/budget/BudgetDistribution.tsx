@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Plus } from 'lucide-react';
 import Button from '../Button';
 import Card from '../Card';
@@ -21,6 +21,20 @@ interface BudgetDistributionProps {
     accounts: Account[];
 }
 
+const CHART_COLORS = [
+    '#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981',
+    '#06b6d4', '#6366f1', '#f97316', '#14b8a6', '#a855f7'
+];
+
+interface EditState {
+    id: string | null;
+    name: string;
+    percentage: number;
+    pocketId: string;
+}
+
+const EMPTY_EDIT: EditState = { id: null, name: '', percentage: 0, pocketId: '' };
+
 const BudgetDistribution = ({
     entries,
     remaining,
@@ -33,119 +47,149 @@ const BudgetDistribution = ({
     accounts,
 }: BudgetDistributionProps) => {
     const toast = useToast();
+
     const [editingEntryId, setEditingEntryId] = useState<string | null>(null);
     const [editingEntryName, setEditingEntryName] = useState<string>('');
     const [editingEntryPercentage, setEditingEntryPercentage] = useState<number>(0);
     const [editingEntryPocketId, setEditingEntryPocketId] = useState<string>('');
 
-    const totalPercentage = entries.reduce((sum, entry) => sum + entry.percentage, 0);
+    // Snapshots of the latest values + latest props. Updated post-render via
+    // useEffect so handlers below can be useCallback'd with empty deps and
+    // still read fresh values at call time. Without this, every keystroke
+    // would re-create the handlers and break React.memo on every other row.
+    const editStateRef = useRef<EditState>(EMPTY_EDIT);
+    const entriesRef = useRef(entries);
+    const pocketsRef = useRef(pockets);
+    const onEntriesChangeRef = useRef(onEntriesChange);
+    const toastRef = useRef(toast);
 
-    const calculateEntryAmount = (percentage: number): number => {
-        if (remaining <= 0) return 0;
-        return (remaining * percentage) / 100;
-    };
+    useEffect(() => {
+        editStateRef.current = {
+            id: editingEntryId,
+            name: editingEntryName,
+            percentage: editingEntryPercentage,
+            pocketId: editingEntryPocketId,
+        };
+    }, [editingEntryId, editingEntryName, editingEntryPercentage, editingEntryPocketId]);
+
+    useEffect(() => { entriesRef.current = entries; }, [entries]);
+    useEffect(() => { pocketsRef.current = pockets; }, [pockets]);
+    useEffect(() => { onEntriesChangeRef.current = onEntriesChange; }, [onEntriesChange]);
+    useEffect(() => { toastRef.current = toast; }, [toast]);
+
+    // Derived totals — recompute only when entries change, not on every keystroke.
+    const totalPercentage = useMemo(
+        () => entries.reduce((sum, entry) => sum + entry.percentage, 0),
+        [entries]
+    );
+
+    const calculateEntryAmount = useCallback(
+        (percentage: number): number => {
+            if (remaining <= 0) return 0;
+            return (remaining * percentage) / 100;
+        },
+        [remaining]
+    );
 
     const generateId = (): string => {
         return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     };
 
-    const handleAddEntry = () => {
+    const clearEditing = useCallback(() => {
+        setEditingEntryId(null);
+        setEditingEntryName('');
+        setEditingEntryPercentage(0);
+        setEditingEntryPocketId('');
+    }, []);
+
+    const handleAddEntry = useCallback(() => {
         const newEntry: DistributionEntry = {
             id: generateId(),
             name: '',
             percentage: 0,
         };
-        onEntriesChange([...entries, newEntry]);
+        onEntriesChangeRef.current([...entriesRef.current, newEntry]);
         setEditingEntryId(newEntry.id);
         setEditingEntryName('');
         setEditingEntryPercentage(0);
         setEditingEntryPocketId('');
-    };
+    }, []);
 
     /**
      * Picking a pocket auto-fills the name when blank, so users don't have to retype it.
      */
-    const handleEditPocketChange = (pocketId: string) => {
+    const handleEditPocketChange = useCallback((pocketId: string) => {
         setEditingEntryPocketId(pocketId);
         if (pocketId) {
-            const pocket = pockets.find((p) => p.id === pocketId);
-            if (pocket && !editingEntryName.trim()) {
+            const pocket = pocketsRef.current.find((p) => p.id === pocketId);
+            if (pocket && !editStateRef.current.name.trim()) {
                 setEditingEntryName(pocket.name);
             }
         }
-    };
+    }, []);
 
-    const handleSaveEntry = (id: string) => {
-        if (!editingEntryName.trim()) {
-            toast.warning('Please enter a name for this entry');
+    const handleSaveEntry = useCallback((id: string) => {
+        const { name, percentage, pocketId } = editStateRef.current;
+        const t = toastRef.current;
+
+        if (!name.trim()) {
+            t.warning('Please enter a name for this entry');
             return;
         }
 
-        if (editingEntryPercentage < 0 || editingEntryPercentage > 100) {
-            toast.warning('Percentage must be between 0 and 100');
+        if (percentage < 0 || percentage > 100) {
+            t.warning('Percentage must be between 0 and 100');
             return;
         }
 
-        const linkedPocket = editingEntryPocketId
-            ? pockets.find((p) => p.id === editingEntryPocketId)
+        const linkedPocket = pocketId
+            ? pocketsRef.current.find((p) => p.id === pocketId)
             : undefined;
 
-        onEntriesChange(
-            entries.map((entry) =>
+        onEntriesChangeRef.current(
+            entriesRef.current.map((entry) =>
                 entry.id === id
                     ? {
                         ...entry,
-                        name: editingEntryName,
-                        percentage: editingEntryPercentage,
+                        name,
+                        percentage,
                         pocketId: linkedPocket?.id,
                         accountId: linkedPocket?.accountId,
                     }
                     : entry
             )
         );
-        setEditingEntryId(null);
-        setEditingEntryName('');
-        setEditingEntryPercentage(0);
-        setEditingEntryPocketId('');
-    };
+        clearEditing();
+    }, [clearEditing]);
 
-    const handleDeleteEntry = (id: string) => {
-        onEntriesChange(entries.filter((entry) => entry.id !== id));
-        if (editingEntryId === id) {
-            setEditingEntryId(null);
-            setEditingEntryName('');
-            setEditingEntryPercentage(0);
-            setEditingEntryPocketId('');
+    const handleDeleteEntry = useCallback((id: string) => {
+        onEntriesChangeRef.current(
+            entriesRef.current.filter((entry) => entry.id !== id)
+        );
+        if (editStateRef.current.id === id) {
+            clearEditing();
         }
-    };
+    }, [clearEditing]);
 
-    const handleStartEdit = (entry: DistributionEntry) => {
+    const handleStartEdit = useCallback((entry: DistributionEntry) => {
         setEditingEntryId(entry.id);
         setEditingEntryName(entry.name);
         setEditingEntryPercentage(entry.percentage);
         setEditingEntryPocketId(entry.pocketId || '');
-    };
+    }, []);
 
-    const handleCancelEdit = () => {
-        setEditingEntryId(null);
-        setEditingEntryName('');
-        setEditingEntryPercentage(0);
-        setEditingEntryPocketId('');
-    };
-
-    // Prepare data for donut chart
-    const chartColors = [
-        '#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981',
-        '#06b6d4', '#6366f1', '#f97316', '#14b8a6', '#a855f7'
-    ];
-
-    const chartEntries = entries
-        .filter(e => e.percentage > 0)
-        .map((entry, index) => ({
-            name: entry.name || 'Unnamed',
-            percentage: entry.percentage,
-            color: chartColors[index % chartColors.length]
-        }));
+    // Donut chart data — filter+map runs only when entries change.
+    const chartEntries = useMemo(
+        () =>
+            entries
+                .filter((e) => e.percentage > 0)
+                .map((entry, index) => ({
+                    name: entry.name || 'Unnamed',
+                    percentage: entry.percentage,
+                    color: CHART_COLORS[index % CHART_COLORS.length],
+                })),
+        [entries]
+    );
 
     return (
         <Card padding="md">
@@ -155,7 +199,7 @@ const BudgetDistribution = ({
                     variant="primary"
                     onClick={handleAddEntry}
                 >
-                    <Plus className="w-4 h-4" />
+                    <Plus className="w-4 h-4" aria-hidden="true" />
                     Add Entry
                 </Button>
             </div>
@@ -202,30 +246,36 @@ const BudgetDistribution = ({
 
                             {/* Entries */}
                             <div className="space-y-2 mt-2">
-                                {entries.map((entry) => (
-                                    <BudgetEntryRow
-                                        key={entry.id}
-                                        entry={entry}
-                                        amount={calculateEntryAmount(entry.percentage)}
-                                        convertedAmount={convertedAmounts.get(entry.id)}
-                                        currency={currency}
-                                        primaryCurrency={primaryCurrency}
-                                        showConversion={showConversion}
-                                        isEditing={editingEntryId === entry.id}
-                                        editName={editingEntryName}
-                                        editPercentage={editingEntryPercentage}
-                                        editPocketId={editingEntryPocketId}
-                                        onEditNameChange={setEditingEntryName}
-                                        onEditPercentageChange={setEditingEntryPercentage}
-                                        onEditPocketChange={handleEditPocketChange}
-                                        onStartEdit={() => handleStartEdit(entry)}
-                                        onSave={() => handleSaveEntry(entry.id)}
-                                        onCancel={handleCancelEdit}
-                                        onDelete={() => handleDeleteEntry(entry.id)}
-                                        pockets={pockets}
-                                        accounts={accounts}
-                                    />
-                                ))}
+                                {entries.map((entry) => {
+                                    const isEditing = editingEntryId === entry.id;
+                                    // Only the editing row receives non-default edit values.
+                                    // Non-editing rows always see '' / 0 / '' so React.memo
+                                    // skips them while another row is being typed into.
+                                    return (
+                                        <BudgetEntryRow
+                                            key={entry.id}
+                                            entry={entry}
+                                            amount={calculateEntryAmount(entry.percentage)}
+                                            convertedAmount={convertedAmounts.get(entry.id)}
+                                            currency={currency}
+                                            primaryCurrency={primaryCurrency}
+                                            showConversion={showConversion}
+                                            isEditing={isEditing}
+                                            editName={isEditing ? editingEntryName : ''}
+                                            editPercentage={isEditing ? editingEntryPercentage : 0}
+                                            editPocketId={isEditing ? editingEntryPocketId : ''}
+                                            onEditNameChange={setEditingEntryName}
+                                            onEditPercentageChange={setEditingEntryPercentage}
+                                            onEditPocketChange={handleEditPocketChange}
+                                            onStartEdit={handleStartEdit}
+                                            onSave={handleSaveEntry}
+                                            onCancel={clearEditing}
+                                            onDelete={handleDeleteEntry}
+                                            pockets={pockets}
+                                            accounts={accounts}
+                                        />
+                                    );
+                                })}
                             </div>
                         </div>
 

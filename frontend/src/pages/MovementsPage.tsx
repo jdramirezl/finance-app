@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { format } from 'date-fns';
 import { Plus, Trash2 } from 'lucide-react';
 import {
@@ -76,14 +76,19 @@ const MovementsPage = () => {
   const [expandedMonths, setExpandedMonths] = useState<Set<string>>(
     () => new Set([format(new Date(), 'yyyy-MM')])
   );
-  const toggleMonth = (month: string) => setExpandedMonths((prev) => {
-    const next = new Set(prev);
-    if (next.has(month)) next.delete(month); else next.add(month);
-    return next;
-  });
-  const expandMonth = (monthKey: string) => setExpandedMonths((prev) =>
-    prev.has(monthKey) ? prev : new Set(prev).add(monthKey)
-  );
+  const toggleMonth = useCallback((month: string) => {
+    setExpandedMonths((prev) => {
+      const next = new Set(prev);
+      if (next.has(month)) next.delete(month);
+      else next.add(month);
+      return next;
+    });
+  }, []);
+  const expandMonth = useCallback((monthKey: string) => {
+    setExpandedMonths((prev) =>
+      prev.has(monthKey) ? prev : new Set(prev).add(monthKey)
+    );
+  }, []);
 
   // URL-driven filters and form opens
   useURLActions({
@@ -92,13 +97,13 @@ const MovementsPage = () => {
   });
 
   // Modal lifecycle: closing tears down both single + batch forms
-  const closeForms = () => {
+  const closeForms = useCallback(() => {
     formState.resetFormState();
     setShowBatchForm(false);
     setActiveBatchRowId(null);
     setBatchActiveAccountId('');
     setBatchActivePocketId('');
-  };
+  }, [formState]);
 
   // Action hooks (submit / per-row / bulk / restore)
   const { handleSubmit, handleBatchSave, isSaving } = useMovementSubmit({
@@ -126,6 +131,17 @@ const MovementsPage = () => {
     restoreMutation: movementMutations.restoreOrphanedMovements,
     toast,
   });
+
+  // Stable handlers passed to memoized MovementList row.
+  const handleEditMovement = useCallback(
+    (movement: Movement) => {
+      formState.openEditForm(
+        movement,
+        pockets.find((p) => p.id === movement.pocketId)
+      );
+    },
+    [formState, pockets]
+  );
 
   // Side panel data
   const activeAccountId = showBatchForm ? batchActiveAccountId : formState.selectedAccountId;
@@ -170,17 +186,28 @@ const MovementsPage = () => {
         <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Movements</h1>
         <div className="flex gap-2">
           {orphanedCount > 0 && (
-            <Button variant="secondary" onClick={() => setShowOrphaned((v) => !v)} className="px-2 sm:px-4">
-              <Trash2 className="w-5 h-5" />
+            <Button
+              variant="secondary"
+              onClick={() => setShowOrphaned((v) => !v)}
+              className="px-2 sm:px-4"
+              aria-label={`${showOrphaned ? 'Hide' : 'Show'} orphaned movements (${orphanedCount})`}
+              aria-expanded={showOrphaned}
+            >
+              <Trash2 className="w-5 h-5" aria-hidden="true" />
               <span className="hidden sm:inline ml-2">Orphaned ({orphanedCount})</span>
             </Button>
           )}
-          <Button variant="secondary" onClick={() => setShowBatchForm(true)} className="px-2 sm:px-4">
-            <Plus className="w-5 h-5" />
+          <Button
+            variant="secondary"
+            onClick={() => setShowBatchForm(true)}
+            className="px-2 sm:px-4"
+            aria-label="Batch add movements"
+          >
+            <Plus className="w-5 h-5" aria-hidden="true" />
             <span className="hidden sm:inline ml-2">Batch Add</span>
           </Button>
           <Button variant="primary" onClick={() => formState.openNewForm()} className="hidden md:flex">
-            <Plus className="w-5 h-5" />
+            <Plus className="w-5 h-5" aria-hidden="true" />
             New Movement
           </Button>
         </div>
@@ -219,9 +246,7 @@ const MovementsPage = () => {
         expandedMonths={expandedMonths} toggleMonth={toggleMonth}
         selectedMovementIds={bulk.selectedIds}
         toggleSelection={bulk.toggleSelection}
-        onEdit={(movement) =>
-          formState.openEditForm(movement, pockets.find((p) => p.id === movement.pocketId))
-        }
+        onEdit={handleEditMovement}
         onDelete={handleDelete}
         onApplyPending={handleApplyPending}
         deletingId={deletingId} applyingId={applyingId}

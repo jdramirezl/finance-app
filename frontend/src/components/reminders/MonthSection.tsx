@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import type { MonthGroup, ReminderWithProjection } from '../../utils/reminderProjections';
 import ReminderCard from './ReminderCard';
 
@@ -9,6 +10,11 @@ interface MonthSectionProps {
     onMarkAsPaid: (reminder: ReminderWithProjection) => void;
 }
 
+/**
+ * Renders a single month group of reminder cards. Memoized so that
+ * updating one month group does not re-render all the others. Parents
+ * must pass stable callbacks via useCallback for the memo to be effective.
+ */
 const MonthSection = ({ monthGroup, onPayNow, onEdit, onDelete, onMarkAsPaid }: MonthSectionProps) => {
     const { label, reminders, isCurrentMonth, isPastMonth } = monthGroup;
 
@@ -66,4 +72,4 @@ const MonthSection = ({ monthGroup, onPayNow, onEdit, onDelete, onMarkAsPaid }: 
     );
 };
 
-export default MonthSection;
+export default memo(MonthSection);

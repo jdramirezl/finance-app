@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import type { Account } from '../../types';
 import { EditDeleteActions } from '../ActionButtons';
 import { TrendingUp, Wallet } from 'lucide-react';
@@ -6,13 +7,24 @@ import SelectableValue from '../SelectableValue';
 interface AccountCardProps {
     account: Account;
     isSelected: boolean;
-    onSelect: () => void;
-    onEdit: () => void;
-    onDelete: () => void;
+    /**
+     * Receives the account so the parent can hold a single stable callback
+     * (via useCallback) instead of creating a new arrow per row, which would
+     * defeat React.memo on this component.
+     */
+    onSelect: (account: Account) => void;
+    onEdit: (account: Account) => void;
+    onDelete: (id: string) => void;
     isDeleting?: boolean;
     isFixedExpensesAccount?: boolean;
 }
 
+/**
+ * Renders a single account row in the accounts list. Wrapped in React.memo
+ * so editing one account or selecting another doesn't cause every account
+ * card to re-render. Handlers must be stable (useCallback in the parent)
+ * for the memo to be effective.
+ */
 const AccountCard = ({
     account,
     isSelected,
@@ -27,7 +39,7 @@ const AccountCard = ({
 
     return (
         <div
-            onClick={onSelect}
+            onClick={() => onSelect(account)}
             className={`p-4 bg-white dark:bg-gray-800 rounded-lg border-2 cursor-pointer transition-all group relative overflow-hidden ${isSelected
                 ? 'border-blue-500 dark:border-blue-400 shadow-md'
                 : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
@@ -55,7 +67,7 @@ const AccountCard = ({
                                     : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400'
                             }`}
                     >
-                        {isInvestment ? <TrendingUp className="w-5 h-5" /> : <Wallet className="w-5 h-5" />}
+                        {isInvestment ? <TrendingUp className="w-5 h-5" aria-hidden="true" /> : <Wallet className="w-5 h-5" aria-hidden="true" />}
                     </div>
                     <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2">
@@ -93,10 +105,10 @@ const AccountCard = ({
                     </span>
                     <div onClick={(e) => e.stopPropagation()}>
                         <EditDeleteActions
-                            onEdit={onEdit}
-                            onDelete={onDelete}
+                            onEdit={() => onEdit(account)}
+                            onDelete={() => onDelete(account.id)}
                             isDeleting={isDeleting}
-                            showOnHover={false} // Always show on mobile? Or just depend on click.
+                            showOnHover={false}
                         />
                     </div>
                 </div>
@@ -105,4 +117,4 @@ const AccountCard = ({
     );
 };
 
-export default AccountCard;
+export default memo(AccountCard);

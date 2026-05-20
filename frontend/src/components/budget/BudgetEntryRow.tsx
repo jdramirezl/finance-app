@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { Edit2, Trash2, X, Save, Link2 } from 'lucide-react';
 import Button from '../Button';
 import type { Account, Pocket } from '../../types';
@@ -20,21 +21,35 @@ interface BudgetEntryRowProps {
     primaryCurrency: string;
     showConversion: boolean;
     isEditing: boolean;
+    /**
+     * Edit-form values. Only meaningful while `isEditing` is true. The
+     * parent should pass empty defaults for non-editing rows so React.memo
+     * sees stable props and skips re-renders for them when the user types
+     * in another row.
+     */
     editName: string;
     editPercentage: number;
     editPocketId: string;
     onEditNameChange: (value: string) => void;
     onEditPercentageChange: (value: number) => void;
     onEditPocketChange: (pocketId: string) => void;
-    onStartEdit: () => void;
-    onSave: () => void;
+    /**
+     * Receive the entry/id so the parent can keep a single stable callback
+     * via useCallback rather than creating a new arrow per row.
+     */
+    onStartEdit: (entry: DistributionEntry) => void;
+    onSave: (id: string) => void;
     onCancel: () => void;
-    onDelete: () => void;
+    onDelete: (id: string) => void;
     /** Pockets available for linking. Empty list disables the pocket selector. */
     pockets: Pocket[];
     accounts: Account[];
 }
 
+/**
+ * Renders one row of the budget distribution table. Memoized so editing
+ * the name/percentage of one row does not re-render every other row.
+ */
 const BudgetEntryRow = ({
     entry,
     amount,
@@ -133,11 +148,11 @@ const BudgetEntryRow = ({
                         <Button
                             variant="ghost"
                             size="sm"
-                            onClick={onSave}
+                            onClick={() => onSave(entry.id)}
                             className="p-1.5 text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/30"
                             title="Save"
                         >
-                            <Save className="w-4 h-4" />
+                            <Save className="w-4 h-4" aria-hidden="true" />
                         </Button>
                         <Button
                             variant="ghost"
@@ -146,7 +161,7 @@ const BudgetEntryRow = ({
                             className="p-1.5 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600"
                             title="Cancel"
                         >
-                            <X className="w-4 h-4" />
+                            <X className="w-4 h-4" aria-hidden="true" />
                         </Button>
                     </div>
                 </>
@@ -158,7 +173,7 @@ const BudgetEntryRow = ({
                         </div>
                         {linkedPocket ? (
                             <div className="mt-0.5 text-xs text-blue-600 dark:text-blue-400 flex items-center gap-1">
-                                <Link2 className="w-3 h-3" />
+                                <Link2 className="w-3 h-3" aria-hidden="true" />
                                 <span className="truncate">
                                     {linkedPocket.name}
                                     {linkedAccount ? ` · ${linkedAccount.name}` : ''}
@@ -166,7 +181,7 @@ const BudgetEntryRow = ({
                             </div>
                         ) : entry.pocketId ? (
                             <div className="mt-0.5 text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1">
-                                <Link2 className="w-3 h-3" />
+                                <Link2 className="w-3 h-3" aria-hidden="true" />
                                 <span>Linked pocket no longer exists</span>
                             </div>
                         ) : null}
@@ -192,20 +207,20 @@ const BudgetEntryRow = ({
                         <Button
                             variant="ghost"
                             size="sm"
-                            onClick={onStartEdit}
+                            onClick={() => onStartEdit(entry)}
                             className="p-1.5 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30"
                             title="Edit"
                         >
-                            <Edit2 className="w-4 h-4" />
+                            <Edit2 className="w-4 h-4" aria-hidden="true" />
                         </Button>
                         <Button
                             variant="ghost"
                             size="sm"
-                            onClick={onDelete}
+                            onClick={() => onDelete(entry.id)}
                             className="p-1.5 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30"
                             title="Delete"
                         >
-                            <Trash2 className="w-4 h-4" />
+                            <Trash2 className="w-4 h-4" aria-hidden="true" />
                         </Button>
                     </div>
                 </>
@@ -214,4 +229,4 @@ const BudgetEntryRow = ({
     );
 };
 
-export default BudgetEntryRow;
+export default memo(BudgetEntryRow);

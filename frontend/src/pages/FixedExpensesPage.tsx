@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { FolderPlus, Layers, Receipt, Wallet } from 'lucide-react';
 import {
   useAccountsQuery,
@@ -107,6 +107,46 @@ const FixedExpensesPage = () => {
     confirm,
   });
 
+  // Stable handlers passed to memoized FixedExpenseGroupCard via the list.
+  const handleEditGroup = useCallback((group: FixedExpenseGroup) => {
+    setEditingGroup(group);
+    setShowGroupForm(true);
+  }, []);
+  const handleEditExpense = useCallback((sp: SubPocket) => {
+    setEditingSubPocket(sp);
+    setShowForm(true);
+  }, []);
+  const handleDeleteGroup = useCallback(
+    (group: FixedExpenseGroup) => {
+      void actions.handleDeleteGroup(group);
+    },
+    [actions]
+  );
+  const handleDeleteExpense = useCallback(
+    (id: string) => {
+      void actions.handleDeleteSubPocket(id);
+    },
+    [actions]
+  );
+  const handleToggleExpense = useCallback(
+    (id: string) => {
+      void actions.handleToggleSubPocket(id);
+    },
+    [actions]
+  );
+  const handleMoveToGroup = useCallback(
+    (subPocketId: string, groupId: string) => {
+      void actions.handleMoveToGroup(subPocketId, groupId);
+    },
+    [actions]
+  );
+  const handleToggleGroup = useCallback(
+    (groupId: string, enabled: boolean) => {
+      void actions.handleToggleGroup(groupId, enabled);
+    },
+    [actions]
+  );
+
   if (fixedPockets.length === 0) {
     return (
       <div className="space-y-6">
@@ -170,7 +210,7 @@ const FixedExpensesPage = () => {
 
       <div className="flex items-center justify-between pt-6 border-t dark:border-gray-800">
         <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
-          <Layers className="w-5 h-5 text-blue-500" />
+          <Layers className="w-5 h-5 text-blue-500" aria-hidden="true" />
           Expense Groups
         </h2>
         <Button
@@ -181,7 +221,7 @@ const FixedExpensesPage = () => {
             setShowGroupForm(true);
           }}
         >
-          <FolderPlus className="w-4 h-4" />
+          <FolderPlus className="w-4 h-4" aria-hidden="true" />
           New Group
         </Button>
       </div>
@@ -197,19 +237,13 @@ const FixedExpensesPage = () => {
         togglingId={actions.togglingId}
         onReorderGroups={actions.handleReorderGroups}
         onToggleCollapse={actions.toggleGroupCollapse}
-        onToggleGroup={actions.handleToggleGroup}
-        onEditGroup={(g) => {
-          setEditingGroup(g);
-          setShowGroupForm(true);
-        }}
-        onDeleteGroup={actions.handleDeleteGroup}
-        onEditExpense={(sp) => {
-          setEditingSubPocket(sp);
-          setShowForm(true);
-        }}
-        onDeleteExpense={actions.handleDeleteSubPocket}
-        onToggleExpense={actions.handleToggleSubPocket}
-        onMoveToGroup={actions.handleMoveToGroup}
+        onToggleGroup={handleToggleGroup}
+        onEditGroup={handleEditGroup}
+        onDeleteGroup={handleDeleteGroup}
+        onEditExpense={handleEditExpense}
+        onDeleteExpense={handleDeleteExpense}
+        onToggleExpense={handleToggleExpense}
+        onMoveToGroup={handleMoveToGroup}
       />
 
       <Modal

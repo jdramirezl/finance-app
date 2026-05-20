@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Plus, AlertTriangle, Calendar } from 'lucide-react';
 import { useRemindersQuery, useReminderMutations } from '../../hooks/queries';
 import Modal from '../Modal';
@@ -30,9 +30,16 @@ const RemindersWidget = () => {
 
     const [markAsPaidReminder, setMarkAsPaidReminder] = useState<ReminderWithProjection | null>(null);
 
-    // Group reminders by month (1 month back, 2 months ahead)
-    const monthGroups = groupRemindersByMonth(reminders, 1, 2);
-    const overdueCount = countOverdueReminders(reminders);
+    // Group reminders by month (1 month back, 2 months ahead). Memoized so we
+    // don't re-bucket the entire list on every keystroke in unrelated state.
+    const monthGroups = useMemo(
+        () => groupRemindersByMonth(reminders, 1, 2),
+        [reminders]
+    );
+    const overdueCount = useMemo(
+        () => countOverdueReminders(reminders),
+        [reminders]
+    );
 
     // Scroll to current month on initial load
     useEffect(() => {
@@ -44,47 +51,57 @@ const RemindersWidget = () => {
         }
     }, [monthGroups.length]);
 
-    const handlePayNow = (reminder: ReminderWithProjection) => {
-        // Navigate to movements page with pre-filled data
-        const params = new URLSearchParams();
-        params.set('action', 'new');
-        params.set('amount', reminder.amount.toString());
-        params.set('notes', reminder.title);
-        params.set('date', reminder.dueDate);
+    // Stable handlers passed to memoized MonthSection -> ReminderCard. Without
+    // useCallback these would be re-created on every keystroke in the modal.
+    const handlePayNow = useCallback(
+        (reminder: ReminderWithProjection) => {
+            const params = new URLSearchParams();
+            params.set('action', 'new');
+            params.set('amount', reminder.amount.toString());
+            params.set('notes', reminder.title);
+            params.set('date', reminder.dueDate);
 
-        if (reminder.templateId) params.set('templateId', reminder.templateId);
-        if (reminder.fixedExpenseId) params.set('fixedExpenseId', reminder.fixedExpenseId);
+            if (reminder.templateId) params.set('templateId', reminder.templateId);
+            if (reminder.fixedExpenseId) params.set('fixedExpenseId', reminder.fixedExpenseId);
 
-        // Use original reminder ID for projected reminders
-        const reminderId = reminder.originalReminderId || reminder.id;
-        params.set('reminderId', reminderId);
+            // Use original reminder ID for projected reminders
+            const reminderId = reminder.originalReminderId || reminder.id;
+            params.set('reminderId', reminderId);
 
-        navigate(`/movements?${params.toString()}`);
-    };
+            navigate(`/movements?${params.toString()}`);
+        },
+        [navigate]
+    );
 
-    const handleEdit = (reminder: ReminderWithProjection) => {
-        if (reminder.recurrence.type !== 'once') {
-            setRecurrenceModal({ isOpen: true, type: 'edit', reminder });
-        } else {
-            setEditingReminder(reminder);
-            setIsEditingException(false);
-            setIsFormOpen(true);
-        }
-    };
-
-    const handleDelete = (reminder: ReminderWithProjection) => {
-        if (reminder.recurrence.type !== 'once') {
-            setRecurrenceModal({ isOpen: true, type: 'delete', reminder });
-        } else {
-            if (confirm('Are you sure you want to delete this reminder?')) {
-                deleteMutation.mutate(reminder.id);
+    const handleEdit = useCallback(
+        (reminder: ReminderWithProjection) => {
+            if (reminder.recurrence.type !== 'once') {
+                setRecurrenceModal({ isOpen: true, type: 'edit', reminder });
+            } else {
+                setEditingReminder(reminder);
+                setIsEditingException(false);
+                setIsFormOpen(true);
             }
-        }
-    };
+        },
+        []
+    );
 
-    const handleMarkAsPaid = (reminder: ReminderWithProjection) => {
+    const handleDelete = useCallback(
+        (reminder: ReminderWithProjection) => {
+            if (reminder.recurrence.type !== 'once') {
+                setRecurrenceModal({ isOpen: true, type: 'delete', reminder });
+            } else {
+                if (confirm('Are you sure you want to delete this reminder?')) {
+                    deleteMutation.mutate(reminder.id);
+                }
+            }
+        },
+        [deleteMutation]
+    );
+
+    const handleMarkAsPaid = useCallback((reminder: ReminderWithProjection) => {
         setMarkAsPaidReminder(reminder);
-    };
+    }, []);
 
     const handleConfirmMarkAsPaid = async (movementId?: string) => {
         if (!markAsPaidReminder) return;
@@ -255,15 +272,17 @@ const RemindersWidget = () => {
                             setIsFormOpen(true);
                         }}
                         className="!p-1.5"
+                        aria-label="Add new reminder"
+                        title="Add new reminder"
                     >
-                        <Plus className="w-5 h-5" />
+                        <Plus className="w-5 h-5" aria-hidden="true" />
                     </Button>
                 </div>
 
                 {/* Overdue Alert Banner */}
                 {overdueCount > 0 && (
                     <div className="px-4 py-3 bg-red-50 dark:bg-red-900/30 border-b border-red-200 dark:border-red-800 flex items-center gap-2">
-                        <AlertTriangle className="w-5 h-5 text-red-500" />
+                        <AlertTriangle className="w-5 h-5 text-red-500" aria-hidden="true" />
                         <span className="text-sm font-medium text-red-700 dark:text-red-300">
                             You have {overdueCount} overdue payment{overdueCount > 1 ? 's' : ''}
                         </span>
@@ -343,4 +362,3 @@ const RemindersWidget = () => {
 };
 
 export default RemindersWidget;
-

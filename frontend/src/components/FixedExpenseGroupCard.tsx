@@ -1,3 +1,4 @@
+import { memo, useMemo } from 'react';
 import type { FixedExpenseGroup, SubPocket, Account } from '../types';
 import { ChevronDown, ChevronRight, Edit2, Trash2, ToggleLeft, ToggleRight } from 'lucide-react';
 import Button from './Button';
@@ -12,10 +13,16 @@ interface FixedExpenseGroupCardProps {
   isDefaultGroup: boolean;
   isCollapsed: boolean;
   isToggling: boolean;
-  onToggleCollapse: () => void;
-  onToggleGroup: (enabled: boolean) => void;
-  onEditGroup: () => void;
-  onDeleteGroup: () => void;
+  /**
+   * All callbacks take the relevant id/group/subPocket so the parent can
+   * hold a single stable callback (via useCallback) per action and the card
+   * binds it to its own group/expense at the call site. This keeps
+   * React.memo effective when one card re-renders.
+   */
+  onToggleCollapse: (groupId: string) => void;
+  onToggleGroup: (groupId: string, enabled: boolean) => void;
+  onEditGroup: (group: FixedExpenseGroup) => void;
+  onDeleteGroup: (group: FixedExpenseGroup) => void;
   onEditExpense: (subPocket: SubPocket) => void;
   onDeleteExpense: (id: string) => void;
   onToggleExpense: (id: string) => void;
@@ -25,6 +32,11 @@ interface FixedExpenseGroupCardProps {
   pocketAccountMap?: Map<string, Account>;
 }
 
+/**
+ * Renders a single fixed-expense group with its sub-pocket rows.
+ * Memoized so changes to one group (collapse, toggle, edit) don't cause
+ * every other group's totals/progress bars to re-compute.
+ */
 const FixedExpenseGroupCard = ({
   group,
   subPockets,
@@ -45,14 +57,25 @@ const FixedExpenseGroupCard = ({
   togglingId,
   pocketAccountMap,
 }: FixedExpenseGroupCardProps) => {
+  // Group-level aggregates: filter+reduce twice over the same list. Memoized
+  // so we don't redo the math on every parent re-render.
+  const { enabledCount, totalMonthlyExpected, totalMonthlyActual } = useMemo(() => {
+    let enabled = 0;
+    let expected = 0;
+    let actual = 0;
+    for (const sp of subPockets) {
+      if (!sp.enabled) continue;
+      enabled += 1;
+      expected += calculateSimpleMonthlyContribution(sp.valueTotal, sp.periodicityMonths);
+      actual += calculateAporteMensual(sp.valueTotal, sp.periodicityMonths, sp.balance);
+    }
+    return {
+      enabledCount: enabled,
+      totalMonthlyExpected: expected,
+      totalMonthlyActual: actual,
+    };
+  }, [subPockets]);
 
-  const enabledCount = subPockets.filter(sp => sp.enabled).length;
-  const totalMonthlyExpected = subPockets
-    .filter(sp => sp.enabled)
-    .reduce((sum, sp) => sum + calculateSimpleMonthlyContribution(sp.valueTotal, sp.periodicityMonths), 0);
-  const totalMonthlyActual = subPockets
-    .filter(sp => sp.enabled)
-    .reduce((sum, sp) => sum + calculateAporteMensual(sp.valueTotal, sp.periodicityMonths, sp.balance), 0);
   const allEnabled = subPockets.length > 0 && enabledCount === subPockets.length;
   const someEnabled = enabledCount > 0 && enabledCount < subPockets.length;
 
@@ -66,13 +89,13 @@ const FixedExpenseGroupCard = ({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3 flex-1">
             <button
-              onClick={onToggleCollapse}
+              onClick={() => onToggleCollapse(group.id)}
               className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors"
             >
               {isCollapsed ? (
-                <ChevronRight className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+                <ChevronRight className="w-5 h-5 text-gray-600 dark:text-gray-400" aria-hidden="true" />
               ) : (
-                <ChevronDown className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+                <ChevronDown className="w-5 h-5 text-gray-600 dark:text-gray-400" aria-hidden="true" />
               )}
             </button>
 
@@ -107,7 +130,7 @@ const FixedExpenseGroupCard = ({
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => onToggleGroup(!allEnabled)}
+              onClick={() => onToggleGroup(group.id, !allEnabled)}
               loading={isToggling}
               disabled={isToggling || subPockets.length === 0}
               className={`p-2 ${allEnabled
@@ -119,9 +142,9 @@ const FixedExpenseGroupCard = ({
               title={allEnabled ? 'Disable all in group' : 'Enable all in group'}
             >
               {allEnabled ? (
-                <ToggleRight className="w-5 h-5" />
+                <ToggleRight className="w-5 h-5" aria-hidden="true" />
               ) : (
-                <ToggleLeft className="w-5 h-5" />
+                <ToggleLeft className="w-5 h-5" aria-hidden="true" />
               )}
             </Button>
 
@@ -131,22 +154,22 @@ const FixedExpenseGroupCard = ({
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={onEditGroup}
+                  onClick={() => onEditGroup(group)}
                   className="p-2 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30"
                   title="Edit group"
                 >
-                  <Edit2 className="w-4 h-4" />
+                  <Edit2 className="w-4 h-4" aria-hidden="true" />
                 </Button>
 
                 {/* Delete Group */}
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={onDeleteGroup}
+                  onClick={() => onDeleteGroup(group)}
                   className="p-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30"
                   title="Delete group"
                 >
-                  <Trash2 className="w-4 h-4" />
+                  <Trash2 className="w-4 h-4" aria-hidden="true" />
                 </Button>
               </>
             )}
@@ -184,9 +207,9 @@ const FixedExpenseGroupCard = ({
                             {subPocket.name}
                           </h4>
                           {account && (
-                            <span 
+                            <span
                               className="px-1.5 py-0.5 text-[10px] uppercase font-bold rounded border opacity-70"
-                              style={{ 
+                              style={{
                                 color: account.color,
                                 borderColor: account.color,
                                 backgroundColor: `${account.color}10`
@@ -277,9 +300,9 @@ const FixedExpenseGroupCard = ({
                         title={subPocket.enabled ? 'Disable' : 'Enable'}
                       >
                         {subPocket.enabled ? (
-                          <ToggleRight className="w-5 h-5" />
+                          <ToggleRight className="w-5 h-5" aria-hidden="true" />
                         ) : (
-                          <ToggleLeft className="w-5 h-5" />
+                          <ToggleLeft className="w-5 h-5" aria-hidden="true" />
                         )}
                       </Button>
 
@@ -290,7 +313,7 @@ const FixedExpenseGroupCard = ({
                         className="p-2 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30"
                         title="Edit"
                       >
-                        <Edit2 className="w-4 h-4" />
+                        <Edit2 className="w-4 h-4" aria-hidden="true" />
                       </Button>
 
                       <Button
@@ -302,7 +325,7 @@ const FixedExpenseGroupCard = ({
                         className="p-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30"
                         title="Delete"
                       >
-                        <Trash2 className="w-4 h-4" />
+                        <Trash2 className="w-4 h-4" aria-hidden="true" />
                       </Button>
                     </div>
                   </div>
@@ -316,4 +339,4 @@ const FixedExpenseGroupCard = ({
   );
 };
 
-export default FixedExpenseGroupCard;
+export default memo(FixedExpenseGroupCard);
