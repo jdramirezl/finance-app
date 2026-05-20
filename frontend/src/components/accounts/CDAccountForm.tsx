@@ -1,18 +1,18 @@
 import { useState, type FormEvent } from 'react';
-import { Calendar, DollarSign, Percent, AlertTriangle } from 'lucide-react';
-import { addMonths, format } from 'date-fns';
+import { DollarSign, Percent } from 'lucide-react';
+import { format } from 'date-fns';
 import Input from '../Input';
 import Select from '../Select';
 import Button from '../Button';
 import ColorSelector from '../ColorSelector';
-import { currencyService } from '../../services/currencyService';
-import { cdCalculationService } from '../../services/cdCalculationService';
 import { parseDate } from '../../utils/dateUtils';
 import {
   CURRENCY_OPTIONS_WITH_NAMES,
   DEFAULT_CURRENCY,
 } from '../../constants';
 import type { CDInvestmentAccount, Currency, CompoundingFrequency } from '../../types';
+import CDPreviewSection from './CDPreviewSection';
+import CDWarningsSection from './CDWarningsSection';
 
 interface CDAccountFormProps {
   account?: CDInvestmentAccount;
@@ -52,20 +52,6 @@ const CDAccountForm = ({ account, onSubmit, onCancel, isLoading = false }: CDAcc
 
   const [errors, setErrors] = useState<Partial<Record<keyof CDFormData, string>>>({});
   const [showPreview, setShowPreview] = useState(false);
-
-  // Calculate preview values
-  const previewMaturityDate = formData.useCustomMaturityDate && formData.customMaturityDate
-    ? parseDate(formData.customMaturityDate)
-    : addMonths(new Date(), formData.termMonths);
-
-  const previewCalculation = formData.principal > 0 && formData.interestRate > 0 && formData.termMonths > 0
-    ? cdCalculationService.calculateCompoundInterest(
-        formData.principal,
-        formData.interestRate / 100,
-        formData.termMonths * 30, // Approximate days
-        formData.compoundingFrequency
-      )
-    : null;
 
   const validateForm = (): boolean => {
     const newErrors: Partial<Record<keyof CDFormData, string>> = {};
@@ -313,106 +299,23 @@ const CDAccountForm = ({ account, onSubmit, onCancel, isLoading = false }: CDAcc
         </div>
       </div>
 
-      {/* Preview */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
-            <Calendar className="w-5 h-5" />
-            Preview
-          </h3>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={() => setShowPreview(!showPreview)}
-          >
-            {showPreview ? 'Hide' : 'Show'} Preview
-          </Button>
-        </div>
+      <CDPreviewSection
+        principal={formData.principal}
+        interestRate={formData.interestRate}
+        termMonths={formData.termMonths}
+        compoundingFrequency={formData.compoundingFrequency}
+        currency={formData.currency}
+        withholdingTaxRate={formData.withholdingTaxRate}
+        useCustomMaturityDate={formData.useCustomMaturityDate}
+        customMaturityDate={formData.customMaturityDate}
+        showPreview={showPreview}
+        onToggleShowPreview={() => setShowPreview(prev => !prev)}
+      />
 
-        {showPreview && previewCalculation && (
-          <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-              <div>
-                <span className="text-blue-700 dark:text-blue-300">Maturity Date:</span>
-                <div className="font-medium text-blue-900 dark:text-blue-100">
-                  {format(previewMaturityDate, 'MMM dd, yyyy')}
-                </div>
-              </div>
-              <div>
-                <span className="text-blue-700 dark:text-blue-300">Total at Maturity:</span>
-                <div className="font-medium text-blue-900 dark:text-blue-100">
-                  {currencyService.formatCurrency(previewCalculation.finalAmount, formData.currency)}
-                </div>
-              </div>
-              <div>
-                <span className="text-blue-700 dark:text-blue-300">Gross Interest:</span>
-                <div className="font-medium text-blue-900 dark:text-blue-100">
-                  {currencyService.formatCurrency(previewCalculation.interestEarned, formData.currency)}
-                </div>
-              </div>
-              <div>
-                <span className="text-blue-700 dark:text-blue-300">Effective Yield:</span>
-                <div className="font-medium text-blue-900 dark:text-blue-100">
-                  {((previewCalculation.interestEarned / formData.principal) * 100).toFixed(2)}%
-                </div>
-              </div>
-              {!!(formData.withholdingTaxRate && formData.withholdingTaxRate > 0) && (
-                <>
-                  <div>
-                    <span className="text-blue-700 dark:text-blue-300">Withholding Tax:</span>
-                    <div className="font-medium text-red-600 dark:text-red-400">
-                      -{currencyService.formatCurrency(
-                        previewCalculation.interestEarned * (formData.withholdingTaxRate / 100),
-                        formData.currency
-                      )}
-                    </div>
-                  </div>
-                  <div>
-                    <span className="text-blue-700 dark:text-blue-300">Net Interest:</span>
-                    <div className="font-medium text-green-600 dark:text-green-400">
-                      {currencyService.formatCurrency(
-                        previewCalculation.interestEarned * (1 - (formData.withholdingTaxRate / 100)),
-                        formData.currency
-                      )}
-                    </div>
-                  </div>
-                  <div className="md:col-span-2">
-                    <span className="text-blue-700 dark:text-blue-300">Net Amount at Maturity:</span>
-                    <div className="font-bold text-green-600 dark:text-green-400 text-lg">
-                      {currencyService.formatCurrency(
-                        formData.principal + previewCalculation.interestEarned * (1 - (formData.withholdingTaxRate / 100)),
-                        formData.currency
-                      )}
-                    </div>
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Warnings Section */}
-      {/* Warning */}
-      {!!(formData.earlyWithdrawalPenalty && formData.earlyWithdrawalPenalty > 0) && (
-        <div className="flex items-start gap-2 p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-200 dark:border-yellow-800">
-          <AlertTriangle className="w-4 h-4 text-yellow-600 dark:text-yellow-400 flex-shrink-0 mt-0.5" />
-          <div className="text-sm text-yellow-800 dark:text-yellow-200">
-            <strong>Early Withdrawal Penalty:</strong> Withdrawing funds before maturity will result in a {formData.earlyWithdrawalPenalty}% penalty on interest earned.
-          </div>
-        </div>
-      )}
-
-      {/* Withholding Tax Warning */}
-      {!!(formData.withholdingTaxRate && formData.withholdingTaxRate > 0) && (
-        <div className="flex items-start gap-2 p-3 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
-          <AlertTriangle className="w-4 h-4 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
-          <div className="text-sm text-red-800 dark:text-red-200">
-            <strong>Withholding Tax (Retención en la Fuente):</strong> The bank will withhold {formData.withholdingTaxRate}% of your interest earnings as tax. This amount will be deducted from your final payout.
-          </div>
-        </div>
-      )}
+      <CDWarningsSection
+        earlyWithdrawalPenalty={formData.earlyWithdrawalPenalty}
+        withholdingTaxRate={formData.withholdingTaxRate}
+      />
 
       {/* Actions */}
       <div className="flex gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
