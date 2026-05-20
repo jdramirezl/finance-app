@@ -4,6 +4,7 @@ import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isTod
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon } from 'lucide-react';
 import { useMovementsQuery, useAccountsQuery } from '../../hooks/queries';
 import { currencyService } from '../../services/currencyService';
+import { parseDate } from '../../utils/dateUtils';
 import type { Movement, Currency } from '../../types';
 import Card from '../Card';
 import Button from '../Button';
@@ -75,7 +76,7 @@ const FinancialCalendarWidget = ({
     movements.forEach((movement: Movement) => {
       if (movement.isPending || movement.isOrphaned) return;
       
-      const dayKey = format(new Date(movement.displayedDate), 'yyyy-MM-dd');
+      const dayKey = format(parseDate(movement.displayedDate), 'yyyy-MM-dd');
       const existing = dataMap.get(dayKey);
       
       if (existing) {

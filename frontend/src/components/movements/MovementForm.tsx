@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
+import { format } from 'date-fns';
 import { useAccountsQuery, usePocketsQuery, useSubPocketsQuery, useMovementTemplatesQuery } from '../../hooks/queries';
 import Button from '../Button';
 import Input from '../Input';
 import Select from '../Select';
+import { toDateOnly } from '../../utils/dateUtils';
 import type { Movement, MovementType } from '../../types';
 
 interface MovementFormProps {
@@ -146,6 +148,17 @@ const MovementForm = ({
         await onSubmit(e);
     };
 
+    // Compute the date input default once. toDateOnly preserves the
+    // calendar date of any incoming string (initialData or defaultValues),
+    // and falls back to today via date-fns' format helper so we never
+    // round-trip through `new Date(string)` (which would shift in
+    // negative-offset timezones).
+    const defaultDateValue = initialData?.displayedDate
+        ? toDateOnly(initialData.displayedDate)
+        : defaultValues?.date
+            ? toDateOnly(defaultValues.date)
+            : format(new Date(), 'yyyy-MM-dd');
+
     return (
         <form onSubmit={handleSubmit} className="space-y-4">
                 {!initialData && (
@@ -196,7 +209,7 @@ const MovementForm = ({
                         label="Date"
                         name="displayedDate"
                         required
-                        defaultValue={initialData?.displayedDate ? initialData.displayedDate.split('T')[0] : (defaultValues?.date ? defaultValues.date.split('T')[0] : new Date().toISOString().split('T')[0])}
+                        defaultValue={defaultDateValue}
                     />
                 </div>
 

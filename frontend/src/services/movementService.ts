@@ -1,5 +1,6 @@
 import type { Movement, MovementType } from '../types';
 import { apiClient } from './apiClient';
+import { parseDate } from '../utils/dateUtils';
 
 // Helper to map snake_case DB rows to camelCase Movement objects
 function mapMovementRow(row: Record<string, unknown>): Movement {
@@ -63,7 +64,7 @@ class MovementService {
     const movements = await this.getActiveMovements();
     const grouped = new Map<string, Movement[]>();
     for (const m of movements) {
-      const date = new Date(m.displayedDate);
+      const date = parseDate(m.displayedDate);
       const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
       if (!grouped.has(key)) grouped.set(key, []);
       grouped.get(key)!.push(m);

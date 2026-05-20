@@ -5,6 +5,7 @@ import type { useMovementMutations } from './queries/useMovementMutations';
 import type { useMovementTemplateMutations } from './queries/useMovementTemplates';
 import type { useReminderMutations } from './queries/useReminderQueries';
 import type { MovementFormStateResult } from './useMovementFormState';
+import { parseDate } from '../utils/dateUtils';
 
 type MovementMutations = Pick<
   ReturnType<typeof useMovementMutations>,
@@ -70,9 +71,10 @@ export const useMovementSubmit = ({
     const subPocketId = (data.get('subPocketId') as string) || undefined;
     const amount = parseFloat(data.get('amount') as string);
     const notes = (data.get('notes') as string) || undefined;
-    const displayedDate = new Date(
-      (data.get('displayedDate') as string) + 'T00:00:00'
-    ).toISOString();
+    // parseDate interprets the YYYY-MM-DD value from the date input as
+    // local midnight, avoiding the off-by-one shift caused by
+    // `new Date("YYYY-MM-DD")` (which parses as UTC midnight).
+    const displayedDate = parseDate(data.get('displayedDate') as string).toISOString();
     const isPending = data.get('isPending') === 'on';
 
     try {

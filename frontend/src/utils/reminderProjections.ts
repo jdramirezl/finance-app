@@ -1,5 +1,6 @@
 import { addDays, addWeeks, addMonths, addYears, startOfMonth, endOfMonth, isBefore, isAfter, parseISO, format } from 'date-fns';
 import type { Reminder, RecurrenceConfig } from '../services/reminderService';
+import { parseDate, toDateOnly } from './dateUtils';
 
 export interface ProjectedReminder extends Reminder {
     isProjected: boolean;
@@ -161,7 +162,7 @@ export function groupRemindersByMonth(
     reminders.forEach(reminder => {
         // Handle Base Reminder
         const baseDateISO = reminder.dueDate;
-        const baseDateStr = baseDateISO.split('T')[0]; // Normalize to YYYY-MM-DD
+        const baseDateStr = toDateOnly(baseDateISO); // Normalize to YYYY-MM-DD
         const baseException = reminder.exceptions?.find(e => e.originalDate === baseDateStr);
 
         if (baseException) {
@@ -241,7 +242,7 @@ export function groupRemindersByMonth(
     // Sort reminders within each month by date
     months.forEach(month => {
         month.reminders.sort((a, b) =>
-            new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()
+            parseDate(a.dueDate).getTime() - parseDate(b.dueDate).getTime()
         );
     });
 

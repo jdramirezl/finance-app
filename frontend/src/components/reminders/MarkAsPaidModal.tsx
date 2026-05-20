@@ -2,10 +2,11 @@ import { useState } from 'react';
 import Modal from '../Modal';
 import Button from '../Button';
 import { useMovementsQuery, useAccountsQuery } from '../../hooks/queries';
-import { format, parseISO, isWithinInterval, addDays, subDays } from 'date-fns';
+import { format, isWithinInterval, addDays, subDays } from 'date-fns';
 import { Check, Search, Link as LinkIcon, Wallet } from 'lucide-react';
 import type { ReminderWithProjection } from '../../utils/reminderProjections';
 import { currencyService } from '../../services/currencyService';
+import { parseDate, toDateOnly, formatDisplayDate } from '../../utils/dateUtils';
 
 interface MarkAsPaidModalProps {
     isOpen: boolean;
@@ -21,8 +22,8 @@ const MarkAsPaidModal = ({ isOpen, onClose, onConfirm, reminder }: MarkAsPaidMod
 
     if (!reminder) return null;
 
-    const dueDateStr = reminder.dueDate.split('T')[0];
-    const dueDate = parseISO(dueDateStr);
+    const dueDateStr = toDateOnly(reminder.dueDate);
+    const dueDate = parseDate(dueDateStr);
     const dateRange = {
         start: subDays(dueDate, 15),
         end: addDays(dueDate, 15)
@@ -30,8 +31,7 @@ const MarkAsPaidModal = ({ isOpen, onClose, onConfirm, reminder }: MarkAsPaidMod
 
     const filteredMovements = movements
         .filter(m => {
-            const mDateStr = m.displayedDate.split('T')[0];
-            const mDate = parseISO(mDateStr);
+            const mDate = parseDate(toDateOnly(m.displayedDate));
             try {
                 return isWithinInterval(mDate, dateRange);
             } catch (e) {
@@ -42,7 +42,7 @@ const MarkAsPaidModal = ({ isOpen, onClose, onConfirm, reminder }: MarkAsPaidMod
             m.notes?.toLowerCase().includes(searchTerm.toLowerCase()) ||
             m.amount.toString().includes(searchTerm)
         )
-        .sort((a, b) => new Date(b.displayedDate).getTime() - new Date(a.displayedDate).getTime());
+        .sort((a, b) => parseDate(b.displayedDate).getTime() - parseDate(a.displayedDate).getTime());
 
     return (
         <Modal
@@ -135,7 +135,7 @@ const MarkAsPaidModal = ({ isOpen, onClose, onConfirm, reminder }: MarkAsPaidMod
                                                     {account?.name || 'Unknown Account'}
                                                 </span>
                                                 <span>•</span>
-                                                <span>{format(parseISO(m.displayedDate.split('T')[0]), 'MMM dd, yyyy')}</span>
+                                                <span>{formatDisplayDate(m.displayedDate, 'MMM dd, yyyy')}</span>
                                             </div>
                                         </div>
                                         <div className="text-right flex-shrink-0">

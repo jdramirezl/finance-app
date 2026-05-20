@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { format } from 'date-fns';
 import type { Account, FixedExpenseGroup, Pocket, SubPocket } from '../types';
 import type { BatchMovementRow } from '../components/BatchMovementForm';
 import { calculateAporteMensual } from '../utils/fixedExpenseUtils';
@@ -197,7 +198,7 @@ export const useFixedExpenseActions = ({
         subPocketId: sp.id,
         amount: calculateAporteMensual(sp.valueTotal, sp.periodicityMonths, sp.balance).toFixed(2),
         notes: `Monthly contribution for ${sp.name}`,
-        displayedDate: new Date().toISOString().split('T')[0],
+        displayedDate: format(new Date(), 'yyyy-MM-dd'),
       };
     });
 

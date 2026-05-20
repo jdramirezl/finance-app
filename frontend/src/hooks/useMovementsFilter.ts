@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import type { Movement } from '../types';
+import { parseDate, toDateOnly } from '../utils/dateUtils';
 
 export type DateRangeOption = 'all' | '7days' | '30days' | '3months' | '6months' | 'year' | 'custom';
 export type FilterTypeOption = 'all' | 'income' | 'expense' | 'investment';
@@ -34,14 +35,19 @@ export const useMovementsFilter = ({ movements }: UseMovementsFilterProps) => {
         };
 
         if (filterDateRange === 'custom' && filterDateFrom && filterDateTo) {
-            // Ensure we're working with YYYY-MM-DD format
-            const fromDateStr = filterDateFrom.includes('T') ? filterDateFrom.split('T')[0] : filterDateFrom;
-            const toDateStr = filterDateTo.includes('T') ? filterDateTo.split('T')[0] : filterDateTo;
-            
-            // Create dates in LOCAL timezone (not UTC) to match user's perspective
-            const fromDate = new Date(fromDateStr + 'T00:00:00');
-            const toDate = new Date(toDateStr + 'T23:59:59.999');
-            
+            // Normalize to YYYY-MM-DD via toDateOnly so values from either an
+            // input element (already date-only) or a stored ISO string compare
+            // consistently.
+            const fromDateStr = toDateOnly(filterDateFrom);
+            const toDateStr = toDateOnly(filterDateTo);
+
+            // Build local-time bounds so the user's selected day is fully
+            // inclusive in their timezone (and we don't accidentally include
+            // adjacent days in negative offsets).
+            const fromDate = parseDate(fromDateStr);
+            const toDate = parseDate(toDateStr);
+            toDate.setHours(23, 59, 59, 999);
+
             return { from: fromDate, to: toDate };
         }
 
@@ -72,7 +78,7 @@ export const useMovementsFilter = ({ movements }: UseMovementsFilterProps) => {
             // Date range filter
             const dateRange = getDateRange();
             if (dateRange) {
-                const movementDate = new Date(movement.displayedDate);
+                const movementDate = parseDate(movement.displayedDate);
                 if (movementDate < dateRange.from || movementDate > dateRange.to) return false;
             }
 
