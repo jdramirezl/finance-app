@@ -1,11 +1,16 @@
-import { useState, useEffect } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
-import { useAccountsQuery, usePocketsQuery, useAccountMutations, usePocketMutations } from '../hooks/queries';
+import { Plus, Wallet } from 'lucide-react';
+import {
+  useAccountsQuery,
+  usePocketsQuery,
+  useAccountMutations,
+  usePocketMutations,
+} from '../hooks/queries';
 import { useToast } from '../hooks/useToast';
 import { useConfirm } from '../hooks/useConfirm';
-import type { Account, Pocket, CDInvestmentAccount } from '../types';
-import { Plus, Wallet, ArrowLeft } from 'lucide-react';
+import { useAccountActions } from '../hooks/useAccountActions';
+import type { Account, CDInvestmentAccount } from '../types';
 import Modal from '../components/Modal';
 import Button from '../components/Button';
 import ConfirmDialog from '../components/ConfirmDialog';
@@ -14,379 +19,70 @@ import SortableItem from '../components/SortableItem';
 import { Skeleton, SkeletonList } from '../components/Skeleton';
 import PageHeader from '../components/PageHeader';
 import EmptyState from '../components/EmptyState';
-import { AccountCard, PocketCard, AccountForm, PocketForm } from '../components/accounts';
+import { AccountCard, AccountForm } from '../components/accounts';
 import CDAccountCard from '../components/accounts/CDAccountCard';
-import CDAccountForm, { type CDFormData } from '../components/accounts/CDAccountForm';
-import CDDetailsPanel from '../components/accounts/CDDetailsPanel';
-import Card from '../components/Card';
-import { accountService } from '../services/accountService';
+import CDAccountForm, {
+  type CDFormData,
+} from '../components/accounts/CDAccountForm';
+import AccountDetailPanel from '../components/accounts/AccountDetailPanel';
+import CascadeDeleteDialog from '../components/accounts/CascadeDeleteDialog';
+
+const isCDAccount = (account: Account): account is CDInvestmentAccount =>
+  account.type === 'cd';
 
 const AccountsPage = () => {
-  // Queries
   const { data: accounts = [], isLoading: accountsLoading } = useAccountsQuery();
   const { data: pockets = [], isLoading: pocketsLoading } = usePocketsQuery();
-  const queryClient = useQueryClient();
-  const location = useLocation();
-
-  // Mutations
-  const {
-    createAccount,
-    updateAccount,
-    deleteAccount,
-    deleteAccountCascade,
-    reorderAccounts
-  } = useAccountMutations();
-
-  const {
-    createPocket,
-    updatePocket,
-    deletePocket,
-    reorderPockets,
-    migrateFixedPocketToAccount
-  } = usePocketMutations();
-
-  // Local State
-  const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
-
-  // Deep linking: select account from URL parameter
-  useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    const id = params.get('id');
-    if (id && accounts.length > 0) {
-      const accountExists = accounts.some(a => a.id === id);
-      if (accountExists) {
-        setSelectedAccountId(id);
-      }
-    }
-  }, [location.search, accounts]);
-
+  const accountMutations = useAccountMutations();
+  const pocketMutations = usePocketMutations();
   const toast = useToast();
   const { confirm, confirmState, handleClose, handleConfirm } = useConfirm();
+  const location = useLocation();
 
+  // Page-level UI state — modal visibility, selected row, in-flight error.
+  const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
   const [showAccountForm, setShowAccountForm] = useState(false);
-  const [showPocketForm, setShowPocketForm] = useState(false);
   const [showCDForm, setShowCDForm] = useState(false);
-  const [showCascadeDialog, setShowCascadeDialog] = useState(false);
-  const [showMigrationDialog, setShowMigrationDialog] = useState(false);
-  const [migrationPocketId, setMigrationPocketId] = useState<string | null>(null);
-  const [migrationTargetAccountId, setMigrationTargetAccountId] = useState<string>('');
-  const [cascadeAccountId, setCascadeAccountId] = useState<string | null>(null);
-  const [cascadeDeleteMovements, setCascadeDeleteMovements] = useState(false);
   const [editingAccount, setEditingAccount] = useState<Account | null>(null);
-  const [editingPocket, setEditingPocket] = useState<Pocket | null>(null);
   const [editingCD, setEditingCD] = useState<CDInvestmentAccount | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // UI State
-  const [isCascadeDeleting, setIsCascadeDeleting] = useState(false);
-  const [isMigrating, setIsMigrating] = useState(false);
+  const closeAccountForm = () => {
+    setShowAccountForm(false);
+    setEditingAccount(null);
+  };
+  const closeCDForm = () => {
+    setShowCDForm(false);
+    setEditingCD(null);
+  };
+  const switchToCDForm = () => {
+    setShowAccountForm(false);
+    setShowCDForm(true);
+  };
 
-  // CD creation goes through accountService directly, so wrap it as a mutation
-  // here to expose `.isPending` and keep cache invalidation consistent.
-  const createCDMutation = useMutation({
-    mutationFn: (data: CDFormData) =>
-      accountService.createCDAccount(
-        data.name,
-        data.color,
-        data.currency,
-        data.principal,
-        data.interestRate,
-        data.termMonths,
-        data.compoundingFrequency,
-        data.earlyWithdrawalPenalty,
-        data.withholdingTaxRate
-      ),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['accounts'] });
-    },
+  const accountActions = useAccountActions({
+    accounts,
+    mutations: accountMutations,
+    confirm,
+    toast,
+    setError,
+    selectedAccountId,
+    setSelectedAccountId,
+    closeAccountForm,
+    closeCDForm,
+    switchToCDForm,
   });
 
-  // Derived loading flags shared by the forms — replace the redundant `isSaving` state.
-  const isAccountFormSaving = createAccount.isPending || updateAccount.isPending;
-  const isCDFormSaving = createCDMutation.isPending || updateAccount.isPending;
-  const isPocketFormSaving = createPocket.isPending || updatePocket.isPending;
-
-  // Combined loading state
-  const isLoading = accountsLoading || pocketsLoading;
-
-  const selectedAccount = selectedAccountId
-    ? accounts.find((acc) => acc.id === selectedAccountId) || null
-    : null;
-  const selectedAccountPockets = selectedAccountId
-    ? pockets.filter(p => p.accountId === selectedAccountId)
-    : [];
-
-  // Helper to check if account is a CD
-  const isCDAccount = (account: Account): account is CDInvestmentAccount => {
-    // For CD accounts, we only need to check the type since investmentType might not be set correctly
-    const isCD = account.type === 'cd';
-    return isCD;
-  };
-
-  // --- Account Handlers ---
-
-  const handleCreateAccount = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setError(null);
-    const form = e.currentTarget;
-    const formData = new FormData(form);
-
-    try {
-      const accountType = formData.get('type') as string;
-
-      // If it's a CD type, redirect to CD form instead
-      if (accountType === 'cd') {
-        setShowAccountForm(false);
-        setShowCDForm(true);
-        return;
-      }
-
-      await createAccount.mutateAsync({
-        name: formData.get('name') as string,
-        color: formData.get('color') as string,
-        currency: formData.get('currency') as any,
-        type: (formData.get('type') as any) || 'normal',
-        stockSymbol: (formData.get('stockSymbol') as string) || undefined,
-      });
-      toast.success('Account created successfully!');
-      setShowAccountForm(false);
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to create account');
-      toast.error(err instanceof Error ? err.message : 'Failed to create account');
+  // Deep linking: select account from `?id=...` URL parameter.
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const id = params.get('id');
+    if (id && accounts.length > 0 && accounts.some((a) => a.id === id)) {
+      setSelectedAccountId(id);
     }
-  };
+  }, [location.search, accounts]);
 
-  // CD Account Handlers
-  const handleCreateCD = async (data: CDFormData) => {
-    setError(null);
-
-    try {
-      await createCDMutation.mutateAsync(data);
-
-      toast.success('Certificate of Deposit created successfully!');
-      setShowCDForm(false);
-      setEditingCD(null);
-    } catch (err: unknown) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to create CD';
-      setError(errorMessage);
-      toast.error(errorMessage);
-      throw err; // Re-throw to let the form handle it
-    }
-  };
-
-  const handleUpdateCD = async (data: CDFormData) => {
-    if (!editingCD) return;
-
-    setError(null);
-
-    try {
-      // For CD updates, we only allow updating basic info (name, color)
-      // CD terms should not be changeable after creation for financial accuracy
-      await updateAccount.mutateAsync({
-        id: editingCD.id,
-        updates: {
-          name: data.name,
-          color: data.color,
-          currency: data.currency,
-        }
-      });
-
-      toast.success('CD updated successfully!');
-      setShowCDForm(false);
-      setEditingCD(null);
-    } catch (err: unknown) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to update CD';
-      setError(errorMessage);
-      toast.error(errorMessage);
-      throw err;
-    }
-  };
-
-  const handleUpdateAccount = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setError(null);
-    if (!editingAccount) return;
-
-    const formData = new FormData(e.currentTarget);
-
-    try {
-      await updateAccount.mutateAsync({
-        id: editingAccount.id,
-        updates: {
-          name: formData.get('name') as string,
-          color: formData.get('color') as string,
-          currency: formData.get('currency') as any,
-        }
-      });
-      toast.success('Account updated successfully!');
-      setEditingAccount(null);
-      setShowAccountForm(false);
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to update account');
-      toast.error(err instanceof Error ? err.message : 'Failed to update account');
-    }
-  };
-
-  const handleDeleteAccount = async (id: string) => {
-    const account = accounts.find(a => a.id === id);
-    const confirmed = await confirm({
-      title: 'Delete Account',
-      message: `Are you sure you want to delete "${account?.name}"? This will also delete all its pockets and cannot be undone.`,
-      confirmText: 'Delete Account',
-      cancelText: 'Cancel',
-      variant: 'danger',
-    });
-
-    if (!confirmed) return;
-
-    setError(null);
-    try {
-      if (selectedAccountId === id) {
-        setSelectedAccountId(null);
-      }
-      await deleteAccount.mutateAsync(id);
-      toast.success('Account deleted successfully!');
-    } catch (err: unknown) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to delete account';
-      setError(errorMessage);
-      toast.error(errorMessage);
-    }
-  };
-
-  const handleCascadeDelete = (id: string) => {
-    setCascadeAccountId(id);
-    setCascadeDeleteMovements(false);
-    setShowCascadeDialog(true);
-  };
-
-  const handleConfirmCascadeDelete = async () => {
-    if (!cascadeAccountId) return;
-
-    setIsCascadeDeleting(true);
-    setError(null);
-    try {
-      const result = await deleteAccountCascade.mutateAsync({ id: cascadeAccountId, deleteMovements: cascadeDeleteMovements });
-
-      if (selectedAccountId === cascadeAccountId) {
-        setSelectedAccountId(null);
-      }
-
-      setShowCascadeDialog(false);
-      setCascadeAccountId(null);
-
-      toast.success(
-        `Deleted account "${result.account}" with ${result.pockets} pocket(s), ${result.subPockets} sub-pocket(s)` +
-        (result.movements > 0 ? `, and ${result.movements} movement(s)` : '')
-      );
-    } catch (err: unknown) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to delete account';
-      setError(errorMessage);
-      toast.error(errorMessage);
-    } finally {
-      setIsCascadeDeleting(false);
-    }
-  };
-
-  // --- Pocket Handlers ---
-
-  const handleCreatePocket = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setError(null);
-    if (!selectedAccountId) return;
-
-    const formData = new FormData(e.currentTarget);
-
-    try {
-      let name = formData.get('name') as string;
-      let type = (formData.get('type') as any) || 'normal';
-
-      await createPocket.mutateAsync({ accountId: selectedAccountId, name, type });
-      toast.success('Pocket created successfully!');
-      setShowPocketForm(false);
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to create pocket');
-      toast.error(err instanceof Error ? err.message : 'Failed to create pocket');
-    }
-  };
-
-  const handleUpdatePocket = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setError(null);
-    if (!editingPocket) return;
-
-    const formData = new FormData(e.currentTarget);
-
-    try {
-      await updatePocket.mutateAsync({
-        id: editingPocket.id,
-        updates: { name: formData.get('name') as string }
-      });
-      toast.success('Pocket updated successfully!');
-      setEditingPocket(null);
-      setShowPocketForm(false);
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to update pocket');
-      toast.error(err instanceof Error ? err.message : 'Failed to update pocket');
-    }
-  };
-
-  const handleDeletePocket = async (id: string) => {
-    const pocket = selectedAccountPockets.find(p => p.id === id);
-    const confirmed = await confirm({
-      title: 'Delete Pocket',
-      message: `Are you sure you want to delete "${pocket?.name}"? This action cannot be undone.`,
-      confirmText: 'Delete Pocket',
-      cancelText: 'Cancel',
-      variant: 'danger',
-    });
-
-    if (!confirmed) return;
-
-    setError(null);
-    try {
-      await deletePocket.mutateAsync(id);
-      toast.success('Pocket deleted successfully!');
-    } catch (err: unknown) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to delete pocket';
-      setError(errorMessage);
-      toast.error(errorMessage);
-    }
-  };
-
-  const handleMigratePocket = (pocketId: string) => {
-    setMigrationPocketId(pocketId);
-    setMigrationTargetAccountId('');
-    setShowMigrationDialog(true);
-  };
-
-  const handleConfirmMigration = async () => {
-    if (!migrationPocketId || !migrationTargetAccountId) return;
-
-    setIsMigrating(true);
-    setError(null);
-    try {
-      const pocket = selectedAccountPockets.find(p => p.id === migrationPocketId);
-      const targetAccount = accounts.find(a => a.id === migrationTargetAccountId);
-
-      await migrateFixedPocketToAccount.mutateAsync({ pocketId: migrationPocketId, targetAccountId: migrationTargetAccountId });
-
-      setShowMigrationDialog(false);
-      setMigrationPocketId(null);
-      setMigrationTargetAccountId('');
-
-      toast.success(
-        `Successfully migrated "${pocket?.name}" to "${targetAccount?.name}". All movements have been transferred.`
-      );
-    } catch (err: unknown) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to migrate pocket';
-      setError(errorMessage);
-      toast.error(errorMessage);
-    } finally {
-      setIsMigrating(false);
-    }
-  };
-
-  if (isLoading) {
+  if (accountsLoading || pocketsLoading) {
     return (
       <div className="space-y-6">
         <div className="flex justify-between items-center">
@@ -398,16 +94,29 @@ const AccountsPage = () => {
     );
   }
 
-  // Handle mobile Back button
-  const handleMobileBack = () => {
-    setSelectedAccountId(null);
-  };
+  const selectedAccount = selectedAccountId
+    ? accounts.find((acc) => acc.id === selectedAccountId) ?? null
+    : null;
+  const selectedAccountPockets = selectedAccountId
+    ? pockets.filter((p) => p.accountId === selectedAccountId)
+    : [];
+  const sortedAccounts = [...accounts].sort(
+    (a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0)
+  );
 
-  // Determine visibility states for mobile/desktop split
-  // Mobile: If account selected, hide list, show details. If not selected, show list, hide details.
-  // Desktop: Always show both.
+  // Mobile shows either the list OR the detail panel based on selection;
+  // desktop always shows both side-by-side.
   const listClasses = `space-y-4 ${selectedAccountId ? 'hidden md:block' : 'block'}`;
   const detailsClasses = `space-y-4 ${selectedAccountId ? 'block' : 'hidden md:block'}`;
+
+  const handleAccountFormSubmit = editingAccount
+    ? (e: React.FormEvent<HTMLFormElement>) =>
+        accountActions.handleUpdateAccount(editingAccount, e)
+    : accountActions.handleCreateAccount;
+
+  const handleCDFormSubmit = editingCD
+    ? (data: CDFormData) => accountActions.handleUpdateCD(editingCD, data)
+    : accountActions.handleCreateCD;
 
   return (
     <div className="space-y-6">
@@ -436,24 +145,25 @@ const AccountsPage = () => {
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Left: Account List */}
         <div className={listClasses}>
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4 md:mb-0">All Accounts</h2>
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4 md:mb-0">
+            All Accounts
+          </h2>
           {accounts.length === 0 ? (
             <EmptyState
               icon={Wallet}
               title="No accounts yet"
               description="Create your first account to start tracking your finances."
               action={{
-                label: "Create Account",
+                label: 'Create Account',
                 onClick: () => setShowAccountForm(true),
-                icon: Plus
+                icon: Plus,
               }}
             />
           ) : (
             <SortableList
-              items={[...accounts].sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0))}
-              onReorder={(items) => reorderAccounts.mutate(items)}
+              items={sortedAccounts}
+              onReorder={(items) => accountMutations.reorderAccounts.mutate(items)}
               getId={(account) => account.id}
               renderItem={(account) => (
                 <SortableItem key={account.id} id={account.id}>
@@ -466,7 +176,7 @@ const AccountsPage = () => {
                         setEditingCD(account);
                         setShowCDForm(true);
                       }}
-                      onDelete={() => handleDeleteAccount(account.id)}
+                      onDelete={() => accountActions.handleDeleteAccount(account.id)}
                     />
                   ) : (
                     <AccountCard
@@ -477,8 +187,10 @@ const AccountsPage = () => {
                         setEditingAccount(account);
                         setShowAccountForm(true);
                       }}
-                      onDelete={() => handleDeleteAccount(account.id)}
-                      isFixedExpensesAccount={pockets.some(p => p.accountId === account.id && p.type === 'fixed')}
+                      onDelete={() => accountActions.handleDeleteAccount(account.id)}
+                      isFixedExpensesAccount={pockets.some(
+                        (p) => p.accountId === account.id && p.type === 'fixed'
+                      )}
                     />
                   )}
                 </SortableItem>
@@ -487,129 +199,28 @@ const AccountsPage = () => {
           )}
         </div>
 
-        {/* Right: Account Details & Pockets */}
         <div className={detailsClasses}>
           {selectedAccount ? (
-            <>
-              <Card className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Button variant="ghost" size="sm" className="md:hidden p-1" onClick={handleMobileBack}>
-                      <ArrowLeft className="w-5 h-5" />
-                    </Button>
-                    <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Account Details</h2>
-                  </div>
-                  <Button variant="ghost" size="sm" onClick={() => setSelectedAccountId(null)} className="hidden md:flex">Close</Button>
-                </div>
-
-                <div className="flex items-center gap-4 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-                  <div
-                    className="w-12 h-12 rounded-lg flex items-center justify-center text-white font-bold text-xl"
-                    style={{ backgroundColor: selectedAccount.color }}
-                  >
-                    {selectedAccount.currency}
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">{selectedAccount.name}</h3>
-                    <p className="text-gray-500 dark:text-gray-400">
-                      Balance: <span className="font-mono font-medium text-gray-900 dark:text-gray-100">
-                        ${selectedAccount.balance.toLocaleString()}
-                      </span>
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex gap-2">
-                  <Button
-                    variant="secondary"
-                    className="flex-1"
-                    onClick={() => {
-                      setEditingAccount(selectedAccount);
-                      setShowAccountForm(true);
-                    }}
-                  >
-                    Edit Account
-                  </Button>
-                  <Button
-                    variant="danger"
-                    className="flex-1"
-                    onClick={() => handleCascadeDelete(selectedAccount.id)}
-                  >
-                    Delete All
-                  </Button>
-                </div>
-              </Card>
-
-              <Card className="space-y-4">
-                {isCDAccount(selectedAccount) ? (
-                  // CD Details Panel
-                  <CDDetailsPanel
-                    account={selectedAccount}
-                    onEdit={() => {
-                      setEditingCD(selectedAccount);
-                      setShowCDForm(true);
-                    }}
-                  />
-                ) : (
-                  // Regular Pockets Panel
-                  <>
-                    <div className="flex items-center justify-between">
-                      <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Pockets</h2>
-                      <Button
-                        variant="primary"
-                        size="sm"
-                        onClick={() => {
-                          setShowPocketForm(true);
-                          setEditingPocket(null);
-                        }}
-                      >
-                        <Plus className="w-4 h-4" />
-                        <span className="hidden sm:inline ml-1">New Pocket</span>
-                      </Button>
-                    </div>
-
-                    {showPocketForm && (
-                      <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-                        <PocketForm
-                          initialData={editingPocket}
-                          onSubmit={editingPocket ? handleUpdatePocket : handleCreatePocket}
-                          onCancel={() => {
-                            setShowPocketForm(false);
-                            setEditingPocket(null);
-                          }}
-                          isSaving={isPocketFormSaving}
-                        />
-                      </div>
-                    )}
-
-                    {selectedAccountPockets.length === 0 && !showPocketForm ? (
-                      <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-                        No pockets yet. Create one to organize your money.
-                      </div>
-                    ) : (
-                      <SortableList
-                        items={[...selectedAccountPockets].sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0))}
-                        onReorder={(items) => reorderPockets.mutate(items)}
-                        getId={(pocket) => pocket.id}
-                        renderItem={(pocket) => (
-                          <SortableItem key={pocket.id} id={pocket.id}>
-                            <PocketCard
-                              pocket={pocket}
-                              onEdit={() => {
-                                setEditingPocket(pocket);
-                                setShowPocketForm(true);
-                              }}
-                              onDelete={() => handleDeletePocket(pocket.id)}
-                              onMigrate={pocket.type === 'fixed' ? () => handleMigratePocket(pocket.id) : undefined}
-                            />
-                          </SortableItem>
-                        )}
-                      />
-                    )}
-                  </>
-                )}
-              </Card>
-            </>
+            <AccountDetailPanel
+              account={selectedAccount}
+              pockets={selectedAccountPockets}
+              accounts={accounts}
+              pocketMutations={pocketMutations}
+              toast={toast}
+              confirm={confirm}
+              setError={setError}
+              onEditAccount={(acc) => {
+                setEditingAccount(acc);
+                setShowAccountForm(true);
+              }}
+              onEditCD={(acc) => {
+                setEditingCD(acc);
+                setShowCDForm(true);
+              }}
+              onCascadeDelete={accountActions.cascadeDelete.open}
+              onClose={() => setSelectedAccountId(null)}
+              onMobileBack={() => setSelectedAccountId(null)}
+            />
           ) : (
             <div className="hidden lg:block sticky top-6">
               <EmptyState
@@ -622,137 +233,42 @@ const AccountsPage = () => {
         </div>
       </div>
 
-      {/* Account Form Modal */}
       <Modal
         isOpen={showAccountForm}
-        onClose={() => setShowAccountForm(false)}
-        title={editingAccount ? "Edit Account" : "Create New Account"}
+        onClose={closeAccountForm}
+        title={editingAccount ? 'Edit Account' : 'Create New Account'}
         size="lg"
       >
         <AccountForm
           initialData={editingAccount}
-          onSubmit={editingAccount ? handleUpdateAccount : handleCreateAccount}
-          onCancel={() => setShowAccountForm(false)}
-          isSaving={isAccountFormSaving}
+          onSubmit={handleAccountFormSubmit}
+          onCancel={closeAccountForm}
+          isSaving={accountActions.isAccountFormSaving}
         />
       </Modal>
 
-      {/* CD Form Modal */}
       <Modal
         isOpen={showCDForm}
-        onClose={() => {
-          setShowCDForm(false);
-          setEditingCD(null);
-        }}
-        title={editingCD ? "Edit Certificate of Deposit" : "Create Certificate of Deposit"}
+        onClose={closeCDForm}
+        title={editingCD ? 'Edit Certificate of Deposit' : 'Create Certificate of Deposit'}
         size="xl"
       >
         <CDAccountForm
           account={editingCD || undefined}
-          onSubmit={editingCD ? handleUpdateCD : handleCreateCD}
-          onCancel={() => {
-            setShowCDForm(false);
-            setEditingCD(null);
-          }}
-          isLoading={isCDFormSaving}
+          onSubmit={handleCDFormSubmit}
+          onCancel={closeCDForm}
+          isLoading={accountActions.isCDFormSaving}
         />
       </Modal>
 
-      {/* Cascade Delete Dialog */}
-      <Modal isOpen={showCascadeDialog} onClose={() => !isCascadeDeleting && setShowCascadeDialog(false)}>
-        <div className="space-y-4">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-            Delete Account & All Data
-          </h3>
-          <p className="text-gray-600 dark:text-gray-400">
-            This is a destructive action. You can choose to delete everything or keep the transaction history.
-          </p>
-
-          <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-100 dark:border-red-800">
-            <label className="flex items-start gap-3 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={cascadeDeleteMovements}
-                onChange={(e) => setCascadeDeleteMovements(e.target.checked)}
-                className="mt-1 w-4 h-4 text-red-600 rounded border-gray-300 focus:ring-red-500"
-              />
-              <div>
-                <span className="font-medium text-red-900 dark:text-red-100">Delete all movements history</span>
-                <p className="text-sm text-red-700 dark:text-red-300 mt-1">
-                  If checked, all movements associated with this account will be permanently deleted.
-                  If unchecked, movements will be preserved but marked as orphaned.
-                </p>
-              </div>
-            </label>
-          </div>
-
-          <div className="flex justify-end gap-3 pt-4">
-            <Button
-              variant="secondary"
-              onClick={() => setShowCascadeDialog(false)}
-              disabled={isCascadeDeleting}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="danger"
-              onClick={handleConfirmCascadeDelete}
-              loading={isCascadeDeleting}
-            >
-              Delete Everything
-            </Button>
-          </div>
-        </div>
-      </Modal>
-
-      {/* Migration Dialog */}
-      <Modal isOpen={showMigrationDialog} onClose={() => !isMigrating && setShowMigrationDialog(false)}>
-        <div className="space-y-4">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-            Migrate Pocket
-          </h3>
-          <p className="text-gray-600 dark:text-gray-400">
-            Select an account to migrate this pocket and all its movements to.
-          </p>
-
-          <div>
-            <label className="block text-sm font-medium mb-1 text-gray-900 dark:text-gray-100">Target Account</label>
-            <select
-              value={migrationTargetAccountId}
-              onChange={(e) => setMigrationTargetAccountId(e.target.value)}
-              className="w-full px-3 py-2 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-            >
-              <option value="">Select an account</option>
-              {accounts
-                .filter(a => a.id !== selectedAccountId)
-                .map(account => (
-                  <option key={account.id} value={account.id}>
-                    {account.name} ({account.currency})
-                  </option>
-                ))
-              }
-            </select>
-          </div>
-
-          <div className="flex justify-end gap-3 pt-4">
-            <Button
-              variant="secondary"
-              onClick={() => setShowMigrationDialog(false)}
-              disabled={isMigrating}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="primary"
-              onClick={handleConfirmMigration}
-              loading={isMigrating}
-              disabled={!migrationTargetAccountId}
-            >
-              Migrate Pocket
-            </Button>
-          </div>
-        </div>
-      </Modal>
+      <CascadeDeleteDialog
+        isOpen={accountActions.cascadeDelete.isOpen}
+        isDeleting={accountActions.cascadeDelete.isDeleting}
+        deleteMovements={accountActions.cascadeDelete.deleteMovements}
+        onDeleteMovementsChange={accountActions.cascadeDelete.setDeleteMovements}
+        onConfirm={() => accountActions.cascadeDelete.confirm()}
+        onClose={accountActions.cascadeDelete.close}
+      />
 
       <ConfirmDialog
         isOpen={confirmState.isOpen}
