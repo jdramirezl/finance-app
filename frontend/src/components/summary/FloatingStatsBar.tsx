@@ -1,4 +1,4 @@
-import { useSelection } from '../../context/SelectionContext';
+import { useSelection } from '../../contexts/SelectionContext';
 import { currencyService } from '../../services/currencyService';
 import { X } from 'lucide-react';
 

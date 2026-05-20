@@ -47,6 +47,7 @@ import pocketRoutes from './modules/pockets/presentation/routes';
 import subPocketRoutes from './modules/sub-pockets/presentation/subPocketRoutes';
 import groupRoutes from './modules/sub-pockets/presentation/groupRoutes';
 import movementRoutes from './modules/movements/presentation/routes';
+import templateRoutes from './modules/movements/presentation/templateRoutes';
 import settingsRoutes from './modules/settings/presentation/settingsRoutes';
 import currencyRoutes from './modules/settings/presentation/currencyRoutes';
 import reminderRoutes from './modules/reminders/presentation/routes';
@@ -96,6 +97,7 @@ app.get('/api', (req: Request, res: Response) => {
       subPockets: '/api/sub-pockets',
       fixedExpenseGroups: '/api/fixed-expense-groups',
       movements: '/api/movements',
+      movementTemplates: '/api/movement-templates',
       settings: '/api/settings',
       currency: '/api/currency',
     },
@@ -119,6 +121,9 @@ app.use('/api/fixed-expense-groups', groupRoutes);
 
 // Mount movement routes
 app.use('/api/movements', movementRoutes);
+
+// Mount movement template routes
+app.use('/api/movement-templates', templateRoutes);
 
 // Mount settings routes
 app.use('/api/settings', settingsRoutes);

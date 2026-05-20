@@ -19,7 +19,7 @@ import {
 import RemindersWidget from '../components/reminders/RemindersWidget';
 import NetWorthTimelineWidget from '../components/net-worth/NetWorthTimelineWidget';
 import FinancialCalendarWidget from '../components/calendar/FinancialCalendarWidget';
-import { SelectionProvider } from '../context/SelectionContext';
+import { SelectionProvider } from '../contexts/SelectionContext';
 import FloatingStatsBar from '../components/summary/FloatingStatsBar';
 
 const SummaryPage = () => {

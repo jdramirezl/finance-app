@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Plus, Minus } from 'lucide-react';
 import Button from '../Button';
 import Input from '../Input';
-import { useSelection } from '../../context/SelectionContext';
+import { useSelection } from '../../contexts/SelectionContext';
 
 interface QuickCalculatorProps {
   selectedPocketBalance: number | null;

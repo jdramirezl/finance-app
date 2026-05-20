@@ -1,5 +1,5 @@
 import React from 'react';
-import { useSelection } from '../context/SelectionContext';
+import { useSelection } from '../contexts/SelectionContext';
 import { currencyService } from '../services/currencyService';
 
 interface SelectableValueProps {
