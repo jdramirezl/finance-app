@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { format } from 'date-fns';
-import { useAccountsQuery, usePocketsQuery, useSubPocketsQuery, useMovementTemplatesQuery } from '../../hooks/queries';
+import { useAccountsQuery, useMovementTemplatesQuery, usePocketsQuery } from '../../hooks/queries';
 import Button from '../Button';
 import Input from '../Input';
 import Select from '../Select';
+import AccountPocketSelector from '../selectors/AccountPocketSelector';
 import { toDateOnly } from '../../utils/dateUtils';
 import { MOVEMENT_TYPES, isFixedMovement } from '../../utils/movementTypes';
 import type { Movement, MovementType } from '../../types';
@@ -80,30 +81,12 @@ const MovementForm = ({
 }: MovementFormProps) => {
     const { data: accounts = [] } = useAccountsQuery();
     const { data: pockets = [] } = usePocketsQuery();
-    const { data: subPockets = [] } = useSubPocketsQuery();
     const { data: movementTemplates = [] } = useMovementTemplatesQuery();
 
-    // Filter accounts and pockets based on movement type
-    const isFixedMove = isFixedMovement(selectedType);
-
-    const filteredAccounts = isFixedMove
-        ? accounts.filter(acc => pockets.some(p => p.accountId === acc.id && p.type === 'fixed'))
-        : accounts;
-
-    const availablePockets = selectedAccountId
-        ? pockets.filter(p => p.accountId === selectedAccountId)
-        : [];
-
-    const filteredPockets = isFixedMove
-        ? availablePockets.filter(p => p.type === 'fixed')
-        : availablePockets.filter(p => p.type !== 'fixed');
-
-    const fixedPocket = availablePockets.find((p) => p.type === 'fixed');
-    const availableSubPockets = fixedPocket && isFixedExpense
-        ? subPockets.filter(sp => sp.pocketId === fixedPocket.id)
-        : [];
-
-    // Determine if this is a fixed expense from defaultValues or initialData
+    // Whether the type select currently maps to a fixed-pocket movement.
+    // The canonical MovementType-based check is duplicated as
+    // isDefaultFixedExpense to mirror the legacy guard which OR'd the
+    // explicit `isFixedExpense` flag with the type-derived value.
     const isDefaultFixedExpense = isFixedMovement(selectedType);
 
     const [isTransfer, setIsTransfer] = useState(false);
@@ -111,29 +94,8 @@ const MovementForm = ({
     const [targetPocketId, setTargetPocketId] = useState('');
 
     const availableTargetPockets = targetAccountId
-        ? pockets.filter(p => p.accountId === targetAccountId)
+        ? pockets.filter((p) => p.accountId === targetAccountId)
         : [];
-
-    // Auto-populate fixed pocket when account/type changes
-    useEffect(() => {
-        if (isFixedMove && selectedAccountId) {
-            const hasFixedPocket = pockets.find(p => p.accountId === selectedAccountId && p.type === 'fixed');
-            if (hasFixedPocket && selectedPocketId !== hasFixedPocket.id) {
-                setSelectedPocketId(hasFixedPocket.id);
-            } else if (!hasFixedPocket) {
-                // If account has no fixed pocket but type is fixed, we should clear account
-                // (Though filteredAccounts should prevent this from being selectable manually)
-                setSelectedAccountId('');
-                setSelectedPocketId('');
-            }
-        } else if (!isFixedMove && selectedPocketId) {
-            // If moved from fixed to normal, clear pocket if it was fixed
-            const currentPocket = pockets.find(p => p.id === selectedPocketId);
-            if (currentPocket?.type === 'fixed') {
-                setSelectedPocketId('');
-            }
-        }
-    }, [isFixedMove, selectedAccountId, pockets, setSelectedPocketId, setSelectedAccountId, selectedPocketId]);
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
@@ -214,46 +176,25 @@ const MovementForm = ({
                     />
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <Select
-                        label={isTransfer ? "Source Account" : "Account"}
-                        name="accountId"
-                        required
-                        value={selectedAccountId}
-                        onChange={(e) => {
-                            setSelectedAccountId(e.target.value);
-                            setSelectedPocketId('');
-                        }}
-                        options={[
-                            { value: '', label: 'Select Account' },
-                            ...filteredAccounts.map(acc => ({ 
-                                value: acc.id, 
-                                label: `${acc.name} (${acc.currency})` 
-                            }))
-                        ]}
-                    />
-
-                    <Select
-                        label={isTransfer ? "Source Pocket" : "Pocket"}
-                        name="pocketId"
-                        required
-                        value={selectedPocketId}
-                        onChange={(e) => setSelectedPocketId(e.target.value)}
-                        options={[
-                            { value: '', label: 'Select Pocket' },
-                            ...filteredPockets.map(p => ({ value: p.id, label: p.name }))
-                        ]}
-                        disabled={!selectedAccountId}
-                    />
-                </div>
-
-                {isFixedMove && selectedAccountId && fixedPocket && (
-                    <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-                        <p className="text-sm text-blue-700 dark:text-blue-300">
-                            ℹ️ Fixed expense pocket has been automatically selected: <strong>{fixedPocket.name}</strong>
-                        </p>
-                    </div>
-                )}
+                <AccountPocketSelector
+                    accountId={selectedAccountId}
+                    pocketId={selectedPocketId}
+                    subPocketId={selectedSubPocketId}
+                    onAccountChange={setSelectedAccountId}
+                    onPocketChange={setSelectedPocketId}
+                    onSubPocketChange={setSelectedSubPocketId}
+                    movementType={selectedType}
+                    enforceMovementType
+                    showFixedPocketHint
+                    showSubPocket={!isTransfer && (isFixedExpense || isDefaultFixedExpense)}
+                    showAccountCurrency
+                    accountName="accountId"
+                    pocketName="pocketId"
+                    subPocketName="subPocketId"
+                    accountLabel={isTransfer ? 'Source Account' : 'Account'}
+                    pocketLabel={isTransfer ? 'Source Pocket' : 'Pocket'}
+                    required
+                />
 
                 {isTransfer && (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700">
@@ -290,19 +231,6 @@ const MovementForm = ({
                             disabled={!targetAccountId}
                         />
                     </div>
-                )}
-
-                {(isFixedExpense || isDefaultFixedExpense) && availableSubPockets.length > 0 && !isTransfer && (
-                    <Select
-                        label="Sub-Pocket (Optional)"
-                        name="subPocketId"
-                        value={selectedSubPocketId}
-                        onChange={(e) => setSelectedSubPocketId(e.target.value)}
-                        options={[
-                            { value: '', label: 'None' },
-                            ...availableSubPockets.map(sp => ({ value: sp.id, label: sp.name }))
-                        ]}
-                    />
                 )}
 
                 <Input

@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
-import { useAccountsQuery, usePocketsQuery, useSubPocketsQuery } from '../../hooks/queries';
+import { useState } from 'react';
 import Button from '../Button';
 import Input from '../Input';
 import Select from '../Select';
-import { MOVEMENT_TYPES, isFixedMovement } from '../../utils/movementTypes';
+import AccountPocketSelector from '../selectors/AccountPocketSelector';
+import { MOVEMENT_TYPES } from '../../utils/movementTypes';
 import type { MovementTemplate, MovementType } from '../../types';
 
 interface MovementTemplateFormProps {
@@ -27,10 +27,6 @@ const MovementTemplateForm = ({
     onCancel,
     isSaving,
 }: MovementTemplateFormProps) => {
-    const { data: accounts = [] } = useAccountsQuery();
-    const { data: pockets = [] } = usePocketsQuery();
-    const { data: subPockets = [] } = useSubPocketsQuery();
-
     const [name, setName] = useState(initialData?.name || '');
     const [type, setType] = useState<MovementType>(initialData?.type || 'EgresoNormal');
     const [accountId, setAccountId] = useState(initialData?.accountId || '');
@@ -38,24 +34,6 @@ const MovementTemplateForm = ({
     const [subPocketId, setSubPocketId] = useState(initialData?.subPocketId || '');
     const [defaultAmount, setDefaultAmount] = useState(initialData?.defaultAmount?.toString() || '');
     const [notes, setNotes] = useState(initialData?.notes || '');
-
-    // Reset pocket when account changes
-    useEffect(() => {
-        if (accountId && initialData?.accountId !== accountId) {
-            setPocketId('');
-            setSubPocketId('');
-        }
-    }, [accountId, initialData]);
-
-    const availablePockets = accountId
-        ? pockets.filter(p => p.accountId === accountId)
-        : [];
-
-    const isFixedExpense = isFixedMovement(type);
-    const fixedPocket = availablePockets.find((p) => p.type === 'fixed');
-    const availableSubPockets = fixedPocket && isFixedExpense
-        ? subPockets.filter(sp => sp.pocketId === fixedPocket.id)
-        : [];
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -100,42 +78,17 @@ const MovementTemplateForm = ({
                 />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Select
-                    label="Account"
-                    value={accountId}
-                    onChange={(e) => setAccountId(e.target.value)}
-                    options={[
-                        { value: '', label: 'Select Account' },
-                        ...accounts.map(acc => ({ value: acc.id, label: acc.name }))
-                    ]}
-                    required
-                />
-
-                <Select
-                    label="Pocket"
-                    value={pocketId}
-                    onChange={(e) => setPocketId(e.target.value)}
-                    options={[
-                        { value: '', label: 'Select Pocket' },
-                        ...availablePockets.map(p => ({ value: p.id, label: p.name }))
-                    ]}
-                    disabled={!accountId}
-                    required
-                />
-            </div>
-
-            {isFixedExpense && availableSubPockets.length > 0 && (
-                <Select
-                    label="Sub-Pocket (Optional)"
-                    value={subPocketId}
-                    onChange={(e) => setSubPocketId(e.target.value)}
-                    options={[
-                        { value: '', label: 'None' },
-                        ...availableSubPockets.map(sp => ({ value: sp.id, label: sp.name }))
-                    ]}
-                />
-            )}
+            <AccountPocketSelector
+                accountId={accountId}
+                pocketId={pocketId}
+                subPocketId={subPocketId}
+                onAccountChange={setAccountId}
+                onPocketChange={setPocketId}
+                onSubPocketChange={setSubPocketId}
+                movementType={type}
+                showSubPocket
+                required
+            />
 
             <Input
                 label="Notes (Optional)"
