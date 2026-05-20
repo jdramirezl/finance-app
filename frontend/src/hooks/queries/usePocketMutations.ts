@@ -32,7 +32,11 @@ export const usePocketMutations = () => {
 
     const reorderPockets = useMutation({
         mutationFn: (pockets: Pocket[]) => {
-            return import('../../services/supabaseStorageService').then(m => m.SupabaseStorageService.savePockets(pockets));
+            if (pockets.length === 0) return Promise.resolve();
+            // Callers always pass pockets that belong to the same account
+            // (the AccountsPage reorders pockets within a selected account).
+            const accountId = pockets[0].accountId;
+            return pocketService.reorderPockets(accountId, pockets.map((p) => p.id));
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['pockets'] });

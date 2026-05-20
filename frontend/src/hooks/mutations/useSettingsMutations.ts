@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { SupabaseStorageService } from '../../services/supabaseStorageService';
+import { settingsService } from '../../services/settingsService';
 import type { Settings } from '../../types';
 
 /**
@@ -10,7 +10,7 @@ export const useUpdateSettings = () => {
 
     return useMutation({
         mutationFn: (settings: Settings) =>
-            SupabaseStorageService.saveSettings(settings),
+            settingsService.updateSettings(settings),
         onSuccess: () => {
             // Invalidate settings query to refetch updated data
             queryClient.invalidateQueries({ queryKey: ['settings'] });

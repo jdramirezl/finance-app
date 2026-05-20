@@ -119,16 +119,6 @@ class AccountService {
     await apiClient.post('/api/accounts/reorder', { accountIds });
   }
 
-  // Balance recalculation is handled by database triggers.
-  // Kept as no-ops for backward compatibility with callers.
-  async recalculateAccountBalance(_accountId: string): Promise<void> {
-    // No-op: database triggers handle balance calculation
-  }
-
-  async recalculateAllBalances(): Promise<void> {
-    // No-op: database triggers handle balance calculation
-  }
-
   // ===== CD-SPECIFIC METHODS =====
 
   // Get all CD accounts

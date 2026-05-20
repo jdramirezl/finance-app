@@ -1,5 +1,4 @@
 import type { Currency } from '../types';
-import { StorageService } from './storageService';
 import { apiClient } from './apiClient';
 
 // Mock exchange rates - used as a last-resort fallback for the synchronous
@@ -35,19 +34,6 @@ interface CachedRate {
 class CurrencyService {
   private cache: Map<string, CachedRate> = new Map();
   private readonly CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours in ms
-
-  // Get primary currency from settings
-  getPrimaryCurrency(): Currency {
-    const settings = StorageService.getSettings();
-    return settings.primaryCurrency || 'USD';
-  }
-
-  // Set primary currency
-  setPrimaryCurrency(currency: Currency): void {
-    const settings = StorageService.getSettings();
-    settings.primaryCurrency = currency;
-    StorageService.saveSettings(settings);
-  }
 
   // Get exchange rate between two currencies (sync version for backward compatibility)
   // Reads from in-memory cache populated by previous async calls; falls back to mock rates.

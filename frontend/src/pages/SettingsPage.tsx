@@ -1,31 +1,39 @@
 import { useState } from 'react';
 import { useSettingsQuery } from '../hooks/queries';
 import { useUpdateSettings } from '../hooks/mutations';
-import { currencyService } from '../services/currencyService';
 import { movementService } from '../services/movementService';
 import { accountService } from '../services/accountService';
 import { pocketService } from '../services/pocketService';
 import { subPocketService } from '../services/subPocketService';
-import { StorageService } from '../services/storageService';
 import type { Currency } from '../types';
 import Card from '../components/Card';
 import Button from '../components/Button';
 import { RefreshCw, Download } from 'lucide-react';
-import { migrateOrphanedMovements } from '../utils/migrateOrphanedMovements';
 import { useToast } from '../hooks/useToast';
-import { useQueryClient } from '@tanstack/react-query';
 import DebugStockPrice from '../components/settings/DebugStockPrice';
 import DebugExchangeRate from '../components/settings/DebugExchangeRate';
+
+// Budget planning persistence lives in localStorage (frontend-only state).
+// We read it directly here rather than through a service since it never
+// round-trips to the backend.
+const BUDGET_PLANNING_KEY = 'finance_app_budget_planning';
+
+const readBudgetPlanning = (): unknown => {
+  try {
+    const item = localStorage.getItem(BUDGET_PLANNING_KEY);
+    return item ? JSON.parse(item) : { initialAmount: 0, distributionEntries: [] };
+  } catch (error) {
+    console.error('Error reading budget planning from localStorage:', error);
+    return { initialAmount: 0, distributionEntries: [] };
+  }
+};
 
 const SettingsPage = () => {
   // TanStack Query hooks
   const { data: settings, isLoading } = useSettingsQuery();
   const updateSettingsMutation = useUpdateSettings();
-  const queryClient = useQueryClient();
 
   const toast = useToast();
-  const [isMigrating, setIsMigrating] = useState(false);
-  const [isRecalculating, setIsRecalculating] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
 
   const currencies: Currency[] = ['USD', 'MXN', 'COP', 'EUR', 'GBP'];
@@ -34,7 +42,6 @@ const SettingsPage = () => {
     if (!settings) return;
 
     try {
-      currencyService.setPrimaryCurrency(currency);
       await updateSettingsMutation.mutateAsync({
         ...settings,
         primaryCurrency: currency
@@ -42,39 +49,6 @@ const SettingsPage = () => {
     } catch (err) {
       console.error('Failed to update settings:', err);
       toast.error('Failed to update currency');
-    }
-  };
-
-  const handleMigrateOrphans = async () => {
-    setIsMigrating(true);
-    try {
-      const result = await migrateOrphanedMovements();
-      // Invalidate movements query to reload
-      queryClient.invalidateQueries({ queryKey: ['movements'] });
-      toast.success(`Migration complete: ${result.marked} movements updated out of ${result.total} total`);
-    } catch (err) {
-      console.error('Migration failed:', err);
-      toast.error('Failed to migrate orphaned movements');
-    } finally {
-      setIsMigrating(false);
-    }
-  };
-
-  const handleRecalculateBalances = async () => {
-    setIsRecalculating(true);
-    try {
-      await movementService.recalculateAllPocketBalances();
-      await accountService.recalculateAllBalances();
-      // Invalidate all queries to reload fresh data
-      queryClient.invalidateQueries({ queryKey: ['accounts'] });
-      queryClient.invalidateQueries({ queryKey: ['pockets'] });
-      queryClient.invalidateQueries({ queryKey: ['subPockets'] });
-      toast.success('All balances recalculated successfully! Pending movements excluded.');
-    } catch (err) {
-      console.error('Recalculation failed:', err);
-      toast.error('Failed to recalculate balances');
-    } finally {
-      setIsRecalculating(false);
     }
   };
 
@@ -87,7 +61,7 @@ const SettingsPage = () => {
       const pockets = await pocketService.getAllPockets();
       const subPockets = await subPocketService.getAllSubPockets();
       const movements = await movementService.getAllMovements(); // This might need pagination handling if very large
-      const budgetPlanning = StorageService.getBudgetPlanning();
+      const budgetPlanning = readBudgetPlanning();
 
       const exportData = {
         meta: {
@@ -407,62 +381,6 @@ const SettingsPage = () => {
                   >
                     <Download className="w-4 h-4 mr-2" />
                     Export
-                  </Button>
-                </div>
-
-                <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800/50 rounded-xl">
-                  <div>
-                    <h3 className="font-semibold text-gray-900 dark:text-gray-100">Recalculate Balances</h3>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">Fix synchronization issues</p>
-                  </div>
-                  <Button
-                    variant="primary"
-                    onClick={handleRecalculateBalances}
-                    loading={isRecalculating}
-                    disabled={isRecalculating}
-                  >
-                    <RefreshCw className="w-4 h-4 mr-2" />
-                    Run
-                  </Button>
-                </div>
-
-                <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800/50 rounded-xl">
-                  <div>
-                    <h3 className="font-semibold text-gray-900 dark:text-gray-100">Sync Investments</h3>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">Update investment values</p>
-                  </div>
-                  <Button
-                    variant="primary"
-                    onClick={async () => {
-                      try {
-                        const { syncAllInvestmentAccounts } = await import('../utils/syncInvestmentAccounts');
-                        await syncAllInvestmentAccounts();
-                        queryClient.invalidateQueries({ queryKey: ['accounts'] });
-                        toast.success('Investment accounts synced successfully!');
-                      } catch (err) {
-                        console.error('Sync failed:', err);
-                        toast.error('Failed to sync investment accounts');
-                      }
-                    }}
-                  >
-                    <RefreshCw className="w-4 h-4 mr-2" />
-                    Sync
-                  </Button>
-                </div>
-
-                <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800/50 rounded-xl">
-                  <div>
-                    <h3 className="font-semibold text-gray-900 dark:text-gray-100">Migrate Orphans</h3>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">Restore missing movements</p>
-                  </div>
-                  <Button
-                    variant="primary"
-                    onClick={handleMigrateOrphans}
-                    loading={isMigrating}
-                    disabled={isMigrating}
-                  >
-                    <RefreshCw className="w-4 h-4 mr-2" />
-                    Migrate
                   </Button>
                 </div>
               </div>

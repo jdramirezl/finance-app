@@ -182,12 +182,6 @@ class MovementService {
     );
     return result.count;
   }
-
-  // --- No-ops (handled by database triggers) ---
-
-  async recalculateAllPocketBalances(): Promise<void> {
-    // No-op: database triggers handle balance calculation
-  }
 }
 
 export const movementService = new MovementService();

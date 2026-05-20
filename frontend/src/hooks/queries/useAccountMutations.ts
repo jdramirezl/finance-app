@@ -42,24 +42,8 @@ export const useAccountMutations = () => {
     });
 
     const reorderAccounts = useMutation({
-        mutationFn: (accounts: Account[]) => {
-            // We need to save the order to the backend/storage
-            // Assuming SupabaseStorageService.saveAccounts is what was used in the store
-            // But accountService might not have a direct reorder method exposed like this?
-            // Let's check useFinanceStore.ts again.
-            // It calls SupabaseStorageService.saveAccounts(accountsWithOrder)
-            // We should probably move this logic to accountService or just use the service if available.
-            // For now, I'll import SupabaseStorageService here or assume accountService has it.
-            // Wait, accountService.getAllAccounts() returns accounts.
-            // Let's check accountService.ts to see if it has reorder or saveAccounts.
-            // If not, I'll use SupabaseStorageService directly or add it to accountService.
-            // I'll check accountService first.
-            // For now, I will assume I can use SupabaseStorageService directly as the store did.
-            // But better to keep it in service layer.
-            // I'll check accountService in a moment.
-            // I'll use a placeholder for now and fix it if needed.
-            return import('../../services/supabaseStorageService').then(m => m.SupabaseStorageService.saveAccounts(accounts));
-        },
+        mutationFn: (accounts: Account[]) =>
+            accountService.reorderAccounts(accounts.map((a) => a.id)),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['accounts'] });
         },

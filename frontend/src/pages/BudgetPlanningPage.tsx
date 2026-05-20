@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { useAccountsQuery, usePocketsQuery, useSubPocketsQuery, useSettingsQuery, useFixedExpenseGroupsQuery, useMovementMutations } from '../hooks/queries';
-import { StorageService } from '../services/storageService';
 import { currencyService } from '../services/currencyService';
 import type { Currency } from '../types';
 import Input from '../components/Input';
@@ -19,6 +18,42 @@ import { useConfirm } from '../hooks/useConfirm';
 import BatchMovementForm, { type BatchMovementRow } from '../components/BatchMovementForm';
 import { useToast } from '../hooks/useToast';
 
+// Budget planning state lives entirely in localStorage — it's per-device UI
+// state (initial amount, distribution percentages, what-if scenarios) and
+// is never round-tripped through the backend.
+const BUDGET_PLANNING_KEY = 'finance_app_budget_planning';
+
+interface BudgetPlanningData {
+  initialAmount: number;
+  distributionEntries: DistributionEntry[];
+  scenarios?: PlanningScenario[];
+}
+
+const DEFAULT_BUDGET_PLANNING: BudgetPlanningData = {
+  initialAmount: 0,
+  distributionEntries: [],
+  scenarios: [],
+};
+
+const loadBudgetPlanning = (): BudgetPlanningData => {
+  try {
+    const item = localStorage.getItem(BUDGET_PLANNING_KEY);
+    if (!item) return DEFAULT_BUDGET_PLANNING;
+    return { ...DEFAULT_BUDGET_PLANNING, ...JSON.parse(item) };
+  } catch (error) {
+    console.error('Error reading budget planning from localStorage:', error);
+    return DEFAULT_BUDGET_PLANNING;
+  }
+};
+
+const saveBudgetPlanning = (data: BudgetPlanningData): void => {
+  try {
+    localStorage.setItem(BUDGET_PLANNING_KEY, JSON.stringify(data));
+  } catch (error) {
+    console.error('Error writing budget planning to localStorage:', error);
+  }
+};
+
 const BudgetPlanningPage = () => {
   // Queries
   const { data: accounts = [] } = useAccountsQuery();
@@ -35,7 +70,7 @@ const BudgetPlanningPage = () => {
   const { confirm, confirmState, handleClose, handleConfirm } = useConfirm();
 
   // Load persisted data on mount
-  const savedData = StorageService.getBudgetPlanning();
+  const savedData = loadBudgetPlanning();
   const [initialAmount, setInitialAmount] = useState<number>(savedData.initialAmount || 0);
   const [distributionEntries, setDistributionEntries] = useState<DistributionEntry[]>(
     savedData.distributionEntries || []
@@ -58,7 +93,7 @@ const BudgetPlanningPage = () => {
 
   // Persist data whenever it changes
   useEffect(() => {
-    StorageService.saveBudgetPlanning({
+    saveBudgetPlanning({
       initialAmount,
       distributionEntries,
       scenarios,
