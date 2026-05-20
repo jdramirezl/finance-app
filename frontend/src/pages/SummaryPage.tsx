@@ -85,6 +85,7 @@ const SummaryPage = () => {
     sortedCurrencies,
     totalsByCurrency,
     consolidatedTotal,
+    isConsolidatedReady,
   } = useConsolidatedTotal({ accounts, primaryCurrency, investmentData });
 
   // Fixed expenses derived data
@@ -160,6 +161,7 @@ const SummaryPage = () => {
           consolidatedTotal={consolidatedTotal}
           primaryCurrency={primaryCurrency}
           totalsByCurrency={totalsByCurrency}
+          isConsolidatedReady={isConsolidatedReady}
         />
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

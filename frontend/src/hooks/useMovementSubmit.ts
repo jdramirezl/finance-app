@@ -148,36 +148,30 @@ export const useMovementSubmit = ({
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to save movement';
       setError(msg);
-      toast.error(msg);
+      // Toast is shown by the mutation's onError handler.
       formState.setShowForm(true);
     }
   };
 
   const handleBatchSave = async (rows: BatchMovementRow[]) => {
-    try {
-      for (const row of rows) {
-        await createMovement.mutateAsync({
-          type: row.type,
-          accountId: row.accountId,
-          pocketId: row.pocketId,
-          amount: parseFloat(row.amount),
-          notes: row.notes || undefined,
-          displayedDate: row.displayedDate,
-          subPocketId: row.subPocketId,
-          isPending: row.isPending || false,
-        });
-      }
-      setShowBatchForm(false);
-      const pendingText = rows[0]?.isPending ? ' as pending' : '';
-      toast.success(
-        `Successfully created ${rows.length} movement${rows.length > 1 ? 's' : ''}${pendingText}!`
-      );
-    } catch (err: unknown) {
-      toast.error(
-        err instanceof Error ? err.message : 'Failed to save movements'
-      );
-      throw err;
+    for (const row of rows) {
+      await createMovement.mutateAsync({
+        type: row.type,
+        accountId: row.accountId,
+        pocketId: row.pocketId,
+        amount: parseFloat(row.amount),
+        notes: row.notes || undefined,
+        displayedDate: row.displayedDate,
+        subPocketId: row.subPocketId,
+        isPending: row.isPending || false,
+      });
     }
+    setShowBatchForm(false);
+    const pendingText = rows[0]?.isPending ? ' as pending' : '';
+    toast.success(
+      `Successfully created ${rows.length} movement${rows.length > 1 ? 's' : ''}${pendingText}!`
+    );
+    // Errors propagate to callers; mutation onError shows the toast.
   };
 
   const isSaving = createMovement.isPending || updateMovement.isPending;

@@ -94,6 +94,13 @@ export const useAccountActions = ({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['accounts'] });
     },
+    onError: (error: unknown) => {
+      toast.error(
+        error instanceof Error && error.message
+          ? error.message
+          : 'Failed to create Certificate of Deposit'
+      );
+    },
   });
 
   const [cascadeAccountId, setCascadeAccountId] = useState<string | null>(null);
@@ -128,7 +135,7 @@ export const useAccountActions = ({
       const msg =
         err instanceof Error ? err.message : 'Failed to create account';
       setError(msg);
-      toast.error(msg);
+      // Toast is shown by the mutation's onError handler.
     }
   };
 
@@ -155,7 +162,7 @@ export const useAccountActions = ({
       const msg =
         err instanceof Error ? err.message : 'Failed to update account';
       setError(msg);
-      toast.error(msg);
+      // Toast is shown by the mutation's onError handler.
     }
   };
 
@@ -168,7 +175,7 @@ export const useAccountActions = ({
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to create CD';
       setError(msg);
-      toast.error(msg);
+      // Toast is shown by the mutation's onError handler.
       throw err;
     }
   };
@@ -194,7 +201,7 @@ export const useAccountActions = ({
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to update CD';
       setError(msg);
-      toast.error(msg);
+      // Toast is shown by the mutation's onError handler.
       throw err;
     }
   };
@@ -222,7 +229,7 @@ export const useAccountActions = ({
       const msg =
         err instanceof Error ? err.message : 'Failed to delete account';
       setError(msg);
-      toast.error(msg);
+      // Toast is shown by the mutation's onError handler.
     }
   };
 
@@ -263,7 +270,7 @@ export const useAccountActions = ({
       const msg =
         err instanceof Error ? err.message : 'Failed to delete account';
       setError(msg);
-      toast.error(msg);
+      // Toast is shown by the mutation's onError handler.
     } finally {
       setIsCascadeDeleting(false);
     }

@@ -1,9 +1,14 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { pocketService } from '../../services/pocketService';
 import type { Pocket } from '../../types';
+import { useToast } from '../useToast';
+
+const errorMessage = (error: unknown, fallback: string): string =>
+    error instanceof Error && error.message ? error.message : fallback;
 
 export const usePocketMutations = () => {
     const queryClient = useQueryClient();
+    const toast = useToast();
 
     const createPocket = useMutation({
         mutationFn: (data: { accountId: string; name: string; type: Pocket['type'] }) =>
@@ -11,6 +16,9 @@ export const usePocketMutations = () => {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['pockets'] });
             queryClient.invalidateQueries({ queryKey: ['accounts'] }); // Account balance might change? No, but good to refresh.
+        },
+        onError: (error) => {
+            toast.error(errorMessage(error, 'Failed to create pocket'));
         },
     });
 
@@ -20,6 +28,9 @@ export const usePocketMutations = () => {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['pockets'] });
         },
+        onError: (error) => {
+            toast.error(errorMessage(error, 'Failed to update pocket'));
+        },
     });
 
     const deletePocket = useMutation({
@@ -27,6 +38,9 @@ export const usePocketMutations = () => {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['pockets'] });
             queryClient.invalidateQueries({ queryKey: ['accounts'] });
+        },
+        onError: (error) => {
+            toast.error(errorMessage(error, 'Failed to delete pocket'));
         },
     });
 
@@ -41,6 +55,9 @@ export const usePocketMutations = () => {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['pockets'] });
         },
+        onError: (error) => {
+            toast.error(errorMessage(error, 'Failed to reorder pockets'));
+        },
     });
 
     const migrateFixedPocketToAccount = useMutation({
@@ -50,6 +67,9 @@ export const usePocketMutations = () => {
             queryClient.invalidateQueries({ queryKey: ['pockets'] });
             queryClient.invalidateQueries({ queryKey: ['accounts'] });
             queryClient.invalidateQueries({ queryKey: ['movements'] });
+        },
+        onError: (error) => {
+            toast.error(errorMessage(error, 'Failed to migrate pocket'));
         },
     });
 

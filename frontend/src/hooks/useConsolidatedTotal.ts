@@ -33,6 +33,13 @@ export interface UseConsolidatedTotalResult {
   sortedCurrencies: Currency[];
   totalsByCurrency: Record<Currency, number>;
   consolidatedTotal: number;
+  /**
+   * `true` once the latest cross-currency conversion has settled (or there
+   * is no work to do). Consumers should render a skeleton for the
+   * consolidated total until this flips, otherwise the user briefly sees
+   * `$0.00` while exchange rates are fetched.
+   */
+  isConsolidatedReady: boolean;
   getAccountBalance: (account: Account) => number;
 }
 
@@ -98,9 +105,25 @@ export const useConsolidatedTotal = ({
   }, [sortedCurrencies, accountsByCurrency, investmentData]);
 
   const [consolidatedTotal, setConsolidatedTotal] = useState<number>(0);
+  // No accounts → there's nothing to convert and `0` is the correct value,
+  // so we can render the total immediately.
+  const [isConsolidatedReady, setIsConsolidatedReady] = useState<boolean>(
+    () => accounts.length === 0
+  );
 
   useEffect(() => {
     let ignore = false;
+
+    if (accounts.length === 0) {
+      // Reset to the trivially-ready zero state when accounts are cleared.
+      setConsolidatedTotal(0);
+      setIsConsolidatedReady(true);
+      return;
+    }
+
+    // Inputs changed — the previously cached total is stale until the new
+    // conversion settles.
+    setIsConsolidatedReady(false);
 
     const calculate = async () => {
       let total = 0;
@@ -115,10 +138,13 @@ export const useConsolidatedTotal = ({
           total += converted;
         }
       }
-      if (!ignore) setConsolidatedTotal(total);
+      if (!ignore) {
+        setConsolidatedTotal(total);
+        setIsConsolidatedReady(true);
+      }
     };
 
-    if (accounts.length > 0) calculate();
+    calculate();
 
     return () => {
       ignore = true;
@@ -130,6 +156,7 @@ export const useConsolidatedTotal = ({
     sortedCurrencies,
     totalsByCurrency,
     consolidatedTotal,
+    isConsolidatedReady,
     getAccountBalance,
   };
 };

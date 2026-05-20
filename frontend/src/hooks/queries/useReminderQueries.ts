@@ -2,6 +2,9 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { reminderService, type CreateReminderDTO, type UpdateReminderDTO, type CreateExceptionDTO } from '../../services/reminderService';
 import { useToast } from '../useToast';
 
+const errorMessage = (error: unknown, fallback: string): string =>
+    error instanceof Error && error.message ? error.message : fallback;
+
 export const useRemindersQuery = () => {
     return useQuery({
         queryKey: ['reminders'],
@@ -19,8 +22,8 @@ export const useReminderMutations = () => {
             queryClient.invalidateQueries({ queryKey: ['reminders'] });
             toast.success('Reminder created successfully');
         },
-        onError: (error: any) => {
-            toast.error(error.response?.data?.error || 'Failed to create reminder');
+        onError: (error) => {
+            toast.error(errorMessage(error, 'Failed to create reminder'));
         },
     });
 
@@ -31,8 +34,8 @@ export const useReminderMutations = () => {
             queryClient.invalidateQueries({ queryKey: ['reminders'] });
             toast.success('Reminder updated successfully');
         },
-        onError: (error: any) => {
-            toast.error(error.response?.data?.error || 'Failed to update reminder');
+        onError: (error) => {
+            toast.error(errorMessage(error, 'Failed to update reminder'));
         },
     });
 
@@ -42,8 +45,8 @@ export const useReminderMutations = () => {
             queryClient.invalidateQueries({ queryKey: ['reminders'] });
             toast.success('Reminder deleted successfully');
         },
-        onError: (error: any) => {
-            toast.error(error.response?.data?.error || 'Failed to delete reminder');
+        onError: (error) => {
+            toast.error(errorMessage(error, 'Failed to delete reminder'));
         },
     });
 
@@ -54,8 +57,8 @@ export const useReminderMutations = () => {
             queryClient.invalidateQueries({ queryKey: ['reminders'] });
             toast.success('Reminder marked as paid');
         },
-        onError: (error: any) => {
-            toast.error(error.response?.data?.error || 'Failed to mark reminder as paid');
+        onError: (error) => {
+            toast.error(errorMessage(error, 'Failed to mark reminder as paid'));
         },
     });
 
@@ -66,8 +69,8 @@ export const useReminderMutations = () => {
             queryClient.invalidateQueries({ queryKey: ['reminders'] });
             toast.success('Reminder series updated');
         },
-        onError: (error: any) => {
-            toast.error(error.response?.data?.error || 'Failed to update reminder series');
+        onError: (error) => {
+            toast.error(errorMessage(error, 'Failed to update reminder series'));
         },
     });
 
@@ -78,8 +81,8 @@ export const useReminderMutations = () => {
             queryClient.invalidateQueries({ queryKey: ['reminders'] });
             toast.success('Reminder series split updated');
         },
-        onError: (error: any) => {
-            toast.error(error.response?.data?.error || 'Failed to split reminder series');
+        onError: (error) => {
+            toast.error(errorMessage(error, 'Failed to split reminder series'));
         },
     });
 

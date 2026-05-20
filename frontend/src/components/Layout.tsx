@@ -19,6 +19,7 @@ import {
 import { useThemeStore } from '../store/useThemeStore';
 import { useAuth } from '../contexts/AuthContext';
 import { useState, useEffect } from 'react';
+import ErrorBoundary from './ErrorBoundary';
 
 interface LayoutProps {
   children: ReactNode;
@@ -234,7 +235,7 @@ const Layout = ({ children }: LayoutProps) => {
 
       {/* Main Content */}
       <main className="md:ml-64 p-4 md:p-8 pt-20 md:pt-8 min-h-screen">
-        {children}
+        <ErrorBoundary>{children}</ErrorBoundary>
       </main>
 
       {/* Bottom Navigation (Mobile) */}

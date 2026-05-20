@@ -60,7 +60,7 @@ export const useMovementRowActions = ({
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to delete movement';
       setError(msg);
-      toast.error(msg);
+      // Toast is shown by the mutation's onError handler.
     } finally {
       setDeletingId(null);
     }
@@ -84,7 +84,7 @@ export const useMovementRowActions = ({
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to apply movement';
       setError(msg);
-      toast.error(msg);
+      // Toast is shown by the mutation's onError handler.
     } finally {
       setApplyingId(null);
     }

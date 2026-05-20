@@ -1,18 +1,22 @@
+import { useQueryClient } from '@tanstack/react-query';
+import { movementService } from '../services/movementService';
 import type { useToast } from './useToast';
 import type { useConfirm } from './useConfirm';
-import type { useMovementMutations } from './queries/useMovementMutations';
 import type { BulkSelectionResult } from './useBulkSelection';
-
-type BulkMutations = Pick<
-  ReturnType<typeof useMovementMutations>,
-  'applyPendingMovement' | 'markAsPending' | 'deleteMovement'
->;
 
 export interface UseMovementBulkActionsParams {
   bulk: BulkSelectionResult;
-  mutations: BulkMutations;
   confirm: ReturnType<typeof useConfirm>['confirm'];
   toast: ReturnType<typeof useToast.getState>;
+  /**
+   * Optional override for the underlying single-item operations. Tests pass
+   * fakes here; production callers can omit it.
+   */
+  operations?: {
+    applyPending?: (id: string) => Promise<unknown>;
+    markAsPending?: (id: string) => Promise<unknown>;
+    delete?: (id: string) => Promise<unknown>;
+  };
 }
 
 export interface UseMovementBulkActionsResult {
@@ -23,19 +27,39 @@ export interface UseMovementBulkActionsResult {
 
 /**
  * Bulk-action handlers for the movements toolbar (apply / mark-pending /
- * delete). Each prompts for confirmation, fans out to mutateAsync via
- * Promise.allSettled, and reports a partial-failure aware toast.
+ * delete). Each prompts for confirmation, fans out to the service layer
+ * via Promise.allSettled, and reports a partial-failure aware toast.
  *
- * `bulk` is the shared `useBulkSelection` instance the page renders with.
- * Mutations and `confirm` are passed in so the hook shares the same
- * instances driving the page's UI.
+ * Bulk operations call `movementService` directly rather than the per-item
+ * mutation hooks so a partial failure produces a single aggregate toast
+ * (e.g. "2 applied, 3 failed") instead of one toast per failed item.
+ * After the fan-out completes, the relevant query caches are invalidated
+ * so the UI reflects whatever subset succeeded.
  */
 export const useMovementBulkActions = ({
   bulk,
-  mutations,
   confirm,
   toast,
+  operations,
 }: UseMovementBulkActionsParams): UseMovementBulkActionsResult => {
+  const queryClient = useQueryClient();
+
+  const ops = {
+    applyPending:
+      operations?.applyPending ?? ((id: string) => movementService.applyPendingMovement(id)),
+    markAsPending:
+      operations?.markAsPending ?? ((id: string) => movementService.markAsPending(id)),
+    delete: operations?.delete ?? ((id: string) => movementService.deleteMovement(id)),
+  };
+
+  const invalidateMovementCaches = () => {
+    queryClient.invalidateQueries({ queryKey: ['movements'] });
+    queryClient.invalidateQueries({ queryKey: ['accounts'] });
+    queryClient.invalidateQueries({ queryKey: ['pockets'] });
+    queryClient.invalidateQueries({ queryKey: ['subPockets'] });
+    queryClient.invalidateQueries({ queryKey: ['reminders'] });
+  };
+
   const runBulkAction = async (
     fn: (id: string) => Promise<unknown>,
     pastVerb: string,
@@ -55,9 +79,14 @@ export const useMovementBulkActions = ({
       }
       bulk.deselectAll();
     } catch (err: unknown) {
+      // Defensive: Promise.allSettled never rejects, so this only fires for
+      // a synchronous throw above (e.g. iterating selectedIds). Surface the
+      // error rather than swallowing it.
       toast.error(
         err instanceof Error ? err.message : `Failed to ${failureVerb}`
       );
+    } finally {
+      invalidateMovementCaches();
     }
   };
 
@@ -70,11 +99,7 @@ export const useMovementBulkActions = ({
       variant: 'info',
     });
     if (!ok) return;
-    await runBulkAction(
-      (id) => mutations.applyPendingMovement.mutateAsync(id),
-      'Applied',
-      'apply movements'
-    );
+    await runBulkAction(ops.applyPending, 'Applied', 'apply movements');
   };
 
   const handleBulkMarkAsPending = async () => {
@@ -86,11 +111,7 @@ export const useMovementBulkActions = ({
       variant: 'warning',
     });
     if (!ok) return;
-    await runBulkAction(
-      (id) => mutations.markAsPending.mutateAsync(id),
-      'Marked',
-      'mark as pending'
-    );
+    await runBulkAction(ops.markAsPending, 'Marked', 'mark as pending');
   };
 
   const handleBulkDelete = async () => {
@@ -102,11 +123,7 @@ export const useMovementBulkActions = ({
       variant: 'danger',
     });
     if (!ok) return;
-    await runBulkAction(
-      (id) => mutations.deleteMovement.mutateAsync(id),
-      'Deleted',
-      'delete movements'
-    );
+    await runBulkAction(ops.delete, 'Deleted', 'delete movements');
   };
 
   return { handleBulkApplyPending, handleBulkMarkAsPending, handleBulkDelete };

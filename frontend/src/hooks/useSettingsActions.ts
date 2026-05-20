@@ -118,7 +118,7 @@ export const useSettingsActions = ({
       await updateMutation.mutateAsync({ ...settings, primaryCurrency: currency });
     } catch (err) {
       console.error('Failed to update settings:', err);
-      toast.error('Failed to update currency');
+      // Toast is shown by the mutation's onError handler.
     }
   };
 
@@ -136,7 +136,7 @@ export const useSettingsActions = ({
       toast.success(`${kind} account display updated to ${mode}`);
     } catch (err) {
       console.error('Failed to update account display:', err);
-      toast.error('Failed to update account display');
+      // Toast is shown by the mutation's onError handler.
     }
   };
 
@@ -150,7 +150,7 @@ export const useSettingsActions = ({
       toast.success(`Snapshot frequency updated to ${frequency}`);
     } catch (err) {
       console.error('Failed to update snapshot frequency:', err);
-      toast.error('Failed to update snapshot frequency');
+      // Toast is shown by the mutation's onError handler.
     }
   };
 

@@ -63,10 +63,10 @@ const FixedExpenseForm = ({
             }
             onSuccess();
             onClose();
-        } catch (err: any) {
-            const errorMsg = err.message || 'Failed to save fixed expense';
+        } catch (err: unknown) {
+            const errorMsg = err instanceof Error ? err.message : 'Failed to save fixed expense';
             setError(errorMsg);
-            toast.error(errorMsg);
+            // Toast is shown by the mutation's onError handler.
         } finally {
             setIsSaving(false);
         }

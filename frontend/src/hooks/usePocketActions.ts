@@ -91,7 +91,7 @@ export const usePocketActions = ({
       const msg =
         err instanceof Error ? err.message : 'Failed to create pocket';
       setError(msg);
-      toast.error(msg);
+      // Toast is shown by the mutation's onError handler.
     }
   };
 
@@ -114,7 +114,7 @@ export const usePocketActions = ({
       const msg =
         err instanceof Error ? err.message : 'Failed to update pocket';
       setError(msg);
-      toast.error(msg);
+      // Toast is shown by the mutation's onError handler.
     }
   };
 
@@ -138,7 +138,7 @@ export const usePocketActions = ({
       const msg =
         err instanceof Error ? err.message : 'Failed to delete pocket';
       setError(msg);
-      toast.error(msg);
+      // Toast is shown by the mutation's onError handler.
     }
   };
 
@@ -181,7 +181,7 @@ export const usePocketActions = ({
       const msg =
         err instanceof Error ? err.message : 'Failed to migrate pocket';
       setError(msg);
-      toast.error(msg);
+      // Toast is shown by the mutation's onError handler.
     } finally {
       setIsMigrating(false);
     }

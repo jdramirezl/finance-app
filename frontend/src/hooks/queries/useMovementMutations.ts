@@ -1,9 +1,14 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { movementService } from '../../services/movementService';
 import type { MovementType } from '../../types';
+import { useToast } from '../useToast';
+
+const errorMessage = (error: unknown, fallback: string): string =>
+    error instanceof Error && error.message ? error.message : fallback;
 
 export const useMovementMutations = () => {
     const queryClient = useQueryClient();
+    const toast = useToast();
 
     const createMovement = useMutation({
         mutationFn: (data: {
@@ -33,6 +38,9 @@ export const useMovementMutations = () => {
             queryClient.invalidateQueries({ queryKey: ['pockets'] });
             queryClient.invalidateQueries({ queryKey: ['subPockets'] });
         },
+        onError: (error) => {
+            toast.error(errorMessage(error, 'Failed to create movement'));
+        },
     });
 
     const createTransfer = useMutation({
@@ -59,6 +67,9 @@ export const useMovementMutations = () => {
             queryClient.invalidateQueries({ queryKey: ['accounts'] });
             queryClient.invalidateQueries({ queryKey: ['pockets'] });
         },
+        onError: (error) => {
+            toast.error(errorMessage(error, 'Failed to create transfer'));
+        },
     });
 
     const updateMovement = useMutation({
@@ -81,6 +92,9 @@ export const useMovementMutations = () => {
             queryClient.invalidateQueries({ queryKey: ['pockets'] });
             queryClient.invalidateQueries({ queryKey: ['subPockets'] });
         },
+        onError: (error) => {
+            toast.error(errorMessage(error, 'Failed to update movement'));
+        },
     });
 
     const deleteMovement = useMutation({
@@ -94,6 +108,9 @@ export const useMovementMutations = () => {
             // Invalidate reminders to ensure restored reminders appear instantly
             queryClient.invalidateQueries({ queryKey: ['reminders'] });
         },
+        onError: (error) => {
+            toast.error(errorMessage(error, 'Failed to delete movement'));
+        },
     });
 
     const applyPendingMovement = useMutation({
@@ -103,6 +120,9 @@ export const useMovementMutations = () => {
             queryClient.invalidateQueries({ queryKey: ['accounts'] });
             queryClient.invalidateQueries({ queryKey: ['pockets'] });
             queryClient.invalidateQueries({ queryKey: ['subPockets'] });
+        },
+        onError: (error) => {
+            toast.error(errorMessage(error, 'Failed to apply pending movement'));
         },
     });
 
@@ -114,6 +134,9 @@ export const useMovementMutations = () => {
             queryClient.invalidateQueries({ queryKey: ['pockets'] });
             queryClient.invalidateQueries({ queryKey: ['subPockets'] });
         },
+        onError: (error) => {
+            toast.error(errorMessage(error, 'Failed to mark movement as pending'));
+        },
     });
 
     const restoreOrphanedMovements = useMutation({
@@ -123,6 +146,9 @@ export const useMovementMutations = () => {
             queryClient.invalidateQueries({ queryKey: ['movements'] });
             queryClient.invalidateQueries({ queryKey: ['accounts'] });
             queryClient.invalidateQueries({ queryKey: ['pockets'] });
+        },
+        onError: (error) => {
+            toast.error(errorMessage(error, 'Failed to restore movements'));
         },
     });
 

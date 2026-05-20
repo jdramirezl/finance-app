@@ -2,17 +2,25 @@ import type { Currency } from '../../types';
 import { currencyService } from '../../services/currencyService';
 import AnimatedCounter from '../AnimatedCounter';
 import SelectableValue from '../SelectableValue';
+import { Skeleton } from '../Skeleton';
 
 interface TotalsSummaryProps {
     consolidatedTotal: number;
     primaryCurrency: Currency;
     totalsByCurrency: Record<Currency, number>;
+    /**
+     * `false` while the cross-currency conversion is still in flight.
+     * When `false`, the consolidated card shows a skeleton instead of
+     * `$0.00`, which would otherwise be a misleading first paint.
+     */
+    isConsolidatedReady?: boolean;
 }
 
 const TotalsSummary = ({
     consolidatedTotal,
     primaryCurrency,
     totalsByCurrency,
+    isConsolidatedReady = true,
 }: TotalsSummaryProps) => {
     const currencies = Object.keys(totalsByCurrency) as Currency[];
 
@@ -32,14 +40,20 @@ const TotalsSummary = ({
                                 Net Worth
                             </div>
                         </div>
-                        <div className="text-4xl font-black bg-gradient-to-r from-blue-700 via-blue-600 to-purple-600 dark:from-blue-300 dark:via-blue-200 dark:to-purple-300 bg-clip-text text-transparent mb-1">
-                            <SelectableValue id="summary-net-worth" value={consolidatedTotal} currency={primaryCurrency}>
-                                <AnimatedCounter
-                                    value={consolidatedTotal}
-                                    formatValue={(v) => currencyService.formatCurrency(v, primaryCurrency)}
-                                />
-                            </SelectableValue>
-                        </div>
+                        {isConsolidatedReady ? (
+                            <div className="text-4xl font-black bg-gradient-to-r from-blue-700 via-blue-600 to-purple-600 dark:from-blue-300 dark:via-blue-200 dark:to-purple-300 bg-clip-text text-transparent mb-1">
+                                <SelectableValue id="summary-net-worth" value={consolidatedTotal} currency={primaryCurrency}>
+                                    <AnimatedCounter
+                                        value={consolidatedTotal}
+                                        formatValue={(v) => currencyService.formatCurrency(v, primaryCurrency)}
+                                    />
+                                </SelectableValue>
+                            </div>
+                        ) : (
+                            <div className="mb-1" aria-busy="true" aria-label="Calculating net worth">
+                                <Skeleton className="h-10 w-48" />
+                            </div>
+                        )}
                         <div className="text-xs font-medium text-blue-600/80 dark:text-blue-400/80 flex items-center gap-1">
                             <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3" />

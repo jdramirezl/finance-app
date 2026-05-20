@@ -72,10 +72,8 @@ export const useOrphanedRestore = ({
         );
       }
       setModalState(EMPTY_STATE);
-    } catch (err: unknown) {
-      toast.error(
-        err instanceof Error ? err.message : 'Failed to restore movements'
-      );
+    } catch {
+      // Toast is shown by the mutation's onError handler.
     }
   };
 

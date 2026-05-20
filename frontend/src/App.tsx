@@ -1,11 +1,12 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, type ReactNode } from 'react';
 import { AuthProvider } from './contexts/AuthContext';
 import { SelectionProvider } from './contexts/SelectionContext';
 import Layout from './components/Layout';
 import ProtectedRoute from './components/ProtectedRoute';
 import ToastContainer from './components/ToastContainer';
 import { Skeleton } from './components/Skeleton';
+import ErrorBoundary from './components/ErrorBoundary';
 
 // Lazy load page components for code splitting
 const LoginPage = lazy(() => import('./pages/LoginPage'));
@@ -26,6 +27,13 @@ const PageLoader = () => (
   </div>
 );
 
+/**
+ * Wrap each route's element in an ErrorBoundary so a render crash on
+ * one page produces a recoverable fallback instead of a white screen,
+ * and the user can still navigate via the surrounding Layout.
+ */
+const guard = (node: ReactNode) => <ErrorBoundary>{node}</ErrorBoundary>;
+
 function App() {
   return (
     <BrowserRouter>
@@ -34,8 +42,8 @@ function App() {
           <Suspense fallback={<PageLoader />}>
             <Routes>
               {/* Public routes */}
-              <Route path="/login" element={<LoginPage />} />
-              <Route path="/signup" element={<SignUpPage />} />
+              <Route path="/login" element={guard(<LoginPage />)} />
+              <Route path="/signup" element={guard(<SignUpPage />)} />
 
               {/* Protected routes */}
               <Route
@@ -45,14 +53,38 @@ function App() {
                     <Layout>
                       <Suspense fallback={<PageLoader />}>
                         <Routes>
-                          <Route path="/" element={<Navigate to="/summary" replace />} />
-                          <Route path="/summary" element={<SummaryPage />} />
-                          <Route path="/accounts" element={<AccountsPage />} />
-                          <Route path="/fixed-expenses" element={<FixedExpensesPage />} />
-                          <Route path="/budget-planning" element={<BudgetPlanningPage />} />
-                          <Route path="/movements" element={<MovementsPage />} />
-                          <Route path="/templates" element={<TemplatesPage />} />
-                          <Route path="/settings" element={<SettingsPage />} />
+                          <Route
+                            path="/"
+                            element={<Navigate to="/summary" replace />}
+                          />
+                          <Route
+                            path="/summary"
+                            element={guard(<SummaryPage />)}
+                          />
+                          <Route
+                            path="/accounts"
+                            element={guard(<AccountsPage />)}
+                          />
+                          <Route
+                            path="/fixed-expenses"
+                            element={guard(<FixedExpensesPage />)}
+                          />
+                          <Route
+                            path="/budget-planning"
+                            element={guard(<BudgetPlanningPage />)}
+                          />
+                          <Route
+                            path="/movements"
+                            element={guard(<MovementsPage />)}
+                          />
+                          <Route
+                            path="/templates"
+                            element={guard(<TemplatesPage />)}
+                          />
+                          <Route
+                            path="/settings"
+                            element={guard(<SettingsPage />)}
+                          />
                         </Routes>
                       </Suspense>
                     </Layout>

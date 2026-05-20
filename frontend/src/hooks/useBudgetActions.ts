@@ -233,9 +233,8 @@ export const useBudgetActions = ({
       setBatchOpen(false);
       setBatchRows([]);
       toast.success('Successfully distributed budget!');
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to save movements';
-      toast.error(msg);
+    } catch {
+      // Toast is shown by the mutation's onError handler.
     }
   };
 

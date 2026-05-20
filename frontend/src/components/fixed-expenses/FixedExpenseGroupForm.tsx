@@ -39,8 +39,8 @@ const FixedExpenseGroupForm = ({
             }
             onSuccess();
             onClose();
-        } catch (err: any) {
-            toast.error(err.message || 'Failed to save group');
+        } catch {
+            // Toast is shown by the mutation's onError handler.
         } finally {
             setIsSaving(false);
         }

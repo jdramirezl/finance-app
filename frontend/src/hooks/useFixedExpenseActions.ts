@@ -99,9 +99,8 @@ export const useFixedExpenseActions = ({
     try {
       await deleteSubPocket.mutateAsync(id);
       toast.success('Fixed expense deleted successfully!');
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to delete fixed expense';
-      toast.error(msg);
+    } catch {
+      // Toast is shown by the mutation's onError handler.
     } finally {
       setDeletingId(null);
     }
@@ -112,9 +111,8 @@ export const useFixedExpenseActions = ({
     try {
       await toggleSubPocketEnabled.mutateAsync(id);
       toast.success('Fixed expense status updated!');
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to toggle fixed expense';
-      toast.error(msg);
+    } catch {
+      // Toast is shown by the mutation's onError handler.
     } finally {
       setTogglingId(null);
     }
@@ -124,9 +122,8 @@ export const useFixedExpenseActions = ({
     try {
       await moveSubPocketToGroup.mutateAsync({ subPocketId, groupId });
       toast.success('Expense moved to new group!');
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to move expense';
-      toast.error(msg);
+    } catch {
+      // Toast is shown by the mutation's onError handler.
     }
   };
 
@@ -143,9 +140,8 @@ export const useFixedExpenseActions = ({
     try {
       await deleteFixedExpenseGroup.mutateAsync(group.id);
       toast.success('Group deleted successfully!');
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to delete group';
-      toast.error(msg);
+    } catch {
+      // Toast is shown by the mutation's onError handler.
     }
   };
 
@@ -154,9 +150,8 @@ export const useFixedExpenseActions = ({
     try {
       await toggleFixedExpenseGroup.mutateAsync({ id: groupId, enabled });
       toast.success(`Group ${enabled ? 'enabled' : 'disabled'} successfully!`);
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to toggle group';
-      toast.error(msg);
+    } catch {
+      // Toast is shown by the mutation's onError handler.
     } finally {
       setTogglingGroupId(null);
     }
@@ -167,7 +162,7 @@ export const useFixedExpenseActions = ({
     try {
       await reorderFixedExpenseGroups.mutateAsync(ids);
     } catch {
-      toast.error('Failed to reorder groups');
+      // Toast is shown by the mutation's onError handler.
     }
   };
 
@@ -212,27 +207,22 @@ export const useFixedExpenseActions = ({
   };
 
   const saveBatch = async (rows: BatchMovementRow[]) => {
-    try {
-      for (const row of rows) {
-        await createMovement.mutateAsync({
-          type: row.type,
-          accountId: row.accountId,
-          pocketId: row.pocketId,
-          amount: parseFloat(row.amount),
-          notes: row.notes || undefined,
-          displayedDate: row.displayedDate,
-          subPocketId: row.subPocketId,
-          isPending: row.isPending || false,
-        });
-      }
-      setBatchOpen(false);
-      setBatchRows([]);
-      toast.success(`Successfully created ${rows.length} movements!`);
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to save movements';
-      toast.error(msg);
-      throw err;
+    for (const row of rows) {
+      await createMovement.mutateAsync({
+        type: row.type,
+        accountId: row.accountId,
+        pocketId: row.pocketId,
+        amount: parseFloat(row.amount),
+        notes: row.notes || undefined,
+        displayedDate: row.displayedDate,
+        subPocketId: row.subPocketId,
+        isPending: row.isPending || false,
+      });
     }
+    setBatchOpen(false);
+    setBatchRows([]);
+    toast.success(`Successfully created ${rows.length} movements!`);
+    // Errors propagate to callers; mutation onError shows the toast.
   };
 
   const closeBatch = () => {

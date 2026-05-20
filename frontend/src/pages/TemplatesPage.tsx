@@ -46,8 +46,8 @@ const TemplatesPage = () => {
       await createMovementTemplate.mutateAsync(data);
       toast.success('Template created successfully!');
       setShowForm(false);
-    } catch (err) {
-      toast.error(`Failed to create template: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    } catch {
+      // Toast is shown by the mutation's onError handler.
     } finally {
       setIsSaving(false);
     }
@@ -73,8 +73,8 @@ const TemplatesPage = () => {
       toast.success('Template updated successfully!');
       setShowForm(false);
       setEditingTemplate(null);
-    } catch (err) {
-      toast.error(`Failed to update template: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    } catch {
+      // Toast is shown by the mutation's onError handler.
     } finally {
       setIsSaving(false);
     }
@@ -94,8 +94,8 @@ const TemplatesPage = () => {
     try {
       await deleteMovementTemplate.mutateAsync(id);
       toast.success(`Template "${name}" deleted successfully!`);
-    } catch (err) {
-      toast.error(`Failed to delete template: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    } catch {
+      // Toast is shown by the mutation's onError handler.
     } finally {
       setDeletingId(null);
     }
