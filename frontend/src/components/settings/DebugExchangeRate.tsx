@@ -5,10 +5,11 @@ import Card from '../Card';
 import Select from '../Select';
 import { Search, RotateCw, ArrowRight } from 'lucide-react';
 import { parseDate } from '../../utils/dateUtils';
+import { CURRENCY_OPTIONS, DEFAULT_CURRENCY } from '../../constants';
 import type { Currency } from '../../types';
 
 const DebugExchangeRate = () => {
-    const [from, setFrom] = useState<Currency>('USD');
+    const [from, setFrom] = useState<Currency>(DEFAULT_CURRENCY);
     const [to, setTo] = useState<Currency>('MXN');
     const [loading, setLoading] = useState(false);
     const [result, setResult] = useState<{
@@ -17,14 +18,6 @@ const DebugExchangeRate = () => {
         source?: string;
     } | null>(null);
     const [error, setError] = useState<string | null>(null);
-
-    const currencies: { value: Currency; label: string }[] = [
-        { value: 'USD', label: 'USD' },
-        { value: 'MXN', label: 'MXN' },
-        { value: 'COP', label: 'COP' },
-        { value: 'EUR', label: 'EUR' },
-        { value: 'GBP', label: 'GBP' },
-    ];
 
     const handleSearch = async (e?: React.FormEvent) => {
         e?.preventDefault();
@@ -53,7 +46,7 @@ const DebugExchangeRate = () => {
                     label="From"
                     value={from}
                     onChange={e => setFrom(e.target.value as Currency)}
-                    options={currencies}
+                    options={CURRENCY_OPTIONS}
                     className="w-24"
                 />
                 <div className="pb-3 text-gray-400" aria-hidden="true">
@@ -63,7 +56,7 @@ const DebugExchangeRate = () => {
                     label="To"
                     value={to}
                     onChange={e => setTo(e.target.value as Currency)}
-                    options={currencies}
+                    options={CURRENCY_OPTIONS}
                     className="w-24"
                 />
                 <div className="flex-1"></div>

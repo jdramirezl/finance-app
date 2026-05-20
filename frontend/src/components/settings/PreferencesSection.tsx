@@ -6,9 +6,9 @@ import type {
   Settings,
   SnapshotFrequency,
 } from '../../types';
+import { SUPPORTED_CURRENCIES } from '../../constants';
 import Card from '../Card';
 
-const CURRENCIES: Currency[] = ['USD', 'MXN', 'COP', 'EUR', 'GBP'];
 const DISPLAY_MODES: AccountCardDisplayMode[] = ['compact', 'detailed'];
 const SNAPSHOT_FREQUENCIES: SnapshotFrequency[] = ['daily', 'weekly', 'monthly', 'manual'];
 
@@ -77,7 +77,7 @@ const PreferencesSection = ({
             Select your primary currency for all total calculations.
           </p>
           <div className="grid grid-cols-2 gap-3">
-            {CURRENCIES.map((currency) => {
+            {SUPPORTED_CURRENCIES.map((currency) => {
               const active = settings.primaryCurrency === currency;
               return (
                 <label

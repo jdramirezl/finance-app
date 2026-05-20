@@ -1,5 +1,9 @@
-// Currency types
-export type Currency = 'USD' | 'MXN' | 'COP' | 'EUR' | 'GBP';
+// Currency types — re-exported from the constants module so that
+// `constants/currencies.ts` remains the single source of truth. Existing
+// `import type { Currency } from '../types'` consumers continue to work.
+export type { Currency } from '../constants/currencies';
+
+import type { Currency } from '../constants/currencies';
 
 // Pocket types
 export type PocketType = 'normal' | 'fixed';
@@ -194,4 +198,3 @@ export interface Settings {
   snapshotFrequency?: SnapshotFrequency; // How often to take net worth snapshots
   accountCardDisplay?: AccountCardDisplaySettings; // Display mode for account cards on summary page
 }
-

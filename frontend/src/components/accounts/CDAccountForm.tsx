@@ -8,6 +8,10 @@ import ColorSelector from '../ColorSelector';
 import { currencyService } from '../../services/currencyService';
 import { cdCalculationService } from '../../services/cdCalculationService';
 import { parseDate } from '../../utils/dateUtils';
+import {
+  CURRENCY_OPTIONS_WITH_NAMES,
+  DEFAULT_CURRENCY,
+} from '../../constants';
 import type { CDInvestmentAccount, Currency, CompoundingFrequency } from '../../types';
 
 interface CDAccountFormProps {
@@ -35,7 +39,7 @@ const CDAccountForm = ({ account, onSubmit, onCancel, isLoading = false }: CDAcc
   const [formData, setFormData] = useState<CDFormData>({
     name: account?.name || '',
     color: account?.color || '#F59E0B', // Amber color for CDs
-    currency: account?.currency || 'USD',
+    currency: account?.currency || DEFAULT_CURRENCY,
     principal: account?.principal || 0,
     interestRate: account?.interestRate || 0,
     termMonths: account?.termMonths || 12,
@@ -152,13 +156,7 @@ const CDAccountForm = ({ account, onSubmit, onCancel, isLoading = false }: CDAcc
             label="Currency"
             value={formData.currency}
             onChange={(e) => handleInputChange('currency', e.target.value as Currency)}
-            options={[
-              { value: 'USD', label: 'USD - US Dollar' },
-              { value: 'MXN', label: 'MXN - Mexican Peso' },
-              { value: 'COP', label: 'COP - Colombian Peso' },
-              { value: 'EUR', label: 'EUR - Euro' },
-              { value: 'GBP', label: 'GBP - British Pound' },
-            ]}
+            options={CURRENCY_OPTIONS_WITH_NAMES}
           />
         </div>
 

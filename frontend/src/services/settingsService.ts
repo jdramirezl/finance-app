@@ -1,4 +1,9 @@
 import type { Settings } from '../types';
+import {
+  DEFAULT_CURRENCY,
+  SUPPORTED_CURRENCIES,
+  isSupportedCurrency,
+} from '../constants';
 import { apiClient } from './apiClient';
 
 class SettingsService {
@@ -10,11 +15,10 @@ class SettingsService {
   // Update user settings
   async updateSettings(updates: Partial<Settings>): Promise<Settings> {
     // Validate primary currency client-side before hitting the backend
-    if (updates.primaryCurrency) {
-      const validCurrencies = ['USD', 'MXN', 'COP', 'EUR', 'GBP'];
-      if (!validCurrencies.includes(updates.primaryCurrency)) {
-        throw new Error(`Invalid currency: ${updates.primaryCurrency}. Must be one of: ${validCurrencies.join(', ')}`);
-      }
+    if (updates.primaryCurrency && !isSupportedCurrency(updates.primaryCurrency)) {
+      throw new Error(
+        `Invalid currency: ${updates.primaryCurrency}. Must be one of: ${SUPPORTED_CURRENCIES.join(', ')}`
+      );
     }
 
     return await apiClient.put<Settings>('/api/settings', updates);
@@ -23,7 +27,7 @@ class SettingsService {
   // Get primary currency (convenience method)
   async getPrimaryCurrency() {
     const settings = await this.getSettings();
-    return settings.primaryCurrency || 'USD';
+    return settings.primaryCurrency || DEFAULT_CURRENCY;
   }
 
   // Set primary currency (convenience method)

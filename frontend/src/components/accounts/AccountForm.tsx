@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import type { Account, Currency } from '../../types';
+import type { Account } from '../../types';
+import { CURRENCY_OPTIONS, DEFAULT_CURRENCY } from '../../constants';
 import Button from '../Button';
 import Input from '../Input';
 import Select from '../Select';
@@ -21,8 +22,6 @@ const AccountForm = ({
     const isEditing = !!initialData;
     const [type, setType] = useState('normal');
     const [color, setColor] = useState(initialData?.color || '#3B82F6');
-
-    const currencies: Currency[] = ['USD', 'MXN', 'COP', 'EUR', 'GBP'];
 
     return (
         <form onSubmit={onSubmit} className="space-y-4">
@@ -48,11 +47,11 @@ const AccountForm = ({
             <Select
                 label="Currency"
                 name="currency"
-                defaultValue={initialData?.currency || 'USD'}
+                defaultValue={initialData?.currency || DEFAULT_CURRENCY}
                 required
                 disabled={type === 'cd'}
                 className={type === 'cd' ? 'opacity-50' : ''}
-                options={currencies.map(c => ({ value: c, label: c }))}
+                options={CURRENCY_OPTIONS}
             />
 
             {!isEditing && (
