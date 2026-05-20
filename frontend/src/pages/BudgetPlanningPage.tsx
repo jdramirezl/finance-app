@@ -186,13 +186,6 @@ const BudgetPlanningPage = () => {
 
       <Modal isOpen={actions.batch.isOpen} onClose={actions.batch.close} size="xl">
         <BatchMovementForm
-          accounts={accounts}
-          getPocketsByAccount={(accountId) =>
-            pockets.filter((p) => p.accountId === accountId)
-          }
-          getSubPocketsByPocket={(pocketId) =>
-            subPockets.filter((sp) => sp.pocketId === pocketId)
-          }
           onSave={actions.batch.save}
           onCancel={actions.batch.close}
           initialRows={actions.batch.rows}

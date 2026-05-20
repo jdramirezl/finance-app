@@ -1,12 +1,20 @@
-import { useState, useImperativeHandle, forwardRef } from 'react';
+import {
+  forwardRef,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+} from 'react';
 import { format } from 'date-fns';
 import { Plus, Trash2, X } from 'lucide-react';
 import Button from './Button';
 import Input from './Input';
 import Select from './Select';
+import AccountPocketSelector from './selectors/AccountPocketSelector';
+import { usePocketsQuery } from '../hooks/queries';
 import { useToast } from '../hooks/useToast';
-import { MOVEMENT_TYPES, isFixedMovement } from '../utils/movementTypes';
-import type { MovementType, Account, Pocket, SubPocket } from '../types';
+import { MOVEMENT_TYPES } from '../utils/movementTypes';
+import type { MovementType } from '../types';
 
 export interface BatchMovementRow {
   id: string;
@@ -21,372 +29,291 @@ export interface BatchMovementRow {
 }
 
 interface BatchMovementFormProps {
-  accounts: Account[];
-  getPocketsByAccount: (accountId: string) => Pocket[];
-  getSubPocketsByPocket: (pocketId: string) => SubPocket[];
   onSave: (rows: BatchMovementRow[]) => Promise<void>;
   onCancel: () => void;
+  /**
+   * Notified whenever the focused row's data changes (e.g. the user edits a
+   * field on the row that currently has keyboard focus). The parent uses
+   * this to keep the side-panel context in sync with the row.
+   */
   onFocusRow?: (row: BatchMovementRow) => void;
+  /** Notified when rows are added or removed (not when fields are edited). */
   onRowsChange?: (rows: BatchMovementRow[]) => void;
-  initialRows?: BatchMovementRow[]; // Optional pre-populated rows
+  /** Optional pre-populated rows (e.g. from a budget plan). */
+  initialRows?: BatchMovementRow[];
 }
 
 export interface BatchMovementFormRef {
   updateAmount: (id: string, amount: string) => void;
 }
 
-const BatchMovementForm = forwardRef<BatchMovementFormRef, BatchMovementFormProps>(({
-  accounts,
-  getPocketsByAccount,
-  getSubPocketsByPocket,
-  onSave,
-  onCancel,
-  onFocusRow,
-  onRowsChange,
-  initialRows,
-}: BatchMovementFormProps, ref) => {
-  const [rows, setRows] = useState<BatchMovementRow[]>(
-    initialRows && initialRows.length > 0
-      ? initialRows
-      : [
-          {
-            id: crypto.randomUUID(),
-            type: 'IngresoNormal',
-            accountId: '',
-            pocketId: '',
-            amount: '',
-            notes: '',
-            displayedDate: format(new Date(), 'yyyy-MM-dd'),
-          },
-        ]
-  );
+const BatchMovementForm = forwardRef<BatchMovementFormRef, BatchMovementFormProps>(
+  ({ onSave, onCancel, onFocusRow, onRowsChange, initialRows }, ref) => {
+    // Pockets are only consulted locally to surface the high-precision
+    // amount step for the share-tracking pocket. Account/pocket/sub-pocket
+    // option lists are owned by AccountPocketSelector, which fetches them
+    // through the same query hook.
+    const { data: pockets = [] } = usePocketsQuery();
 
-  // onRowsChange is called directly in addRow/removeRow/updateRow — no useEffect needed
-  const [isSaving, setIsSaving] = useState(false);
-  const [markAsPending, setMarkAsPending] = useState(false);
-  const toast = useToast();
-
-  useImperativeHandle(ref, () => ({
-    updateAmount: (id, amount) => {
-      updateRow(id, { amount });
-    },
-  }));
-
-  const addRow = () => {
-    const newRows = [
-      ...rows,
-      {
-        id: crypto.randomUUID(),
-        type: 'IngresoNormal' as MovementType,
-        accountId: '',
-        pocketId: '',
-        amount: '',
-        notes: '',
-        displayedDate: format(new Date(), 'yyyy-MM-dd'),
-      },
-    ];
-    setRows(newRows);
-    onRowsChange?.(newRows);
-  };
-
-  const removeRow = (id: string) => {
-    if (rows.length === 1) return; // Keep at least one row
-    const newRows = rows.filter((row) => row.id !== id);
-    setRows(newRows);
-    onRowsChange?.(newRows);
-  };
-
-  const updateRow = (id: string, updates: Partial<BatchMovementRow>) => {
-    setRows(
-      rows.map((row) => {
-        if (row.id === id) {
-          const updated = { ...row, ...updates };
-
-          // Reset pocket if account changes
-          if (updates.accountId !== undefined && updates.accountId !== row.accountId) {
-            updated.pocketId = '';
-            updated.subPocketId = undefined;
-
-            // If we have an account and it's a fixed movement, auto-select the fixed pocket
-            if (isFixedMovement(updated.type) && updated.accountId) {
-              const accountPockets = getPocketsByAccount(updated.accountId);
-              const fixedPock = accountPockets.find(p => p.type === 'fixed');
-              if (fixedPock) {
-                updated.pocketId = fixedPock.id;
-              }
-            }
-          }
-
-          // If type changes, apply filtering rules
-          if (updates.type !== undefined && updates.type !== row.type) {
-            const wasFixed = isFixedMovement(row.type);
-            const isNowFixed = isFixedMovement(updates.type);
-
-            if (isNowFixed && !wasFixed) {
-              // Transitionally check if current account is valid for fixed
-              if (updated.accountId) {
-                const accountPockets = getPocketsByAccount(updated.accountId);
-                const fixedPock = accountPockets.find(p => p.type === 'fixed');
-                if (fixedPock) {
-                  updated.pocketId = fixedPock.id;
-                } else {
-                  // Current account has no fixed pocket, clear it
-                  updated.accountId = '';
-                  updated.pocketId = '';
-                }
-              }
-            } else if (!isNowFixed && wasFixed) {
-              // Moved from fixed to normal, clear pocket if it was fixed
-              if (updated.pocketId) {
-                const currentPocket = getPocketsByAccount(updated.accountId).find(p => p.id === updated.pocketId);
-                if (currentPocket?.type === 'fixed') {
-                  updated.pocketId = '';
-                }
-              }
-            }
-          }
-
-          // Reset subPocket if pocket changes
-          if (updates.pocketId !== undefined && updates.pocketId !== row.pocketId) {
-            updated.subPocketId = undefined;
-          }
-
-          return updated;
-        }
-        return row;
-      })
+    const [rows, setRows] = useState<BatchMovementRow[]>(
+      initialRows && initialRows.length > 0
+        ? initialRows
+        : [
+            {
+              id: crypto.randomUUID(),
+              type: 'IngresoNormal',
+              accountId: '',
+              pocketId: '',
+              amount: '',
+              notes: '',
+              displayedDate: format(new Date(), 'yyyy-MM-dd'),
+            },
+          ]
     );
-  };
 
-  const handleSave = async () => {
-    // Validate all rows
-    const errors: string[] = [];
-    rows.forEach((row, index) => {
-      if (!row.accountId) errors.push(`Row ${index + 1}: Account is required`);
-      if (!row.pocketId) errors.push(`Row ${index + 1}: Pocket is required`);
-      if (!row.amount || parseFloat(row.amount) < 0) errors.push(`Row ${index + 1}: Valid amount is required (cannot be negative)`);
-    });
+    const [isSaving, setIsSaving] = useState(false);
+    const [markAsPending, setMarkAsPending] = useState(false);
+    const toast = useToast();
 
-    if (errors.length > 0) {
-      toast.error(errors.join(' • '));
-      return;
-    }
+    // Keep the parent's "active row" state in sync with field edits.
+    //
+    // The previous implementation hand-merged each onChange's next value
+    // into a synthetic row before calling onFocusRow. That pattern relied
+    // on every cascading reset (e.g. clearing the pocket when the account
+    // changes) being expressed in the same callback, which doesn't compose
+    // with AccountPocketSelector's internal cascading.
+    //
+    // Instead, we treat the row state as the source of truth: the row's
+    // wrapper records itself as focused, and a re-publish effect fires
+    // onFocusRow whenever the focused row's data updates. The ref dance
+    // keeps the effect's identity stable across renders while always
+    // calling the latest onFocusRow.
+    const lastFocusedRowIdRef = useRef<string | null>(null);
+    const onFocusRowRef = useRef(onFocusRow);
+    onFocusRowRef.current = onFocusRow;
 
-    setIsSaving(true);
-    try {
-      // Add isPending flag to all rows if checkbox is checked
-      const rowsWithPending = rows.map(row => ({
-        ...row,
-        isPending: markAsPending,
-      }));
-      await onSave(rowsWithPending);
-    } finally {
-      setIsSaving(false);
-    }
-  };
+    useEffect(() => {
+      const focusedId = lastFocusedRowIdRef.current;
+      if (!focusedId) return;
+      const focused = rows.find((r) => r.id === focusedId);
+      if (focused) onFocusRowRef.current?.(focused);
+    }, [rows]);
 
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-          Add Multiple Movements
-        </h3>
-        <button
-          onClick={onCancel}
-          className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-          aria-label="Close batch movement form"
-          title="Close"
-        >
-          <X className="w-5 h-5" aria-hidden="true" />
-        </button>
-      </div>
+    useImperativeHandle(ref, () => ({
+      updateAmount: (id, amount) => {
+        updateRow(id, { amount });
+      },
+    }));
 
-      <div className="space-y-3 mb-4">
-        <div className="text-sm text-gray-600 dark:text-gray-400">
-          Add multiple movements at once. All movements will be saved together when you click "Save All".
+    const addRow = () => {
+      const newRows: BatchMovementRow[] = [
+        ...rows,
+        {
+          id: crypto.randomUUID(),
+          type: 'IngresoNormal',
+          accountId: '',
+          pocketId: '',
+          amount: '',
+          notes: '',
+          displayedDate: format(new Date(), 'yyyy-MM-dd'),
+        },
+      ];
+      setRows(newRows);
+      onRowsChange?.(newRows);
+    };
+
+    const removeRow = (id: string) => {
+      if (rows.length === 1) return; // Keep at least one row
+      const newRows = rows.filter((row) => row.id !== id);
+      setRows(newRows);
+      onRowsChange?.(newRows);
+    };
+
+    // Functional updater is required because AccountPocketSelector may emit
+    // back-to-back callbacks (e.g. onAccountChange followed by an internal
+    // onPocketChange('') cascade). With a value-form setRows both calls
+    // would close over the same captured rows and the second would clobber
+    // the first; the functional form composes them correctly.
+    //
+    // Cascading resets and movement-type-driven filtering live inside
+    // AccountPocketSelector now, so updateRow no longer needs to perform
+    // any of that bookkeeping — it just merges the requested change.
+    const updateRow = (id: string, updates: Partial<BatchMovementRow>) => {
+      setRows((prev) =>
+        prev.map((row) => (row.id === id ? { ...row, ...updates } : row))
+      );
+    };
+
+    const handleSave = async () => {
+      // Validate all rows
+      const errors: string[] = [];
+      rows.forEach((row, index) => {
+        if (!row.accountId) errors.push(`Row ${index + 1}: Account is required`);
+        if (!row.pocketId) errors.push(`Row ${index + 1}: Pocket is required`);
+        if (!row.amount || parseFloat(row.amount) < 0)
+          errors.push(`Row ${index + 1}: Valid amount is required (cannot be negative)`);
+      });
+
+      if (errors.length > 0) {
+        toast.error(errors.join(' • '));
+        return;
+      }
+
+      setIsSaving(true);
+      try {
+        const rowsWithPending = rows.map((row) => ({
+          ...row,
+          isPending: markAsPending,
+        }));
+        await onSave(rowsWithPending);
+      } finally {
+        setIsSaving(false);
+      }
+    };
+
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+            Add Multiple Movements
+          </h3>
+          <button
+            onClick={onCancel}
+            className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+            aria-label="Close batch movement form"
+            title="Close"
+          >
+            <X className="w-5 h-5" aria-hidden="true" />
+          </button>
         </div>
 
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={markAsPending}
-            onChange={(e) => setMarkAsPending(e.target.checked)}
-            className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
-          />
-          <span className="text-gray-700 dark:text-gray-300">
-            Mark all as pending (won't affect balances until applied)
-          </span>
-        </label>
-      </div>
+        <div className="space-y-3 mb-4">
+          <div className="text-sm text-gray-600 dark:text-gray-400">
+            Add multiple movements at once. All movements will be saved together when you click "Save All".
+          </div>
 
-      <div className="space-y-3 max-h-[60vh] overflow-y-auto">
-        {rows.map((row, index) => {
-          const isFixedExpense = isFixedMovement(row.type);
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={markAsPending}
+              onChange={(e) => setMarkAsPending(e.target.checked)}
+              className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+            />
+            <span className="text-gray-700 dark:text-gray-300">
+              Mark all as pending (won't affect balances until applied)
+            </span>
+          </label>
+        </div>
 
-          // Filter accounts: show all for normal, only those with fixed pockets for fixed movements
-          const filteredAccounts = isFixedExpense
-            ? accounts.filter(acc => getPocketsByAccount(acc.id).some(p => p.type === 'fixed'))
-            : accounts;
+        <div className="space-y-3 max-h-[60vh] overflow-y-auto">
+          {rows.map((row, index) => {
+            const selectedPocket = row.pocketId
+              ? pockets.find((p) => p.id === row.pocketId)
+              : undefined;
+            const amountStep =
+              selectedPocket?.name === 'Shares' ? '0.000001' : '0.01';
 
-          const allAccountPockets = row.accountId ? getPocketsByAccount(row.accountId) : [];
+            return (
+              <div
+                key={row.id}
+                onFocus={() => {
+                  lastFocusedRowIdRef.current = row.id;
+                  onFocusRow?.(row);
+                }}
+                className="p-4 border dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-800/50 space-y-3"
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Movement #{index + 1}
+                  </span>
+                  {rows.length > 1 && (
+                    <button
+                      onClick={() => removeRow(row.id)}
+                      className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
+                      aria-label={`Remove movement #${index + 1}`}
+                      title="Remove this row"
+                    >
+                      <Trash2 className="w-4 h-4" aria-hidden="true" />
+                    </button>
+                  )}
+                </div>
 
-          // Filter pockets: only fixed for fixed movements, exclude fixed for normal movements
-          const filteredPockets = isFixedExpense
-            ? allAccountPockets.filter(p => p.type === 'fixed')
-            : allAccountPockets.filter(p => p.type !== 'fixed');
-
-          const fixedPocket = allAccountPockets.find((p) => p.type === 'fixed');
-          const availableSubPockets = fixedPocket && isFixedExpense ? getSubPocketsByPocket(fixedPocket.id) : [];
-
-          return (
-            <div
-              key={row.id}
-              onFocus={() => onFocusRow?.(row)}
-              className="p-4 border dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-800/50 space-y-3"
-            >
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Movement #{index + 1}
-                </span>
-                {rows.length > 1 && (
-                  <button
-                    onClick={() => removeRow(row.id)}
-                    className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
-                    aria-label={`Remove movement #${index + 1}`}
-                    title="Remove this row"
-                  >
-                    <Trash2 className="w-4 h-4" aria-hidden="true" />
-                  </button>
-                )}
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
                 <Select
                   label="Type"
                   value={row.type}
-                  onChange={(e) => {
-                    const type = e.target.value as MovementType;
-                    updateRow(row.id, { type });
-                    onFocusRow?.({ ...row, type });
-                  }}
+                  onChange={(e) =>
+                    updateRow(row.id, { type: e.target.value as MovementType })
+                  }
                   required
                   options={MOVEMENT_TYPES}
                 />
 
-                <Select
-                  label="Account"
-                  value={row.accountId}
-                  onChange={(e) => {
-                    const accountId = e.target.value;
-                    updateRow(row.id, { accountId });
-                    onFocusRow?.({ ...row, accountId, pocketId: '' });
-                  }}
+                <AccountPocketSelector
+                  accountId={row.accountId}
+                  pocketId={row.pocketId}
+                  subPocketId={row.subPocketId || ''}
+                  onAccountChange={(accountId) => updateRow(row.id, { accountId })}
+                  onPocketChange={(pocketId) => updateRow(row.id, { pocketId })}
+                  onSubPocketChange={(subPocketId) =>
+                    updateRow(row.id, { subPocketId: subPocketId || undefined })
+                  }
+                  movementType={row.type}
+                  enforceMovementType
+                  showSubPocket
+                  showAccountCurrency
                   required
-                  options={[
-                    { value: '', label: 'Select account' },
-                    ...filteredAccounts.map((account) => ({
-                      value: account.id,
-                      label: `${account.name} (${account.currency})`,
-                    })),
-                  ]}
                 />
 
-                <Select
-                  label="Pocket"
-                  value={row.pocketId}
-                  onChange={(e) => {
-                    const pocketId = e.target.value;
-                    updateRow(row.id, { pocketId });
-                    onFocusRow?.({ ...row, pocketId });
-                  }}
-                  required
-                  disabled={!row.accountId}
-                  options={[
-                    { value: '', label: 'Select pocket' },
-                    ...filteredPockets.map((pocket) => ({
-                      value: pocket.id,
-                      label: pocket.name,
-                    })),
-                  ]}
-                />
-
-                {isFixedExpense && availableSubPockets.length > 0 && (
-                  <Select
-                    label="Sub-Pocket"
-                    value={row.subPocketId || ''}
-                    onChange={(e) => {
-                      const subPocketId = e.target.value || undefined;
-                      updateRow(row.id, { subPocketId });
-                      onFocusRow?.({ ...row, subPocketId });
-                    }}
-                    options={[
-                      { value: '', label: 'Select sub-pocket (optional)' },
-                      ...availableSubPockets.map((subPocket) => ({
-                        value: subPocket.id,
-                        label: subPocket.name,
-                      })),
-                    ]}
+                <div className="grid grid-cols-2 gap-3">
+                  <Input
+                    label="Amount"
+                    type="number"
+                    step={amountStep}
+                    value={row.amount}
+                    onChange={(e) => updateRow(row.id, { amount: e.target.value })}
+                    required
                   />
-                )}
+
+                  <Input
+                    label="Date"
+                    type="date"
+                    value={row.displayedDate}
+                    onChange={(e) =>
+                      updateRow(row.id, { displayedDate: e.target.value })
+                    }
+                    required
+                  />
+                </div>
 
                 <Input
-                  label="Amount"
-                  type="number"
-                  step={row.pocketId && filteredPockets.find(p => p.id === row.pocketId)?.name === 'Shares' ? '0.000001' : '0.01'}
-                  value={row.amount}
-                  onChange={(e) => {
-                    const amount = e.target.value;
-                    updateRow(row.id, { amount });
-                    onFocusRow?.({ ...row, amount });
-                  }}
-                  required
-                />
-
-                <Input
-                  label="Date"
-                  type="date"
-                  value={row.displayedDate}
-                  onChange={(e) => {
-                    const displayedDate = e.target.value;
-                    updateRow(row.id, { displayedDate });
-                    onFocusRow?.({ ...row, displayedDate });
-                  }}
-                  required
+                  label="Notes (optional)"
+                  value={row.notes}
+                  onChange={(e) => updateRow(row.id, { notes: e.target.value })}
+                  placeholder="Add notes..."
                 />
               </div>
+            );
+          })}
+        </div>
 
-              <Input
-                label="Notes (optional)"
-                value={row.notes}
-                onChange={(e) => {
-                  const notes = e.target.value;
-                  updateRow(row.id, { notes });
-                  onFocusRow?.({ ...row, notes });
-                }}
-                placeholder="Add notes..."
-              />
-            </div>
-          );
-        })}
-      </div>
-
-      <div className="flex items-center justify-between pt-4 border-t dark:border-gray-700">
-        <Button variant="secondary" onClick={addRow} className="flex items-center gap-2">
-          <Plus className="w-4 h-4" aria-hidden="true" />
-          Add Row
-        </Button>
-
-        <div className="flex gap-2">
-          <Button variant="secondary" onClick={onCancel} disabled={isSaving}>
-            Cancel
+        <div className="flex items-center justify-between pt-4 border-t dark:border-gray-700">
+          <Button variant="secondary" onClick={addRow} className="flex items-center gap-2">
+            <Plus className="w-4 h-4" aria-hidden="true" />
+            Add Row
           </Button>
-          <Button variant="primary" onClick={handleSave} loading={isSaving} disabled={isSaving}>
-            Save All ({rows.length})
-          </Button>
+
+          <div className="flex gap-2">
+            <Button variant="secondary" onClick={onCancel} disabled={isSaving}>
+              Cancel
+            </Button>
+            <Button variant="primary" onClick={handleSave} loading={isSaving} disabled={isSaving}>
+              Save All ({rows.length})
+            </Button>
+          </div>
         </div>
       </div>
-    </div>
-  );
-});
+    );
+  }
+);
 
 export default BatchMovementForm;

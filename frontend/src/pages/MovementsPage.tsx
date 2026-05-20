@@ -2,7 +2,6 @@ import { useCallback, useMemo, useRef, useState } from 'react';
 import { format } from 'date-fns';
 import { Plus, Trash2 } from 'lucide-react';
 import {
-  useAccountsQuery,
   usePocketsQuery,
   useMovementsQuery,
   useMovementTemplatesQuery,
@@ -24,7 +23,7 @@ import { useMovementRowActions } from '../hooks/useMovementRowActions';
 import { useMovementBulkActions } from '../hooks/useMovementBulkActions';
 import { useBalanceDeltas } from '../hooks/useBalanceDeltas';
 import { useOrphanedRestore } from '../hooks/useOrphanedRestore';
-import type { Account, Movement, MovementTemplate, Pocket, SubPocket } from '../types';
+import type { Movement, MovementTemplate, Pocket, SubPocket } from '../types';
 import Button from '../components/Button';
 import { Skeleton, SkeletonTable } from '../components/Skeleton';
 import type { BatchMovementFormRef, BatchMovementRow } from '../components/BatchMovementForm';
@@ -35,7 +34,6 @@ import BulkActionsToolbar from '../components/movements/BulkActionsToolbar';
 import MovementFormPanel from '../components/movements/MovementFormPanel';
 import RestoreOrphanedModal from '../components/movements/RestoreOrphanedModal';
 
-const EMPTY_ACCOUNTS: Account[] = [];
 const EMPTY_POCKETS: Pocket[] = [];
 const EMPTY_SUBPOCKETS: SubPocket[] = [];
 const EMPTY_MOVEMENTS: Movement[] = [];
@@ -43,7 +41,6 @@ const EMPTY_TEMPLATES: MovementTemplate[] = [];
 
 const MovementsPage = () => {
   // Data + mutations
-  const { data: accounts = EMPTY_ACCOUNTS } = useAccountsQuery();
   const { data: pockets = EMPTY_POCKETS } = usePocketsQuery();
   const { data: subPockets = EMPTY_SUBPOCKETS } = useSubPocketsQuery();
   const { data: movements = EMPTY_MOVEMENTS, isLoading: movementsLoading } = useMovementsQuery();
@@ -252,7 +249,6 @@ const MovementsPage = () => {
       />
 
       <MovementFormPanel
-        accounts={accounts} pockets={pockets} subPockets={subPockets}
         formState={formState} isSaving={isSaving}
         onSubmit={handleSubmit} onClose={closeForms}
         batch={{
@@ -270,7 +266,6 @@ const MovementsPage = () => {
       <RestoreOrphanedModal
         isOpen={restore.modalState.isOpen}
         onClose={restore.close}
-        accounts={accounts} pockets={pockets}
         movementCount={restore.modalState.movementIds.length}
         sourceLabel={restore.modalState.sourceLabel}
         isSubmitting={restore.isSubmitting}

@@ -1,6 +1,5 @@
 import { X } from 'lucide-react';
 import type { Ref } from 'react';
-import type { Account, Pocket, SubPocket } from '../../types';
 import BatchMovementForm, {
   type BatchMovementFormRef,
   type BatchMovementRow,
@@ -33,9 +32,6 @@ export interface SidePanelBindings {
 }
 
 export interface MovementFormPanelProps {
-  accounts: Account[];
-  pockets: Pocket[];
-  subPockets: SubPocket[];
   formState: MovementFormStateResult;
   isSaving: boolean;
   onSubmit: (event: React.FormEvent<HTMLFormElement>) => Promise<void>;
@@ -50,11 +46,12 @@ export interface MovementFormPanelProps {
  *
  * Visibility is driven by `formState.showForm` and `batch.showBatchForm` —
  * only one of the two forms renders at a time.
+ *
+ * Both inner forms now read accounts/pockets/sub-pockets directly from the
+ * TanStack Query hooks (via the shared AccountPocketSelector), so this
+ * panel no longer needs to receive or thread that data through.
  */
 const MovementFormPanel = ({
-  accounts,
-  pockets,
-  subPockets,
   formState,
   isSaving,
   onSubmit,
@@ -106,13 +103,6 @@ const MovementFormPanel = ({
               {showBatch ? (
                 <BatchMovementForm
                   ref={batch.batchFormRef}
-                  accounts={accounts}
-                  getPocketsByAccount={(accountId) =>
-                    pockets.filter((p) => p.accountId === accountId)
-                  }
-                  getSubPocketsByPocket={(pocketId) =>
-                    subPockets.filter((sp) => sp.pocketId === pocketId)
-                  }
                   onSave={batch.onBatchSave}
                   onCancel={onClose}
                   onFocusRow={batch.onBatchRowFocus}

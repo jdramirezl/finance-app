@@ -268,13 +268,6 @@ const FixedExpensesPage = () => {
 
       <Modal isOpen={actions.batchForm.isOpen} onClose={actions.batchForm.close} size="xl">
         <BatchMovementForm
-          accounts={accounts}
-          getPocketsByAccount={(accountId) =>
-            pockets.filter((p) => p.accountId === accountId)
-          }
-          getSubPocketsByPocket={(pocketId) =>
-            subPockets.filter((sp) => sp.pocketId === pocketId)
-          }
           onSave={actions.batchForm.save}
           onCancel={actions.batchForm.close}
           initialRows={actions.batchForm.rows}
