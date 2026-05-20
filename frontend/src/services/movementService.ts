@@ -143,7 +143,7 @@ class MovementService {
     accountId: string,
     pocketId: string
   ): Promise<{ restored: number; failed: number }> {
-    return await apiClient.post('/api/movements/restore', { movementIds, accountId, pocketId });
+    return await apiClient.post('/api/movements/restore-orphaned', { movementIds, accountId, pocketId });
   }
 
   // --- Bulk operations (delegated to backend) ---

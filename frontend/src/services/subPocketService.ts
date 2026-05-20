@@ -105,7 +105,7 @@ class SubPocketService {
 
   // Move sub-pocket to a different group
   async moveToGroup(subPocketId: string, groupId: string): Promise<void> {
-    await apiClient.post(`/api/sub-pockets/${subPocketId}/move`, { groupId });
+    await apiClient.post(`/api/sub-pockets/${subPocketId}/move-to-group`, { groupId });
   }
 
   // Toggle all sub-pockets in a group
