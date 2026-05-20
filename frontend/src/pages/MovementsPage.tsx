@@ -373,12 +373,11 @@ const MovementsPage = () => {
 
     try {
       if (editingMovement) {
-        resetFormState();
-
         await updateMovement.mutateAsync({
           id: editingMovement.id,
           updates: { type, accountId, pocketId, subPocketId, amount, notes, displayedDate, isPending }
         });
+        resetFormState();
         toast.success('Movement updated successfully!');
       } else {
         form.reset();
@@ -455,6 +454,8 @@ const MovementsPage = () => {
       const errorMessage = err.message || 'Failed to delete movement';
       setError(errorMessage);
       toast.error(errorMessage);
+    } finally {
+      setDeletingId(null);
     }
   };
 
