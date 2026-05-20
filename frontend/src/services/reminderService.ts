@@ -84,12 +84,12 @@ export const reminderService = {
     },
 
     create: async (data: CreateReminderDTO): Promise<Reminder> => {
-        const response = await api.post<Reminder>('/api/reminders', data);
+        const response = await api.post<Reminder>('/api/reminders', { ...data });
         return response;
     },
 
     update: async (id: string, data: UpdateReminderDTO): Promise<Reminder> => {
-        const response = await api.put<Reminder>(`/api/reminders/${id}`, data);
+        const response = await api.put<Reminder>(`/api/reminders/${id}`, { ...data });
         return response;
     },
 
