@@ -10,6 +10,7 @@ Merge fixed expenses and budget planning into a single visual flow:
 - Visual structure ideas: kanban-style, node graph (n8n-like), flow diagram
 - Could use Google's "Stitch" UI proposal tool to generate mocks
 - Priority: design the idea and functionalities first, then UI
+- **UI constraint: must match the current app's visual style (dark theme, card-based, Tailwind)**
 
 ## 2. Export Functionality
 - Export to spreadsheet (Excel/CSV)

@@ -3,6 +3,7 @@
 ## Pending Manual Actions
 - [ ] Run migration `011_atomic_operations.sql` on Supabase (`supabase db push` or SQL editor)
 - [ ] Wire `delete_account_cascade` RPC to frontend `deleteAccountCascadeDirect` (deferred from task-02)
+- [ ] Add bulk backend endpoints to replace remaining direct Supabase calls in movementService (deleteMovementsByAccount, deleteMovementsByPocket, markMovementsAsOrphaned, updateMovementsAccountForPocket) — then remove supabase import from movementService entirely
 
 ## Task Status
 
@@ -14,7 +15,7 @@
 - [x] task-05: Fix SummaryPage race conditions — `27efea1`
 
 ### Step 02 — Architecture
-- [ ] task-01: Remove direct Supabase access and dual-mode pattern
+- [x] task-01: Remove direct Supabase access and dual-mode pattern — `1db9f7d`
 - [ ] task-02: Eliminate circular deps, break god-services
 
 ### Step 03 — Refactor
