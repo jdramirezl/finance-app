@@ -1,0 +1,264 @@
+import { useEffect, useMemo, useState } from 'react';
+import { currencyService } from '../services/currencyService';
+import type { Account, Currency, Pocket, SubPocket } from '../types';
+import type { BatchMovementRow } from '../components/BatchMovementForm';
+import type { DistributionEntry } from '../components/budget';
+import type { PlanningScenario } from '../components/budget/ScenarioForm';
+import { calculateAporteMensual } from '../utils/fixedExpenseUtils';
+import type { useToast } from './useToast';
+import type { useConfirm } from './useConfirm';
+import type { useMovementMutations } from './queries/useMovementMutations';
+
+type MovementMutations = ReturnType<typeof useMovementMutations>;
+
+export interface BudgetBatchController {
+  isOpen: boolean;
+  rows: BatchMovementRow[];
+  close: () => void;
+  save: (rows: BatchMovementRow[]) => Promise<void>;
+}
+
+export interface UseBudgetActionsParams {
+  accounts: Account[];
+  pockets: Pocket[];
+  fixedSubPockets: SubPocket[];
+  initialAmount: number;
+  distributionEntries: DistributionEntry[];
+  scenarios: PlanningScenario[];
+  setScenarios: React.Dispatch<React.SetStateAction<PlanningScenario[]>>;
+  budgetCurrency: Currency;
+  primaryCurrency: Currency;
+  movementMutations: MovementMutations;
+  toast: ReturnType<typeof useToast.getState>;
+  confirm: ReturnType<typeof useConfirm>['confirm'];
+}
+
+export interface UseBudgetActionsResult {
+  totalFijosMes: number;
+  remaining: number;
+  showConversion: boolean;
+  convertedAmounts: Map<string, number>;
+  // Scenario state + handlers
+  activeScenarioIds: Set<string>;
+  toggleScenario: (id: string) => void;
+  saveScenario: (scenario: PlanningScenario) => void;
+  deleteScenario: (id: string) => Promise<void>;
+  // Batch movements
+  prepareBatchFromDistribution: () => void;
+  batch: BudgetBatchController;
+}
+
+/**
+ * Bundles the imperative side of the Budget Planning page: deductions
+ * (scenario-aware), entry-amount calculation, currency conversion of
+ * displayed amounts, scenario CRUD, and the batch movement flow that
+ * materializes a budget plan into actual movements.
+ */
+export const useBudgetActions = ({
+  accounts,
+  pockets,
+  fixedSubPockets,
+  initialAmount,
+  distributionEntries,
+  scenarios,
+  setScenarios,
+  budgetCurrency,
+  primaryCurrency,
+  movementMutations,
+  toast,
+  confirm,
+}: UseBudgetActionsParams): UseBudgetActionsResult => {
+  const { createMovement } = movementMutations;
+
+  const [activeScenarioIds, setActiveScenarioIds] = useState<Set<string>>(new Set());
+  const [batchOpen, setBatchOpen] = useState(false);
+  const [batchRows, setBatchRows] = useState<BatchMovementRow[]>([]);
+  const [convertedAmounts, setConvertedAmounts] = useState<Map<string, number>>(
+    new Map()
+  );
+
+  const showConversion = primaryCurrency !== budgetCurrency;
+
+  // Pick the relevant subset of fixed expenses based on active scenarios.
+  // - No scenarios exist: fall back to all enabled expenses.
+  // - Scenarios exist but none active: deduct nothing (manual override).
+  // - Scenarios active: union of expenses in those scenarios.
+  const totalFijosMes = useMemo(() => {
+    let relevant: SubPocket[] = [];
+    if (activeScenarioIds.size > 0) {
+      const allIds = new Set<string>();
+      scenarios.forEach((s) => {
+        if (activeScenarioIds.has(s.id)) s.expenseIds.forEach((id) => allIds.add(id));
+      });
+      relevant = fixedSubPockets.filter((sp) => allIds.has(sp.id));
+    } else if (scenarios.length > 0) {
+      relevant = [];
+    } else {
+      relevant = fixedSubPockets.filter((sp) => sp.enabled);
+    }
+
+    return relevant.reduce(
+      (sum, sp) =>
+        sum + calculateAporteMensual(sp.valueTotal, sp.periodicityMonths, sp.balance),
+      0
+    );
+  }, [activeScenarioIds, scenarios, fixedSubPockets]);
+
+  const remaining = initialAmount - totalFijosMes;
+
+  const calculateEntryAmount = (percentage: number): number => {
+    if (remaining <= 0) return 0;
+    return (remaining * percentage) / 100;
+  };
+
+  // Convert displayed amounts when budget currency differs from primary.
+  useEffect(() => {
+    const convertAmounts = async () => {
+      if (!showConversion || distributionEntries.length === 0) return;
+      const next = new Map<string, number>();
+
+      for (const entry of distributionEntries) {
+        const amount = calculateEntryAmount(entry.percentage);
+        if (amount > 0) {
+          try {
+            const converted = await currencyService.convert(
+              amount,
+              budgetCurrency,
+              primaryCurrency
+            );
+            next.set(entry.id, converted);
+          } catch (err) {
+            console.error('Failed to convert currency:', err);
+          }
+        }
+      }
+      setConvertedAmounts(next);
+    };
+
+    convertAmounts();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [distributionEntries, remaining, showConversion, budgetCurrency, primaryCurrency]);
+
+  const toggleScenario = (id: string) => {
+    setActiveScenarioIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const saveScenario = (scenario: PlanningScenario) => {
+    setScenarios((prev) => {
+      const exists = prev.some((s) => s.id === scenario.id);
+      return exists
+        ? prev.map((s) => (s.id === scenario.id ? scenario : s))
+        : [...prev, scenario];
+    });
+  };
+
+  const deleteScenario = async (id: string) => {
+    const confirmed = await confirm({
+      title: 'Delete Scenario',
+      message: 'Are you sure you want to delete this scenario?',
+      confirmText: 'Delete',
+      variant: 'danger',
+    });
+    if (!confirmed) return;
+
+    setScenarios((prev) => prev.filter((s) => s.id !== id));
+    setActiveScenarioIds((prev) => {
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
+  };
+
+  const prepareBatchFromDistribution = () => {
+    const active = distributionEntries.filter((e) => e.percentage > 0);
+    if (active.length === 0) {
+      toast.error('No distribution entries to create movements from.');
+      return;
+    }
+
+    const rows: BatchMovementRow[] = [];
+    active.forEach((entry) => {
+      const amount = calculateEntryAmount(entry.percentage);
+      if (amount <= 0) return;
+
+      // Match by pocketId first; fall back to case-insensitive name match for
+      // legacy entries that predate the pocketId/accountId fields.
+      const matchedPocket =
+        (entry.pocketId && pockets.find((p) => p.id === entry.pocketId)) ||
+        pockets.find(
+          (p) => p.name.trim().toLowerCase() === entry.name.trim().toLowerCase()
+        );
+      const accountId = matchedPocket?.accountId ?? entry.accountId ?? '';
+      const account = accountId ? accounts.find((a) => a.id === accountId) : undefined;
+
+      rows.push({
+        id: crypto.randomUUID(),
+        type: 'IngresoNormal',
+        accountId: account?.id || '',
+        pocketId: matchedPocket?.id || '',
+        amount: amount.toFixed(2),
+        notes: `Budget Distribution: ${entry.name}`,
+        displayedDate: new Date().toISOString().split('T')[0],
+      });
+    });
+
+    if (rows.length === 0) {
+      toast.error('Calculated amounts are zero.');
+      return;
+    }
+
+    setBatchRows(rows);
+    setBatchOpen(true);
+    toast.success(rows.length === 1 ? 'Prepared 1 movement' : `Prepared ${rows.length} movements`);
+  };
+
+  const saveBatch = async (rows: BatchMovementRow[]) => {
+    try {
+      for (const row of rows) {
+        await createMovement.mutateAsync({
+          type: row.type,
+          accountId: row.accountId,
+          pocketId: row.pocketId,
+          amount: parseFloat(row.amount),
+          notes: row.notes || undefined,
+          displayedDate: row.displayedDate,
+          isPending: row.isPending || false,
+        });
+      }
+      setBatchOpen(false);
+      setBatchRows([]);
+      toast.success('Successfully distributed budget!');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to save movements';
+      toast.error(msg);
+    }
+  };
+
+  const closeBatch = () => {
+    setBatchOpen(false);
+    setBatchRows([]);
+  };
+
+  return {
+    totalFijosMes,
+    remaining,
+    showConversion,
+    convertedAmounts,
+    activeScenarioIds,
+    toggleScenario,
+    saveScenario,
+    deleteScenario,
+    prepareBatchFromDistribution,
+    batch: {
+      isOpen: batchOpen,
+      rows: batchRows,
+      close: closeBatch,
+      save: saveBatch,
+    },
+  };
+};
