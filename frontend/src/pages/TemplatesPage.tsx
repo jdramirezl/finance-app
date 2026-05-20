@@ -1,14 +1,14 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useMovementTemplatesQuery, useAccountsQuery, usePocketsQuery, useMovementTemplateMutations } from '../hooks/queries';
 import { useToast } from '../hooks/useToast';
 import { useConfirmDialog } from '../contexts/ConfirmDialogContext';
-import { Trash2, Plus, Edit2 } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import Button from '../components/Button';
 import Card from '../components/Card';
 import Modal from '../components/Modal';
 import { Skeleton } from '../components/Skeleton';
 import MovementTemplateForm from '../components/movements/MovementTemplateForm';
-import { getMovementTypeLabel, getMovementTypeColor } from '../utils/movementTypes';
+import TemplateCard from '../components/movements/TemplateCard';
 import type { MovementTemplate, MovementType } from '../types';
 
 const TemplatesPage = () => {
@@ -80,26 +80,31 @@ const TemplatesPage = () => {
     }
   };
 
-  const handleDelete = async (id: string, name: string) => {
+  const handleEdit = useCallback((template: MovementTemplate) => {
+    setEditingTemplate(template);
+    setShowForm(true);
+  }, []);
+
+  const handleDelete = useCallback(async (template: MovementTemplate) => {
     const confirmed = await confirm({
       title: 'Delete Template',
-      message: `Are you sure you want to delete the template "${name}"? This action cannot be undone.`,
+      message: `Are you sure you want to delete the template "${template.name}"? This action cannot be undone.`,
       confirmText: 'Delete Template',
       variant: 'danger',
     });
 
     if (!confirmed) return;
 
-    setDeletingId(id);
+    setDeletingId(template.id);
     try {
-      await deleteMovementTemplate.mutateAsync(id);
-      toast.success(`Template "${name}" deleted successfully!`);
+      await deleteMovementTemplate.mutateAsync(template.id);
+      toast.success(`Template "${template.name}" deleted successfully!`);
     } catch {
       // Toast is shown by the mutation's onError handler.
     } finally {
       setDeletingId(null);
     }
-  };
+  }, [confirm, deleteMovementTemplate, toast]);
 
   if (isLoading) {
     return (
@@ -110,6 +115,8 @@ const TemplatesPage = () => {
       </div>
     );
   }
+
+  const disableDeleteActions = deletingId !== null;
 
   return (
     <div className="space-y-6">
@@ -164,77 +171,16 @@ const TemplatesPage = () => {
             const pocket = pockets.find(p => p.id === template.pocketId);
 
             return (
-              <Card key={template.id}>
-                <div className="space-y-3">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <h3 className="font-semibold text-gray-900 dark:text-gray-100">
-                        {template.name}
-                      </h3>
-                      <span className={`inline-block px-2 py-0.5 text-xs font-medium rounded mt-1 ${getMovementTypeColor(template.type)}`}>
-                        {getMovementTypeLabel(template.type)}
-                      </span>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          setEditingTemplate(template);
-                          setShowForm(true);
-                        }}
-                        className="p-2 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30"
-                        aria-label={`Edit template ${template.name}`}
-                        title={`Edit template ${template.name}`}
-                      >
-                        <Edit2 className="w-4 h-4" aria-hidden="true" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDelete(template.id, template.name)}
-                        loading={deletingId === template.id}
-                        disabled={deletingId !== null}
-                        className="p-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30"
-                        aria-label={`Delete template ${template.name}`}
-                        title={`Delete template ${template.name}`}
-                      >
-                        <Trash2 className="w-4 h-4" aria-hidden="true" />
-                      </Button>
-                    </div>
-                  </div>
-
-                  <div className="space-y-1 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-gray-600 dark:text-gray-400">Account:</span>
-                      <span className="text-gray-900 dark:text-gray-100 font-medium">
-                        {account?.name || 'Unknown'}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600 dark:text-gray-400">Pocket:</span>
-                      <span className="text-gray-900 dark:text-gray-100 font-medium">
-                        {pocket?.name || 'Unknown'}
-                      </span>
-                    </div>
-                    {template.defaultAmount && (
-                      <div className="flex justify-between">
-                        <span className="text-gray-600 dark:text-gray-400">Amount:</span>
-                        <span className="text-gray-900 dark:text-gray-100 font-medium">
-                          ${template.defaultAmount.toFixed(2)}
-                        </span>
-                      </div>
-                    )}
-                    {template.notes && (
-                      <div className="pt-2 border-t border-gray-200 dark:border-gray-700">
-                        <p className="text-gray-600 dark:text-gray-400 text-xs italic">
-                          "{template.notes}"
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </Card>
+              <TemplateCard
+                key={template.id}
+                template={template}
+                account={account}
+                pocket={pocket}
+                isDeleting={deletingId === template.id}
+                disableActions={disableDeleteActions}
+                onEdit={handleEdit}
+                onDelete={handleDelete}
+              />
             );
           })}
         </div>
