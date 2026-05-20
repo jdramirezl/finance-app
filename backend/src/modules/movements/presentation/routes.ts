@@ -92,6 +92,40 @@ router.get('/orphaned', (req, res, next) => controller.getOrphaned(req, res, nex
 router.post('/restore-orphaned', (req, res, next) => controller.restoreOrphaned(req, res, next));
 
 /**
+ * DELETE /api/movements/by-account/:accountId
+ * Bulk-delete every movement for an account
+ *
+ * Response: 200 + { count: number }
+ */
+router.delete('/by-account/:accountId', (req, res, next) => controller.deleteByAccount(req, res, next));
+
+/**
+ * DELETE /api/movements/by-pocket/:pocketId
+ * Bulk-delete every movement for a pocket
+ *
+ * Response: 200 + { count: number }
+ */
+router.delete('/by-pocket/:pocketId', (req, res, next) => controller.deleteByPocket(req, res, next));
+
+/**
+ * POST /api/movements/mark-orphaned
+ * Mark every movement attached to an account or pocket as orphaned
+ *
+ * Body: { entityId: string, entityType: 'account' | 'pocket' }
+ * Response: 200 + { count: number }
+ */
+router.post('/mark-orphaned', (req, res, next) => controller.markOrphaned(req, res, next));
+
+/**
+ * POST /api/movements/update-account
+ * Bulk-update the account_id for every movement in a pocket
+ *
+ * Body: { pocketId: string, newAccountId: string }
+ * Response: 200 + { count: number }
+ */
+router.post('/update-account', (req, res, next) => controller.updateAccountForPocket(req, res, next));
+
+/**
  * PUT /api/movements/:id
  * Update movement
  * 

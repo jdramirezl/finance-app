@@ -21,6 +21,16 @@ import { ApplyPendingMovementUseCase } from '../application/useCases/ApplyPendin
 import { MarkAsPendingUseCase } from '../application/useCases/MarkAsPendingUseCase';
 import { RestoreOrphanedMovementsUseCase } from '../application/useCases/RestoreOrphanedMovementsUseCase';
 import { CreateTransferUseCase } from '../application/useCases/CreateTransferUseCase';
+import { DeleteMovementsByAccountUseCase } from '../application/useCases/DeleteMovementsByAccountUseCase';
+import { DeleteMovementsByPocketUseCase } from '../application/useCases/DeleteMovementsByPocketUseCase';
+import {
+  MarkMovementsAsOrphanedUseCase,
+  type MarkMovementsAsOrphanedDTO,
+} from '../application/useCases/MarkMovementsAsOrphanedUseCase';
+import {
+  UpdateMovementsAccountForPocketUseCase,
+  type UpdateMovementsAccountForPocketDTO,
+} from '../application/useCases/UpdateMovementsAccountForPocketUseCase';
 import type { CreateMovementDTO, UpdateMovementDTO } from '../application/dtos/MovementDTO';
 
 @injectable()
@@ -37,7 +47,11 @@ export class MovementController {
     @inject(ApplyPendingMovementUseCase) private applyPendingMovementUseCase: ApplyPendingMovementUseCase,
     @inject(MarkAsPendingUseCase) private markAsPendingUseCase: MarkAsPendingUseCase,
     @inject(RestoreOrphanedMovementsUseCase) private restoreOrphanedMovementsUseCase: RestoreOrphanedMovementsUseCase,
-    @inject(CreateTransferUseCase) private createTransferUseCase: CreateTransferUseCase
+    @inject(CreateTransferUseCase) private createTransferUseCase: CreateTransferUseCase,
+    @inject(DeleteMovementsByAccountUseCase) private deleteMovementsByAccountUseCase: DeleteMovementsByAccountUseCase,
+    @inject(DeleteMovementsByPocketUseCase) private deleteMovementsByPocketUseCase: DeleteMovementsByPocketUseCase,
+    @inject(MarkMovementsAsOrphanedUseCase) private markMovementsAsOrphanedUseCase: MarkMovementsAsOrphanedUseCase,
+    @inject(UpdateMovementsAccountForPocketUseCase) private updateMovementsAccountForPocketUseCase: UpdateMovementsAccountForPocketUseCase
   ) { }
 
   /**
@@ -301,6 +315,100 @@ export class MovementController {
       }
 
       const result = await this.restoreOrphanedMovementsUseCase.execute(userId);
+
+      res.status(200).json(result);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Bulk-delete every movement for an account
+   * DELETE /api/movements/by-account/:accountId
+   *
+   * Response: 200 + { count: number }
+   */
+  async deleteByAccount(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        res.status(401).json({ error: 'Unauthorized' });
+        return;
+      }
+
+      const accountId = req.params.accountId;
+      const result = await this.deleteMovementsByAccountUseCase.execute(accountId, userId);
+
+      res.status(200).json(result);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Bulk-delete every movement for a pocket
+   * DELETE /api/movements/by-pocket/:pocketId
+   *
+   * Response: 200 + { count: number }
+   */
+  async deleteByPocket(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        res.status(401).json({ error: 'Unauthorized' });
+        return;
+      }
+
+      const pocketId = req.params.pocketId;
+      const result = await this.deleteMovementsByPocketUseCase.execute(pocketId, userId);
+
+      res.status(200).json(result);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Mark every movement attached to an account or pocket as orphaned
+   * POST /api/movements/mark-orphaned
+   *
+   * Body: { entityId: string, entityType: 'account' | 'pocket' }
+   * Response: 200 + { count: number }
+   */
+  async markOrphaned(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        res.status(401).json({ error: 'Unauthorized' });
+        return;
+      }
+
+      const dto: MarkMovementsAsOrphanedDTO = req.body;
+      const result = await this.markMovementsAsOrphanedUseCase.execute(dto, userId);
+
+      res.status(200).json(result);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Bulk-update the account_id for every movement in a pocket
+   * POST /api/movements/update-account
+   *
+   * Body: { pocketId: string, newAccountId: string }
+   * Response: 200 + { count: number }
+   */
+  async updateAccountForPocket(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        res.status(401).json({ error: 'Unauthorized' });
+        return;
+      }
+
+      const dto: UpdateMovementsAccountForPocketDTO = req.body;
+      const result = await this.updateMovementsAccountForPocketUseCase.execute(dto, userId);
 
       res.status(200).json(result);
     } catch (error) {

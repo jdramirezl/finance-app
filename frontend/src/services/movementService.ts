@@ -1,6 +1,5 @@
 import type { Movement, MovementType } from '../types';
 import { apiClient } from './apiClient';
-import { supabase } from '../lib/supabase';
 
 // Helper to map snake_case DB rows to camelCase Movement objects
 function mapMovementRow(row: Record<string, unknown>): Movement {
@@ -96,23 +95,19 @@ class MovementService {
     displayedDate: string,
     notes?: string
   ): Promise<{ expense: Movement; income: Movement }> {
-    // Use atomic RPC function for transaction safety
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('User not authenticated');
-
-    const { data, error } = await supabase.rpc('create_transfer', {
-      p_user_id: user.id,
-      p_source_account_id: sourceAccountId,
-      p_source_pocket_id: sourcePocketId,
-      p_target_account_id: targetAccountId,
-      p_target_pocket_id: targetPocketId,
-      p_amount: amount,
-      p_displayed_date: displayedDate,
-      p_notes: notes || null,
+    const result = await apiClient.post<{
+      expense: Record<string, unknown>;
+      income: Record<string, unknown>;
+    }>('/api/movements/transfer', {
+      sourceAccountId,
+      sourcePocketId,
+      targetAccountId,
+      targetPocketId,
+      amount,
+      displayedDate,
+      notes,
     });
 
-    if (error) throw error;
-    const result = typeof data === 'string' ? JSON.parse(data) : data;
     return {
       expense: mapMovementRow(result.expense),
       income: mapMovementRow(result.income),
@@ -150,87 +145,42 @@ class MovementService {
     return await apiClient.post('/api/movements/restore', { movementIds, accountId, pocketId });
   }
 
-  // --- Bulk Supabase operations (no backend API equivalent) ---
+  // --- Bulk operations (delegated to backend) ---
 
   async deleteMovementsByAccount(accountId: string): Promise<number> {
-    const { data } = await supabase
-      .from('movements')
-      .select('id')
-      .eq('account_id', accountId);
-    const count = data?.length || 0;
-    if (count > 0) {
-      const { error } = await supabase
-        .from('movements')
-        .delete()
-        .eq('account_id', accountId);
-      if (error) throw error;
-    }
-    return count;
+    const result = await apiClient.delete<{ count: number }>(
+      `/api/movements/by-account/${accountId}`
+    );
+    return result.count;
   }
 
   async deleteMovementsByPocket(pocketId: string): Promise<number> {
-    const { data } = await supabase
-      .from('movements')
-      .select('id')
-      .eq('pocket_id', pocketId);
-    const count = data?.length || 0;
-    if (count > 0) {
-      const { error } = await supabase
-        .from('movements')
-        .delete()
-        .eq('pocket_id', pocketId);
-      if (error) throw error;
-    }
-    return count;
+    const result = await apiClient.delete<{ count: number }>(
+      `/api/movements/by-pocket/${pocketId}`
+    );
+    return result.count;
   }
 
-  async markMovementsAsOrphaned(id: string, type: 'account' | 'pocket'): Promise<number> {
-    const { pocketService } = await import('./pocketService');
-    const { accountService } = await import('./accountService');
-
-    let orphanedAccountName = 'Unknown';
-    let orphanedAccountCurrency = 'USD';
-    let orphanedPocketName = 'Unknown';
-
-    if (type === 'account') {
-      const account = await accountService.getAccount(id);
-      orphanedAccountName = account?.name || 'Unknown';
-      orphanedAccountCurrency = account?.currency || 'USD';
-    } else {
-      const pocket = await pocketService.getPocket(id);
-      orphanedPocketName = pocket?.name || 'Unknown';
-      if (pocket) {
-        const account = await accountService.getAccount(pocket.accountId);
-        orphanedAccountName = account?.name || 'Unknown';
-        orphanedAccountCurrency = account?.currency || 'USD';
-      }
-    }
-
-    const filterCol = type === 'account' ? 'account_id' : 'pocket_id';
-    const { data, error } = await supabase
-      .from('movements')
-      .update({
-        is_orphaned: true,
-        orphaned_account_name: orphanedAccountName,
-        orphaned_account_currency: orphanedAccountCurrency,
-        orphaned_pocket_name: orphanedPocketName,
-      })
-      .eq(filterCol, id)
-      .select('id');
-
-    if (error) throw error;
-    return data?.length || 0;
+  async markMovementsAsOrphaned(
+    id: string,
+    type: 'account' | 'pocket'
+  ): Promise<number> {
+    const result = await apiClient.post<{ count: number }>(
+      '/api/movements/mark-orphaned',
+      { entityId: id, entityType: type }
+    );
+    return result.count;
   }
 
-  async updateMovementsAccountForPocket(pocketId: string, newAccountId: string): Promise<number> {
-    const { data, error } = await supabase
-      .from('movements')
-      .update({ account_id: newAccountId })
-      .eq('pocket_id', pocketId)
-      .select('id');
-
-    if (error) throw error;
-    return data?.length || 0;
+  async updateMovementsAccountForPocket(
+    pocketId: string,
+    newAccountId: string
+  ): Promise<number> {
+    const result = await apiClient.post<{ count: number }>(
+      '/api/movements/update-account',
+      { pocketId, newAccountId }
+    );
+    return result.count;
   }
 
   // --- No-ops (handled by database triggers) ---
