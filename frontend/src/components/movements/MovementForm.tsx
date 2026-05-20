@@ -5,6 +5,7 @@ import Button from '../Button';
 import Input from '../Input';
 import Select from '../Select';
 import { toDateOnly } from '../../utils/dateUtils';
+import { MOVEMENT_TYPES, isFixedMovement } from '../../utils/movementTypes';
 import type { Movement, MovementType } from '../../types';
 
 interface MovementFormProps {
@@ -42,6 +43,14 @@ interface MovementFormProps {
     };
 }
 
+// Type select options for this form, which adds a synthetic "Transfer"
+// entry on top of the canonical movement types. Transfer is a UI-only
+// concept in this component — it is not a MovementType.
+const MOVEMENT_TYPE_OPTIONS_WITH_TRANSFER: { value: MovementType | 'Transfer'; label: string }[] = [
+    ...MOVEMENT_TYPES,
+    { value: 'Transfer', label: 'Transfer' },
+];
+
 const MovementForm = ({
     initialData,
     onSubmit,
@@ -75,8 +84,8 @@ const MovementForm = ({
     const { data: movementTemplates = [] } = useMovementTemplatesQuery();
 
     // Filter accounts and pockets based on movement type
-    const isFixedMove = selectedType === 'IngresoFijo' || selectedType === 'EgresoFijo';
-    
+    const isFixedMove = isFixedMovement(selectedType);
+
     const filteredAccounts = isFixedMove
         ? accounts.filter(acc => pockets.some(p => p.accountId === acc.id && p.type === 'fixed'))
         : accounts;
@@ -95,7 +104,7 @@ const MovementForm = ({
         : [];
 
     // Determine if this is a fixed expense from defaultValues or initialData
-    const isDefaultFixedExpense = selectedType === 'IngresoFijo' || selectedType === 'EgresoFijo';
+    const isDefaultFixedExpense = isFixedMovement(selectedType);
 
     const [isTransfer, setIsTransfer] = useState(false);
     const [targetAccountId, setTargetAccountId] = useState('');
@@ -125,14 +134,6 @@ const MovementForm = ({
             }
         }
     }, [isFixedMove, selectedAccountId, pockets, setSelectedPocketId, setSelectedAccountId, selectedPocketId]);
-
-    const movementTypes: { value: MovementType | 'Transfer'; label: string }[] = [
-        { value: 'IngresoNormal', label: 'Normal Income' },
-        { value: 'EgresoNormal', label: 'Normal Expense' },
-        { value: 'IngresoFijo', label: 'Fixed Income' },
-        { value: 'EgresoFijo', label: 'Fixed Expense' },
-        { value: 'Transfer', label: 'Transfer' },
-    ];
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
@@ -191,9 +192,9 @@ const MovementForm = ({
                                 setIsTransfer(false);
                                 const type = value as MovementType;
                                 setSelectedType(type);
-                                const isFixedType = type === 'IngresoFijo' || type === 'EgresoFijo';
+                                const isFixedType = isFixedMovement(type);
                                 setIsFixedExpense(isFixedType);
-                                
+
                                 // Reset account if it's not valid for the new type selection
                                 if (isFixedType) {
                                     const hasFixed = pockets.some(p => p.accountId === selectedAccountId && p.type === 'fixed');
@@ -201,7 +202,7 @@ const MovementForm = ({
                                 }
                             }
                         }}
-                        options={movementTypes}
+                        options={MOVEMENT_TYPE_OPTIONS_WITH_TRANSFER}
                     />
 
                     <Input

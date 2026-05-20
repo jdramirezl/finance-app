@@ -5,6 +5,7 @@ import Button from './Button';
 import Input from './Input';
 import Select from './Select';
 import { useToast } from '../hooks/useToast';
+import { MOVEMENT_TYPES, isFixedMovement } from '../utils/movementTypes';
 import type { MovementType, Account, Pocket, SubPocket } from '../types';
 
 export interface BatchMovementRow {
@@ -71,13 +72,6 @@ const BatchMovementForm = forwardRef<BatchMovementFormRef, BatchMovementFormProp
     },
   }));
 
-  const movementTypes: { value: MovementType; label: string }[] = [
-    { value: 'IngresoNormal', label: 'Normal Income' },
-    { value: 'EgresoNormal', label: 'Normal Expense' },
-    { value: 'IngresoFijo', label: 'Fixed Income' },
-    { value: 'EgresoFijo', label: 'Fixed Expense' },
-  ];
-
   const addRow = () => {
     const newRows = [
       ...rows,
@@ -114,8 +108,7 @@ const BatchMovementForm = forwardRef<BatchMovementFormRef, BatchMovementFormProp
             updated.subPocketId = undefined;
 
             // If we have an account and it's a fixed movement, auto-select the fixed pocket
-            const isFixedMove = updated.type === 'IngresoFijo' || updated.type === 'EgresoFijo';
-            if (isFixedMove && updated.accountId) {
+            if (isFixedMovement(updated.type) && updated.accountId) {
               const accountPockets = getPocketsByAccount(updated.accountId);
               const fixedPock = accountPockets.find(p => p.type === 'fixed');
               if (fixedPock) {
@@ -126,8 +119,8 @@ const BatchMovementForm = forwardRef<BatchMovementFormRef, BatchMovementFormProp
 
           // If type changes, apply filtering rules
           if (updates.type !== undefined && updates.type !== row.type) {
-            const wasFixed = row.type === 'IngresoFijo' || row.type === 'EgresoFijo';
-            const isNowFixed = updates.type === 'IngresoFijo' || updates.type === 'EgresoFijo';
+            const wasFixed = isFixedMovement(row.type);
+            const isNowFixed = isFixedMovement(updates.type);
 
             if (isNowFixed && !wasFixed) {
               // Transitionally check if current account is valid for fixed
@@ -228,7 +221,7 @@ const BatchMovementForm = forwardRef<BatchMovementFormRef, BatchMovementFormProp
 
       <div className="space-y-3 max-h-[60vh] overflow-y-auto">
         {rows.map((row, index) => {
-          const isFixedExpense = row.type === 'IngresoFijo' || row.type === 'EgresoFijo';
+          const isFixedExpense = isFixedMovement(row.type);
 
           // Filter accounts: show all for normal, only those with fixed pockets for fixed movements
           const filteredAccounts = isFixedExpense
@@ -277,7 +270,7 @@ const BatchMovementForm = forwardRef<BatchMovementFormRef, BatchMovementFormProp
                     onFocusRow?.({ ...row, type });
                   }}
                   required
-                  options={movementTypes}
+                  options={MOVEMENT_TYPES}
                 />
 
                 <Select

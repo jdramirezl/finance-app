@@ -9,6 +9,7 @@ import Modal from '../components/Modal';
 import { Skeleton } from '../components/Skeleton';
 import ConfirmDialog from '../components/ConfirmDialog';
 import MovementTemplateForm from '../components/movements/MovementTemplateForm';
+import { getMovementTypeLabel, getMovementTypeColor } from '../utils/movementTypes';
 import type { MovementTemplate, MovementType } from '../types';
 
 const TemplatesPage = () => {
@@ -98,29 +99,6 @@ const TemplatesPage = () => {
       // Toast is shown by the mutation's onError handler.
     } finally {
       setDeletingId(null);
-    }
-  };
-
-  const getMovementTypeLabel = (type: string): string => {
-    switch (type) {
-      case 'IngresoNormal': return 'Income';
-      case 'EgresoNormal': return 'Expense';
-      case 'IngresoFijo': return 'Fixed Income';
-      case 'EgresoFijo': return 'Fixed Expense';
-      default: return type;
-    }
-  };
-
-  const getMovementTypeColor = (type: string): string => {
-    switch (type) {
-      case 'IngresoNormal':
-      case 'IngresoFijo':
-        return 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300';
-      case 'EgresoNormal':
-      case 'EgresoFijo':
-        return 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300';
-      default:
-        return 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-300';
     }
   };
 

@@ -3,6 +3,7 @@ import { useAccountsQuery, usePocketsQuery, useSubPocketsQuery } from '../../hoo
 import Button from '../Button';
 import Input from '../Input';
 import Select from '../Select';
+import { MOVEMENT_TYPES, isFixedMovement } from '../../utils/movementTypes';
 import type { MovementTemplate, MovementType } from '../../types';
 
 interface MovementTemplateFormProps {
@@ -50,18 +51,11 @@ const MovementTemplateForm = ({
         ? pockets.filter(p => p.accountId === accountId)
         : [];
 
-    const isFixedExpense = type === 'IngresoFijo' || type === 'EgresoFijo';
+    const isFixedExpense = isFixedMovement(type);
     const fixedPocket = availablePockets.find((p) => p.type === 'fixed');
     const availableSubPockets = fixedPocket && isFixedExpense
         ? subPockets.filter(sp => sp.pocketId === fixedPocket.id)
         : [];
-
-    const movementTypes: { value: MovementType; label: string }[] = [
-        { value: 'IngresoNormal', label: 'Normal Income' },
-        { value: 'EgresoNormal', label: 'Normal Expense' },
-        { value: 'IngresoFijo', label: 'Fixed Income' },
-        { value: 'EgresoFijo', label: 'Fixed Expense' },
-    ];
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -91,7 +85,7 @@ const MovementTemplateForm = ({
                     label="Type"
                     value={type}
                     onChange={(e) => setType(e.target.value as MovementType)}
-                    options={movementTypes}
+                    options={MOVEMENT_TYPES}
                     required
                 />
 
