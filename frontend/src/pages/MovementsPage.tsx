@@ -1,5 +1,6 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useMemo, useRef, useState } from 'react';
+import { format } from 'date-fns';
+import { Plus, Trash2 } from 'lucide-react';
 import {
   useAccountsQuery,
   usePocketsQuery,
@@ -9,26 +10,31 @@ import {
   useSubPocketsQuery,
   useMovementMutations,
   useMovementTemplateMutations,
-  useReminderMutations
+  useReminderMutations,
 } from '../hooks/queries';
 import { useToast } from '../hooks/useToast';
 import { useConfirm } from '../hooks/useConfirm';
-import type { Movement, MovementType, Account, Pocket, SubPocket, MovementTemplate } from '../types';
-import { Plus, Trash2, X } from 'lucide-react';
-import Button from '../components/Button';
-import { Skeleton, SkeletonTable } from '../components/Skeleton';
-import Card from '../components/Card';
-import ConfirmDialog from '../components/ConfirmDialog';
-import BatchMovementForm, { type BatchMovementRow, type BatchMovementFormRef } from '../components/BatchMovementForm';
+import { useBulkSelection } from '../hooks/useBulkSelection';
+import { useMovementFormState } from '../hooks/useMovementFormState';
+import { useURLActions } from '../hooks/useURLActions';
 import { useMovementsFilter } from '../hooks/useMovementsFilter';
 import { useMovementsSort } from '../hooks/useMovementsSort';
+import { useMovementSubmit } from '../hooks/useMovementSubmit';
+import { useMovementRowActions } from '../hooks/useMovementRowActions';
+import { useMovementBulkActions } from '../hooks/useMovementBulkActions';
+import { useBalanceDeltas } from '../hooks/useBalanceDeltas';
+import { useOrphanedRestore } from '../hooks/useOrphanedRestore';
+import type { Account, Movement, MovementTemplate, Pocket, SubPocket } from '../types';
+import Button from '../components/Button';
+import { Skeleton, SkeletonTable } from '../components/Skeleton';
+import ConfirmDialog from '../components/ConfirmDialog';
+import type { BatchMovementFormRef, BatchMovementRow } from '../components/BatchMovementForm';
 import MovementFilters from '../components/movements/MovementFilters';
 import MovementList from '../components/movements/MovementList';
-import MovementForm from '../components/movements/MovementForm';
-import AccountContextPanel from '../components/movements/AccountContextPanel';
-import QuickCalculator from '../components/movements/QuickCalculator';
+import OrphanedMovementsPanel from '../components/movements/OrphanedMovementsPanel';
+import BulkActionsToolbar from '../components/movements/BulkActionsToolbar';
+import MovementFormPanel from '../components/movements/MovementFormPanel';
 import RestoreOrphanedModal from '../components/movements/RestoreOrphanedModal';
-import { format } from 'date-fns';
 
 const EMPTY_ACCOUNTS: Account[] = [];
 const EMPTY_POCKETS: Pocket[] = [];
@@ -37,492 +43,116 @@ const EMPTY_MOVEMENTS: Movement[] = [];
 const EMPTY_TEMPLATES: MovementTemplate[] = [];
 
 const MovementsPage = () => {
-  // Queries
+  // Data + mutations
   const { data: accounts = EMPTY_ACCOUNTS } = useAccountsQuery();
   const { data: pockets = EMPTY_POCKETS } = usePocketsQuery();
   const { data: subPockets = EMPTY_SUBPOCKETS } = useSubPocketsQuery();
-  // Load ALL movements (no pagination) - grouping by month happens client-side
   const { data: movements = EMPTY_MOVEMENTS, isLoading: movementsLoading } = useMovementsQuery();
   const { data: movementTemplates = EMPTY_TEMPLATES, isLoading: templatesLoading } = useMovementTemplatesQuery();
-  const { data: orphanedMovementsData = EMPTY_MOVEMENTS } = useOrphanedMovementsQuery();
-
-  // Mutations
-  const {
-    createMovement,
-    createTransfer,
-    updateMovement,
-    deleteMovement,
-    applyPendingMovement,
-    markAsPending,
-    restoreOrphanedMovements
-  } = useMovementMutations();
-
-
+  const { data: orphanedMovements = EMPTY_MOVEMENTS } = useOrphanedMovementsQuery();
+  const movementMutations = useMovementMutations();
   const { createMovementTemplate } = useMovementTemplateMutations();
   const { markAsPaidMutation } = useReminderMutations();
-
-  // Derived State
-  const orphanedCount = orphanedMovementsData.length;
-  const orphanedMovements = orphanedMovementsData;
-
   const toast = useToast();
   const { confirm, confirmState, handleClose, handleConfirm } = useConfirm();
 
-  // UI State
-  const [showForm, setShowForm] = useState(false);
-  const [showBatchForm, setShowBatchForm] = useState(false);
-  const [editingMovement, setEditingMovement] = useState<Movement | null>(null);
+  // Filter / sort / selection / form state
+  const { filteredMovements, filters, setFilters } = useMovementsFilter({ movements });
+  const { sortedMovementsByMonth, sortField, sortOrder, setSortField, setSortOrder } =
+    useMovementsSort({ movements: filteredMovements });
+  const formState = useMovementFormState(movementTemplates);
+  const bulk = useBulkSelection();
+
+  // Page-local UI state
   const [error, setError] = useState<string | null>(null);
-  // Derived loading state
-  const isSaving = createMovement.isPending || updateMovement.isPending;
-  const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [applyingId, setApplyingId] = useState<string | null>(null);
   const [showFilters, setShowFilters] = useState(false);
-
-  // Form State
-  const [selectedAccountId, setSelectedAccountId] = useState<string>('');
-  const [selectedPocketId, setSelectedPocketId] = useState<string>('');
-  // New state for type and subPocket
-  const [selectedSubPocketId, setSelectedSubPocketId] = useState<string>('');
-  const [selectedType, setSelectedType] = useState<MovementType>('EgresoNormal');
-  const [amount, setAmount] = useState<string>('');
-  const [notes, setNotes] = useState<string>('');
-  const [isFixedExpense, setIsFixedExpense] = useState(false);
-  const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
-  const [saveAsTemplate, setSaveAsTemplate] = useState(false);
-  const [templateName, setTemplateName] = useState('');
-  const [reminderId, setReminderId] = useState<string | null>(null);
-  const [defaultValues, setDefaultValues] = useState<{
-    amount?: number;
-    notes?: string;
-    date?: string;
-    type?: MovementType;
-    fixedExpenseId?: string;
-    templateId?: string;
-  }>({});
-
-  // Batch Form specific state
+  const [showOrphaned, setShowOrphaned] = useState(false);
+  const [showBatchForm, setShowBatchForm] = useState(false);
   const batchFormRef = useRef<BatchMovementFormRef>(null);
   const [activeBatchRowId, setActiveBatchRowId] = useState<string | null>(null);
   const [batchActiveAccountId, setBatchActiveAccountId] = useState<string>('');
   const [batchActivePocketId, setBatchActivePocketId] = useState<string>('');
   const [batchRows, setBatchRows] = useState<BatchMovementRow[]>([]);
+  const [expandedMonths, setExpandedMonths] = useState<Set<string>>(
+    () => new Set([format(new Date(), 'yyyy-MM')])
+  );
+  const toggleMonth = (month: string) => setExpandedMonths((prev) => {
+    const next = new Set(prev);
+    if (next.has(month)) next.delete(month); else next.add(month);
+    return next;
+  });
+  const expandMonth = (monthKey: string) => setExpandedMonths((prev) =>
+    prev.has(monthKey) ? prev : new Set(prev).add(monthKey)
+  );
 
-  // Orphaned movements
-  const [showOrphaned, setShowOrphaned] = useState(false);
-  const [restoreModalState, setRestoreModalState] = useState<{
-    isOpen: boolean;
-    movementIds: string[];
-    sourceLabel: string;
-  }>({ isOpen: false, movementIds: [], sourceLabel: '' });
-
-  // Bulk selection state
-  const [selectedMovementIds, setSelectedMovementIds] = useState<Set<string>>(new Set());
-
-  // Collapsible months state
-  const [expandedMonths, setExpandedMonths] = useState<Set<string>>(() => {
-    const currentMonth = format(new Date(), 'yyyy-MM');
-    return new Set([currentMonth]);
+  // URL-driven filters and form opens
+  useURLActions({
+    pockets, subPockets, movementTemplates, templatesLoading,
+    formState, setFilters, expandMonth,
   });
 
-  // Custom Hooks
-  const { filteredMovements, filters, setFilters } = useMovementsFilter({ movements });
-  const { sortedMovementsByMonth, sortField, sortOrder, setSortField, setSortOrder } = useMovementsSort({
-    movements: filteredMovements
-  });
-
-  // Balance Preview Deltas Calculation
-  const balanceDeltas = useMemo(() => {
-    const accountDeltas: Record<string, number> = {};
-    const pocketDeltas: Record<string, number> = {};
-    const subPocketDeltas: Record<string, number> = {};
-
-    const processRow = (type: MovementType, accId: string, pockId: string, subPockId: string | undefined, amtStr: string) => {
-      if (!accId || !pockId || !amtStr) return;
-      
-      const amt = parseFloat(amtStr) || 0;
-      if (amt === 0) return;
-
-      const isCredit = type === 'IngresoNormal' || type === 'IngresoFijo';
-      const delta = isCredit ? amt : -amt;
-
-      accountDeltas[accId] = (accountDeltas[accId] || 0) + delta;
-      pocketDeltas[pockId] = (pocketDeltas[pockId] || 0) + delta;
-      if (subPockId) {
-        subPocketDeltas[subPockId] = (subPocketDeltas[subPockId] || 0) + delta;
-      }
-    };
-
-    if (showBatchForm) {
-      batchRows.forEach(row => {
-        processRow(row.type, row.accountId, row.pocketId, row.subPocketId, row.amount);
-      });
-    } else if (showForm) {
-      processRow(selectedType, selectedAccountId, selectedPocketId, selectedSubPocketId, amount);
-    }
-
-    return { accountDeltas, pocketDeltas, subPocketDeltas };
-  }, [showBatchForm, showForm, batchRows, selectedType, selectedAccountId, selectedPocketId, selectedSubPocketId, amount]);
-
-  // Load Data
-  // Load Data handled by React Query
-
-  // Load Orphaned
-  // Orphaned loading handled by React Query
-
-  // Handle Quick Actions from URL
-  const location = useLocation();
-  const navigate = useNavigate();
-
-  // Handle date filtering from URL (e.g., from calendar widget)
-  const processedDateRef = useRef<string | null>(null);
-  
-  useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    const dateParam = params.get('date');
-    
-    // Only process if we have a date param and haven't processed this exact date yet
-    if (dateParam && processedDateRef.current !== dateParam) {
-      processedDateRef.current = dateParam;
-      
-      // Set custom date range filter for the specific date
-      setFilters.setDateRange('custom');
-      setFilters.setDateFrom(dateParam);
-      setFilters.setDateTo(dateParam);
-      
-      // Expand the month containing this date
-      const monthKey = format(new Date(dateParam), 'yyyy-MM');
-      setExpandedMonths(prev => new Set(prev).add(monthKey));
-      
-      // Clear the date parameter from URL
-      const newParams = new URLSearchParams(location.search);
-      newParams.delete('date');
-      const newSearch = newParams.toString();
-      navigate(location.pathname + (newSearch ? `?${newSearch}` : ''), { replace: true });
-    }
-  }, [location.search, navigate]); // Don't include setFilters in dependencies
-
-  useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    const action = params.get('action');
-
-    if (action === 'new') {
-      // Handle pre-filled data (e.g. from Reminders)
-      const amount = params.get('amount');
-      const notes = params.get('notes');
-      const date = params.get('date');
-      const templateId = params.get('templateId');
-      const fixedExpenseId = params.get('fixedExpenseId');
-      const reminderIdParam = params.get('reminderId');
-
-      // If we have a templateId but templates are still loading, wait.
-      if (templateId && templatesLoading) {
-        return;
-      }
-
-      setShowForm(true);
-      setEditingMovement(null);
-
-      if (amount || notes || date || templateId || fixedExpenseId) {
-        setDefaultValues({
-          amount: amount ? parseFloat(amount) : undefined,
-          notes: notes || undefined,
-          date: date || undefined,
-          templateId: templateId || undefined,
-          fixedExpenseId: fixedExpenseId || undefined,
-          // Set type to EgresoFijo if this is a fixed expense
-          type: fixedExpenseId ? 'EgresoFijo' : undefined,
-        });
-
-        if (templateId) {
-          handleTemplateSelect(templateId);
-        } else if (fixedExpenseId) {
-          // Find the fixed expense group/subpocket logic if needed
-          // For now, we rely on the form handling fixedExpenseId if we passed it, 
-          // but MovementForm doesn't take fixedExpenseId directly as a prop for selection, 
-          // it takes selectedPocketId/subPocketId.
-          // If we have a fixedExpenseId (which is a subPocketId), we should find the pocket and account.
-          const subPocket = subPockets.find(sp => sp.id === fixedExpenseId);
-          if (subPocket) {
-            const pocket = pockets.find(p => p.id === subPocket.pocketId);
-            if (pocket) {
-              setSelectedAccountId(pocket.accountId);
-              setSelectedPocketId(pocket.id);
-              setIsFixedExpense(true);
-            }
-          }
-        }
-      }
-
-      if (reminderIdParam) {
-        setReminderId(reminderIdParam);
-      }
-
-      // Clear param
-      navigate(location.pathname, { replace: true });
-    } else if (action === 'transfer') {
-      setShowForm(true);
-      setEditingMovement(null);
-      navigate(location.pathname, { replace: true });
-    }
-  }, [location.search, navigate, subPockets, pockets, movementTemplates, templatesLoading]);
-
-  // Handlers
-  const toggleMonth = (month: string) => {
-    const newExpanded = new Set(expandedMonths);
-    if (newExpanded.has(month)) {
-      newExpanded.delete(month);
-    } else {
-      newExpanded.add(month);
-    }
-    setExpandedMonths(newExpanded);
-  };
-
-  const toggleSelection = (id: string) => {
-    const newSelected = new Set(selectedMovementIds);
-    if (newSelected.has(id)) {
-      newSelected.delete(id);
-    } else {
-      newSelected.add(id);
-    }
-    setSelectedMovementIds(newSelected);
-  };
-
-  const handleTemplateSelect = (templateId: string) => {
-    setSelectedTemplateId(templateId);
-
-    if (!templateId) {
-      setSelectedAccountId('');
-      setSelectedPocketId('');
-      setSelectedSubPocketId('');
-      setAmount('');
-      setNotes('');
-      setIsFixedExpense(false);
-      return;
-    }
-
-    const template = movementTemplates.find(t => t.id === templateId);
-    if (!template) return;
-
-    setSelectedAccountId(template.accountId);
-    setSelectedPocketId(template.pocketId);
-    setSelectedSubPocketId(template.subPocketId || '');
-    setSelectedType(template.type);
-    setAmount(template.defaultAmount ? template.defaultAmount.toString() : '');
-    setNotes(template.notes || '');
-    setIsFixedExpense(template.type === 'IngresoFijo' || template.type === 'EgresoFijo');
-  };
-
-  const resetFormState = () => {
-    setShowForm(false);
+  // Modal lifecycle: closing tears down both single + batch forms
+  const closeForms = () => {
+    formState.resetFormState();
     setShowBatchForm(false);
-    setEditingMovement(null);
-    setSelectedAccountId('');
-    setSelectedPocketId('');
-    setSelectedSubPocketId('');
-    setSelectedType('EgresoNormal');
-    setAmount('');
-    setNotes('');
-    setIsFixedExpense(false);
-    setSelectedTemplateId('');
-    setSaveAsTemplate(false);
-    setTemplateName('');
-    setDefaultValues({});
-    
-    // Clear batch state
     setActiveBatchRowId(null);
     setBatchActiveAccountId('');
     setBatchActivePocketId('');
   };
 
-  // Get selected pocket balance for calculator
-  const activeAccountId = showBatchForm ? batchActiveAccountId : selectedAccountId;
-  const activePocketId = showBatchForm ? batchActivePocketId : selectedPocketId;
+  // Action hooks (submit / per-row / bulk / restore)
+  const { handleSubmit, handleBatchSave, isSaving } = useMovementSubmit({
+    formState, closeForms, setShowBatchForm, setError, toast,
+    mutations: {
+      createMovement: movementMutations.createMovement,
+      createTransfer: movementMutations.createTransfer,
+      updateMovement: movementMutations.updateMovement,
+      createMovementTemplate,
+      markAsPaidMutation,
+    },
+  });
+  const { handleDelete, handleApplyPending, deletingId, applyingId } = useMovementRowActions({
+    movements, confirm, toast, setError,
+    mutations: {
+      deleteMovement: movementMutations.deleteMovement,
+      applyPendingMovement: movementMutations.applyPendingMovement,
+    },
+  });
+  const { handleBulkApplyPending, handleBulkMarkAsPending, handleBulkDelete } =
+    useMovementBulkActions({
+      bulk, confirm, toast,
+      mutations: {
+        applyPendingMovement: movementMutations.applyPendingMovement,
+        markAsPending: movementMutations.markAsPending,
+        deleteMovement: movementMutations.deleteMovement,
+      },
+    });
+  const restore = useOrphanedRestore({
+    restoreMutation: movementMutations.restoreOrphanedMovements,
+    toast,
+  });
 
+  // Side panel data
+  const activeAccountId = showBatchForm ? batchActiveAccountId : formState.selectedAccountId;
+  const activePocketId = showBatchForm ? batchActivePocketId : formState.selectedPocketId;
   const selectedPocketBalance = useMemo(() => {
-    const pocket = pockets.find(p => p.id === activePocketId);
+    const pocket = pockets.find((p) => p.id === activePocketId);
     return pocket ? pocket.balance : null;
   }, [pockets, activePocketId]);
+  const balanceDeltas = useBalanceDeltas({ formState, showBatchForm, batchRows });
 
-  // Handler for calculator's "Use as Amount" button
   const handleUseCalculatorAmount = (calculatedAmount: number) => {
-    const formattedAmount = calculatedAmount.toFixed(2);
+    const formatted = calculatedAmount.toFixed(2);
     if (showBatchForm && activeBatchRowId) {
-      batchFormRef.current?.updateAmount(activeBatchRowId, formattedAmount);
+      batchFormRef.current?.updateAmount(activeBatchRowId, formatted);
     } else {
-      setAmount(formattedAmount);
+      formState.setAmount(formatted);
     }
   };
-
   const handleBatchRowFocus = (row: BatchMovementRow) => {
     setActiveBatchRowId(row.id);
     setBatchActiveAccountId(row.accountId);
     setBatchActivePocketId(row.pocketId);
-  };
-
-
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setError(null);
-    const form = e.currentTarget;
-    const formData = new FormData(form);
-
-    const type = formData.get('type') as MovementType;
-    const accountId = formData.get('accountId') as string;
-    const pocketId = formData.get('pocketId') as string;
-    const subPocketId = formData.get('subPocketId') as string || undefined;
-    const amount = parseFloat(formData.get('amount') as string);
-    const notes = formData.get('notes') as string || undefined;
-    const dateStr = formData.get('displayedDate') as string;
-    const displayedDate = new Date(dateStr + 'T00:00:00').toISOString();
-    const isPending = formData.get('isPending') === 'on';
-
-    try {
-      if (editingMovement) {
-        await updateMovement.mutateAsync({
-          id: editingMovement.id,
-          updates: { type, accountId, pocketId, subPocketId, amount, notes, displayedDate, isPending }
-        });
-        resetFormState();
-        toast.success('Movement updated successfully!');
-      } else {
-        form.reset();
-        resetFormState();
-
-        const isTransfer = formData.get('isTransfer') === 'true';
-
-        if (isTransfer) {
-          const targetAccountId = formData.get('targetAccountId') as string;
-          const targetPocketId = formData.get('targetPocketId') as string;
-
-          await createTransfer.mutateAsync({
-            sourceAccountId: accountId,
-            sourcePocketId: pocketId,
-            targetAccountId,
-            targetPocketId,
-            amount,
-            displayedDate,
-            notes
-          });
-          toast.success('Transfer created successfully!');
-        } else {
-          const newMovement = await createMovement.mutateAsync({ type, accountId, pocketId, amount, notes, displayedDate, subPocketId, isPending });
-
-          // If this was from a reminder, mark it as paid
-          if (reminderId) {
-            // Link the reminder to the newly created movement
-            // Note: We use the ID from the returned movement object
-            await markAsPaidMutation.mutateAsync({ id: reminderId, movementId: newMovement?.id });
-            setReminderId(null);
-            setDefaultValues({});
-          }
-
-          if (saveAsTemplate && templateName.trim()) {
-            try {
-              await createMovementTemplate.mutateAsync({ name: templateName.trim(), type, accountId, pocketId, defaultAmount: amount, notes, subPocketId });
-              toast.success(`Movement created and saved as template "${templateName}"!`);
-              setSaveAsTemplate(false);
-              setTemplateName('');
-            } catch (templateErr) {
-              toast.warning(`Movement created but template save failed: ${templateErr instanceof Error ? templateErr.message : 'Unknown error'}`);
-            }
-          } else {
-            toast.success(isPending ? 'Pending movement created successfully!' : 'Movement created successfully!');
-          }
-        }
-      }
-    } catch (err: unknown) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to save movement';
-      setError(errorMessage);
-      toast.error(errorMessage);
-      setShowForm(true);
-    }
-  };
-
-  const handleDelete = async (id: string) => {
-    const movement = movements.find(m => m.id === id);
-    const confirmed = await confirm({
-      title: 'Delete Movement',
-      message: `Are you sure you want to delete this movement${movement?.notes ? ` "${movement.notes}"` : ''}? This action cannot be undone.`,
-      confirmText: 'Delete Movement',
-      cancelText: 'Cancel',
-      variant: 'danger',
-    });
-
-    if (!confirmed) return;
-
-    setError(null);
-    setDeletingId(id);
-    try {
-      await deleteMovement.mutateAsync(id);
-      toast.success('Movement deleted successfully!');
-    } catch (err: any) {
-      const errorMessage = err.message || 'Failed to delete movement';
-      setError(errorMessage);
-      toast.error(errorMessage);
-    } finally {
-      setDeletingId(null);
-    }
-  };
-
-  const handleApplyPending = async (id: string) => {
-    const movement = movements.find(m => m.id === id);
-    const confirmed = await confirm({
-      title: 'Apply Pending Movement',
-      message: `Apply this pending movement${movement?.notes ? ` "${movement.notes}"` : ''}? This will update account balances.`,
-      confirmText: 'Apply Movement',
-      cancelText: 'Cancel',
-      variant: 'info',
-    });
-
-    if (!confirmed) return;
-
-    setError(null);
-    setApplyingId(id);
-    try {
-      await applyPendingMovement.mutateAsync(id);
-      toast.success('Movement applied successfully!');
-    } catch (err: any) {
-      const errorMessage = err.message || 'Failed to apply movement';
-      setError(errorMessage);
-      toast.error(errorMessage);
-    } finally {
-      setApplyingId(null);
-    }
-  };
-
-  const handleBatchSave = async (rows: Array<{
-    id: string;
-    type: MovementType;
-    accountId: string;
-    pocketId: string;
-    subPocketId?: string;
-    amount: string;
-    notes: string;
-    displayedDate: string;
-    isPending?: boolean;
-  }>) => {
-    try {
-      for (const row of rows) {
-        await createMovement.mutateAsync({
-          type: row.type,
-          accountId: row.accountId,
-          pocketId: row.pocketId,
-          amount: parseFloat(row.amount),
-          notes: row.notes || undefined,
-          displayedDate: row.displayedDate,
-          subPocketId: row.subPocketId,
-          isPending: row.isPending || false
-        });
-      }
-      setShowBatchForm(false);
-      const pendingText = rows[0]?.isPending ? ' as pending' : '';
-      toast.success(`Successfully created ${rows.length} movement${rows.length > 1 ? 's' : ''}${pendingText}!`);
-    } catch (err: unknown) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to save movements';
-      toast.error(errorMessage);
-      throw err;
-    }
   };
 
   if (movementsLoading) {
@@ -537,42 +167,24 @@ const MovementsPage = () => {
     );
   }
 
+  const orphanedCount = orphanedMovements.length;
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Movements</h1>
         <div className="flex gap-2">
           {orphanedCount > 0 && (
-            <Button
-              variant="secondary"
-              onClick={() => setShowOrphaned(!showOrphaned)}
-              className="px-2 sm:px-4"
-            >
+            <Button variant="secondary" onClick={() => setShowOrphaned((v) => !v)} className="px-2 sm:px-4">
               <Trash2 className="w-5 h-5" />
               <span className="hidden sm:inline ml-2">Orphaned ({orphanedCount})</span>
             </Button>
           )}
-          <Button
-            variant="secondary"
-            onClick={() => setShowBatchForm(true)}
-            className="px-2 sm:px-4"
-          >
+          <Button variant="secondary" onClick={() => setShowBatchForm(true)} className="px-2 sm:px-4">
             <Plus className="w-5 h-5" />
             <span className="hidden sm:inline ml-2">Batch Add</span>
           </Button>
-          <Button
-            variant="primary"
-            onClick={() => {
-              setShowForm(true);
-              setEditingMovement(null);
-              setSelectedAccountId('');
-              setSelectedPocketId('');
-              setSelectedSubPocketId('');
-              setSelectedType('EgresoNormal');
-              setIsFixedExpense(false);
-            }}
-            className="hidden md:flex"
-          >
+          <Button variant="primary" onClick={() => formState.openNewForm()} className="hidden md:flex">
             <Plus className="w-5 h-5" />
             New Movement
           </Button>
@@ -585,390 +197,74 @@ const MovementsPage = () => {
         </div>
       )}
 
-      {/* Orphaned Movements Section - Kept inline for now as it's specialized */}
-      {showOrphaned && (
-        <Card padding="md">
-          <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
-                  Orphaned Movements
-                </h2>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                  Movements from deleted accounts/pockets. Click "Restore" on a group to pick a destination account and pocket.
-                </p>
-              </div>
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => setShowOrphaned(false)}
-              >
-                <X className="w-4 h-4" />
-                Close
-              </Button>
-            </div>
-
-            {orphanedMovements.length === 0 ? (
-              <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-                No orphaned movements found
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {Object.entries(
-                  orphanedMovements.reduce((groups, movement) => {
-                    const key = `${movement.orphanedAccountName}|${movement.orphanedAccountCurrency}`;
-                    if (!groups[key]) groups[key] = [];
-                    groups[key].push(movement);
-                    return groups;
-                  }, {} as Record<string, typeof orphanedMovements>)
-                ).map(([key, movements]) => {
-                  const [accountName, currency] = key.split('|');
-                  const totalAmount = movements.reduce((sum, m) => {
-                    const isIncome = m.type.includes('Ingreso');
-                    return sum + (isIncome ? m.amount : -m.amount);
-                  }, 0);
-
-                  return (
-                    <div key={key} className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-                      <div className="flex items-center justify-between mb-4">
-                        <div>
-                          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                            {accountName} ({currency})
-                          </h3>
-                          <p className="text-sm text-gray-600 dark:text-gray-400">
-                            {movements.length} movement(s) • Total: ${totalAmount.toFixed(2)}
-                          </p>
-                        </div>
-                        <Button
-                          size="sm"
-                          onClick={() => {
-                            setRestoreModalState({
-                              isOpen: true,
-                              movementIds: movements.map((m) => m.id),
-                              sourceLabel: `${accountName} (${currency})`,
-                            });
-                          }}
-                        >
-                          Restore
-                        </Button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        </Card>
-      )}
-
-      <MovementFilters
-        showFilters={showFilters}
-        setShowFilters={setShowFilters}
-        filters={filters}
-        setFilters={setFilters}
+      <OrphanedMovementsPanel
+        isOpen={showOrphaned}
+        orphanedMovements={orphanedMovements}
+        onClose={() => setShowOrphaned(false)}
+        onRestoreClick={restore.open}
       />
 
-      {/* Bulk Actions Toolbar */}
-      {selectedMovementIds.size > 0 && (
-        <div className="sticky top-0 z-10 bg-blue-50 dark:bg-blue-900/30 border-2 border-blue-300 dark:border-blue-700 rounded-lg p-4 shadow-lg">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <span className="text-sm font-medium text-blue-900 dark:text-blue-100">
-                {selectedMovementIds.size} movement{selectedMovementIds.size > 1 ? 's' : ''} selected
-              </span>
-              <button
-                onClick={() => setSelectedMovementIds(new Set())}
-                className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
-              >
-                Clear selection
-              </button>
-            </div>
-            <div className="flex gap-2">
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={async () => {
-                  const confirmed = await confirm({
-                    title: 'Apply Pending Movements',
-                    message: `Apply ${selectedMovementIds.size} pending movement(s)? This will update account balances.`,
-                    confirmText: 'Apply Movements',
-                    cancelText: 'Cancel',
-                    variant: 'info',
-                  });
-                  if (!confirmed) return;
+      <MovementFilters
+        showFilters={showFilters} setShowFilters={setShowFilters}
+        filters={filters} setFilters={setFilters}
+      />
 
-                  try {
-                    const results = await Promise.allSettled(
-                      Array.from(selectedMovementIds).map(id => applyPendingMovement.mutateAsync(id))
-                    );
-                    const succeeded = results.filter(r => r.status === 'fulfilled').length;
-                    const failed = results.filter(r => r.status === 'rejected').length;
-                    if (failed > 0) {
-                      toast.error(`${succeeded} applied, ${failed} failed`);
-                    } else {
-                      toast.success(`Applied ${succeeded} movement(s)`);
-                    }
-                    setSelectedMovementIds(new Set());
-                  } catch (err: any) {
-                    toast.error(err.message || 'Failed to apply movements');
-                  }
-                }}
-              >
-                Apply Pending
-              </Button>
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={async () => {
-                  const confirmed = await confirm({
-                    title: 'Mark as Pending',
-                    message: `Mark ${selectedMovementIds.size} movement(s) as pending? This will exclude them from balance calculations.`,
-                    confirmText: 'Mark as Pending',
-                    cancelText: 'Cancel',
-                    variant: 'warning',
-                  });
-                  if (!confirmed) return;
-
-                  try {
-                    const results = await Promise.allSettled(
-                      Array.from(selectedMovementIds).map(id => markAsPending.mutateAsync(id))
-                    );
-                    const succeeded = results.filter(r => r.status === 'fulfilled').length;
-                    const failed = results.filter(r => r.status === 'rejected').length;
-                    if (failed > 0) {
-                      toast.error(`${succeeded} marked, ${failed} failed`);
-                    } else {
-                      toast.success(`Marked ${succeeded} movement(s) as pending`);
-                    }
-                    setSelectedMovementIds(new Set());
-                  } catch (err: any) {
-                    toast.error(err.message || 'Failed to mark as pending');
-                  }
-                }}
-              >
-                Mark as Pending
-              </Button>
-              <Button
-                variant="danger"
-                size="sm"
-                onClick={async () => {
-                  const confirmed = await confirm({
-                    title: 'Delete Movements',
-                    message: `Are you sure you want to delete ${selectedMovementIds.size} movement(s)? This action cannot be undone.`,
-                    confirmText: 'Delete Movements',
-                    cancelText: 'Cancel',
-                    variant: 'danger',
-                  });
-                  if (!confirmed) return;
-
-                  try {
-                    const results = await Promise.allSettled(
-                      Array.from(selectedMovementIds).map(id => deleteMovement.mutateAsync(id))
-                    );
-                    const succeeded = results.filter(r => r.status === 'fulfilled').length;
-                    const failed = results.filter(r => r.status === 'rejected').length;
-                    if (failed > 0) {
-                      toast.error(`${succeeded} deleted, ${failed} failed`);
-                    } else {
-                      toast.success(`Deleted ${succeeded} movement(s)`);
-                    }
-                    setSelectedMovementIds(new Set());
-                  } catch (err: any) {
-                    toast.error(err.message || 'Failed to delete movements');
-                  }
-                }}
-              >
-                <Trash2 className="w-4 h-4" />
-                Delete Selected
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+      <BulkActionsToolbar
+        selectedCount={bulk.selectedCount}
+        onClearSelection={bulk.deselectAll}
+        onApplyPending={handleBulkApplyPending}
+        onMarkAsPending={handleBulkMarkAsPending}
+        onDelete={handleBulkDelete}
+      />
 
       <MovementList
         movementsByMonth={sortedMovementsByMonth}
-        sortField={sortField}
-        sortOrder={sortOrder}
-        setSortField={setSortField}
-        setSortOrder={setSortOrder}
-        expandedMonths={expandedMonths}
-        toggleMonth={toggleMonth}
-        selectedMovementIds={selectedMovementIds}
-        toggleSelection={toggleSelection}
-        onEdit={(movement) => {
-          setEditingMovement(movement);
-          setSelectedAccountId(movement.accountId);
-          setSelectedSubPocketId(movement.subPocketId || '');
-          setSelectedType(movement.type);
-          setAmount(movement.amount.toString());
-          setNotes(movement.notes || '');
-          const pocket = pockets.filter(p => p.accountId === movement.accountId).find(p => p.id === movement.pocketId);
-          if (pocket) {
-            setSelectedPocketId(movement.pocketId);
-            setIsFixedExpense(pocket.type === 'fixed');
-          }
-          setShowForm(true);
-        }}
+        sortField={sortField} sortOrder={sortOrder}
+        setSortField={setSortField} setSortOrder={setSortOrder}
+        expandedMonths={expandedMonths} toggleMonth={toggleMonth}
+        selectedMovementIds={bulk.selectedIds}
+        toggleSelection={bulk.toggleSelection}
+        onEdit={(movement) =>
+          formState.openEditForm(movement, pockets.find((p) => p.id === movement.pocketId))
+        }
         onDelete={handleDelete}
         onApplyPending={handleApplyPending}
-        deletingId={deletingId}
-        applyingId={applyingId}
+        deletingId={deletingId} applyingId={applyingId}
       />
 
-      {/* Custom Multi-Modal Layout for both Single and Batch Forms */}
-      {(showForm || showBatchForm) && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center p-4 sm:p-6 pt-12">
-          {/* Single shared backdrop */}
-          <div
-            className="absolute inset-0 bg-gray-900/40 dark:bg-black/60 backdrop-blur-sm animate-backdrop-in transition-opacity"
-            onClick={resetFormState}
-            aria-hidden="true"
-          />
-
-          {/* Flex container for side-by-side layout */}
-          <div className={`relative flex items-start justify-center gap-4 w-full ${showBatchForm ? 'max-w-7xl' : 'max-w-[1400px]'} mx-auto`}>
-            {/* Form (Main) - Centered */}
-            <div className={`w-full ${showBatchForm ? 'max-w-4xl' : 'max-w-2xl'}`}>
-              <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-100 dark:border-gray-700 min-h-[calc(100vh-6rem)] max-h-[calc(100vh-6rem)] overflow-y-auto animate-modal-in flex flex-col">
-                <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-700 sticky top-0 bg-white/80 dark:bg-gray-800/80 backdrop-blur-md z-10">
-                  <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">
-                    {showBatchForm ? 'Batch Add Movements' : (editingMovement ? 'Edit Movement' : 'New Movement')}
-                  </h2>
-                  <button
-                    onClick={resetFormState}
-                    className="p-2 -mr-2 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 transition-colors rounded-full hover:bg-gray-100 dark:hover:bg-gray-700/50"
-                    aria-label="Close"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
-                </div>
-                <div className="p-6">
-                  {showBatchForm ? (
-                    <BatchMovementForm
-                      ref={batchFormRef}
-                      accounts={accounts}
-                      getPocketsByAccount={(accountId) => pockets.filter(p => p.accountId === accountId)}
-                      getSubPocketsByPocket={(pocketId) => subPockets.filter(sp => sp.pocketId === pocketId)}
-                      onSave={handleBatchSave}
-                      onCancel={resetFormState}
-                      onFocusRow={handleBatchRowFocus}
-                      onRowsChange={setBatchRows}
-                    />
-                  ) : (
-                    <MovementForm
-                      initialData={editingMovement}
-                      onSubmit={handleSubmit}
-                      onCancel={resetFormState}
-                      isSaving={isSaving}
-                      selectedAccountId={selectedAccountId}
-                      setSelectedAccountId={setSelectedAccountId}
-                      selectedPocketId={selectedPocketId}
-                      setSelectedPocketId={setSelectedPocketId}
-                      selectedSubPocketId={selectedSubPocketId}
-                      setSelectedSubPocketId={setSelectedSubPocketId}
-                      selectedType={selectedType}
-                      setSelectedType={setSelectedType}
-                      isFixedExpense={isFixedExpense}
-                      setIsFixedExpense={setIsFixedExpense}
-                      saveAsTemplate={saveAsTemplate}
-                      setSaveAsTemplate={setSaveAsTemplate}
-                      templateName={templateName}
-                      setTemplateName={setTemplateName}
-                      selectedTemplateId={selectedTemplateId}
-                      onTemplateSelect={handleTemplateSelect}
-                      defaultValues={defaultValues}
-                      amount={amount}
-                      setAmount={setAmount}
-                      notes={notes}
-                      setNotes={setNotes}
-                    />
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Right Panels - Persistent side area to prevent layout jumps */}
-            <div className="hidden lg:flex flex-col gap-4 w-80 flex-shrink-0 h-[calc(100vh-6rem)] animate-modal-in">
-              {/* Account Details - Top Section (60% of height) */}
-              <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-100 dark:border-gray-700 h-[60%] overflow-hidden flex flex-col">
-                <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 flex-shrink-0">
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                    Account Details
-                  </h3>
-                </div>
-                <div className="flex-1 overflow-y-auto">
-                  <AccountContextPanel
-                    accountId={activeAccountId || null}
-                    selectedPocketId={activePocketId || null}
-                    deltas={balanceDeltas}
-                  />
-                </div>
-              </div>
-
-              {/* Calculator - Bottom Section (40% of height) */}
-              <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-100 dark:border-gray-700 h-[calc(40%-1rem)] flex flex-col">
-                <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 flex-shrink-0">
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                    Quick Calculator
-                  </h3>
-                </div>
-                <div className="p-4 flex-1 overflow-y-auto">
-                  <QuickCalculator
-                    selectedPocketBalance={selectedPocketBalance}
-                    onUseAmount={handleUseCalculatorAmount}
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <MovementFormPanel
+        accounts={accounts} pockets={pockets} subPockets={subPockets}
+        formState={formState} isSaving={isSaving}
+        onSubmit={handleSubmit} onClose={closeForms}
+        batch={{
+          showBatchForm, batchFormRef,
+          onBatchSave: handleBatchSave,
+          onBatchRowFocus: handleBatchRowFocus,
+          onBatchRowsChange: setBatchRows,
+        }}
+        sidePanel={{
+          activeAccountId, activePocketId, balanceDeltas, selectedPocketBalance,
+          onUseCalculatorAmount: handleUseCalculatorAmount,
+        }}
+      />
 
       <ConfirmDialog
         isOpen={confirmState.isOpen}
-        title={confirmState.title}
-        message={confirmState.message}
-        confirmText={confirmState.confirmText}
-        cancelText={confirmState.cancelText}
+        title={confirmState.title} message={confirmState.message}
+        confirmText={confirmState.confirmText} cancelText={confirmState.cancelText}
         variant={confirmState.variant}
-        onConfirm={handleConfirm}
-        onClose={handleClose}
+        onConfirm={handleConfirm} onClose={handleClose}
       />
 
       <RestoreOrphanedModal
-        isOpen={restoreModalState.isOpen}
-        onClose={() => {
-          if (restoreOrphanedMovements.isPending) return;
-          setRestoreModalState({ isOpen: false, movementIds: [], sourceLabel: '' });
-        }}
-        accounts={accounts}
-        pockets={pockets}
-        movementCount={restoreModalState.movementIds.length}
-        sourceLabel={restoreModalState.sourceLabel}
-        isSubmitting={restoreOrphanedMovements.isPending}
-        onConfirm={async (accountId, pocketId) => {
-          try {
-            const result = await restoreOrphanedMovements.mutateAsync({
-              movementIds: restoreModalState.movementIds,
-              accountId,
-              pocketId,
-            });
-            const restored = result?.restored ?? restoreModalState.movementIds.length;
-            const failed = result?.failed ?? 0;
-            if (failed > 0) {
-              toast.warning(`Restored ${restored} movement(s), ${failed} failed`);
-            } else {
-              toast.success(`Restored ${restored} movement${restored === 1 ? '' : 's'}`);
-            }
-            setRestoreModalState({ isOpen: false, movementIds: [], sourceLabel: '' });
-          } catch (err: unknown) {
-            const message = err instanceof Error ? err.message : 'Failed to restore movements';
-            toast.error(message);
-          }
-        }}
+        isOpen={restore.modalState.isOpen}
+        onClose={restore.close}
+        accounts={accounts} pockets={pockets}
+        movementCount={restore.modalState.movementIds.length}
+        sourceLabel={restore.modalState.sourceLabel}
+        isSubmitting={restore.isSubmitting}
+        onConfirm={restore.confirmRestore}
       />
-
     </div>
   );
 };
