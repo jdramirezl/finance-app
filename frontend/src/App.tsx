@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { lazy, Suspense, type ReactNode } from 'react';
 import { AuthProvider } from './contexts/AuthContext';
 import { SelectionProvider } from './contexts/SelectionContext';
+import { ConfirmDialogProvider } from './contexts/ConfirmDialogContext';
 import Layout from './components/Layout';
 import ProtectedRoute from './components/ProtectedRoute';
 import ToastContainer from './components/ToastContainer';
@@ -39,61 +40,63 @@ function App() {
     <BrowserRouter>
       <AuthProvider>
         <SelectionProvider>
-          <Suspense fallback={<PageLoader />}>
-            <Routes>
-              {/* Public routes */}
-              <Route path="/login" element={guard(<LoginPage />)} />
-              <Route path="/signup" element={guard(<SignUpPage />)} />
+          <ConfirmDialogProvider>
+            <Suspense fallback={<PageLoader />}>
+              <Routes>
+                {/* Public routes */}
+                <Route path="/login" element={guard(<LoginPage />)} />
+                <Route path="/signup" element={guard(<SignUpPage />)} />
 
-              {/* Protected routes */}
-              <Route
-                path="/*"
-                element={
-                  <ProtectedRoute>
-                    <Layout>
-                      <Suspense fallback={<PageLoader />}>
-                        <Routes>
-                          <Route
-                            path="/"
-                            element={<Navigate to="/summary" replace />}
-                          />
-                          <Route
-                            path="/summary"
-                            element={guard(<SummaryPage />)}
-                          />
-                          <Route
-                            path="/accounts"
-                            element={guard(<AccountsPage />)}
-                          />
-                          <Route
-                            path="/fixed-expenses"
-                            element={guard(<FixedExpensesPage />)}
-                          />
-                          <Route
-                            path="/budget-planning"
-                            element={guard(<BudgetPlanningPage />)}
-                          />
-                          <Route
-                            path="/movements"
-                            element={guard(<MovementsPage />)}
-                          />
-                          <Route
-                            path="/templates"
-                            element={guard(<TemplatesPage />)}
-                          />
-                          <Route
-                            path="/settings"
-                            element={guard(<SettingsPage />)}
-                          />
-                        </Routes>
-                      </Suspense>
-                    </Layout>
-                  </ProtectedRoute>
-                }
-              />
-            </Routes>
-            <ToastContainer />
-          </Suspense>
+                {/* Protected routes */}
+                <Route
+                  path="/*"
+                  element={
+                    <ProtectedRoute>
+                      <Layout>
+                        <Suspense fallback={<PageLoader />}>
+                          <Routes>
+                            <Route
+                              path="/"
+                              element={<Navigate to="/summary" replace />}
+                            />
+                            <Route
+                              path="/summary"
+                              element={guard(<SummaryPage />)}
+                            />
+                            <Route
+                              path="/accounts"
+                              element={guard(<AccountsPage />)}
+                            />
+                            <Route
+                              path="/fixed-expenses"
+                              element={guard(<FixedExpensesPage />)}
+                            />
+                            <Route
+                              path="/budget-planning"
+                              element={guard(<BudgetPlanningPage />)}
+                            />
+                            <Route
+                              path="/movements"
+                              element={guard(<MovementsPage />)}
+                            />
+                            <Route
+                              path="/templates"
+                              element={guard(<TemplatesPage />)}
+                            />
+                            <Route
+                              path="/settings"
+                              element={guard(<SettingsPage />)}
+                            />
+                          </Routes>
+                        </Suspense>
+                      </Layout>
+                    </ProtectedRoute>
+                  }
+                />
+              </Routes>
+              <ToastContainer />
+            </Suspense>
+          </ConfirmDialogProvider>
         </SelectionProvider>
       </AuthProvider>
     </BrowserRouter>
