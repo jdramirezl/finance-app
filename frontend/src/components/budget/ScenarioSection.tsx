@@ -44,11 +44,11 @@ const ScenarioSection = ({
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
-          <Layers className="w-5 h-5" />
+          <Layers className="w-5 h-5" aria-hidden="true" />
           Planning Scenarios
         </h2>
         <Button size="sm" variant="secondary" onClick={onCreate}>
-          <Plus className="w-4 h-4" />
+          <Plus className="w-4 h-4" aria-hidden="true" />
           New Scenario
         </Button>
       </div>
@@ -74,6 +74,16 @@ const ScenarioSection = ({
                     : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:border-blue-300'
                 }`}
                 onClick={() => onToggle(scenario.id)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    onToggle(scenario.id);
+                  }
+                }}
+                aria-pressed={isActive}
+                aria-label={`${isActive ? 'Deactivate' : 'Activate'} scenario ${scenario.name}`}
               >
                 <div className="flex justify-between items-start mb-2">
                   <h3 className="font-semibold text-gray-900 dark:text-gray-100">
@@ -83,14 +93,18 @@ const ScenarioSection = ({
                     <button
                       onClick={() => onEdit(scenario)}
                       className="p-1 text-gray-400 hover:text-blue-500"
+                      aria-label={`Edit scenario ${scenario.name}`}
+                      title="Edit scenario"
                     >
-                      <Pencil className="w-3.5 h-3.5" />
+                      <Pencil className="w-3.5 h-3.5" aria-hidden="true" />
                     </button>
                     <button
                       onClick={() => onDelete(scenario.id)}
                       className="p-1 text-gray-400 hover:text-red-500"
+                      aria-label={`Delete scenario ${scenario.name}`}
+                      title="Delete scenario"
                     >
-                      <Trash2 className="w-3.5 h-3.5" />
+                      <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
                     </button>
                   </div>
                 </div>
@@ -108,7 +122,7 @@ const ScenarioSection = ({
 
       {activeScenarioIds.size > 0 && (
         <div className="flex items-center gap-2 text-sm text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/10 p-2 rounded">
-          <Info className="w-4 h-4" />
+          <Info className="w-4 h-4" aria-hidden="true" />
           <span>
             Using expenses from <b>{activeScenarioIds.size} active scenario(s)</b>{' '}
             instead of default enabled expenses.

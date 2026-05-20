@@ -71,6 +71,7 @@ const MovementFilters = ({ showFilters, setShowFilters, filters, setFilters }: M
                         placeholder="Search movements..."
                         value={filters.search}
                         onChange={(e) => setFilters.setSearch(e.target.value)}
+                        aria-label="Search movements"
                     />
                 </div>
                 <div className="flex gap-2">
@@ -78,8 +79,9 @@ const MovementFilters = ({ showFilters, setShowFilters, filters, setFilters }: M
                         variant="secondary"
                         onClick={() => setShowFilters(!showFilters)}
                         className={showFilters || activeFiltersCount > 0 ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800' : ''}
+                        aria-expanded={showFilters}
                     >
-                        <Filter className="w-5 h-5" />
+                        <Filter className="w-5 h-5" aria-hidden="true" />
                         Filters
                         {activeFiltersCount > 0 && (
                             <span className="ml-2 bg-blue-100 dark:bg-blue-800 text-blue-700 dark:text-blue-200 text-xs px-2 py-0.5 rounded-full">
@@ -92,8 +94,10 @@ const MovementFilters = ({ showFilters, setShowFilters, filters, setFilters }: M
                             variant="ghost"
                             onClick={clearFilters}
                             className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                            aria-label="Clear all filters"
+                            title="Clear all filters"
                         >
-                            <X className="w-5 h-5" />
+                            <X className="w-5 h-5" aria-hidden="true" />
                         </Button>
                     )}
                 </div>

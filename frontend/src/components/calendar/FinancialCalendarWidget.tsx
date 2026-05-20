@@ -172,7 +172,7 @@ const FinancialCalendarWidget = ({
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <CalendarIcon className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+            <CalendarIcon className="w-5 h-5 text-blue-600 dark:text-blue-400" aria-hidden="true" />
             <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
               Financial Calendar
             </h3>
@@ -194,8 +194,10 @@ const FinancialCalendarWidget = ({
             size="sm"
             onClick={goToPreviousMonth}
             className="p-2"
+            aria-label="Previous month"
+            title="Previous month"
           >
-            <ChevronLeft className="w-4 h-4" />
+            <ChevronLeft className="w-4 h-4" aria-hidden="true" />
           </Button>
           
           <h4 className="text-lg font-medium text-gray-900 dark:text-gray-100">
@@ -207,8 +209,10 @@ const FinancialCalendarWidget = ({
             size="sm"
             onClick={goToNextMonth}
             className="p-2"
+            aria-label="Next month"
+            title="Next month"
           >
-            <ChevronRight className="w-4 h-4" />
+            <ChevronRight className="w-4 h-4" aria-hidden="true" />
           </Button>
         </div>
 
@@ -242,6 +246,11 @@ const FinancialCalendarWidget = ({
               const incomeIntensity = getIntensity(dayData.income, maxValues.maxIncome);
               const expenseIntensity = getIntensity(dayData.expenses, maxValues.maxExpenses);
 
+              const dateLabel = format(dayData.date, 'EEEE, MMMM d, yyyy');
+              const activityLabel = hasActivity
+                ? ` — ${dayData.movementCount} transaction${dayData.movementCount !== 1 ? 's' : ''}`
+                : '';
+
               return (
                 <button
                   key={format(dayData.date, 'yyyy-MM-dd')}
@@ -263,6 +272,7 @@ const FinancialCalendarWidget = ({
                     ${!isCurrentMonth ? 'opacity-30' : ''}
                   `}
                   disabled={!hasActivity}
+                  aria-label={`${dateLabel}${activityLabel}`}
                 >
                   {/* Day number */}
                   <div className={`

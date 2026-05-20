@@ -47,9 +47,16 @@ const DebugStockPrice = () => {
                     value={symbol}
                     onChange={e => setSymbol(e.target.value.toUpperCase())}
                     className="flex-1"
+                    aria-label="Stock symbol"
                 />
-                <Button type="submit" disabled={!symbol || loading}>
-                    {loading ? <RotateCw className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+                <Button
+                    type="submit"
+                    disabled={!symbol || loading}
+                    aria-label={symbol ? `Look up price for ${symbol}` : 'Look up stock price'}
+                >
+                    {loading
+                        ? <RotateCw className="w-4 h-4 animate-spin" aria-hidden="true" />
+                        : <Search className="w-4 h-4" aria-hidden="true" />}
                 </Button>
             </form>
 

@@ -62,6 +62,8 @@ const Layout = ({ children }: LayoutProps) => {
     { path: '/budget-planning', label: 'Budget', icon: Calendar },
   ];
 
+  const themeToggleLabel = theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode';
+
   const QuickActions = () => (
     <div className={`fixed bottom-20 right-4 z-50 flex flex-col items-end gap-3 transition-all duration-200 ${showQuickActions ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'}`}>
       <button
@@ -70,7 +72,7 @@ const Layout = ({ children }: LayoutProps) => {
       >
         <span className="font-medium text-sm">New Movement</span>
         <div className="w-8 h-8 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center text-green-600 dark:text-green-400">
-          <TrendingUp className="w-4 h-4" />
+          <TrendingUp className="w-4 h-4" aria-hidden="true" />
         </div>
       </button>
       <button
@@ -79,7 +81,7 @@ const Layout = ({ children }: LayoutProps) => {
       >
         <span className="font-medium text-sm">New Transfer</span>
         <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 dark:text-blue-400">
-          <Wallet className="w-4 h-4" />
+          <Wallet className="w-4 h-4" aria-hidden="true" />
         </div>
       </button>
     </div>
@@ -91,7 +93,7 @@ const Layout = ({ children }: LayoutProps) => {
       <div className="md:hidden fixed top-0 left-0 right-0 h-16 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 z-40 px-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center shadow-sm">
-            <DollarSign className="w-5 h-5 text-white" strokeWidth={2.5} />
+            <DollarSign className="w-5 h-5 text-white" strokeWidth={2.5} aria-hidden="true" />
           </div>
           <span className="font-bold text-lg text-gray-900 dark:text-gray-100">Finance</span>
         </div>
@@ -99,14 +101,18 @@ const Layout = ({ children }: LayoutProps) => {
           <button
             onClick={toggleTheme}
             className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300"
+            aria-label={themeToggleLabel}
+            title={themeToggleLabel}
           >
-            {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+            {theme === 'dark' ? <Sun className="w-5 h-5" aria-hidden="true" /> : <Moon className="w-5 h-5" aria-hidden="true" />}
           </button>
           <button
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
             className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300"
+            aria-label={isMobileMenuOpen ? 'Close navigation menu' : 'Open navigation menu'}
+            aria-expanded={isMobileMenuOpen}
           >
-            {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+            {isMobileMenuOpen ? <X className="w-6 h-6" aria-hidden="true" /> : <Menu className="w-6 h-6" aria-hidden="true" />}
           </button>
         </div>
       </div>
@@ -131,7 +137,7 @@ const Layout = ({ children }: LayoutProps) => {
                       }
                     `}
                   >
-                    <Icon className="w-5 h-5" />
+                    <Icon className="w-5 h-5" aria-hidden="true" />
                     <span className="font-medium">{item.label}</span>
                   </Link>
                 );
@@ -142,8 +148,9 @@ const Layout = ({ children }: LayoutProps) => {
                   <button
                     onClick={handleSignOut}
                     className="p-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg"
+                    aria-label="Sign out"
                   >
-                    <LogOut className="w-5 h-5" />
+                    <LogOut className="w-5 h-5" aria-hidden="true" />
                   </button>
                 </div>
               </div>
@@ -158,7 +165,7 @@ const Layout = ({ children }: LayoutProps) => {
         <div className="p-6 flex items-center gap-3">
           <div className="relative">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center shadow-lg">
-              <DollarSign className="w-6 h-6 text-white" strokeWidth={2.5} />
+              <DollarSign className="w-6 h-6 text-white" strokeWidth={2.5} aria-hidden="true" />
             </div>
             <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-400 rounded-full animate-pulse" />
           </div>
@@ -171,9 +178,10 @@ const Layout = ({ children }: LayoutProps) => {
           <button
             onClick={toggleTheme}
             className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 transition-all hover:scale-110"
-            title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+            aria-label={themeToggleLabel}
+            title={themeToggleLabel}
           >
-            {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+            {theme === 'dark' ? <Sun className="w-5 h-5" aria-hidden="true" /> : <Moon className="w-5 h-5" aria-hidden="true" />}
           </button>
         </div>
 
@@ -194,19 +202,22 @@ const Layout = ({ children }: LayoutProps) => {
                     }
                   `}
                 >
-                  {/* Animated background for active state */}
+                  {/* Animated background for active state (decorative) */}
                   {isActive && (
-                    <div className="absolute inset-0 bg-gradient-to-r from-blue-400 to-slate-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <div
+                      className="absolute inset-0 bg-gradient-to-r from-blue-400 to-slate-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                      aria-hidden="true"
+                    />
                   )}
 
-                  <Icon className={`w-5 h-5 relative z-10 transition-transform group-hover:scale-110 ${isActive ? 'drop-shadow-sm' : ''}`} />
+                  <Icon className={`w-5 h-5 relative z-10 transition-transform group-hover:scale-110 ${isActive ? 'drop-shadow-sm' : ''}`} aria-hidden="true" />
                   <span className={`relative z-10 font-medium ${isActive ? 'font-semibold' : ''}`}>
                     {item.label}
                   </span>
 
                   {/* Active indicator dot */}
                   {isActive && (
-                    <div className="ml-auto w-2 h-2 rounded-full bg-white relative z-10 animate-pulse" />
+                    <div className="ml-auto w-2 h-2 rounded-full bg-white relative z-10 animate-pulse" aria-hidden="true" />
                   )}
                 </Link>
               </li>
@@ -225,9 +236,10 @@ const Layout = ({ children }: LayoutProps) => {
             <button
               onClick={handleSignOut}
               className="ml-2 p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-gray-600 dark:text-gray-300 hover:text-red-600 dark:hover:text-red-400 transition-all hover:scale-110"
+              aria-label="Sign out"
               title="Sign out"
             >
-              <LogOut className="w-5 h-5" />
+              <LogOut className="w-5 h-5" aria-hidden="true" />
             </button>
           </div>
         </div>
@@ -256,7 +268,7 @@ const Layout = ({ children }: LayoutProps) => {
                   }
                 `}
               >
-                <Icon className={`w-6 h-6 ${isActive ? 'fill-current' : ''}`} />
+                <Icon className={`w-6 h-6 ${isActive ? 'fill-current' : ''}`} aria-hidden="true" />
                 <span className="text-[10px] font-medium">{item.label}</span>
               </Link>
             );
@@ -267,8 +279,9 @@ const Layout = ({ children }: LayoutProps) => {
             className={`
               flex flex-col items-center gap-1 p-2 rounded-lg text-gray-500 dark:text-gray-400
             `}
+            aria-label="Open navigation menu"
           >
-            <Menu className="w-6 h-6" />
+            <Menu className="w-6 h-6" aria-hidden="true" />
             <span className="text-[10px] font-medium">Menu</span>
           </button>
         </div>
@@ -286,8 +299,10 @@ const Layout = ({ children }: LayoutProps) => {
               : 'bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:scale-105'
             }
           `}
+          aria-label={showQuickActions ? 'Close quick actions menu' : 'Open quick actions menu'}
+          aria-expanded={showQuickActions}
         >
-          <Plus className="w-8 h-8" />
+          <Plus className="w-8 h-8" aria-hidden="true" />
         </button>
       </div>
     </div>

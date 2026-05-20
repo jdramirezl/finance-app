@@ -79,6 +79,10 @@ const FixedExpenseGroupCard = ({
   const allEnabled = subPockets.length > 0 && enabledCount === subPockets.length;
   const someEnabled = enabledCount > 0 && enabledCount < subPockets.length;
 
+  const groupToggleLabel = allEnabled
+    ? `Disable all expenses in ${group.name}`
+    : `Enable all expenses in ${group.name}`;
+
   return (
     <div
       className="border dark:border-gray-700 rounded-xl transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5"
@@ -91,6 +95,8 @@ const FixedExpenseGroupCard = ({
             <button
               onClick={() => onToggleCollapse(group.id)}
               className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors"
+              aria-label={isCollapsed ? `Expand ${group.name}` : `Collapse ${group.name}`}
+              aria-expanded={!isCollapsed}
             >
               {isCollapsed ? (
                 <ChevronRight className="w-5 h-5 text-gray-600 dark:text-gray-400" aria-hidden="true" />
@@ -139,7 +145,8 @@ const FixedExpenseGroupCard = ({
                   ? 'text-yellow-600 dark:text-yellow-400 hover:bg-yellow-50 dark:hover:bg-yellow-900/30'
                   : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
                 }`}
-              title={allEnabled ? 'Disable all in group' : 'Enable all in group'}
+              title={groupToggleLabel}
+              aria-label={groupToggleLabel}
             >
               {allEnabled ? (
                 <ToggleRight className="w-5 h-5" aria-hidden="true" />
@@ -157,6 +164,7 @@ const FixedExpenseGroupCard = ({
                   onClick={() => onEditGroup(group)}
                   className="p-2 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30"
                   title="Edit group"
+                  aria-label={`Edit group ${group.name}`}
                 >
                   <Edit2 className="w-4 h-4" aria-hidden="true" />
                 </Button>
@@ -168,6 +176,7 @@ const FixedExpenseGroupCard = ({
                   onClick={() => onDeleteGroup(group)}
                   className="p-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30"
                   title="Delete group"
+                  aria-label={`Delete group ${group.name}`}
                 >
                   <Trash2 className="w-4 h-4" aria-hidden="true" />
                 </Button>
@@ -192,6 +201,9 @@ const FixedExpenseGroupCard = ({
               const isDeleting = deletingId === subPocket.id;
               const isTogglingExpense = togglingId === subPocket.id;
               const account = pocketAccountMap?.get(subPocket.pocketId);
+              const expenseToggleLabel = subPocket.enabled
+                ? `Disable ${subPocket.name}`
+                : `Enable ${subPocket.name}`;
 
               return (
                 <div
@@ -231,6 +243,7 @@ const FixedExpenseGroupCard = ({
                           onChange={(e) => onMoveToGroup(subPocket.id, e.target.value)}
                           className="text-xs px-2 py-1 border dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                           title="Move to group"
+                          aria-label={`Move ${subPocket.name} to a different group`}
                         >
                           {allGroups.map(g => (
                             <option key={g.id} value={g.id}>
@@ -297,7 +310,8 @@ const FixedExpenseGroupCard = ({
                           ? 'text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/30'
                           : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
                           }`}
-                        title={subPocket.enabled ? 'Disable' : 'Enable'}
+                        title={expenseToggleLabel}
+                        aria-label={expenseToggleLabel}
                       >
                         {subPocket.enabled ? (
                           <ToggleRight className="w-5 h-5" aria-hidden="true" />
@@ -312,6 +326,7 @@ const FixedExpenseGroupCard = ({
                         onClick={() => onEditExpense(subPocket)}
                         className="p-2 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30"
                         title="Edit"
+                        aria-label={`Edit fixed expense ${subPocket.name}`}
                       >
                         <Edit2 className="w-4 h-4" aria-hidden="true" />
                       </Button>
@@ -324,6 +339,7 @@ const FixedExpenseGroupCard = ({
                         disabled={isDeleting}
                         className="p-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30"
                         title="Delete"
+                        aria-label={`Delete fixed expense ${subPocket.name}`}
                       >
                         <Trash2 className="w-4 h-4" aria-hidden="true" />
                       </Button>

@@ -47,8 +47,9 @@ const FloatingStatsBar = ({ primaryCurrency = 'USD' }: FloatingStatsBarProps) =>
                 onClick={clearSelection}
                 className="text-gray-400 hover:text-white transition-colors p-1"
                 title="Clear selection"
+                aria-label="Clear selection"
             >
-                <X className="w-5 h-5" />
+                <X className="w-5 h-5" aria-hidden="true" />
             </button>
         </div>
     );

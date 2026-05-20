@@ -55,7 +55,7 @@ const DebugExchangeRate = () => {
                     options={currencies}
                     className="w-24"
                 />
-                <div className="pb-3 text-gray-400">
+                <div className="pb-3 text-gray-400" aria-hidden="true">
                     <ArrowRight className="w-4 h-4" />
                 </div>
                 <Select
@@ -66,8 +66,14 @@ const DebugExchangeRate = () => {
                     className="w-24"
                 />
                 <div className="flex-1"></div>
-                <Button type="submit" disabled={loading}>
-                    {loading ? <RotateCw className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+                <Button
+                    type="submit"
+                    disabled={loading}
+                    aria-label={`Look up ${from} to ${to} exchange rate`}
+                >
+                    {loading
+                        ? <RotateCw className="w-4 h-4 animate-spin" aria-hidden="true" />
+                        : <Search className="w-4 h-4" aria-hidden="true" />}
                 </Button>
             </form>
 

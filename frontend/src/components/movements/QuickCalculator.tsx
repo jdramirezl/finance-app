@@ -63,6 +63,10 @@ const QuickCalculator = ({ onUseAmount }: QuickCalculatorProps) => {
     clearSelection();
   };
 
+  const operatorLabel = operator === '+'
+    ? 'Switch to subtraction'
+    : 'Switch to addition';
+
   return (
     <div className="space-y-4 w-full">
       {/* Instruction */}
@@ -81,6 +85,7 @@ const QuickCalculator = ({ onUseAmount }: QuickCalculatorProps) => {
             onFocus={() => setActiveField('operand1')}
             placeholder="0.00"
             step="0.01"
+            aria-label="First operand"
             className={`text-center font-mono text-lg ${
               activeField === 'operand1' 
                 ? 'ring-2 ring-blue-500 dark:ring-blue-400' 
@@ -94,12 +99,13 @@ const QuickCalculator = ({ onUseAmount }: QuickCalculatorProps) => {
           type="button"
           onClick={() => setOperator(operator === '+' ? '-' : '+')}
           className="p-3 rounded-lg bg-white dark:bg-gray-700 border-2 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
-          title="Toggle operator"
+          title={operatorLabel}
+          aria-label={operatorLabel}
         >
           {operator === '+' ? (
-            <Plus className="w-6 h-6 text-green-600 dark:text-green-400" />
+            <Plus className="w-6 h-6 text-green-600 dark:text-green-400" aria-hidden="true" />
           ) : (
-            <Minus className="w-6 h-6 text-red-600 dark:text-red-400" />
+            <Minus className="w-6 h-6 text-red-600 dark:text-red-400" aria-hidden="true" />
           )}
         </button>
 
@@ -112,6 +118,7 @@ const QuickCalculator = ({ onUseAmount }: QuickCalculatorProps) => {
             onFocus={() => setActiveField('operand2')}
             placeholder="0.00"
             step="0.01"
+            aria-label="Second operand"
             className={`text-center font-mono text-lg ${
               activeField === 'operand2' 
                 ? 'ring-2 ring-blue-500 dark:ring-blue-400' 
@@ -130,7 +137,9 @@ const QuickCalculator = ({ onUseAmount }: QuickCalculatorProps) => {
             ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-300 dark:border-blue-700 text-blue-700 dark:text-blue-300' 
             : 'bg-gray-100 dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-400 dark:text-gray-500'
           }
-        `}>
+        `}
+        aria-live="polite"
+        >
           {result !== null ? result.toFixed(2) : '0.00'}
         </div>
       </div>

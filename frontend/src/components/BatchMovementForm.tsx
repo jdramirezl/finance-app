@@ -198,8 +198,10 @@ const BatchMovementForm = forwardRef<BatchMovementFormRef, BatchMovementFormProp
         <button
           onClick={onCancel}
           className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+          aria-label="Close batch movement form"
+          title="Close"
         >
-          <X className="w-5 h-5" />
+          <X className="w-5 h-5" aria-hidden="true" />
         </button>
       </div>
 
@@ -254,8 +256,10 @@ const BatchMovementForm = forwardRef<BatchMovementFormRef, BatchMovementFormProp
                   <button
                     onClick={() => removeRow(row.id)}
                     className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
+                    aria-label={`Remove movement #${index + 1}`}
+                    title="Remove this row"
                   >
-                    <Trash2 className="w-4 h-4" />
+                    <Trash2 className="w-4 h-4" aria-hidden="true" />
                   </button>
                 )}
               </div>
@@ -372,7 +376,7 @@ const BatchMovementForm = forwardRef<BatchMovementFormRef, BatchMovementFormProp
 
       <div className="flex items-center justify-between pt-4 border-t dark:border-gray-700">
         <Button variant="secondary" onClick={addRow} className="flex items-center gap-2">
-          <Plus className="w-4 h-4" />
+          <Plus className="w-4 h-4" aria-hidden="true" />
           Add Row
         </Button>
 

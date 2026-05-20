@@ -152,7 +152,7 @@ const TemplatesPage = () => {
             setShowForm(true);
           }}
         >
-          <Plus className="w-5 h-5" />
+          <Plus className="w-5 h-5" aria-hidden="true" />
           New Template
         </Button>
       </div>
@@ -161,7 +161,7 @@ const TemplatesPage = () => {
         <Card>
           <div className="text-center py-12">
             <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gray-100 dark:bg-gray-800 mb-4">
-              <Plus className="w-8 h-8 text-gray-400" />
+              <Plus className="w-8 h-8 text-gray-400" aria-hidden="true" />
             </div>
             <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
               No templates yet
@@ -207,8 +207,10 @@ const TemplatesPage = () => {
                           setShowForm(true);
                         }}
                         className="p-2 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30"
+                        aria-label={`Edit template ${template.name}`}
+                        title={`Edit template ${template.name}`}
                       >
-                        <Edit2 className="w-4 h-4" />
+                        <Edit2 className="w-4 h-4" aria-hidden="true" />
                       </Button>
                       <Button
                         variant="ghost"
@@ -217,8 +219,10 @@ const TemplatesPage = () => {
                         loading={deletingId === template.id}
                         disabled={deletingId !== null}
                         className="p-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30"
+                        aria-label={`Delete template ${template.name}`}
+                        title={`Delete template ${template.name}`}
                       >
-                        <Trash2 className="w-4 h-4" />
+                        <Trash2 className="w-4 h-4" aria-hidden="true" />
                       </Button>
                     </div>
                   </div>

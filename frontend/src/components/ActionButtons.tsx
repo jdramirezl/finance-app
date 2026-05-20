@@ -18,8 +18,12 @@ interface ActionButtonsProps {
 }
 
 /**
- * ActionButtons component for consistent action button patterns
- * Use showOnHover={true} for item actions that appear on hover
+ * ActionButtons component for consistent action button patterns.
+ *
+ * `showOnHover` keeps the actions discoverable but visually subtler when the
+ * user is not hovering the parent group. We deliberately avoid hiding the
+ * actions completely (`opacity-0`) because that makes them unreachable for
+ * keyboard users and invisible on touch devices.
  */
 const ActionButtons = ({
     actions,
@@ -27,9 +31,8 @@ const ActionButtons = ({
     showOnHover = false,
     className = '',
 }: ActionButtonsProps) => {
-    // On mobile: always visible. On desktop: hidden until hover if showOnHover is true
     const containerClass = showOnHover
-        ? 'opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity'
+        ? 'opacity-60 group-hover:opacity-100 focus-within:opacity-100 transition-opacity'
         : '';
 
     return (
@@ -43,8 +46,9 @@ const ActionButtons = ({
                     loading={action.loading}
                     disabled={action.disabled}
                     title={action.label}
+                    aria-label={action.label}
                 >
-                    <action.icon className={size === 'sm' ? 'w-4 h-4' : 'w-5 h-5'} />
+                    <action.icon className={size === 'sm' ? 'w-4 h-4' : 'w-5 h-5'} aria-hidden="true" />
                     {action.label && <span className="ml-1">{action.label}</span>}
                 </Button>
             ))}

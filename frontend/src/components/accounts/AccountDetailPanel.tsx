@@ -57,8 +57,10 @@ const AccountDetailPanel = ({
               size="sm"
               className="md:hidden p-1"
               onClick={onMobileBack}
+              aria-label="Back to accounts list"
+              title="Back to accounts"
             >
-              <ArrowLeft className="w-5 h-5" />
+              <ArrowLeft className="w-5 h-5" aria-hidden="true" />
             </Button>
             <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
               Account Details
