@@ -1,9 +1,9 @@
 import { memo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AlertTriangle, Landmark, Calendar, DollarSign } from 'lucide-react';
-import { format } from 'date-fns';
 import { currencyService } from '../../services/currencyService';
 import { cdCalculationService } from '../../services/cdCalculationService';
+import { parseDate, formatDisplayDate } from '../../utils/dateUtils';
 import SelectableValue from '../SelectableValue';
 import type { CDInvestmentAccount, CDCalculationResult } from '../../types';
 
@@ -36,8 +36,7 @@ const CDSummaryCard = ({ account }: CDSummaryCardProps) => {
   try {
     calculation = cdCalculationService.calculateCurrentValue(account);
     summary = cdCalculationService.generateCDSummary(account);
-  } catch (error) {
-    console.error('❌ Failed to calculate CD values:', error);
+  } catch {
     hasError = true;
   }
 
@@ -78,8 +77,8 @@ const CDSummaryCard = ({ account }: CDSummaryCardProps) => {
   // Calculate progress percentage
   const getProgressPercentage = () => {
     if (hasError || !calculation || !account.cdCreatedAt || !account.maturityDate) return 0;
-    const startDate = new Date(account.cdCreatedAt);
-    const endDate = new Date(account.maturityDate);
+    const startDate = parseDate(account.cdCreatedAt);
+    const endDate = parseDate(account.maturityDate);
     const currentDate = new Date();
 
     const totalDuration = endDate.getTime() - startDate.getTime();
@@ -179,7 +178,7 @@ const CDSummaryCard = ({ account }: CDSummaryCardProps) => {
                 <span className="text-xs font-medium text-gray-700 dark:text-gray-300">Maturity</span>
               </div>
               <div className="text-sm font-bold text-gray-900 dark:text-gray-100">
-                {format(new Date(account.maturityDate), 'MMM dd')}
+                {formatDisplayDate(account.maturityDate, 'MMM dd')}
               </div>
             </div>
 

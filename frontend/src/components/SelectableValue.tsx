@@ -1,11 +1,12 @@
 import React from 'react';
 import { useSelection } from '../contexts/SelectionContext';
 import { currencyService } from '../services/currencyService';
+import type { Currency } from '../types';
 
 interface SelectableValueProps {
     id: string; // Unique ID for this value
     value: number; // The numeric value
-    currency?: string; // Optional: for default formatting
+    currency?: Currency; // Optional: for default formatting
     children?: React.ReactNode; // Optional: Custom render content
     className?: string;
 }
@@ -41,7 +42,7 @@ const SelectableValue = ({
         >
             {children ? children : (
                 <span>
-                    {currency ? currencyService.formatCurrency(value, currency as any) : value.toLocaleString()}
+                    {currency ? currencyService.formatCurrency(value, currency) : value.toLocaleString()}
                 </span>
             )}
         </div>

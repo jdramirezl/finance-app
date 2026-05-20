@@ -4,6 +4,7 @@ import Button from '../Button';
 import Card from '../Card';
 import Select from '../Select';
 import { Search, RotateCw, ArrowRight } from 'lucide-react';
+import { parseDate } from '../../utils/dateUtils';
 import type { Currency } from '../../types';
 
 const DebugExchangeRate = () => {
@@ -32,8 +33,8 @@ const DebugExchangeRate = () => {
         try {
             const data = await currencyService.getDebugRate(from, to);
             setResult(data);
-        } catch (err: any) {
-            setError(err.message || 'Failed to fetch rate');
+        } catch (err: unknown) {
+            setError(err instanceof Error ? err.message : 'Failed to fetch rate');
             setResult(null);
         } finally {
             setLoading(false);
@@ -105,7 +106,7 @@ const DebugExchangeRate = () => {
                     <div className="flex justify-between">
                         <span className="text-gray-500">Cached:</span>
                         <span className="font-mono text-gray-700 dark:text-gray-300">
-                            {new Date(result.cachedAt).toLocaleString()}
+                            {parseDate(result.cachedAt).toLocaleString()}
                         </span>
                     </div>
                 </div>

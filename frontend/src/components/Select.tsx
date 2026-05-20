@@ -5,15 +5,17 @@ interface OptionGroup {
   options: Array<{ value: string; label: string; disabled?: boolean }>;
 }
 
+type SelectOption = { value: string; label: string; disabled?: boolean };
+
 interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
   label?: string;
   error?: string;
   helperText?: string;
-  options: Array<{ value: string; label: string; disabled?: boolean } | OptionGroup>;
+  options: Array<SelectOption | OptionGroup>;
 }
 
 // Type guard for OptionGroup
-function isOptionGroup(option: any): option is OptionGroup {
+function isOptionGroup(option: SelectOption | OptionGroup): option is OptionGroup {
   return 'options' in option && Array.isArray(option.options);
 }
 

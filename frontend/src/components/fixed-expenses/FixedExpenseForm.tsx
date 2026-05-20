@@ -42,11 +42,12 @@ const FixedExpenseForm = ({
 
         try {
             if (initialData) {
-                const updates: any = { name, valueTotal, periodicityMonths };
-                if (selectedPocketId !== initialData.pocketId) {
-                    updates.pocketId = selectedPocketId;
-                }
-                
+                const updates: { name: string; valueTotal: number; periodicityMonths: number } = {
+                    name,
+                    valueTotal,
+                    periodicityMonths,
+                };
+
                 await updateSubPocket.mutateAsync({
                     id: initialData.id,
                     updates

@@ -1,9 +1,9 @@
 import { useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { format } from 'date-fns';
 import type { MovementTemplate, Pocket, SubPocket } from '../types';
 import type { MovementFormStateResult } from './useMovementFormState';
 import type { useMovementsFilter } from './useMovementsFilter';
+import { toMonthKey } from '../utils/dateUtils';
 
 type FilterSetters = ReturnType<typeof useMovementsFilter>['setFilters'];
 
@@ -37,6 +37,21 @@ export const useURLActions = ({
   // Track date param processing to avoid re-applying the same filter.
   const processedDateRef = useRef<string | null>(null);
 
+  // Destructure stable setters/callbacks so the effects can list them
+  // explicitly in their deps (the wrapping objects are recreated each
+  // render, but their inner function references are stable).
+  const { setDateRange, setDateFrom, setDateTo } = setFilters;
+  const {
+    setShowForm,
+    setEditingMovement,
+    setDefaultValues,
+    handleTemplateSelect,
+    setSelectedAccountId,
+    setSelectedPocketId,
+    setIsFixedExpense,
+    setReminderId,
+  } = formState;
+
   // Effect 1: handle ?date=YYYY-MM-DD by setting custom date filter and
   // expanding the month containing that date.
   useEffect(() => {
@@ -46,12 +61,13 @@ export const useURLActions = ({
     if (dateParam && processedDateRef.current !== dateParam) {
       processedDateRef.current = dateParam;
 
-      setFilters.setDateRange('custom');
-      setFilters.setDateFrom(dateParam);
-      setFilters.setDateTo(dateParam);
+      setDateRange('custom');
+      setDateFrom(dateParam);
+      setDateTo(dateParam);
 
-      const monthKey = format(new Date(dateParam), 'yyyy-MM');
-      expandMonth(monthKey);
+      // Use toMonthKey so the YYYY-MM portion of the date is preserved
+      // exactly as written, regardless of the user's timezone.
+      expandMonth(toMonthKey(dateParam));
 
       const newParams = new URLSearchParams(location.search);
       newParams.delete('date');
@@ -60,10 +76,15 @@ export const useURLActions = ({
         replace: true,
       });
     }
-    // setFilters/expandMonth intentionally excluded — they are stable callbacks
-    // and including them caused infinite loops in the original page.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [location.search, navigate]);
+  }, [
+    location.search,
+    location.pathname,
+    navigate,
+    setDateRange,
+    setDateFrom,
+    setDateTo,
+    expandMonth,
+  ]);
 
   // Effect 2: handle ?action=new|transfer with optional prefill params
   // (amount, notes, date, templateId, fixedExpenseId, reminderId).
@@ -84,8 +105,8 @@ export const useURLActions = ({
         return;
       }
 
-      formState.setShowForm(true);
-      formState.setEditingMovement(null);
+      setShowForm(true);
+      setEditingMovement(null);
 
       if (
         amountParam ||
@@ -94,7 +115,7 @@ export const useURLActions = ({
         templateIdParam ||
         fixedExpenseIdParam
       ) {
-        formState.setDefaultValues({
+        setDefaultValues({
           amount: amountParam ? parseFloat(amountParam) : undefined,
           notes: notesParam || undefined,
           date: dateParam || undefined,
@@ -105,7 +126,7 @@ export const useURLActions = ({
         });
 
         if (templateIdParam) {
-          formState.handleTemplateSelect(templateIdParam);
+          handleTemplateSelect(templateIdParam);
         } else if (fixedExpenseIdParam) {
           // fixedExpenseId is actually a subPocket id — find the pocket and
           // account it belongs to so the form can pre-select them.
@@ -115,34 +136,39 @@ export const useURLActions = ({
           if (subPocket) {
             const pocket = pockets.find((p) => p.id === subPocket.pocketId);
             if (pocket) {
-              formState.setSelectedAccountId(pocket.accountId);
-              formState.setSelectedPocketId(pocket.id);
-              formState.setIsFixedExpense(true);
+              setSelectedAccountId(pocket.accountId);
+              setSelectedPocketId(pocket.id);
+              setIsFixedExpense(true);
             }
           }
         }
       }
 
       if (reminderIdParam) {
-        formState.setReminderId(reminderIdParam);
+        setReminderId(reminderIdParam);
       }
 
       navigate(location.pathname, { replace: true });
     } else if (action === 'transfer') {
-      formState.setShowForm(true);
-      formState.setEditingMovement(null);
+      setShowForm(true);
+      setEditingMovement(null);
       navigate(location.pathname, { replace: true });
     }
-    // formState is intentionally excluded — its setters are stable but the
-    // object identity changes every render. Including it would re-run the
-    // effect every render and instantly clear the URL.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     location.search,
+    location.pathname,
     navigate,
     subPockets,
     pockets,
     movementTemplates,
     templatesLoading,
+    setShowForm,
+    setEditingMovement,
+    setDefaultValues,
+    handleTemplateSelect,
+    setSelectedAccountId,
+    setSelectedPocketId,
+    setIsFixedExpense,
+    setReminderId,
   ]);
 };

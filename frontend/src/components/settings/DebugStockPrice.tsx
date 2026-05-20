@@ -5,6 +5,7 @@ import Input from '../Input';
 import Card from '../Card';
 import { Search, RotateCw } from 'lucide-react';
 import { currencyService } from '../../services/currencyService';
+import { parseDate } from '../../utils/dateUtils';
 
 const DebugStockPrice = () => {
     const [symbol, setSymbol] = useState('');
@@ -26,8 +27,8 @@ const DebugStockPrice = () => {
         try {
             const data = await investmentService.getDebugPrice(symbol);
             setResult(data);
-        } catch (err: any) {
-            setError(err.message || 'Failed to fetch price');
+        } catch (err: unknown) {
+            setError(err instanceof Error ? err.message : 'Failed to fetch price');
             setResult(null);
         } finally {
             setLoading(false);
@@ -88,7 +89,7 @@ const DebugStockPrice = () => {
                     <div className="flex justify-between">
                         <span className="text-gray-500">Cached:</span>
                         <span className="font-mono text-gray-700 dark:text-gray-300">
-                            {new Date(result.cachedAt).toLocaleString()}
+                            {parseDate(result.cachedAt).toLocaleString()}
                         </span>
                     </div>
                 </div>

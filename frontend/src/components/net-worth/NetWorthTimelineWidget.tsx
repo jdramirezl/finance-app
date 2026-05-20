@@ -6,6 +6,7 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import type { TooltipProps } from 'recharts';
 import { useNetWorthSnapshotsQuery, useNetWorthSnapshotMutations } from '../../hooks/queries/useNetWorthSnapshotQueries';
 import { useSettingsQuery } from '../../hooks/queries';
 import { currencyService } from '../../services/currencyService';
@@ -17,21 +18,48 @@ import Modal from '../Modal';
 import ConfirmDialog from '../ConfirmDialog';
 import { TrendingUp, Trash2 } from 'lucide-react';
 import { format, parseISO, subDays, subMonths, subYears } from 'date-fns';
+import type { NetWorthSnapshot } from '../../services/netWorthSnapshotService';
+import type { Currency } from '../../types';
 
 type ViewMode = 'total' | 'breakdown';
 type DateRange = '30d' | '6m' | '1y' | 'all';
+
+/**
+ * Shape of a chart datum produced by `chartData`. The keys vary by mode:
+ * total mode populates `total`; breakdown mode populates per-currency keys
+ * (e.g. `USD`, `EUR`); variation mode also adds `<key>_original` companions.
+ */
+type ChartDatum = {
+    date: string;
+    fullDate: string;
+    snapshotId: string;
+    total?: number;
+    total_original?: number;
+} & Record<string, string | number | undefined>;
+
+type DotProps = {
+    cx?: number;
+    cy?: number;
+    fill?: string;
+    payload?: ChartDatum;
+    value?: number | null;
+    // recharts passes `r` and `strokeWidth` as `string | number | undefined`
+    // depending on the call site; widen to match so render callbacks type-check.
+    r?: number | string;
+    strokeWidth?: number | string;
+};
 
 const NetWorthTimelineWidget = () => {
     const { data: snapshots = [], isLoading } = useNetWorthSnapshotsQuery();
     const { data: settings } = useSettingsQuery();
     const { updateMutation, deleteMutation } = useNetWorthSnapshotMutations();
     const { confirm, confirmState, handleClose: handleConfirmClose, handleConfirm } = useConfirm();
-    
+
     const [viewMode, setViewMode] = useState<ViewMode>('total');
     const [dateRange, setDateRange] = useState<DateRange>('6m');
     const [showVariation, setShowVariation] = useState(false);
     const [showEditModal, setShowEditModal] = useState(false);
-    const [selectedSnapshot, setSelectedSnapshot] = useState<any>(null);
+    const [selectedSnapshot, setSelectedSnapshot] = useState<NetWorthSnapshot | null>(null);
     const [editValue, setEditValue] = useState<string>('');
 
     const primaryCurrency = settings?.primaryCurrency || 'USD';
@@ -39,14 +67,14 @@ const NetWorthTimelineWidget = () => {
     const [rates, setRates] = useState<Record<string, number>>({});
 
     // Handle chart point click
-    const handleDotClick = (data: any) => {
+    const handleDotClick = (data: ChartDatum | undefined) => {
         if (!data) return;
-        
+
         // Find the snapshot by snapshotId first (most reliable), then fallback to date
         const snapshotId = data.snapshotId;
-        const snapshot = snapshots.find(s => s.id === snapshotId) || 
-                         snapshots.find(s => s.snapshotDate === data.fullDate);
-                         
+        const snapshot = snapshots.find(s => s.id === snapshotId) ||
+            snapshots.find(s => s.snapshotDate === data.fullDate);
+
         if (snapshot) {
             setSelectedSnapshot(snapshot);
             setEditValue(snapshot.totalNetWorth.toString());
@@ -55,12 +83,13 @@ const NetWorthTimelineWidget = () => {
     };
 
     // Custom dot component with better hit area and visibility
-    const CustomDot = (props: any) => {
+    const CustomDot = (props: DotProps) => {
         const { cx, cy, fill, payload, value, r = 5, strokeWidth = 2 } = props;
         if (value === null || value === undefined) return null;
-        
+        if (cx === undefined || cy === undefined) return null;
+
         return (
-            <g 
+            <g
                 className="cursor-pointer"
                 onClick={(e) => {
                     e.stopPropagation();
@@ -89,7 +118,7 @@ const NetWorthTimelineWidget = () => {
         if (!selectedSnapshot) return;
 
         const newValue = parseFloat(editValue);
-        
+
         if (isNaN(newValue) || newValue < 0) {
             return;
         }
@@ -98,7 +127,7 @@ const NetWorthTimelineWidget = () => {
             id: selectedSnapshot.id,
             data: { totalNetWorth: newValue }
         });
-        
+
         setShowEditModal(false);
     };
 
@@ -165,10 +194,16 @@ const NetWorthTimelineWidget = () => {
                     newRates[currency] = 1;
                 } else {
                     try {
-                        const rate = await currencyService.getExchangeRateAsync(currency as any, primaryCurrency);
+                        const rate = await currencyService.getExchangeRateAsync(
+                            currency as Currency,
+                            primaryCurrency as Currency
+                        );
                         newRates[currency] = rate;
-                    } catch (err) {
-                        newRates[currency] = currencyService.getExchangeRate(currency as any, primaryCurrency);
+                    } catch {
+                        newRates[currency] = currencyService.getExchangeRate(
+                            currency as Currency,
+                            primaryCurrency as Currency
+                        );
                     }
                 }
             });
@@ -201,13 +236,13 @@ const NetWorthTimelineWidget = () => {
     };
 
     // Prepare chart data
-    const chartData = useMemo(() => {
+    const chartData = useMemo<ChartDatum[]>(() => {
         if (filteredSnapshots.length === 0) return [];
         const hasForeignCurrency = currencies.some(c => c !== primaryCurrency);
         if (hasForeignCurrency && Object.keys(rates).length === 0) return [];
 
-        const processedSnapshots = filteredSnapshots.map(snapshot => {
-            const data: any = {
+        const processedSnapshots: ChartDatum[] = filteredSnapshots.map(snapshot => {
+            const data: ChartDatum = {
                 date: format(parseISO(snapshot.snapshotDate), 'MMM d'),
                 fullDate: snapshot.snapshotDate,
                 total: snapshot.totalNetWorth,
@@ -217,7 +252,7 @@ const NetWorthTimelineWidget = () => {
             if (snapshot.breakdown) {
                 Object.entries(snapshot.breakdown).forEach(([currency, value]) => {
                     const rate = rates[currency] || 1;
-                    data[currency] = (currency === primaryCurrency) ? (value as number) : (value as number) * rate;
+                    data[currency] = currency === primaryCurrency ? value : value * rate;
                 });
             }
             return data;
@@ -225,21 +260,23 @@ const NetWorthTimelineWidget = () => {
 
         if (showVariation && processedSnapshots.length > 0) {
             const baseline = processedSnapshots[0];
+            const baselineTotal = baseline.total ?? 0;
             return processedSnapshots.map(snapshot => {
-                const variationData: any = {
+                const snapshotTotal = snapshot.total ?? 0;
+                const variationData: ChartDatum = {
                     date: snapshot.date,
                     fullDate: snapshot.fullDate,
                     snapshotId: snapshot.snapshotId,
-                    total: baseline.total !== 0
-                        ? ((snapshot.total - baseline.total) / Math.abs(baseline.total)) * 100
+                    total: baselineTotal !== 0
+                        ? ((snapshotTotal - baselineTotal) / Math.abs(baselineTotal)) * 100
                         : 0,
-                    total_original: snapshot.total,
+                    total_original: snapshotTotal,
                 };
 
                 if (viewMode === 'breakdown') {
                     currencies.forEach(currency => {
-                        const baseVal = baseline[currency] || 0;
-                        const currentVal = snapshot[currency] || 0;
+                        const baseVal = (baseline[currency] as number | undefined) ?? 0;
+                        const currentVal = (snapshot[currency] as number | undefined) ?? 0;
                         variationData[currency] = baseVal !== 0
                             ? ((currentVal - baseVal) / Math.abs(baseVal)) * 100
                             : 0;
@@ -253,6 +290,25 @@ const NetWorthTimelineWidget = () => {
 
         return processedSnapshots;
     }, [filteredSnapshots, viewMode, showVariation, primaryCurrency, currencies, rates]);
+
+    type CustomTooltipFormatter = NonNullable<TooltipProps<number, string>['formatter']>;
+
+    const tooltipFormatter: CustomTooltipFormatter = (value, name, entry) => {
+        const displayName = name != null ? String(name) : 'Value';
+        if (value === undefined || value === null) return ['N/A', displayName];
+        const numValue = typeof value === 'number' ? value : parseFloat(String(value));
+        if (isNaN(numValue)) return ['N/A', displayName];
+        if (showVariation) {
+            const originalKey = displayName === 'Net Worth' ? 'total_original' : `${displayName}_original`;
+            const payload = (entry as { payload?: ChartDatum })?.payload;
+            const originalValue = payload ? (payload[originalKey] as number | undefined) : undefined;
+            return [
+                `${numValue.toFixed(2)}% (${originalValue !== undefined ? formatCurrency(originalValue) : 'N/A'})`,
+                displayName,
+            ];
+        }
+        return [formatCurrency(numValue), displayName];
+    };
 
     if (isLoading) {
         return (
@@ -341,8 +397,8 @@ const NetWorthTimelineWidget = () => {
                 {/* Chart */}
                 <div className="h-64">
                     <ResponsiveContainer width="100%" height="100%">
-                        <LineChart 
-                            data={chartData} 
+                        <LineChart
+                            data={chartData}
                             margin={{ top: 5, right: 20, left: 10, bottom: 5 }}
                         >
                             <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
@@ -359,21 +415,7 @@ const NetWorthTimelineWidget = () => {
                                 domain={showVariation ? [-100, 100] : ['auto', 'auto']}
                             />
                             <Tooltip
-                                formatter={((value: any, name: any, entry: any) => {
-                                    const displayName = name != null ? String(name) : 'Value';
-                                    if (value === undefined || value === null) return ['N/A', displayName];
-                                    const numValue = typeof value === 'number' ? value : parseFloat(value);
-                                    if (isNaN(numValue)) return ['N/A', displayName];
-                                    if (showVariation) {
-                                        const originalKey = displayName === 'Net Worth' ? 'total_original' : `${displayName}_original`;
-                                        const originalValue = entry.payload[originalKey];
-                                        return [
-                                            `${numValue.toFixed(2)}% (${originalValue !== undefined ? formatCurrency(originalValue) : 'N/A'})`,
-                                            displayName
-                                        ];
-                                    }
-                                    return [formatCurrency(numValue), displayName];
-                                }) as any}
+                                formatter={tooltipFormatter}
                                 labelFormatter={(label) => `Date: ${label}`}
                                 contentStyle={{
                                     backgroundColor: 'var(--tooltip-bg, #fff)',
@@ -402,8 +444,8 @@ const NetWorthTimelineWidget = () => {
                                         name={currency}
                                         stroke={currencyColors[currency] || '#8884d8'}
                                         strokeWidth={2}
-                                        dot={(props: any) => <CustomDot {...props} fill={currencyColors[currency] || '#8884d8'} />}
-                                        activeDot={(props: any) => <CustomDot {...props} fill={currencyColors[currency] || '#8884d8'} r={8} strokeWidth={3} />}
+                                        dot={(props: DotProps) => <CustomDot {...props} fill={currencyColors[currency] || '#8884d8'} />}
+                                        activeDot={(props: DotProps) => <CustomDot {...props} fill={currencyColors[currency] || '#8884d8'} r={8} strokeWidth={3} />}
                                     />
                                 ))
                             )}
@@ -419,7 +461,7 @@ const NetWorthTimelineWidget = () => {
                                 Latest snapshot: {chartData[chartData.length - 1].fullDate}
                             </span>
                             <span className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                                {formatCurrency(chartData[chartData.length - 1].total)}
+                                {formatCurrency(chartData[chartData.length - 1].total ?? 0)}
                             </span>
                         </div>
                     </div>
@@ -509,4 +551,3 @@ const NetWorthTimelineWidget = () => {
 };
 
 export default NetWorthTimelineWidget;
-

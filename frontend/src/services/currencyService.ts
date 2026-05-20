@@ -84,7 +84,6 @@ class CurrencyService {
   // Convert amount using backend conversion endpoint
   async convert(amount: number, from: Currency, to: Currency): Promise<number> {
     if (!amount || !from || !to) {
-      console.warn('Invalid convert parameters:', { amount, from, to });
       return amount || 0;
     }
 

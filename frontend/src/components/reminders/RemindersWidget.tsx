@@ -5,20 +5,25 @@ import Modal from '../Modal';
 import ReminderForm from './ReminderForm';
 import Button from '../Button';
 import Card from '../Card';
+import ConfirmDialog from '../ConfirmDialog';
 import MonthSection from './MonthSection';
 import RecurrenceActionModal from './RecurrenceActionModal';
 import MarkAsPaidModal from './MarkAsPaidModal';
 import { useNavigate } from 'react-router-dom';
+import { useConfirm } from '../../hooks/useConfirm';
 import { groupRemindersByMonth, countOverdueReminders, type ReminderWithProjection } from '../../utils/reminderProjections';
+import { toDateOnly } from '../../utils/dateUtils';
+import type { CreateReminderDTO, UpdateReminderDTO } from '../../services/reminderService';
 
 const RemindersWidget = () => {
     const navigate = useNavigate();
     const { data: reminders = [], isLoading } = useRemindersQuery();
     const { deleteMutation, createMutation, updateMutation, createExceptionMutation, splitMutation } = useReminderMutations();
     const scrollContainerRef = useRef<HTMLDivElement>(null);
+    const { confirm, confirmState, handleClose, handleConfirm } = useConfirm();
 
     const [isFormOpen, setIsFormOpen] = useState(false);
-    const [editingReminder, setEditingReminder] = useState<any>(null);
+    const [editingReminder, setEditingReminder] = useState<ReminderWithProjection | null>(null);
     const [isEditingException, setIsEditingException] = useState(false);
     const [splitDate, setSplitDate] = useState<string | null>(null);
 
@@ -87,16 +92,24 @@ const RemindersWidget = () => {
     );
 
     const handleDelete = useCallback(
-        (reminder: ReminderWithProjection) => {
+        async (reminder: ReminderWithProjection) => {
             if (reminder.recurrence.type !== 'once') {
                 setRecurrenceModal({ isOpen: true, type: 'delete', reminder });
-            } else {
-                if (confirm('Are you sure you want to delete this reminder?')) {
-                    deleteMutation.mutate(reminder.id);
-                }
+                return;
             }
+
+            const ok = await confirm({
+                title: 'Delete Reminder',
+                message: 'Are you sure you want to delete this reminder?',
+                confirmText: 'Delete',
+                cancelText: 'Cancel',
+                variant: 'danger',
+            });
+            if (!ok) return;
+
+            deleteMutation.mutate(reminder.id);
         },
-        [deleteMutation]
+        [confirm, deleteMutation]
     );
 
     const handleMarkAsPaid = useCallback((reminder: ReminderWithProjection) => {
@@ -122,15 +135,15 @@ const RemindersWidget = () => {
                 await createExceptionMutation.mutateAsync({
                     id: originalId,
                     data: {
-                        originalDate: markAsPaidReminder.dueDate.split('T')[0],
+                        originalDate: toDateOnly(markAsPaidReminder.dueDate),
                         action: 'modified',
                         isPaid: true,
                         linkedMovementId: movementId
                     }
                 });
             }
-        } catch (error) {
-            console.error('Failed to mark as paid:', error);
+        } catch {
+            // Toast is shown by the mutation's onError handler.
         } finally {
             setMarkAsPaidReminder(null);
         }
@@ -150,13 +163,20 @@ const RemindersWidget = () => {
                     await createExceptionMutation.mutateAsync({
                         id: originalId,
                         data: {
-                            originalDate: reminder.dueDate.split('T')[0],
+                            originalDate: toDateOnly(reminder.dueDate),
                             action: 'deleted'
                         }
                     });
                 } else if (scope === 'future') {
                     // Delete this and future events (Split Series)
-                    if (!confirm('Are you sure you want to delete this and all following reminders?')) {
+                    const ok = await confirm({
+                        title: 'Delete Future Reminders',
+                        message: 'Are you sure you want to delete this and all following reminders?',
+                        confirmText: 'Delete',
+                        cancelText: 'Cancel',
+                        variant: 'danger',
+                    });
+                    if (!ok) {
                         closeRecurrenceModal();
                         return;
                     }
@@ -166,7 +186,14 @@ const RemindersWidget = () => {
                     });
                 } else {
                     // Delete entire series
-                    if (!confirm('Are you sure you want to delete this recurring reminder series?')) {
+                    const ok = await confirm({
+                        title: 'Delete Recurring Series',
+                        message: 'Are you sure you want to delete this recurring reminder series?',
+                        confirmText: 'Delete Series',
+                        cancelText: 'Cancel',
+                        variant: 'danger',
+                    });
+                    if (!ok) {
                         closeRecurrenceModal();
                         return;
                     }
@@ -176,10 +203,9 @@ const RemindersWidget = () => {
                 // shows a toast (see useReminderQueries) and the modal remains open
                 // so the user can retry.
                 closeRecurrenceModal();
-            } catch (error) {
-                // Mutation hooks display the toast via onError. Log here for debugging
-                // and intentionally keep the recurrence modal open for the user.
-                console.error('Failed to delete recurring reminder:', error);
+            } catch {
+                // Mutation hooks display the toast via onError. Keep the recurrence
+                // modal open so the user can retry the action.
             }
         } else if (type === 'edit') {
             // Edit branches are synchronous: they hand off to the form modal.
@@ -209,23 +235,22 @@ const RemindersWidget = () => {
         }
     };
 
-    const handleCreate = async (data: any) => {
-        await createMutation.mutateAsync(data);
+    const handleCreate = async (data: CreateReminderDTO | UpdateReminderDTO) => {
+        await createMutation.mutateAsync(data as CreateReminderDTO);
         setIsFormOpen(false);
     };
 
-    const handleUpdate = async (data: any) => {
+    const handleUpdate = async (data: CreateReminderDTO | UpdateReminderDTO) => {
         if (editingReminder) {
-            const originalId = editingReminder.originalReminderId || editingReminder.id;
+            const originalId = editingReminder.originalReminderId ?? editingReminder.id;
 
             if (isEditingException) {
                 // Determine original date (the one we clicked on, NOT the new date in form)
                 // editingReminder.dueDate holds the initial date of the occurrence we clicked.
-
                 await createExceptionMutation.mutateAsync({
                     id: originalId,
                     data: {
-                        originalDate: editingReminder.dueDate.split('T')[0],
+                        originalDate: toDateOnly(editingReminder.dueDate),
                         action: 'modified',
                         newTitle: data.title,
                         newAmount: data.amount,
@@ -236,11 +261,11 @@ const RemindersWidget = () => {
                 // Split series (Edit This and Future)
                 await splitMutation.mutateAsync({
                     id: originalId,
-                    splitDate: splitDate,
-                    newDetails: data
+                    splitDate,
+                    newDetails: data as CreateReminderDTO,
                 });
             } else {
-                await updateMutation.mutateAsync({ id: editingReminder.id, data });
+                await updateMutation.mutateAsync({ id: editingReminder.id, data: data as UpdateReminderDTO });
             }
             setEditingReminder(null);
             setSplitDate(null);
@@ -332,7 +357,7 @@ const RemindersWidget = () => {
                 size="lg"
             >
                 <ReminderForm
-                    initialData={editingReminder}
+                    initialData={editingReminder ?? undefined}
                     onSubmit={editingReminder ? handleUpdate : handleCreate}
                     onCancel={() => {
                         setIsFormOpen(false);
@@ -356,6 +381,17 @@ const RemindersWidget = () => {
                 onClose={() => setMarkAsPaidReminder(null)}
                 onConfirm={handleConfirmMarkAsPaid}
                 reminder={markAsPaidReminder}
+            />
+
+            <ConfirmDialog
+                isOpen={confirmState.isOpen}
+                title={confirmState.title}
+                message={confirmState.message}
+                confirmText={confirmState.confirmText}
+                cancelText={confirmState.cancelText}
+                variant={confirmState.variant}
+                onConfirm={handleConfirm}
+                onClose={handleClose}
             />
         </div>
     );

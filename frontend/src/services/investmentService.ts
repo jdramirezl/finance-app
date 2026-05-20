@@ -1,5 +1,6 @@
 import type { Account } from '../types';
 import { apiClient } from './apiClient';
+import { parseDate } from '../utils/dateUtils';
 
 interface PriceCache {
     symbol: string;
@@ -27,8 +28,8 @@ class InvestmentService {
                 const data = JSON.parse(cached);
                 this.priceCache = new Map(data);
             }
-        } catch (error) {
-            console.error('Error loading investment cache:', error);
+        } catch {
+            // localStorage unavailable or cache corrupt — start fresh.
         }
     }
 
@@ -37,8 +38,8 @@ class InvestmentService {
         try {
             const cacheArray = Array.from(this.priceCache.entries());
             localStorage.setItem('investment_price_cache', JSON.stringify(cacheArray));
-        } catch (error) {
-            console.error('Error saving investment cache:', error);
+        } catch {
+            // localStorage may be unavailable or full; cache write is best-effort.
         }
     }
 
@@ -47,7 +48,7 @@ class InvestmentService {
         const response = await apiClient.get<BackendStockPriceResponse>(`/api/investments/prices/${symbol}`);
 
         // Update local cache so getPriceTimestamp can surface the freshness in UI
-        const cachedAt = new Date(response.cachedAt).getTime();
+        const cachedAt = parseDate(response.cachedAt).getTime();
         this.priceCache.set(symbol, {
             symbol: response.symbol,
             price: response.price,

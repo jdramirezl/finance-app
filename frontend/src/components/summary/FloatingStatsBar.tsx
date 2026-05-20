@@ -1,9 +1,10 @@
 import { useSelection } from '../../contexts/SelectionContext';
 import { currencyService } from '../../services/currencyService';
 import { X } from 'lucide-react';
+import type { Currency } from '../../types';
 
 interface FloatingStatsBarProps {
-    primaryCurrency?: string;
+    primaryCurrency?: Currency;
 }
 
 const FloatingStatsBar = ({ primaryCurrency = 'USD' }: FloatingStatsBarProps) => {
@@ -28,7 +29,7 @@ const FloatingStatsBar = ({ primaryCurrency = 'USD' }: FloatingStatsBarProps) =>
             <div className="flex flex-col">
                 <span className="text-xs text-gray-400 font-medium uppercase tracking-wider">Sum</span>
                 <span className="font-bold text-lg leading-none">
-                    {currencyService.formatCurrency(sum, primaryCurrency as any)}
+                    {currencyService.formatCurrency(sum, primaryCurrency)}
                 </span>
             </div>
 
@@ -37,7 +38,7 @@ const FloatingStatsBar = ({ primaryCurrency = 'USD' }: FloatingStatsBarProps) =>
             <div className="flex flex-col">
                 <span className="text-xs text-gray-400 font-medium uppercase tracking-wider">Average</span>
                 <span className="font-bold text-lg leading-none">
-                    {currencyService.formatCurrency(avg, primaryCurrency as any)}
+                    {currencyService.formatCurrency(avg, primaryCurrency)}
                 </span>
             </div>
 

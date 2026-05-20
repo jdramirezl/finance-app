@@ -132,19 +132,19 @@ const MovementFilters = ({ showFilters, setShowFilters, filters, setFilters }: M
                         onChange={(e) => setFilters.setPocket(e.target.value)}
                         options={[
                             { value: 'all', label: 'All Pockets' },
-                            ...accounts.map(acc => {
+                            ...accounts.flatMap(acc => {
                                 const accountPockets = pockets.filter(p =>
                                     (filters.account === 'all' || p.accountId === filters.account) &&
                                     p.accountId === acc.id
                                 );
 
-                                if (accountPockets.length === 0) return null;
+                                if (accountPockets.length === 0) return [];
 
-                                return {
+                                return [{
                                     label: acc.name,
                                     options: accountPockets.map(p => ({ value: p.id, label: p.name }))
-                                };
-                            }).filter(group => group !== null) as any
+                                }];
+                            })
                         ]}
                     />
 

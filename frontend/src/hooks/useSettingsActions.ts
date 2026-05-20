@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { format } from 'date-fns';
 import { accountService } from '../services/accountService';
 import { movementService } from '../services/movementService';
 import { pocketService } from '../services/pocketService';
@@ -21,8 +22,8 @@ const readBudgetPlanning = (): unknown => {
     return item
       ? JSON.parse(item)
       : { initialAmount: 0, distributionEntries: [] };
-  } catch (error) {
-    console.error('Error reading budget planning from localStorage:', error);
+  } catch {
+    // localStorage unavailable or value not parseable; fall back to empty.
     return { initialAmount: 0, distributionEntries: [] };
   }
 };
@@ -95,7 +96,7 @@ export const useSettingsActions = ({
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `finance_app_backup_${new Date().toISOString().split('T')[0]}.json`;
+      link.download = `finance_app_backup_${format(new Date(), 'yyyy-MM-dd')}.json`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -104,8 +105,7 @@ export const useSettingsActions = ({
       toast.success(
         `Exported ${movements.length} movements and all data successfully`
       );
-    } catch (err) {
-      console.error('Export failed:', err);
+    } catch {
       toast.error('Failed to export data');
     } finally {
       setIsExporting(false);
@@ -116,8 +116,7 @@ export const useSettingsActions = ({
     if (!settings) return;
     try {
       await updateMutation.mutateAsync({ ...settings, primaryCurrency: currency });
-    } catch (err) {
-      console.error('Failed to update settings:', err);
+    } catch {
       // Toast is shown by the mutation's onError handler.
     }
   };
@@ -134,8 +133,7 @@ export const useSettingsActions = ({
         accountCardDisplay: { ...current, [kind]: mode },
       });
       toast.success(`${kind} account display updated to ${mode}`);
-    } catch (err) {
-      console.error('Failed to update account display:', err);
+    } catch {
       // Toast is shown by the mutation's onError handler.
     }
   };
@@ -148,8 +146,7 @@ export const useSettingsActions = ({
         snapshotFrequency: frequency,
       });
       toast.success(`Snapshot frequency updated to ${frequency}`);
-    } catch (err) {
-      console.error('Failed to update snapshot frequency:', err);
+    } catch {
       // Toast is shown by the mutation's onError handler.
     }
   };

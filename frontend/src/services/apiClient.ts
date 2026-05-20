@@ -60,35 +60,26 @@ class ApiClient {
    *   message survive.
    * - TypeError: fetch raises this for network-level failures (DNS
    *   failure, offline, CORS rejection). Mapped to status 0.
-   * - Error: any other runtime failure is wrapped with status 0 to
+   * - Error: every other runtime failure is wrapped with status 0 to
    *   keep callers exclusively dealing with AppError.
    * - unknown: stringified into an AppError as a last resort.
    */
   private handleError(error: unknown, context: RequestContext): never {
     const prefix = `${context.method} ${context.path}`;
-    const payloadSuffix =
-      context.payloadSize !== undefined ? ` (payload: ${context.payloadSize} bytes)` : '';
 
     if (error instanceof AppError) {
-      console.error(`API ${prefix} failed [${error.statusCode}]: ${error.message}${payloadSuffix}`);
       throw error;
     }
 
     if (error instanceof TypeError) {
-      const message = `${prefix} failed: network error — unable to reach server`;
-      console.error(`API ${message}${payloadSuffix}`, error);
-      throw new AppError(0, message);
+      throw new AppError(0, `${prefix} failed: network error — unable to reach server`);
     }
 
     if (error instanceof Error) {
-      const message = `${prefix} failed: ${error.message}`;
-      console.error(`API ${message}${payloadSuffix}`, error);
-      throw new AppError(0, message);
+      throw new AppError(0, `${prefix} failed: ${error.message}`);
     }
 
-    const message = `${prefix} failed: ${String(error)}`;
-    console.error(`API ${message}${payloadSuffix}`);
-    throw new AppError(0, message);
+    throw new AppError(0, `${prefix} failed: ${String(error)}`);
   }
 
   /**

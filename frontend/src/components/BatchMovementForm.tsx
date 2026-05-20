@@ -1,8 +1,10 @@
 import { useState, useImperativeHandle, forwardRef } from 'react';
+import { format } from 'date-fns';
 import { Plus, Trash2, X } from 'lucide-react';
 import Button from './Button';
 import Input from './Input';
 import Select from './Select';
+import { useToast } from '../hooks/useToast';
 import type { MovementType, Account, Pocket, SubPocket } from '../types';
 
 export interface BatchMovementRow {
@@ -53,7 +55,7 @@ const BatchMovementForm = forwardRef<BatchMovementFormRef, BatchMovementFormProp
             pocketId: '',
             amount: '',
             notes: '',
-            displayedDate: new Date().toISOString().split('T')[0],
+            displayedDate: format(new Date(), 'yyyy-MM-dd'),
           },
         ]
   );
@@ -61,6 +63,7 @@ const BatchMovementForm = forwardRef<BatchMovementFormRef, BatchMovementFormProp
   // onRowsChange is called directly in addRow/removeRow/updateRow — no useEffect needed
   const [isSaving, setIsSaving] = useState(false);
   const [markAsPending, setMarkAsPending] = useState(false);
+  const toast = useToast();
 
   useImperativeHandle(ref, () => ({
     updateAmount: (id, amount) => {
@@ -85,7 +88,7 @@ const BatchMovementForm = forwardRef<BatchMovementFormRef, BatchMovementFormProp
         pocketId: '',
         amount: '',
         notes: '',
-        displayedDate: new Date().toISOString().split('T')[0],
+        displayedDate: format(new Date(), 'yyyy-MM-dd'),
       },
     ];
     setRows(newRows);
@@ -104,7 +107,7 @@ const BatchMovementForm = forwardRef<BatchMovementFormRef, BatchMovementFormProp
       rows.map((row) => {
         if (row.id === id) {
           const updated = { ...row, ...updates };
-          
+
           // Reset pocket if account changes
           if (updates.accountId !== undefined && updates.accountId !== row.accountId) {
             updated.pocketId = '';
@@ -149,12 +152,12 @@ const BatchMovementForm = forwardRef<BatchMovementFormRef, BatchMovementFormProp
               }
             }
           }
-          
+
           // Reset subPocket if pocket changes
           if (updates.pocketId !== undefined && updates.pocketId !== row.pocketId) {
             updated.subPocketId = undefined;
           }
-          
+
           return updated;
         }
         return row;
@@ -172,7 +175,7 @@ const BatchMovementForm = forwardRef<BatchMovementFormRef, BatchMovementFormProp
     });
 
     if (errors.length > 0) {
-      alert(errors.join('\n'));
+      toast.error(errors.join(' • '));
       return;
     }
 
@@ -209,7 +212,7 @@ const BatchMovementForm = forwardRef<BatchMovementFormRef, BatchMovementFormProp
         <div className="text-sm text-gray-600 dark:text-gray-400">
           Add multiple movements at once. All movements will be saved together when you click "Save All".
         </div>
-        
+
         <label className="flex items-center gap-2 text-sm">
           <input
             type="checkbox"
@@ -226,14 +229,14 @@ const BatchMovementForm = forwardRef<BatchMovementFormRef, BatchMovementFormProp
       <div className="space-y-3 max-h-[60vh] overflow-y-auto">
         {rows.map((row, index) => {
           const isFixedExpense = row.type === 'IngresoFijo' || row.type === 'EgresoFijo';
-          
+
           // Filter accounts: show all for normal, only those with fixed pockets for fixed movements
           const filteredAccounts = isFixedExpense
             ? accounts.filter(acc => getPocketsByAccount(acc.id).some(p => p.type === 'fixed'))
             : accounts;
 
           const allAccountPockets = row.accountId ? getPocketsByAccount(row.accountId) : [];
-          
+
           // Filter pockets: only fixed for fixed movements, exclude fixed for normal movements
           const filteredPockets = isFixedExpense
             ? allAccountPockets.filter(p => p.type === 'fixed')

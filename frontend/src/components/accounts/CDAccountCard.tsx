@@ -37,8 +37,7 @@ const CDAccountCard = ({
     try {
         calculation = cdCalculationService.calculateCurrentValue(account);
         isNearMaturity = cdCalculationService.isNearMaturity(account);
-    } catch (error) {
-        console.error('❌ Failed to calculate CD values in CDAccountCard:', error);
+    } catch {
         hasError = true;
     }
 

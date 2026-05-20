@@ -1,10 +1,12 @@
 import { useNavigate } from 'react-router-dom';
 import { AlertTriangle, Landmark } from 'lucide-react';
-import { format } from 'date-fns';
 import { currencyService } from '../../services/currencyService';
 import { cdCalculationService } from '../../services/cdCalculationService';
+import { formatDisplayDate } from '../../utils/dateUtils';
 import SelectableValue from '../SelectableValue';
-import type { CDInvestmentAccount } from '../../types';
+import type { CDInvestmentAccount, CDCalculationResult } from '../../types';
+
+type CDSummary = ReturnType<typeof cdCalculationService.generateCDSummary>;
 
 interface CDSummaryCardCompactProps {
   account: CDInvestmentAccount;
@@ -16,23 +18,22 @@ const CDSummaryCardCompact = ({ account }: CDSummaryCardCompactProps) => {
   const handleAccountClick = () => {
     navigate(`/accounts?id=${account.id}`);
   };
-  
+
   // Calculate current CD values with error handling
-  let calculation: any = null;
-  let summary: any = null;
+  let calculation: CDCalculationResult | null = null;
+  let summary: CDSummary | null = null;
   let hasError = false;
-  
+
   try {
     calculation = cdCalculationService.calculateCurrentValue(account);
     summary = cdCalculationService.generateCDSummary(account);
-  } catch (error) {
-    console.error('❌ Failed to calculate CD values:', error);
+  } catch {
     hasError = true;
   }
 
   // Get display balance
   const netBalance = hasError ? 0 : (
-    account.withholdingTaxRate && account.withholdingTaxRate > 0 
+    account.withholdingTaxRate && account.withholdingTaxRate > 0
       ? calculation?.netCurrentValue || 0
       : calculation?.currentValue || 0
   );
@@ -68,7 +69,7 @@ const CDSummaryCardCompact = ({ account }: CDSummaryCardCompactProps) => {
     <div className="border-l-4 pl-4" style={{ borderColor: account.color }}>
       {/* Header - similar to regular accounts */}
       <div className="flex items-center justify-between mb-2">
-        <div 
+        <div
           className="flex items-center gap-2 cursor-pointer group"
           onClick={handleAccountClick}
           title="View Account Details"
@@ -120,15 +121,15 @@ const CDSummaryCardCompact = ({ account }: CDSummaryCardCompactProps) => {
                 {account.withholdingTaxRate && account.withholdingTaxRate > 0 ? 'Net interest earned:' : 'Interest earned:'}
               </span>
               <span className="font-mono text-green-600 dark:text-green-400">
-                <SelectableValue 
-                  id={`cd-interest-${account.id}`} 
-                  value={account.withholdingTaxRate && account.withholdingTaxRate > 0 ? calculation.netInterest : calculation.accruedInterest} 
+                <SelectableValue
+                  id={`cd-interest-${account.id}`}
+                  value={account.withholdingTaxRate && account.withholdingTaxRate > 0 ? calculation.netInterest : calculation.accruedInterest}
                   currency={account.currency}
                 >
                   +{currencyService.formatCurrency(
-                    account.withholdingTaxRate && account.withholdingTaxRate > 0 
-                      ? calculation.netInterest 
-                      : calculation.accruedInterest, 
+                    account.withholdingTaxRate && account.withholdingTaxRate > 0
+                      ? calculation.netInterest
+                      : calculation.accruedInterest,
                     account.currency
                   )}
                 </SelectableValue>
@@ -140,7 +141,7 @@ const CDSummaryCardCompact = ({ account }: CDSummaryCardCompactProps) => {
                 Maturity:
               </span>
               <span className="text-gray-900 dark:text-gray-100">
-                {format(new Date(account.maturityDate), 'MMM dd, yyyy')}
+                {formatDisplayDate(account.maturityDate, 'MMM dd, yyyy')}
               </span>
             </div>
 

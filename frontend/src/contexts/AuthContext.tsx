@@ -54,9 +54,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             user_id: data.user.id,
             primary_currency: 'USD',
           });
-        } catch (settingsError) {
-          // Settings creation failed, but signup succeeded
-          console.warn('Failed to create settings:', settingsError);
+        } catch {
+          // Settings creation is best-effort — signup itself succeeded.
         }
       }
       

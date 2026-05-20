@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { cdCalculationService } from '../services/cdCalculationService';
 import { currencyService } from '../services/currencyService';
 import type { Account, CDInvestmentAccount, Currency } from '../types';
@@ -66,14 +66,17 @@ export const useConsolidatedTotal = ({
     );
   }, [accounts]);
 
-  const getAccountBalance = (account: Account): number => {
-    if (isCDAccount(account)) return computeCDBalance(account);
-    if (account.type === 'investment' && account.stockSymbol) {
-      const data = investmentData.get(account.id);
-      return data ? data.totalValue : account.balance || 0;
-    }
-    return account.balance;
-  };
+  const getAccountBalance = useCallback(
+    (account: Account): number => {
+      if (isCDAccount(account)) return computeCDBalance(account);
+      if (account.type === 'investment' && account.stockSymbol) {
+        const data = investmentData.get(account.id);
+        return data ? data.totalValue : account.balance || 0;
+      }
+      return account.balance;
+    },
+    [investmentData]
+  );
 
   const sortedCurrencies = useMemo(() => {
     return (Object.keys(accountsByCurrency) as Currency[]).sort((a, b) => {
@@ -101,8 +104,7 @@ export const useConsolidatedTotal = ({
       },
       {} as Record<Currency, number>
     );
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sortedCurrencies, accountsByCurrency, investmentData]);
+  }, [sortedCurrencies, accountsByCurrency, getAccountBalance]);
 
   const [consolidatedTotal, setConsolidatedTotal] = useState<number>(0);
   // No accounts → there's nothing to convert and `0` is the correct value,

@@ -5,7 +5,10 @@ import Card from '../Card';
 import Button from '../Button';
 import { currencyService } from '../../services/currencyService';
 import { cdCalculationService } from '../../services/cdCalculationService';
-import type { CDInvestmentAccount } from '../../types';
+import { parseDate } from '../../utils/dateUtils';
+import type { CDInvestmentAccount, CDCalculationResult } from '../../types';
+
+type CDSummary = ReturnType<typeof cdCalculationService.generateCDSummary>;
 
 interface CDDetailsPanelProps {
   account: CDInvestmentAccount;
@@ -16,18 +19,17 @@ const CDDetailsPanel = ({ account, onEdit }: CDDetailsPanelProps) => {
   const [showAdvancedDetails, setShowAdvancedDetails] = useState(false);
 
   // Calculate current CD values with error handling
-  let calculation: any = null;
-  let summary: any = null;
+  let calculation: CDCalculationResult | null = null;
+  let summary: CDSummary | null = null;
   let isNearMaturity = false;
   let hasError = false;
   let errorMessage = '';
-  
+
   try {
     calculation = cdCalculationService.calculateCurrentValue(account);
     summary = cdCalculationService.generateCDSummary(account);
     isNearMaturity = cdCalculationService.isNearMaturity(account);
   } catch (error) {
-    console.error('❌ Failed to calculate CD values in CDDetailsPanel:', error);
     hasError = true;
     errorMessage = error instanceof Error ? error.message : 'Calculation failed';
   }
@@ -74,9 +76,9 @@ const CDDetailsPanel = ({ account, onEdit }: CDDetailsPanelProps) => {
   }
 
   // Format dates
-  const maturityDate = new Date(account.maturityDate);
+  const maturityDate = parseDate(account.maturityDate);
   const formattedMaturityDate = format(maturityDate, 'MMM dd, yyyy');
-  const createdDate = account.cdCreatedAt ? new Date(account.cdCreatedAt) : null;
+  const createdDate = account.cdCreatedAt ? parseDate(account.cdCreatedAt) : null;
   const formattedCreatedDate = createdDate ? format(createdDate, 'MMM dd, yyyy') : 'Unknown';
 
   // Status styling
@@ -125,7 +127,7 @@ const CDDetailsPanel = ({ account, onEdit }: CDDetailsPanelProps) => {
             </p>
           </div>
         </div>
-        
+
         <div className="flex items-center gap-2">
           <span className={`px-3 py-1 text-sm font-medium rounded-full border ${getStatusColor()}`}>
             {getStatusText()}
@@ -143,9 +145,9 @@ const CDDetailsPanel = ({ account, onEdit }: CDDetailsPanelProps) => {
         <div className="text-center">
           <div className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2">
             {calculation ? currencyService.formatCurrency(
-              account.withholdingTaxRate && account.withholdingTaxRate > 0 
-                ? calculation.netCurrentValue 
-                : calculation.currentValue, 
+              account.withholdingTaxRate && account.withholdingTaxRate > 0
+                ? calculation.netCurrentValue
+                : calculation.currentValue,
               account.currency
             ) : 'N/A'}
           </div>
@@ -172,9 +174,9 @@ const CDDetailsPanel = ({ account, onEdit }: CDDetailsPanelProps) => {
             </div>
             <div className="text-xl font-bold text-gray-900 dark:text-gray-100">
               {calculation ? currencyService.formatCurrency(
-                account.withholdingTaxRate && account.withholdingTaxRate > 0 
-                  ? calculation.netInterest 
-                  : calculation.accruedInterest, 
+                account.withholdingTaxRate && account.withholdingTaxRate > 0
+                  ? calculation.netInterest
+                  : calculation.accruedInterest,
                 account.currency
               ) : 'N/A'}
             </div>
@@ -281,7 +283,7 @@ const CDDetailsPanel = ({ account, onEdit }: CDDetailsPanelProps) => {
       {showAdvancedDetails && (
         <div className="space-y-4">
           {/* Penalties and Taxes */}
-          {((account.earlyWithdrawalPenalty && account.earlyWithdrawalPenalty > 0) || 
+          {((account.earlyWithdrawalPenalty && account.earlyWithdrawalPenalty > 0) ||
             (account.withholdingTaxRate && account.withholdingTaxRate > 0)) && (
             <Card className="p-4">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4 flex items-center gap-2">
@@ -297,7 +299,7 @@ const CDDetailsPanel = ({ account, onEdit }: CDDetailsPanelProps) => {
                     </div>
                   </div>
                 )}
-                
+
                 {account.withholdingTaxRate && account.withholdingTaxRate > 0 && (
                   <div className="flex items-center gap-3 p-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg border border-orange-200 dark:border-orange-800">
                     <AlertTriangle className="w-4 h-4 text-orange-600 dark:text-orange-400 flex-shrink-0" />
@@ -354,7 +356,7 @@ const CDDetailsPanel = ({ account, onEdit }: CDDetailsPanelProps) => {
                       </span>
                       <span className="font-bold text-blue-600 dark:text-blue-400 text-lg">
                         {currencyService.formatCurrency(
-                          account.principal + calculation.totalInterest * (1 - (account.withholdingTaxRate / 100)), 
+                          account.principal + calculation.totalInterest * (1 - (account.withholdingTaxRate / 100)),
                           account.currency
                         )}
                       </span>

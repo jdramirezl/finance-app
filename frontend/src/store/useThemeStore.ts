@@ -22,8 +22,8 @@ const loadTheme = (): Theme => {
 const saveTheme = (theme: Theme) => {
   try {
     localStorage.setItem('finance-app-theme', theme);
-  } catch (error) {
-    console.error('Failed to save theme:', error);
+  } catch {
+    // localStorage may be unavailable; theme is recoverable from defaults.
   }
 };
 

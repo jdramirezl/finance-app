@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
+import { format } from 'date-fns';
 import { useFixedExpenseGroupsQuery, useMovementTemplatesQuery, useSubPocketsQuery } from '../../hooks/queries';
 import Button from '../Button';
 import Input from '../Input';
 import Select from '../Select';
+import { parseDate, toDateOnly } from '../../utils/dateUtils';
 import type { CreateReminderDTO, UpdateReminderDTO, Reminder, RecurrenceType, RecurrenceEndType, RecurrencePeriod } from '../../services/reminderService';
 
 interface ReminderFormProps {
@@ -27,7 +29,7 @@ const DAYS_OF_WEEK = [
 const getDefaultFormState = () => ({
     title: '',
     amount: '',
-    dueDate: new Date().toISOString().split('T')[0],
+    dueDate: format(new Date(), 'yyyy-MM-dd'),
     recurrenceType: 'once' as RecurrenceType,
     recurrenceInterval: 1,
     recurrenceDaysOfWeek: [] as number[],
@@ -54,10 +56,10 @@ const ReminderForm = ({
 
     // Filter only fixed expenses (those with a groupId)
     const allFixedExpenses = subPockets
-        .filter((sp: any) => sp.groupId)
-        .map((sp: any) => ({
+        .filter((sp) => sp.groupId)
+        .map((sp) => ({
             id: sp.id,
-            name: `${groupMap.get(sp.groupId) || 'Unknown'} - ${sp.name}`,
+            name: `${groupMap.get(sp.groupId ?? '') || 'Unknown'} - ${sp.name}`,
             amount: sp.valueTotal || 0
         }));
 
@@ -68,13 +70,16 @@ const ReminderForm = ({
             setFormData({
                 title: initialData.title,
                 amount: initialData.amount.toString(),
-                dueDate: new Date(initialData.dueDate).toISOString().split('T')[0],
+                // toDateOnly extracts the YYYY-MM-DD portion without
+                // applying a timezone shift, so the form input matches the
+                // calendar date the reminder was created with.
+                dueDate: toDateOnly(initialData.dueDate),
                 recurrenceType: initialData.recurrence.type,
                 recurrenceInterval: initialData.recurrence.interval,
                 recurrenceDaysOfWeek: initialData.recurrence.daysOfWeek || [],
                 recurrenceEndType: initialData.recurrence.endType,
                 recurrenceEndCount: initialData.recurrence.endCount || 1,
-                recurrenceEndDate: initialData.recurrence.endDate ? new Date(initialData.recurrence.endDate).toISOString().split('T')[0] : '',
+                recurrenceEndDate: initialData.recurrence.endDate ? toDateOnly(initialData.recurrence.endDate) : '',
                 customPeriod: initialData.recurrence.customPeriod || 'monthly',
                 fixedExpenseId: initialData.fixedExpenseId || '',
                 templateId: initialData.templateId || '',
@@ -105,7 +110,7 @@ const ReminderForm = ({
         setFormData(prev => ({ ...prev, templateId: id }));
 
         if (id) {
-            const template = templates.find((t: any) => t.id === id);
+            const template = templates.find((t) => t.id === id);
             if (template) {
                 setFormData(prev => ({
                     ...prev,
@@ -135,14 +140,16 @@ const ReminderForm = ({
         await onSubmit({
             title: formData.title,
             amount: parseFloat(formData.amount),
-            dueDate: new Date(formData.dueDate).toISOString(),
+            // parseDate treats the YYYY-MM-DD form value as local midnight,
+            // so toISOString stores a moment that matches the user's intent.
+            dueDate: parseDate(formData.dueDate).toISOString(),
             recurrence: {
                 type: formData.recurrenceType,
                 interval: formData.recurrenceInterval,
                 daysOfWeek: formData.recurrenceType === 'weekly' ? formData.recurrenceDaysOfWeek : undefined,
                 endType: formData.recurrenceEndType,
                 endCount: formData.recurrenceEndType === 'after' ? formData.recurrenceEndCount : undefined,
-                endDate: formData.recurrenceEndType === 'on_date' ? new Date(formData.recurrenceEndDate).toISOString() : undefined,
+                endDate: formData.recurrenceEndType === 'on_date' ? parseDate(formData.recurrenceEndDate).toISOString() : undefined,
                 customPeriod: formData.recurrenceType === 'custom' ? formData.customPeriod : undefined,
             },
             fixedExpenseId: formData.fixedExpenseId || undefined,
@@ -358,7 +365,7 @@ const ReminderForm = ({
                         onChange={handleTemplateChange}
                         options={[
                             { value: '', label: 'None' },
-                            ...templates.map((t: any) => ({ value: t.id, label: t.name }))
+                            ...templates.map((t) => ({ value: t.id, label: t.name }))
                         ]}
                     />
                 </div>

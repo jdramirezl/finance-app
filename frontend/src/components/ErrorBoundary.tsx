@@ -34,9 +34,8 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   }
 
   componentDidCatch(error: Error, info: ErrorInfo): void {
-    // Log to the console so the failure is visible in DevTools even
-    // when the fallback UI hides the underlying stack trace.
-    console.error('ErrorBoundary caught an error:', error, info);
+    // The fallback UI exposes `error.message` to the user; consumers can
+    // wire up `onError` for richer reporting (e.g. a logging service).
     this.props.onError?.(error, info);
   }
 

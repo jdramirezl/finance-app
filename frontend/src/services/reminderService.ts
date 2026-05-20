@@ -107,8 +107,12 @@ export const reminderService = {
         return response;
     },
 
-    splitSeries: async (id: string, splitDate: string, newDetails?: CreateReminderDTO): Promise<any> => {
-        const response = await api.post(`/api/reminders/${id}/split`, { splitDate, newDetails });
+    splitSeries: async (id: string, splitDate: string, newDetails?: CreateReminderDTO): Promise<Reminder> => {
+        const payload: Record<string, unknown> = { splitDate };
+        if (newDetails !== undefined) {
+            payload.newDetails = newDetails as unknown as Record<string, unknown>;
+        }
+        const response = await api.post<Reminder>(`/api/reminders/${id}/split`, payload);
         return response;
     }
 };

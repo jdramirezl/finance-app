@@ -7,6 +7,7 @@ import Button from '../Button';
 import ColorSelector from '../ColorSelector';
 import { currencyService } from '../../services/currencyService';
 import { cdCalculationService } from '../../services/cdCalculationService';
+import { parseDate } from '../../utils/dateUtils';
 import type { CDInvestmentAccount, Currency, CompoundingFrequency } from '../../types';
 
 interface CDAccountFormProps {
@@ -49,10 +50,10 @@ const CDAccountForm = ({ account, onSubmit, onCancel, isLoading = false }: CDAcc
   const [showPreview, setShowPreview] = useState(false);
 
   // Calculate preview values
-  const previewMaturityDate = formData.useCustomMaturityDate && formData.customMaturityDate 
-    ? new Date(formData.customMaturityDate)
+  const previewMaturityDate = formData.useCustomMaturityDate && formData.customMaturityDate
+    ? parseDate(formData.customMaturityDate)
     : addMonths(new Date(), formData.termMonths);
-  
+
   const previewCalculation = formData.principal > 0 && formData.interestRate > 0 && formData.termMonths > 0
     ? cdCalculationService.calculateCompoundInterest(
         formData.principal,
@@ -86,7 +87,7 @@ const CDAccountForm = ({ account, onSubmit, onCancel, isLoading = false }: CDAcc
     }
 
     if (formData.useCustomMaturityDate && formData.customMaturityDate) {
-      const selectedDate = new Date(formData.customMaturityDate);
+      const selectedDate = parseDate(formData.customMaturityDate);
       const today = new Date();
       if (selectedDate <= today) {
         newErrors.termMonths = 'Maturity date must be in the future';
@@ -107,21 +108,21 @@ const CDAccountForm = ({ account, onSubmit, onCancel, isLoading = false }: CDAcc
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    
+
     if (!validateForm()) {
       return;
     }
 
     try {
       await onSubmit(formData);
-    } catch (error) {
-      console.error('Failed to save CD:', error);
+    } catch {
+      // Toast is shown by the mutation's onError handler.
     }
   };
 
   const handleInputChange = (field: keyof CDFormData, value: string | number | boolean | undefined) => {
     setFormData(prev => ({ ...prev, [field]: value }));
-    
+
     // Clear error for this field
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: undefined }));
@@ -251,10 +252,10 @@ const CDAccountForm = ({ account, onSubmit, onCancel, isLoading = false }: CDAcc
                 type="date"
                 value={formData.customMaturityDate}
                 onChange={(e) => {
-                  const selectedDate = new Date(e.target.value);
+                  const selectedDate = parseDate(e.target.value);
                   const today = new Date();
                   const monthsDiff = Math.round((selectedDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24 * 30.44));
-                  
+
                   handleInputChange('customMaturityDate', e.target.value);
                   handleInputChange('termMonths', Math.max(1, monthsDiff));
                 }}
@@ -364,7 +365,7 @@ const CDAccountForm = ({ account, onSubmit, onCancel, isLoading = false }: CDAcc
                     <span className="text-blue-700 dark:text-blue-300">Withholding Tax:</span>
                     <div className="font-medium text-red-600 dark:text-red-400">
                       -{currencyService.formatCurrency(
-                        previewCalculation.interestEarned * (formData.withholdingTaxRate / 100), 
+                        previewCalculation.interestEarned * (formData.withholdingTaxRate / 100),
                         formData.currency
                       )}
                     </div>
@@ -373,7 +374,7 @@ const CDAccountForm = ({ account, onSubmit, onCancel, isLoading = false }: CDAcc
                     <span className="text-blue-700 dark:text-blue-300">Net Interest:</span>
                     <div className="font-medium text-green-600 dark:text-green-400">
                       {currencyService.formatCurrency(
-                        previewCalculation.interestEarned * (1 - (formData.withholdingTaxRate / 100)), 
+                        previewCalculation.interestEarned * (1 - (formData.withholdingTaxRate / 100)),
                         formData.currency
                       )}
                     </div>
@@ -382,7 +383,7 @@ const CDAccountForm = ({ account, onSubmit, onCancel, isLoading = false }: CDAcc
                     <span className="text-blue-700 dark:text-blue-300">Net Amount at Maturity:</span>
                     <div className="font-bold text-green-600 dark:text-green-400 text-lg">
                       {currencyService.formatCurrency(
-                        formData.principal + previewCalculation.interestEarned * (1 - (formData.withholdingTaxRate / 100)), 
+                        formData.principal + previewCalculation.interestEarned * (1 - (formData.withholdingTaxRate / 100)),
                         formData.currency
                       )}
                     </div>

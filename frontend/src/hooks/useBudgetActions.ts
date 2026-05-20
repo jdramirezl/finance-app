@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { format } from 'date-fns';
 import { currencyService } from '../services/currencyService';
 import type { Account, Currency, Pocket, SubPocket } from '../types';
 import type { BatchMovementRow } from '../components/BatchMovementForm';
@@ -106,10 +107,13 @@ export const useBudgetActions = ({
 
   const remaining = initialAmount - totalFijosMes;
 
-  const calculateEntryAmount = (percentage: number): number => {
-    if (remaining <= 0) return 0;
-    return (remaining * percentage) / 100;
-  };
+  const calculateEntryAmount = useCallback(
+    (percentage: number): number => {
+      if (remaining <= 0) return 0;
+      return (remaining * percentage) / 100;
+    },
+    [remaining]
+  );
 
   // Convert displayed amounts when budget currency differs from primary.
   useEffect(() => {
@@ -127,8 +131,9 @@ export const useBudgetActions = ({
               primaryCurrency
             );
             next.set(entry.id, converted);
-          } catch (err) {
-            console.error('Failed to convert currency:', err);
+          } catch {
+            // Conversion failed (network/backend); leave the entry without a
+            // converted amount so the UI falls back to the source currency.
           }
         }
       }
@@ -136,8 +141,13 @@ export const useBudgetActions = ({
     };
 
     convertAmounts();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [distributionEntries, remaining, showConversion, budgetCurrency, primaryCurrency]);
+  }, [
+    distributionEntries,
+    showConversion,
+    budgetCurrency,
+    primaryCurrency,
+    calculateEntryAmount,
+  ]);
 
   const toggleScenario = (id: string) => {
     setActiveScenarioIds((prev) => {
@@ -203,7 +213,7 @@ export const useBudgetActions = ({
         pocketId: matchedPocket?.id || '',
         amount: amount.toFixed(2),
         notes: `Budget Distribution: ${entry.name}`,
-        displayedDate: new Date().toISOString().split('T')[0],
+        displayedDate: format(new Date(), 'yyyy-MM-dd'),
       });
     });
 

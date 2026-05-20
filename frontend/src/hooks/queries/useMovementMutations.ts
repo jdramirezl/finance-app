@@ -31,8 +31,7 @@ export const useMovementMutations = () => {
                 data.subPocketId,
                 data.isPending
             ),
-        onSuccess: (_, variables) => {
-            console.log(`💸 Created ${variables.type} movement: $${variables.amount}${variables.isPending ? ' (pending)' : ''}`);
+        onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['movements'] });
             queryClient.invalidateQueries({ queryKey: ['accounts'] });
             queryClient.invalidateQueries({ queryKey: ['pockets'] });
@@ -99,8 +98,7 @@ export const useMovementMutations = () => {
 
     const deleteMovement = useMutation({
         mutationFn: (id: string) => movementService.deleteMovement(id),
-        onSuccess: (_, id) => {
-            console.log(`🗑️ Deleted movement: ${id}`);
+        onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['movements'] });
             queryClient.invalidateQueries({ queryKey: ['accounts'] });
             queryClient.invalidateQueries({ queryKey: ['pockets'] });
