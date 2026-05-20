@@ -15,6 +15,7 @@ import Card from '../Card';
 import Button from '../Button';
 import Input from '../Input';
 import Modal from '../Modal';
+import CurrencyAmount, { formatCurrencyAmount, type FormatCurrencyAmountOptions } from '../CurrencyAmount';
 import { TrendingUp, Trash2 } from 'lucide-react';
 import { format, parseISO, subDays, subMonths, subYears } from 'date-fns';
 import type { NetWorthSnapshot } from '../../services/netWorthSnapshotService';
@@ -22,6 +23,18 @@ import type { Currency } from '../../types';
 
 type ViewMode = 'total' | 'breakdown';
 type DateRange = '30d' | '6m' | '1y' | 'all';
+
+/**
+ * Chart axis/tooltip use rounded integer currency values to keep the chart
+ * readable. The exact formatter shape is shared between the YAxis
+ * tickFormatter, the tooltip formatter, and the latest-snapshot caption so
+ * they stay visually consistent.
+ */
+const CHART_CURRENCY_FORMAT_OPTIONS: FormatCurrencyAmountOptions = {
+    locale: 'en-US',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+};
 
 /**
  * Shape of a chart datum produced by `chartData`. The keys vary by mode:
@@ -225,15 +238,6 @@ const NetWorthTimelineWidget = () => {
         COP: '#eab308',
     };
 
-    const formatCurrency = (value: number) => {
-        return new Intl.NumberFormat('en-US', {
-            style: 'currency',
-            currency: primaryCurrency,
-            minimumFractionDigits: 0,
-            maximumFractionDigits: 0,
-        }).format(value);
-    };
-
     // Prepare chart data
     const chartData = useMemo<ChartDatum[]>(() => {
         if (filteredSnapshots.length === 0) return [];
@@ -301,12 +305,18 @@ const NetWorthTimelineWidget = () => {
             const originalKey = displayName === 'Net Worth' ? 'total_original' : `${displayName}_original`;
             const payload = (entry as { payload?: ChartDatum })?.payload;
             const originalValue = payload ? (payload[originalKey] as number | undefined) : undefined;
+            const originalFormatted = originalValue !== undefined
+                ? formatCurrencyAmount(originalValue, primaryCurrency, CHART_CURRENCY_FORMAT_OPTIONS)
+                : 'N/A';
             return [
-                `${numValue.toFixed(2)}% (${originalValue !== undefined ? formatCurrency(originalValue) : 'N/A'})`,
+                `${numValue.toFixed(2)}% (${originalFormatted})`,
                 displayName,
             ];
         }
-        return [formatCurrency(numValue), displayName];
+        return [
+            formatCurrencyAmount(numValue, primaryCurrency, CHART_CURRENCY_FORMAT_OPTIONS),
+            displayName,
+        ];
     };
 
     if (isLoading) {
@@ -407,7 +417,9 @@ const NetWorthTimelineWidget = () => {
                                 className="text-gray-600 dark:text-gray-400"
                             />
                             <YAxis
-                                tickFormatter={(value) => showVariation ? `${value.toFixed(0)}%` : formatCurrency(value)}
+                                tickFormatter={(value) => showVariation
+                                    ? `${value.toFixed(0)}%`
+                                    : formatCurrencyAmount(value, primaryCurrency, CHART_CURRENCY_FORMAT_OPTIONS)}
                                 tick={{ fontSize: 12 }}
                                 width={showVariation ? 50 : 80}
                                 className="text-gray-600 dark:text-gray-400"
@@ -459,9 +471,14 @@ const NetWorthTimelineWidget = () => {
                             <span className="text-sm text-gray-500 dark:text-gray-400">
                                 Latest snapshot: {chartData[chartData.length - 1].fullDate}
                             </span>
-                            <span className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                                {formatCurrency(chartData[chartData.length - 1].total ?? 0)}
-                            </span>
+                            <CurrencyAmount
+                                amount={chartData[chartData.length - 1].total ?? 0}
+                                currency={primaryCurrency}
+                                locale="en-US"
+                                minimumFractionDigits={0}
+                                maximumFractionDigits={0}
+                                className="text-lg font-semibold text-gray-900 dark:text-gray-100"
+                            />
                         </div>
                     </div>
                 )}

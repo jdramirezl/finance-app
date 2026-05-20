@@ -3,6 +3,7 @@ import type { FixedExpenseGroup, SubPocket, Account } from '../types';
 import { ChevronDown, ChevronRight, Edit2, Trash2, ToggleLeft, ToggleRight } from 'lucide-react';
 import Button from './Button';
 import AnimatedProgressBar from './AnimatedProgressBar';
+import CurrencyAmount from './CurrencyAmount';
 import { calculateAporteMensual, calculateSimpleMonthlyContribution, calculateProgress } from '../utils/fixedExpenseUtils';
 
 interface FixedExpenseGroupCardProps {
@@ -117,15 +118,19 @@ const FixedExpenseGroupCard = ({
               <div className="flex items-center gap-4 text-sm">
                 <div>
                   <span className="text-gray-500 dark:text-gray-400">Expected:</span>
-                  <span className="ml-1 font-medium text-gray-900 dark:text-gray-100">
-                    {totalMonthlyExpected.toLocaleString(undefined, { style: 'currency', currency })}
-                  </span>
+                  <CurrencyAmount
+                    amount={totalMonthlyExpected}
+                    currency={currency}
+                    className="ml-1 font-medium text-gray-900 dark:text-gray-100"
+                  />
                 </div>
                 <div>
                   <span className="text-gray-500 dark:text-gray-400">Actual:</span>
-                  <span className="ml-1 font-medium text-blue-600 dark:text-blue-400">
-                    {totalMonthlyActual.toLocaleString(undefined, { style: 'currency', currency })}
-                  </span>
+                  <CurrencyAmount
+                    amount={totalMonthlyActual}
+                    currency={currency}
+                    className="ml-1 font-medium text-blue-600 dark:text-blue-400"
+                  />
                 </div>
               </div>
             </div>
@@ -256,27 +261,35 @@ const FixedExpenseGroupCard = ({
                       <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
                         <div>
                           <span className="text-gray-500 dark:text-gray-400">Total:</span>
-                          <span className="ml-2 font-medium text-gray-900 dark:text-gray-100">
-                            {subPocket.valueTotal.toLocaleString(undefined, { style: 'currency', currency })}
-                          </span>
+                          <CurrencyAmount
+                            amount={subPocket.valueTotal}
+                            currency={currency}
+                            className="ml-2 font-medium text-gray-900 dark:text-gray-100"
+                          />
                         </div>
                         <div>
                           <span className="text-gray-500 dark:text-gray-400">Expected:</span>
-                          <span className="ml-2 font-medium text-gray-900 dark:text-gray-100">
-                            {aporteMensualExpected.toLocaleString(undefined, { style: 'currency', currency })}
-                          </span>
+                          <CurrencyAmount
+                            amount={aporteMensualExpected}
+                            currency={currency}
+                            className="ml-2 font-medium text-gray-900 dark:text-gray-100"
+                          />
                         </div>
                         <div>
                           <span className="text-gray-500 dark:text-gray-400">Actual:</span>
-                          <span className="ml-2 font-medium text-blue-600 dark:text-blue-400">
-                            {aporteMensualActual.toLocaleString(undefined, { style: 'currency', currency })}
-                          </span>
+                          <CurrencyAmount
+                            amount={aporteMensualActual}
+                            currency={currency}
+                            className="ml-2 font-medium text-blue-600 dark:text-blue-400"
+                          />
                         </div>
                         <div>
                           <span className="text-gray-500 dark:text-gray-400">Balance:</span>
-                          <span className="ml-2 font-medium text-gray-900 dark:text-gray-100">
-                            {subPocket.balance.toLocaleString(undefined, { style: 'currency', currency })}
-                          </span>
+                          <CurrencyAmount
+                            amount={subPocket.balance}
+                            currency={currency}
+                            className="ml-2 font-medium text-gray-900 dark:text-gray-100"
+                          />
                         </div>
                         <div>
                           <span className="text-gray-500 dark:text-gray-400">Periodicity:</span>
