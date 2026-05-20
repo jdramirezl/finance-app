@@ -5,12 +5,11 @@ import Modal from '../Modal';
 import ReminderForm from './ReminderForm';
 import Button from '../Button';
 import Card from '../Card';
-import ConfirmDialog from '../ConfirmDialog';
 import MonthSection from './MonthSection';
 import RecurrenceActionModal from './RecurrenceActionModal';
 import MarkAsPaidModal from './MarkAsPaidModal';
 import { useNavigate } from 'react-router-dom';
-import { useConfirm } from '../../hooks/useConfirm';
+import { useConfirmDialog } from '../../contexts/ConfirmDialogContext';
 import { groupRemindersByMonth, countOverdueReminders, type ReminderWithProjection } from '../../utils/reminderProjections';
 import { toDateOnly } from '../../utils/dateUtils';
 import type { CreateReminderDTO, UpdateReminderDTO } from '../../services/reminderService';
@@ -20,7 +19,7 @@ const RemindersWidget = () => {
     const { data: reminders = [], isLoading } = useRemindersQuery();
     const { deleteMutation, createMutation, updateMutation, createExceptionMutation, splitMutation } = useReminderMutations();
     const scrollContainerRef = useRef<HTMLDivElement>(null);
-    const { confirm, confirmState, handleClose, handleConfirm } = useConfirm();
+    const { confirm } = useConfirmDialog();
 
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [editingReminder, setEditingReminder] = useState<ReminderWithProjection | null>(null);
@@ -381,17 +380,6 @@ const RemindersWidget = () => {
                 onClose={() => setMarkAsPaidReminder(null)}
                 onConfirm={handleConfirmMarkAsPaid}
                 reminder={markAsPaidReminder}
-            />
-
-            <ConfirmDialog
-                isOpen={confirmState.isOpen}
-                title={confirmState.title}
-                message={confirmState.message}
-                confirmText={confirmState.confirmText}
-                cancelText={confirmState.cancelText}
-                variant={confirmState.variant}
-                onConfirm={handleConfirm}
-                onClose={handleClose}
             />
         </div>
     );

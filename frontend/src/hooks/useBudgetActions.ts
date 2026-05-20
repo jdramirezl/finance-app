@@ -6,8 +6,8 @@ import type { BatchMovementRow } from '../components/BatchMovementForm';
 import type { DistributionEntry } from '../components/budget';
 import type { PlanningScenario } from '../components/budget/ScenarioForm';
 import { calculateAporteMensual } from '../utils/fixedExpenseUtils';
+import { useConfirmDialog } from '../contexts/ConfirmDialogContext';
 import type { useToast } from './useToast';
-import type { useConfirm } from './useConfirm';
 import type { useMovementMutations } from './queries/useMovementMutations';
 
 type MovementMutations = ReturnType<typeof useMovementMutations>;
@@ -31,7 +31,6 @@ export interface UseBudgetActionsParams {
   primaryCurrency: Currency;
   movementMutations: MovementMutations;
   toast: ReturnType<typeof useToast.getState>;
-  confirm: ReturnType<typeof useConfirm>['confirm'];
 }
 
 export interface UseBudgetActionsResult {
@@ -67,9 +66,9 @@ export const useBudgetActions = ({
   primaryCurrency,
   movementMutations,
   toast,
-  confirm,
 }: UseBudgetActionsParams): UseBudgetActionsResult => {
   const { createMovement } = movementMutations;
+  const { confirm } = useConfirmDialog();
 
   const [activeScenarioIds, setActiveScenarioIds] = useState<Set<string>>(new Set());
   const [batchOpen, setBatchOpen] = useState(false);

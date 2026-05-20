@@ -10,12 +10,11 @@ import type { TooltipProps } from 'recharts';
 import { useNetWorthSnapshotsQuery, useNetWorthSnapshotMutations } from '../../hooks/queries/useNetWorthSnapshotQueries';
 import { useSettingsQuery } from '../../hooks/queries';
 import { currencyService } from '../../services/currencyService';
-import { useConfirm } from '../../hooks/useConfirm';
+import { useConfirmDialog } from '../../contexts/ConfirmDialogContext';
 import Card from '../Card';
 import Button from '../Button';
 import Input from '../Input';
 import Modal from '../Modal';
-import ConfirmDialog from '../ConfirmDialog';
 import { TrendingUp, Trash2 } from 'lucide-react';
 import { format, parseISO, subDays, subMonths, subYears } from 'date-fns';
 import type { NetWorthSnapshot } from '../../services/netWorthSnapshotService';
@@ -53,7 +52,7 @@ const NetWorthTimelineWidget = () => {
     const { data: snapshots = [], isLoading } = useNetWorthSnapshotsQuery();
     const { data: settings } = useSettingsQuery();
     const { updateMutation, deleteMutation } = useNetWorthSnapshotMutations();
-    const { confirm, confirmState, handleClose: handleConfirmClose, handleConfirm } = useConfirm();
+    const { confirm } = useConfirmDialog();
 
     const [viewMode, setViewMode] = useState<ViewMode>('total');
     const [dateRange, setDateRange] = useState<DateRange>('6m');
@@ -535,17 +534,6 @@ const NetWorthTimelineWidget = () => {
                     </div>
                 )}
             </Modal>
-
-            <ConfirmDialog
-                isOpen={confirmState.isOpen}
-                title={confirmState.title}
-                message={confirmState.message}
-                confirmText={confirmState.confirmText}
-                cancelText={confirmState.cancelText}
-                variant={confirmState.variant}
-                onConfirm={handleConfirm}
-                onClose={handleConfirmClose}
-            />
         </>
     );
 };
