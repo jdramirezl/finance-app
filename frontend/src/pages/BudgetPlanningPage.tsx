@@ -156,13 +156,13 @@ const BudgetPlanningPage = () => {
       const amount = calculateEntryAmount(entry.percentage);
       if (amount <= 0) return;
 
-      // Try to match pocket by name (case insensitive)
-      // This is a heuristic since DistributionEntry doesn't store pocketId
-      const matchedPocket = pockets.find(p => p.name.trim().toLowerCase() === entry.name.trim().toLowerCase());
-      const account = matchedPocket ? accounts.find(a => a.id === matchedPocket.accountId) : undefined;
+      // Match by pocketId first (preferred), fall back to case-insensitive name for legacy entries
+      const matchedPocket =
+        (entry.pocketId && pockets.find(p => p.id === entry.pocketId)) ||
+        pockets.find(p => p.name.trim().toLowerCase() === entry.name.trim().toLowerCase());
+      const accountId = matchedPocket?.accountId ?? entry.accountId ?? '';
+      const account = accountId ? accounts.find(a => a.id === accountId) : undefined;
 
-      // Handle the case where the matched pocket might be one of the multiple fixed pockets
-      // (though usually distribution targets normal pockets)
       rows.push({
         id: crypto.randomUUID(),
         type: 'IngresoNormal', // Funding the pocket
@@ -389,6 +389,8 @@ const BudgetPlanningPage = () => {
           showConversion={showConversion}
           convertedAmounts={convertedAmounts}
           onEntriesChange={setDistributionEntries}
+          pockets={pockets}
+          accounts={accounts}
         />
       )}
 

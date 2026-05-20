@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useLocation } from 'react-router-dom';
 import { useAccountsQuery, usePocketsQuery, useAccountMutations, usePocketMutations } from '../hooks/queries';
 import { useToast } from '../hooks/useToast';
@@ -78,9 +78,33 @@ const AccountsPage = () => {
   const [error, setError] = useState<string | null>(null);
 
   // UI State
-  const [isSaving, setIsSaving] = useState(false);
   const [isCascadeDeleting, setIsCascadeDeleting] = useState(false);
   const [isMigrating, setIsMigrating] = useState(false);
+
+  // CD creation goes through accountService directly, so wrap it as a mutation
+  // here to expose `.isPending` and keep cache invalidation consistent.
+  const createCDMutation = useMutation({
+    mutationFn: (data: CDFormData) =>
+      accountService.createCDAccount(
+        data.name,
+        data.color,
+        data.currency,
+        data.principal,
+        data.interestRate,
+        data.termMonths,
+        data.compoundingFrequency,
+        data.earlyWithdrawalPenalty,
+        data.withholdingTaxRate
+      ),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['accounts'] });
+    },
+  });
+
+  // Derived loading flags shared by the forms — replace the redundant `isSaving` state.
+  const isAccountFormSaving = createAccount.isPending || updateAccount.isPending;
+  const isCDFormSaving = createCDMutation.isPending || updateAccount.isPending;
+  const isPocketFormSaving = createPocket.isPending || updatePocket.isPending;
 
   // Combined loading state
   const isLoading = accountsLoading || pocketsLoading;
@@ -104,18 +128,16 @@ const AccountsPage = () => {
   const handleCreateAccount = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError(null);
-    setIsSaving(true);
     const form = e.currentTarget;
     const formData = new FormData(form);
 
     try {
       const accountType = formData.get('type') as string;
-      
+
       // If it's a CD type, redirect to CD form instead
       if (accountType === 'cd') {
         setShowAccountForm(false);
         setShowCDForm(true);
-        setIsSaving(false);
         return;
       }
 
@@ -131,32 +153,16 @@ const AccountsPage = () => {
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to create account');
       toast.error(err instanceof Error ? err.message : 'Failed to create account');
-    } finally {
-      setIsSaving(false);
     }
   };
 
   // CD Account Handlers
   const handleCreateCD = async (data: CDFormData) => {
     setError(null);
-    setIsSaving(true);
 
     try {
-      await accountService.createCDAccount(
-        data.name,
-        data.color,
-        data.currency,
-        data.principal,
-        data.interestRate,
-        data.termMonths,
-        data.compoundingFrequency,
-        data.earlyWithdrawalPenalty,
-        data.withholdingTaxRate
-      );
+      await createCDMutation.mutateAsync(data);
 
-      // Invalidate accounts query to trigger refetch
-      queryClient.invalidateQueries({ queryKey: ['accounts'] });
-      
       toast.success('Certificate of Deposit created successfully!');
       setShowCDForm(false);
       setEditingCD(null);
@@ -165,16 +171,13 @@ const AccountsPage = () => {
       setError(errorMessage);
       toast.error(errorMessage);
       throw err; // Re-throw to let the form handle it
-    } finally {
-      setIsSaving(false);
     }
   };
 
   const handleUpdateCD = async (data: CDFormData) => {
     if (!editingCD) return;
-    
+
     setError(null);
-    setIsSaving(true);
 
     try {
       // For CD updates, we only allow updating basic info (name, color)
@@ -187,7 +190,7 @@ const AccountsPage = () => {
           currency: data.currency,
         }
       });
-      
+
       toast.success('CD updated successfully!');
       setShowCDForm(false);
       setEditingCD(null);
@@ -196,8 +199,6 @@ const AccountsPage = () => {
       setError(errorMessage);
       toast.error(errorMessage);
       throw err;
-    } finally {
-      setIsSaving(false);
     }
   };
 
@@ -206,7 +207,6 @@ const AccountsPage = () => {
     setError(null);
     if (!editingAccount) return;
 
-    setIsSaving(true);
     const formData = new FormData(e.currentTarget);
 
     try {
@@ -224,8 +224,6 @@ const AccountsPage = () => {
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to update account');
       toast.error(err instanceof Error ? err.message : 'Failed to update account');
-    } finally {
-      setIsSaving(false);
     }
   };
 
@@ -296,7 +294,6 @@ const AccountsPage = () => {
     setError(null);
     if (!selectedAccountId) return;
 
-    setIsSaving(true);
     const formData = new FormData(e.currentTarget);
 
     try {
@@ -309,8 +306,6 @@ const AccountsPage = () => {
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to create pocket');
       toast.error(err instanceof Error ? err.message : 'Failed to create pocket');
-    } finally {
-      setIsSaving(false);
     }
   };
 
@@ -319,7 +314,6 @@ const AccountsPage = () => {
     setError(null);
     if (!editingPocket) return;
 
-    setIsSaving(true);
     const formData = new FormData(e.currentTarget);
 
     try {
@@ -333,8 +327,6 @@ const AccountsPage = () => {
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to update pocket');
       toast.error(err instanceof Error ? err.message : 'Failed to update pocket');
-    } finally {
-      setIsSaving(false);
     }
   };
 
@@ -585,7 +577,7 @@ const AccountsPage = () => {
                             setShowPocketForm(false);
                             setEditingPocket(null);
                           }}
-                          isSaving={isSaving}
+                          isSaving={isPocketFormSaving}
                         />
                       </div>
                     )}
@@ -641,7 +633,7 @@ const AccountsPage = () => {
           initialData={editingAccount}
           onSubmit={editingAccount ? handleUpdateAccount : handleCreateAccount}
           onCancel={() => setShowAccountForm(false)}
-          isSaving={isSaving}
+          isSaving={isAccountFormSaving}
         />
       </Modal>
 
@@ -662,7 +654,7 @@ const AccountsPage = () => {
             setShowCDForm(false);
             setEditingCD(null);
           }}
-          isLoading={isSaving}
+          isLoading={isCDFormSaving}
         />
       </Modal>
 

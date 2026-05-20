@@ -27,6 +27,7 @@ import MovementList from '../components/movements/MovementList';
 import MovementForm from '../components/movements/MovementForm';
 import AccountContextPanel from '../components/movements/AccountContextPanel';
 import QuickCalculator from '../components/movements/QuickCalculator';
+import RestoreOrphanedModal from '../components/movements/RestoreOrphanedModal';
 import { format } from 'date-fns';
 
 const EMPTY_ACCOUNTS: Account[] = [];
@@ -53,7 +54,7 @@ const MovementsPage = () => {
     deleteMovement,
     applyPendingMovement,
     markAsPending,
-    // restoreOrphanedMovements
+    restoreOrphanedMovements
   } = useMovementMutations();
 
 
@@ -109,6 +110,11 @@ const MovementsPage = () => {
 
   // Orphaned movements
   const [showOrphaned, setShowOrphaned] = useState(false);
+  const [restoreModalState, setRestoreModalState] = useState<{
+    isOpen: boolean;
+    movementIds: string[];
+    sourceLabel: string;
+  }>({ isOpen: false, movementIds: [], sourceLabel: '' });
 
   // Bulk selection state
   const [selectedMovementIds, setSelectedMovementIds] = useState<Set<string>>(new Set());
@@ -589,7 +595,7 @@ const MovementsPage = () => {
                   Orphaned Movements
                 </h2>
                 <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                  Movements from deleted accounts/pockets. Click "Restore All" to automatically recreate the account, pockets, and restore all movements.
+                  Movements from deleted accounts/pockets. Click "Restore" on a group to pick a destination account and pocket.
                 </p>
               </div>
               <Button
@@ -635,35 +641,12 @@ const MovementsPage = () => {
                         </div>
                         <Button
                           size="sm"
-                          onClick={async () => {
-                            const confirmed = await confirm({
-                              title: 'Restore Account & Movements',
-                              message: `This will recreate the account "${accountName}" and its pockets, and restore ${movements.length} movements.`,
-                              confirmText: 'Restore All',
-                              cancelText: 'Cancel',
-                              variant: 'info',
+                          onClick={() => {
+                            setRestoreModalState({
+                              isOpen: true,
+                              movementIds: movements.map((m) => m.id),
+                              sourceLabel: `${accountName} (${currency})`,
                             });
-                            if (!confirmed) return;
-
-                            try {
-                              // We need the account ID and pocket ID from the first movement to restore
-                              // But wait, if they are orphaned, the account/pocket might not exist.
-                              // The restoreOrphanedMovements service method likely handles recreation or expects IDs?
-                              // Let's check the service. 
-                              // Actually, the store method took (movementIds, accountId, pocketId).
-                              // This implies we restore TO an existing account/pocket?
-                              // But the text says "recreate the account".
-                              // If I look at useFinanceStore.ts: restoreOrphanedMovements(movementIds, accountId, pocketId)
-                              // It seems we need to select a target account/pocket?
-                              // Or maybe the original implementation was different.
-                              // Let's assume for now we need to implement a restore dialog or just log it.
-                              // Since I don't have the full logic for "recreating", I will just omit the button for now to fix the lint error
-                              // and remove the unused variable.
-                              // Wait, if I remove the variable, I lose the import.
-                              // I'll just comment it out or remove it from destructuring.
-                            } catch (err) {
-                              console.error(err);
-                            }
                           }}
                         >
                           Restore
@@ -951,6 +934,39 @@ const MovementsPage = () => {
         variant={confirmState.variant}
         onConfirm={handleConfirm}
         onClose={handleClose}
+      />
+
+      <RestoreOrphanedModal
+        isOpen={restoreModalState.isOpen}
+        onClose={() => {
+          if (restoreOrphanedMovements.isPending) return;
+          setRestoreModalState({ isOpen: false, movementIds: [], sourceLabel: '' });
+        }}
+        accounts={accounts}
+        pockets={pockets}
+        movementCount={restoreModalState.movementIds.length}
+        sourceLabel={restoreModalState.sourceLabel}
+        isSubmitting={restoreOrphanedMovements.isPending}
+        onConfirm={async (accountId, pocketId) => {
+          try {
+            const result = await restoreOrphanedMovements.mutateAsync({
+              movementIds: restoreModalState.movementIds,
+              accountId,
+              pocketId,
+            });
+            const restored = result?.restored ?? restoreModalState.movementIds.length;
+            const failed = result?.failed ?? 0;
+            if (failed > 0) {
+              toast.warning(`Restored ${restored} movement(s), ${failed} failed`);
+            } else {
+              toast.success(`Restored ${restored} movement${restored === 1 ? '' : 's'}`);
+            }
+            setRestoreModalState({ isOpen: false, movementIds: [], sourceLabel: '' });
+          } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : 'Failed to restore movements';
+            toast.error(message);
+          }
+        }}
       />
 
     </div>

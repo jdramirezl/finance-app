@@ -5,6 +5,7 @@ import Card from '../Card';
 import BudgetEntryRow, { type DistributionEntry } from './BudgetEntryRow';
 import DonutChart from './DonutChart';
 import { useToast } from '../../hooks/useToast';
+import type { Account, Pocket } from '../../types';
 
 interface BudgetDistributionProps {
     entries: DistributionEntry[];
@@ -14,6 +15,10 @@ interface BudgetDistributionProps {
     showConversion: boolean;
     convertedAmounts: Map<string, number>;
     onEntriesChange: (entries: DistributionEntry[]) => void;
+    /** Available pockets for linking entries. */
+    pockets: Pocket[];
+    /** Accounts owning the available pockets, used to derive accountId on link. */
+    accounts: Account[];
 }
 
 const BudgetDistribution = ({
@@ -24,11 +29,14 @@ const BudgetDistribution = ({
     showConversion,
     convertedAmounts,
     onEntriesChange,
+    pockets,
+    accounts,
 }: BudgetDistributionProps) => {
     const toast = useToast();
     const [editingEntryId, setEditingEntryId] = useState<string | null>(null);
     const [editingEntryName, setEditingEntryName] = useState<string>('');
     const [editingEntryPercentage, setEditingEntryPercentage] = useState<number>(0);
+    const [editingEntryPocketId, setEditingEntryPocketId] = useState<string>('');
 
     const totalPercentage = entries.reduce((sum, entry) => sum + entry.percentage, 0);
 
@@ -51,6 +59,20 @@ const BudgetDistribution = ({
         setEditingEntryId(newEntry.id);
         setEditingEntryName('');
         setEditingEntryPercentage(0);
+        setEditingEntryPocketId('');
+    };
+
+    /**
+     * Picking a pocket auto-fills the name when blank, so users don't have to retype it.
+     */
+    const handleEditPocketChange = (pocketId: string) => {
+        setEditingEntryPocketId(pocketId);
+        if (pocketId) {
+            const pocket = pockets.find((p) => p.id === pocketId);
+            if (pocket && !editingEntryName.trim()) {
+                setEditingEntryName(pocket.name);
+            }
+        }
     };
 
     const handleSaveEntry = (id: string) => {
@@ -64,16 +86,27 @@ const BudgetDistribution = ({
             return;
         }
 
+        const linkedPocket = editingEntryPocketId
+            ? pockets.find((p) => p.id === editingEntryPocketId)
+            : undefined;
+
         onEntriesChange(
             entries.map((entry) =>
                 entry.id === id
-                    ? { ...entry, name: editingEntryName, percentage: editingEntryPercentage }
+                    ? {
+                        ...entry,
+                        name: editingEntryName,
+                        percentage: editingEntryPercentage,
+                        pocketId: linkedPocket?.id,
+                        accountId: linkedPocket?.accountId,
+                    }
                     : entry
             )
         );
         setEditingEntryId(null);
         setEditingEntryName('');
         setEditingEntryPercentage(0);
+        setEditingEntryPocketId('');
     };
 
     const handleDeleteEntry = (id: string) => {
@@ -82,6 +115,7 @@ const BudgetDistribution = ({
             setEditingEntryId(null);
             setEditingEntryName('');
             setEditingEntryPercentage(0);
+            setEditingEntryPocketId('');
         }
     };
 
@@ -89,12 +123,14 @@ const BudgetDistribution = ({
         setEditingEntryId(entry.id);
         setEditingEntryName(entry.name);
         setEditingEntryPercentage(entry.percentage);
+        setEditingEntryPocketId(entry.pocketId || '');
     };
 
     const handleCancelEdit = () => {
         setEditingEntryId(null);
         setEditingEntryName('');
         setEditingEntryPercentage(0);
+        setEditingEntryPocketId('');
     };
 
     // Prepare data for donut chart
@@ -178,12 +214,16 @@ const BudgetDistribution = ({
                                         isEditing={editingEntryId === entry.id}
                                         editName={editingEntryName}
                                         editPercentage={editingEntryPercentage}
+                                        editPocketId={editingEntryPocketId}
                                         onEditNameChange={setEditingEntryName}
                                         onEditPercentageChange={setEditingEntryPercentage}
+                                        onEditPocketChange={handleEditPocketChange}
                                         onStartEdit={() => handleStartEdit(entry)}
                                         onSave={() => handleSaveEntry(entry.id)}
                                         onCancel={handleCancelEdit}
                                         onDelete={() => handleDeleteEntry(entry.id)}
+                                        pockets={pockets}
+                                        accounts={accounts}
                                     />
                                 ))}
                             </div>
