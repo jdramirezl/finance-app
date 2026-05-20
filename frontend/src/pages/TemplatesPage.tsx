@@ -1,13 +1,12 @@
 import { useState } from 'react';
 import { useMovementTemplatesQuery, useAccountsQuery, usePocketsQuery, useMovementTemplateMutations } from '../hooks/queries';
 import { useToast } from '../hooks/useToast';
-import { useConfirm } from '../hooks/useConfirm';
+import { useConfirmDialog } from '../contexts/ConfirmDialogContext';
 import { Trash2, Plus, Edit2 } from 'lucide-react';
 import Button from '../components/Button';
 import Card from '../components/Card';
 import Modal from '../components/Modal';
 import { Skeleton } from '../components/Skeleton';
-import ConfirmDialog from '../components/ConfirmDialog';
 import MovementTemplateForm from '../components/movements/MovementTemplateForm';
 import { getMovementTypeLabel, getMovementTypeColor } from '../utils/movementTypes';
 import type { MovementTemplate, MovementType } from '../types';
@@ -22,7 +21,7 @@ const TemplatesPage = () => {
   const { createMovementTemplate, updateMovementTemplate, deleteMovementTemplate } = useMovementTemplateMutations();
 
   const toast = useToast();
-  const { confirm, confirmState, handleClose, handleConfirm } = useConfirm();
+  const { confirm } = useConfirmDialog();
 
   // UI State
   const [showForm, setShowForm] = useState(false);
@@ -260,17 +259,6 @@ const TemplatesPage = () => {
           isSaving={isSaving}
         />
       </Modal>
-
-      <ConfirmDialog
-        isOpen={confirmState.isOpen}
-        onClose={handleClose}
-        onConfirm={handleConfirm}
-        title={confirmState.title}
-        message={confirmState.message}
-        confirmText={confirmState.confirmText}
-        cancelText={confirmState.cancelText}
-        variant={confirmState.variant}
-      />
     </div>
   );
 };

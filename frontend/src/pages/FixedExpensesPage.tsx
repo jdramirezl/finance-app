@@ -10,14 +10,13 @@ import {
   useSubPocketsQuery,
 } from '../hooks/queries';
 import { useToast } from '../hooks/useToast';
-import { useConfirm } from '../hooks/useConfirm';
+import { useConfirmDialog } from '../contexts/ConfirmDialogContext';
 import { useFixedExpenseActions } from '../hooks/useFixedExpenseActions';
 import type { Account, FixedExpenseGroup, SubPocket } from '../types';
 import { calculateAporteMensual } from '../utils/fixedExpenseUtils';
 import BatchMovementForm from '../components/BatchMovementForm';
 import Button from '../components/Button';
 import Card from '../components/Card';
-import ConfirmDialog from '../components/ConfirmDialog';
 import EmptyState from '../components/EmptyState';
 import Modal from '../components/Modal';
 import PageHeader from '../components/PageHeader';
@@ -44,7 +43,7 @@ const FixedExpensesPage = () => {
   const subPocketMutations = useSubPocketMutations();
 
   const toast = useToast();
-  const { confirm, confirmState, handleClose, handleConfirm } = useConfirm();
+  const { confirm } = useConfirmDialog();
 
   // Modal state — page owns it so the form components can be wired below.
   const [showForm, setShowForm] = useState(false);
@@ -298,17 +297,6 @@ const FixedExpensesPage = () => {
           onSuccess={() => undefined}
         />
       </Modal>
-
-      <ConfirmDialog
-        isOpen={confirmState.isOpen}
-        title={confirmState.title}
-        message={confirmState.message}
-        confirmText={confirmState.confirmText}
-        cancelText={confirmState.cancelText}
-        variant={confirmState.variant}
-        onConfirm={handleConfirm}
-        onClose={handleClose}
-      />
     </div>
   );
 };

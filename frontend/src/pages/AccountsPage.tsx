@@ -8,12 +8,11 @@ import {
   usePocketMutations,
 } from '../hooks/queries';
 import { useToast } from '../hooks/useToast';
-import { useConfirm } from '../hooks/useConfirm';
+import { useConfirmDialog } from '../contexts/ConfirmDialogContext';
 import { useAccountActions } from '../hooks/useAccountActions';
 import type { Account, CDInvestmentAccount } from '../types';
 import Modal from '../components/Modal';
 import Button from '../components/Button';
-import ConfirmDialog from '../components/ConfirmDialog';
 import SortableList from '../components/SortableList';
 import SortableItem from '../components/SortableItem';
 import { Skeleton, SkeletonList } from '../components/Skeleton';
@@ -36,7 +35,7 @@ const AccountsPage = () => {
   const accountMutations = useAccountMutations();
   const pocketMutations = usePocketMutations();
   const toast = useToast();
-  const { confirm, confirmState, handleClose, handleConfirm } = useConfirm();
+  const { confirm } = useConfirmDialog();
   const location = useLocation();
 
   // Page-level UI state — modal visibility, selected row, in-flight error.
@@ -298,17 +297,6 @@ const AccountsPage = () => {
         onDeleteMovementsChange={accountActions.cascadeDelete.setDeleteMovements}
         onConfirm={() => accountActions.cascadeDelete.confirm()}
         onClose={accountActions.cascadeDelete.close}
-      />
-
-      <ConfirmDialog
-        isOpen={confirmState.isOpen}
-        title={confirmState.title}
-        message={confirmState.message}
-        confirmText={confirmState.confirmText}
-        cancelText={confirmState.cancelText}
-        variant={confirmState.variant}
-        onConfirm={handleConfirm}
-        onClose={handleClose}
       />
     </div>
   );
