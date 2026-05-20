@@ -9,9 +9,9 @@
 ### Step 01 — Critical Bugs
 - [x] task-01: Eliminate dual balance management — `e6c4a5f`
 - [x] task-02: Fix non-atomic operations — `23afe7f`
-- [ ] task-03: Fix sequential batch operations
-- [ ] task-04: Fix broken reminder widget
-- [ ] task-05: Fix SummaryPage race conditions
+- [x] task-03: Fix sequential batch operations — `05fd26e`
+- [x] task-04: Fix broken reminder widget — `401630b`
+- [x] task-05: Fix SummaryPage race conditions — `27efea1`
 
 ### Step 02 — Architecture
 - [ ] task-01: Remove direct Supabase access and dual-mode pattern
