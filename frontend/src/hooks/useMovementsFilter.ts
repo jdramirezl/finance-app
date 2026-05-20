@@ -1,9 +1,15 @@
 import { useState, useMemo } from 'react';
 import type { Movement } from '../types';
 import { parseDate, toDateOnly } from '../utils/dateUtils';
+import { MOVEMENT_TYPE_FILTER_ALL, type MovementTypeFilterValue } from '../components/selectors/MovementTypeSelect';
 
 export type DateRangeOption = 'all' | '7days' | '30days' | '3months' | '6months' | 'year' | 'custom';
-export type FilterTypeOption = 'all' | 'income' | 'expense' | 'investment';
+/**
+ * Type filter value used by the movements list. Either the "all"
+ * sentinel (no filter applied) or one of the four canonical
+ * `MovementType` values matched exactly.
+ */
+export type FilterTypeOption = MovementTypeFilterValue;
 export type ShowPendingOption = 'all' | 'applied' | 'pending';
 
 interface UseMovementsFilterProps {
@@ -14,7 +20,7 @@ export const useMovementsFilter = ({ movements }: UseMovementsFilterProps) => {
     // Filter State
     const [filterAccount, setFilterAccount] = useState<string>('all');
     const [filterPocket, setFilterPocket] = useState<string>('all');
-    const [filterType, setFilterType] = useState<FilterTypeOption>('all');
+    const [filterType, setFilterType] = useState<FilterTypeOption>(MOVEMENT_TYPE_FILTER_ALL);
     const [filterDateRange, setFilterDateRange] = useState<DateRangeOption>('all');
     const [filterDateFrom, setFilterDateFrom] = useState<string>('');
     const [filterDateTo, setFilterDateTo] = useState<string>('');
@@ -66,14 +72,9 @@ export const useMovementsFilter = ({ movements }: UseMovementsFilterProps) => {
             // Pocket filter
             if (filterPocket !== 'all' && movement.pocketId !== filterPocket) return false;
 
-            // Type filter (income/expense/investment)
-            if (filterType !== 'all') {
-                const isIncome = movement.type === 'IngresoNormal' || movement.type === 'IngresoFijo';
-                const isExpense = movement.type === 'EgresoNormal' || movement.type === 'EgresoFijo';
-
-                if (filterType === 'income' && !isIncome) return false;
-                if (filterType === 'expense' && !isExpense) return false;
-            }
+            // Type filter — exact MovementType match. The "all" sentinel
+            // skips this check so every type passes through.
+            if (filterType !== MOVEMENT_TYPE_FILTER_ALL && movement.type !== filterType) return false;
 
             // Date range filter
             const dateRange = getDateRange();

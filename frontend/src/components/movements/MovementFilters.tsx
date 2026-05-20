@@ -2,6 +2,7 @@ import { Filter, X } from 'lucide-react';
 import Button from '../Button';
 import Input from '../Input';
 import Select from '../Select';
+import MovementTypeSelect, { MOVEMENT_TYPE_FILTER_ALL } from '../selectors/MovementTypeSelect';
 import { useAccountsQuery, usePocketsQuery } from '../../hooks/queries';
 import type { DateRangeOption, FilterTypeOption, ShowPendingOption } from '../../hooks/useMovementsFilter';
 
@@ -42,7 +43,7 @@ const MovementFilters = ({ showFilters, setShowFilters, filters, setFilters }: M
     const clearFilters = () => {
         setFilters.setAccount('all');
         setFilters.setPocket('all');
-        setFilters.setType('all');
+        setFilters.setType(MOVEMENT_TYPE_FILTER_ALL);
         setFilters.setDateRange('all');
         setFilters.setDateFrom('');
         setFilters.setDateTo('');
@@ -55,7 +56,7 @@ const MovementFilters = ({ showFilters, setShowFilters, filters, setFilters }: M
     const activeFiltersCount = [
         filters.account !== 'all',
         filters.pocket !== 'all',
-        filters.type !== 'all',
+        filters.type !== MOVEMENT_TYPE_FILTER_ALL,
         filters.dateRange !== 'all',
         filters.search !== '',
         filters.minAmount !== '',
@@ -148,15 +149,11 @@ const MovementFilters = ({ showFilters, setShowFilters, filters, setFilters }: M
                         ]}
                     />
 
-                    <Select
+                    <MovementTypeSelect
                         label="Type"
+                        includeAll
                         value={filters.type}
-                        onChange={(e) => setFilters.setType(e.target.value as FilterTypeOption)}
-                        options={[
-                            { value: 'all', label: 'All Types' },
-                            { value: 'income', label: 'Income' },
-                            { value: 'expense', label: 'Expense' },
-                        ]}
+                        onChange={setFilters.setType}
                     />
 
                     <Select
