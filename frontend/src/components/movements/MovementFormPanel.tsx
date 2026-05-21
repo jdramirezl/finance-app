@@ -86,7 +86,7 @@ const MovementFormPanel = ({
       >
         {/* Form (Main) */}
         <div className={`w-full ${showBatch ? 'max-w-4xl' : 'max-w-2xl'}`}>
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-100 dark:border-gray-700 min-h-[calc(100vh-6rem)] max-h-[calc(100vh-6rem)] overflow-y-auto animate-modal-in flex flex-col">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-100 dark:border-gray-700 max-h-[calc(100dvh-6rem)] overflow-y-auto animate-modal-in flex flex-col">
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-700 sticky top-0 bg-white/80 dark:bg-gray-800/80 backdrop-blur-md z-10">
               <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">
                 {headerTitle}

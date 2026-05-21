@@ -129,7 +129,7 @@ const MarkAsPaidModal = ({ isOpen, onClose, onConfirm, reminder }: MarkAsPaidMod
                                             <div className="font-medium text-gray-900 dark:text-gray-100 flex items-center gap-2 truncate">
                                                 {m.notes || 'No description'}
                                             </div>
-                                            <div className="flex items-center gap-2 mt-0.5 text-[10px] text-gray-500 dark:text-gray-400">
+                                            <div className="flex items-center gap-2 mt-0.5 text-[11px] text-gray-500 dark:text-gray-400">
                                                 <span className="bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded flex items-center gap-1">
                                                     <Wallet className="w-2.5 h-2.5" />
                                                     {account?.name || 'Unknown Account'}
@@ -142,7 +142,7 @@ const MarkAsPaidModal = ({ isOpen, onClose, onConfirm, reminder }: MarkAsPaidMod
                                             <div className={`font-bold ${m.type.includes('Ingreso') ? 'text-green-600 dark:text-green-400' : 'text-gray-900 dark:text-gray-100'}`}>
                                                 {currencyService.formatCurrency(m.amount, account?.currency || 'USD')}
                                             </div>
-                                            <div className="text-[10px] text-blue-600 dark:text-blue-400 font-medium group-hover:underline">
+                                            <div className="text-[11px] text-blue-600 dark:text-blue-400 font-medium group-hover:underline">
                                                 Link this
                                             </div>
                                         </div>

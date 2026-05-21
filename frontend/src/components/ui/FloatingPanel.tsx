@@ -42,6 +42,7 @@ const FloatingPanel = ({
     <div
       className={`
         fixed top-20 ${positionClasses} ${width}
+        max-w-[calc(100vw-2rem)]
         max-h-[calc(100vh-6rem)]
         bg-white dark:bg-gray-800 
         rounded-2xl shadow-2xl 

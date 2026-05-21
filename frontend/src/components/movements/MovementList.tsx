@@ -103,13 +103,15 @@ const MovementRow = memo(({
         >
             <div className="flex items-start gap-4">
                 <div className="pt-1">
-                    <input
-                        type="checkbox"
-                        checked={isSelected}
-                        onChange={() => onToggleSelection(movement.id)}
-                        className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
-                        aria-label={`Select movement: ${movement.notes || 'Untitled Movement'}`}
-                    />
+                    <label className="flex items-center justify-center min-w-[44px] min-h-[44px] cursor-pointer">
+                        <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => onToggleSelection(movement.id)}
+                            className="w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                            aria-label={`Select movement: ${movement.notes || 'Untitled Movement'}`}
+                        />
+                    </label>
                 </div>
 
                 <div className={`p-2.5 rounded-xl bg-gradient-to-br ${isIncome ? 'from-green-50 to-emerald-100 dark:from-green-900/20 dark:to-emerald-900/30' : 'from-red-50 to-rose-100 dark:from-red-900/20 dark:to-rose-900/30'} shadow-sm`}>
@@ -169,22 +171,22 @@ const MovementRow = memo(({
                         size="sm"
                         variant="ghost"
                         onClick={() => onEdit(movement)}
-                        className="text-gray-500 hover:text-blue-600"
+                        className="text-gray-500 hover:text-blue-600 p-2.5"
                         title="Edit"
                         aria-label={`Edit movement: ${movement.notes || 'Untitled Movement'}`}
                     >
-                        <Edit2 className="w-4 h-4" aria-hidden="true" />
+                        <Edit2 className="w-5 h-5" aria-hidden="true" />
                     </Button>
                     <Button
                         size="sm"
                         variant="ghost"
                         onClick={() => onDelete(movement.id)}
                         loading={isDeleting}
-                        className="text-gray-500 hover:text-red-600"
+                        className="text-gray-500 hover:text-red-600 p-2.5"
                         title="Delete"
                         aria-label={`Delete movement: ${movement.notes || 'Untitled Movement'}`}
                     >
-                        <Trash2 className="w-4 h-4" aria-hidden="true" />
+                        <Trash2 className="w-5 h-5" aria-hidden="true" />
                     </Button>
                 </div>
             </div>

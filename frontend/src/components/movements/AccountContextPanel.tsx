@@ -56,7 +56,7 @@ const AccountContextPanel = ({ accountId, selectedPocketId, className = '', delt
 
     return (
       <div className="flex flex-col items-end">
-        <p className="text-[10px] text-gray-400 dark:text-gray-500 line-through leading-none mb-1">
+        <p className="text-[11px] text-gray-400 dark:text-gray-500 line-through leading-none mb-1">
           {formatCurrency(current, currency)}
         </p>
         <p className={`

@@ -225,7 +225,7 @@ const FixedExpenseGroupCard = ({
                           </h4>
                           {account && (
                             <span
-                              className="px-1.5 py-0.5 text-[10px] uppercase font-bold rounded border opacity-70"
+                              className="px-1.5 py-0.5 text-[11px] uppercase font-bold rounded border opacity-70"
                               style={{
                                 color: account.color,
                                 borderColor: account.color,

@@ -148,7 +148,7 @@ const BottomNav = ({ items, bottomItems }: BottomNavProps) => {
                 key={item.path}
                 to={item.path}
                 className={`
-                  flex flex-col items-center gap-1 p-2 rounded-lg transition-colors
+                  flex flex-col items-center gap-0.5 px-3 py-2.5 rounded-lg transition-colors
                   ${isActive
                     ? 'text-blue-600 dark:text-blue-400'
                     : 'text-gray-500 dark:text-gray-400'
@@ -156,18 +156,18 @@ const BottomNav = ({ items, bottomItems }: BottomNavProps) => {
                 `}
               >
                 <Icon className={`w-6 h-6 ${isActive ? 'fill-current' : ''}`} aria-hidden="true" />
-                <span className="text-[10px] font-medium">{item.label}</span>
+                <span className="text-[11px] font-medium">{item.label}</span>
               </Link>
             );
           })}
           {/* Menu Toggle for items not shown in the bottom bar */}
           <button
             onClick={() => setIsMobileMenuOpen(true)}
-            className="flex flex-col items-center gap-1 p-2 rounded-lg text-gray-500 dark:text-gray-400"
+            className="flex flex-col items-center gap-0.5 px-3 py-2.5 rounded-lg text-gray-500 dark:text-gray-400"
             aria-label="Open navigation menu"
           >
             <Menu className="w-6 h-6" aria-hidden="true" />
-            <span className="text-[10px] font-medium">Menu</span>
+            <span className="text-[11px] font-medium">Menu</span>
           </button>
         </div>
       </div>

@@ -73,17 +73,17 @@ const AccountCard = ({
                         <div className="flex flex-wrap items-center gap-2">
                             <h3 className="font-semibold text-gray-900 dark:text-gray-100 truncate max-w-[200px] sm:max-w-none">{account.name}</h3>
                             {isCD && (
-                                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 font-medium border border-green-200 dark:border-green-800 whitespace-nowrap">
+                                <span className="text-[11px] px-1.5 py-0.5 rounded-full bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 font-medium border border-green-200 dark:border-green-800 whitespace-nowrap">
                                     Certificate of Deposit
                                 </span>
                             )}
                             {isInvestment && !isCD && (
-                                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 font-medium border border-purple-200 dark:border-purple-800 whitespace-nowrap">
+                                <span className="text-[11px] px-1.5 py-0.5 rounded-full bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 font-medium border border-purple-200 dark:border-purple-800 whitespace-nowrap">
                                     Investments
                                 </span>
                             )}
                             {isFixedExpensesAccount && (
-                                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 font-medium border border-blue-200 dark:border-blue-800 whitespace-nowrap">
+                                <span className="text-[11px] px-1.5 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 font-medium border border-blue-200 dark:border-blue-800 whitespace-nowrap">
                                     Fixed Expenses
                                 </span>
                             )}
