@@ -1,5 +1,4 @@
-import { useUpdateSettings } from '../hooks/mutations';
-import { useSettingsQuery } from '../hooks/queries';
+import { useSettingsQuery, useUpdateSettings } from '../hooks/queries';
 import { useSettingsActions } from '../hooks/useSettingsActions';
 import { useToast } from '../hooks/useToast';
 import Card from '../components/Card';

@@ -12,7 +12,7 @@ import type {
   SnapshotFrequency,
 } from '../types';
 import type { useToast } from './useToast';
-import type { useUpdateSettings } from './mutations';
+import type { useUpdateSettings } from './queries';
 
 const BUDGET_PLANNING_KEY = 'finance_app_budget_planning';
 

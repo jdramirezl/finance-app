@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Plus } from 'lucide-react';
+import { PieChart, Plus } from 'lucide-react';
 import Button from '../Button';
 import Card from '../Card';
+import EmptyState from '../EmptyState';
 import BudgetEntryRow, { type DistributionEntry } from './BudgetEntryRow';
 import DonutChart from './DonutChart';
 import { useToast } from '../../hooks/useToast';
@@ -205,9 +206,16 @@ const BudgetDistribution = ({
             </div>
 
             {entries.length === 0 ? (
-                <div className="p-8 text-center text-gray-500 dark:text-gray-400 border-2 border-dashed dark:border-gray-700 rounded-lg">
-                    No distribution entries yet. Click "Add Entry" to start planning your budget.
-                </div>
+                <EmptyState
+                    icon={PieChart}
+                    title="No distribution entries yet"
+                    description="Add an entry to start planning how to allocate your remaining budget."
+                    action={{
+                        label: 'Add Entry',
+                        onClick: handleAddEntry,
+                        icon: Plus,
+                    }}
+                />
             ) : (
                 <div>
                     {/* Donut Chart Visualization */}

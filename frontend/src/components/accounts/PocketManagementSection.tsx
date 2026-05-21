@@ -1,7 +1,8 @@
 import { useCallback, useMemo, useState } from 'react';
-import { Plus } from 'lucide-react';
+import { Plus, Wallet } from 'lucide-react';
 import type { Account, Pocket } from '../../types';
 import Button from '../Button';
+import EmptyState from '../EmptyState';
 import Modal from '../Modal';
 import SortableList from '../SortableList';
 import SortableItem from '../SortableItem';
@@ -48,6 +49,11 @@ const PocketManagementSection = ({
 
   const closeForm = useCallback(() => {
     setShowForm(false);
+    setEditingPocket(null);
+  }, []);
+
+  const openCreateForm = useCallback(() => {
+    setShowForm(true);
     setEditingPocket(null);
   }, []);
 
@@ -102,10 +108,7 @@ const PocketManagementSection = ({
         <Button
           variant="primary"
           size="sm"
-          onClick={() => {
-            setShowForm(true);
-            setEditingPocket(null);
-          }}
+          onClick={openCreateForm}
           aria-label="Create new pocket"
         >
           <Plus className="w-4 h-4" aria-hidden="true" />
@@ -125,9 +128,16 @@ const PocketManagementSection = ({
       )}
 
       {pockets.length === 0 && !showForm ? (
-        <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-          No pockets yet. Create one to organize your money.
-        </div>
+        <EmptyState
+          icon={Wallet}
+          title="No pockets yet"
+          description="Create a pocket to organize the money in this account."
+          action={{
+            label: 'New Pocket',
+            onClick: openCreateForm,
+            icon: Plus,
+          }}
+        />
       ) : pockets.length > 0 ? (
         <SortableList
           items={sortedPockets}

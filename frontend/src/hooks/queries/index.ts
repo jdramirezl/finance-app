@@ -18,5 +18,5 @@ export * from './useFixedExpenseGroupsQuery';
 export * from './useReminderQueries';
 export * from './useFixedExpenseGroupMutations';
 export * from './useSubPocketMutations';
-export * from './useSettingsQuery';
+export * from './useSettingsMutations';
 export * from './useNetWorthSnapshotQueries';
