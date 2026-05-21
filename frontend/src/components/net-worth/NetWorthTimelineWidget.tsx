@@ -2,22 +2,19 @@
  * Net Worth Timeline Widget
  *
  * Top-level orchestrator for the net-worth timeline card. Owns the query
- * subscriptions, the per-card UI controls (view mode, date range,
- * variation toggle), the edit/delete modal state, and the click-to-edit
- * flow. Data shaping is delegated to `useNetWorthChartData` and chart
- * rendering to `NetWorthChart`.
+ * subscriptions and the per-card UI controls (view mode, date range,
+ * variation toggle). Data shaping is delegated to `useNetWorthChartData`,
+ * chart rendering to `NetWorthChart`, and the click-to-edit/delete flow
+ * to `NetWorthEditModal`.
  */
 
-import { useState } from 'react';
-import { TrendingUp, Trash2 } from 'lucide-react';
-import { format, parseISO } from 'date-fns';
+import { useRef, useState } from 'react';
+import { TrendingUp } from 'lucide-react';
 
 import {
     useNetWorthSnapshotsQuery,
-    useNetWorthSnapshotMutations,
 } from '../../hooks/queries/useNetWorthSnapshotQueries';
 import { useSettingsQuery } from '../../hooks/queries';
-import { useConfirmDialog } from '../../contexts/ConfirmDialogContext';
 import {
     useNetWorthChartData,
     type NetWorthChartDatum,
@@ -26,25 +23,21 @@ import {
 } from '../../hooks/useNetWorthChartData';
 import Card from '../Card';
 import Button from '../Button';
-import Input from '../Input';
-import Modal from '../Modal';
 import CurrencyAmount from '../CurrencyAmount';
 import NetWorthChart from './NetWorthChart';
-import type { NetWorthSnapshot } from '../../services/netWorthSnapshotService';
+import NetWorthEditModal, {
+    type NetWorthEditModalHandle,
+} from './NetWorthEditModal';
 
 const NetWorthTimelineWidget = () => {
     const { data: snapshots = [], isLoading } = useNetWorthSnapshotsQuery();
     const { data: settings } = useSettingsQuery();
-    const { updateMutation, deleteMutation } = useNetWorthSnapshotMutations();
-    const { confirm } = useConfirmDialog();
 
     const [viewMode, setViewMode] = useState<NetWorthViewMode>('total');
     const [dateRange, setDateRange] = useState<NetWorthDateRange>('6m');
     const [showVariation, setShowVariation] = useState(false);
-    const [showEditModal, setShowEditModal] = useState(false);
-    const [selectedSnapshot, setSelectedSnapshot] =
-        useState<NetWorthSnapshot | null>(null);
-    const [editValue, setEditValue] = useState<string>('');
+
+    const editModalRef = useRef<NetWorthEditModalHandle>(null);
 
     const primaryCurrency = settings?.primaryCurrency || 'USD';
 
@@ -66,44 +59,8 @@ const NetWorthTimelineWidget = () => {
             snapshots.find((s) => s.snapshotDate === datum.fullDate);
 
         if (snapshot) {
-            setSelectedSnapshot(snapshot);
-            setEditValue(snapshot.totalNetWorth.toString());
-            setShowEditModal(true);
+            editModalRef.current?.open(snapshot);
         }
-    };
-
-    const handleSaveEdit = async () => {
-        if (!selectedSnapshot) return;
-
-        const newValue = parseFloat(editValue);
-        if (isNaN(newValue) || newValue < 0) return;
-
-        await updateMutation.mutateAsync({
-            id: selectedSnapshot.id,
-            data: { totalNetWorth: newValue },
-        });
-
-        setShowEditModal(false);
-    };
-
-    const handleDelete = async () => {
-        if (!selectedSnapshot) return;
-
-        const confirmed = await confirm({
-            title: 'Delete Snapshot',
-            message: `Are you sure you want to delete the snapshot from ${format(
-                parseISO(selectedSnapshot.snapshotDate),
-                'MMM d, yyyy',
-            )}?`,
-            confirmText: 'Delete',
-            cancelText: 'Cancel',
-            variant: 'danger',
-        });
-
-        if (!confirmed) return;
-
-        await deleteMutation.mutateAsync(selectedSnapshot.id);
-        setShowEditModal(false);
     };
 
     if (isLoading) {
@@ -234,78 +191,7 @@ const NetWorthTimelineWidget = () => {
                 )}
             </Card>
 
-            {/* Edit Snapshot Modal */}
-            <Modal
-                isOpen={showEditModal}
-                onClose={() => {
-                    setShowEditModal(false);
-                    setSelectedSnapshot(null);
-                    setEditValue('');
-                }}
-                title="Edit Snapshot"
-                size="md"
-            >
-                {selectedSnapshot && (
-                    <div className="space-y-4">
-                        <div>
-                            <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
-                                Date
-                            </p>
-                            <p className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                                {format(
-                                    parseISO(selectedSnapshot.snapshotDate),
-                                    'MMMM d, yyyy',
-                                )}
-                            </p>
-                        </div>
-
-                        <Input
-                            label="Total Net Worth"
-                            type="number"
-                            value={editValue}
-                            onChange={(e) => setEditValue(e.target.value)}
-                            step="0.01"
-                            min="0"
-                            required
-                            className="font-mono"
-                        />
-
-                        <div className="flex justify-between gap-2 pt-4">
-                            <Button
-                                type="button"
-                                variant="danger"
-                                onClick={handleDelete}
-                                loading={deleteMutation.isPending}
-                                className="flex items-center gap-2"
-                            >
-                                <Trash2 className="w-4 h-4" />
-                                Delete
-                            </Button>
-                            <div className="flex gap-2">
-                                <Button
-                                    type="button"
-                                    variant="secondary"
-                                    onClick={() => {
-                                        setShowEditModal(false);
-                                        setSelectedSnapshot(null);
-                                        setEditValue('');
-                                    }}
-                                >
-                                    Cancel
-                                </Button>
-                                <Button
-                                    type="button"
-                                    variant="primary"
-                                    onClick={handleSaveEdit}
-                                    loading={updateMutation.isPending}
-                                >
-                                    Save Changes
-                                </Button>
-                            </div>
-                        </div>
-                    </div>
-                )}
-            </Modal>
+            <NetWorthEditModal ref={editModalRef} />
         </>
     );
 };
