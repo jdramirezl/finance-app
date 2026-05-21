@@ -10,5 +10,6 @@ export { default as MovementTemplateForm } from './MovementTemplateForm';
 export { default as MovementTypeSelect } from './MovementTypeSelect';
 export { default as OrphanedMovementsPanel } from './OrphanedMovementsPanel';
 export { default as QuickCalculator } from './QuickCalculator';
+export { default as QuickAddMovement } from './QuickAddMovement';
 export { default as RestoreOrphanedModal } from './RestoreOrphanedModal';
 export { default as TemplateCard } from './TemplateCard';

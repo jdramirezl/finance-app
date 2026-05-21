@@ -7,6 +7,7 @@ import type { useReminderMutations } from '../queries/useReminderQueries';
 import type { MovementFormStateResult } from '../useMovementFormState';
 import { parseDate } from '../../utils/dateUtils';
 import { movementService } from '../../services/movementService';
+import { useLastUsedPocket, toSimpleType } from '../../store/useLastUsedPocket';
 
 type MovementMutations = Pick<
   ReturnType<typeof useMovementMutations>,
@@ -67,7 +68,7 @@ export const useMovementSubmit = ({
       type, accountId, pocketId, subPocketId,
       amount: amountStr, notes, displayedDate: dateStr,
       isPending, isTransfer, targetAccountId, targetPocketId,
-      saveAsTemplate, templateName,
+      saveAsTemplate, templateName, category,
     } = data;
 
     const amount = parseFloat(amountStr);
@@ -81,6 +82,7 @@ export const useMovementSubmit = ({
             type, accountId, pocketId,
             subPocketId: subPocketId || undefined,
             amount, notes: notes || undefined, displayedDate, isPending,
+            category: category || undefined,
           },
         });
         closeForms();
@@ -100,6 +102,7 @@ export const useMovementSubmit = ({
           targetPocketId,
           amount, displayedDate, notes: notes || undefined,
         });
+        useLastUsedPocket.getState().setLastUsed(toSimpleType(type), accountId, pocketId);
         toast.success('Transfer created successfully!');
         return;
       }
@@ -108,7 +111,10 @@ export const useMovementSubmit = ({
         type, accountId, pocketId, amount,
         notes: notes || undefined,
         displayedDate, subPocketId: subPocketId || undefined, isPending,
+        category: category || undefined,
       });
+
+      useLastUsedPocket.getState().setLastUsed(toSimpleType(type), accountId, pocketId);
 
       if (wasReminderId) {
         await markAsPaidMutation.mutateAsync({
