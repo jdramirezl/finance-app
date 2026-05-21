@@ -1,6 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
+import { useForm } from 'react-hook-form';
 import { format } from 'date-fns';
 import { useFixedExpenseGroupsQuery, useMovementTemplatesQuery, useSubPocketsQuery } from '../../hooks/queries';
+import { useUnsavedChanges } from '../../hooks/useUnsavedChanges';
 import Button from '../ui/Button';
 import Input from '../ui/Input';
 import Select from '../ui/Select';
@@ -14,6 +16,21 @@ interface ReminderFormProps {
     isSaving: boolean;
 }
 
+interface ReminderFormValues {
+    title: string;
+    amount: string;
+    dueDate: string;
+    recurrenceType: RecurrenceType;
+    recurrenceInterval: number;
+    recurrenceDaysOfWeek: number[];
+    recurrenceEndType: RecurrenceEndType;
+    recurrenceEndCount: number;
+    recurrenceEndDate: string;
+    customPeriod: RecurrencePeriod;
+    fixedExpenseId: string;
+    templateId: string;
+}
+
 const DAYS_OF_WEEK = [
     { value: 0, label: 'Sun' },
     { value: 1, label: 'Mon' },
@@ -24,22 +41,38 @@ const DAYS_OF_WEEK = [
     { value: 6, label: 'Sat' },
 ];
 
-// Returns a fresh default form state. Uses a factory (not a const) so that
-// `dueDate` reflects the current day each time the form is opened/reset.
-const getDefaultFormState = () => ({
-    title: '',
-    amount: '',
-    dueDate: format(new Date(), 'yyyy-MM-dd'),
-    recurrenceType: 'once' as RecurrenceType,
-    recurrenceInterval: 1,
-    recurrenceDaysOfWeek: [] as number[],
-    recurrenceEndType: 'never' as RecurrenceEndType,
-    recurrenceEndCount: 1,
-    recurrenceEndDate: '',
-    customPeriod: 'monthly' as RecurrencePeriod,
-    fixedExpenseId: '',
-    templateId: '',
-});
+const getDefaultValues = (data?: Reminder): ReminderFormValues => {
+    if (data) {
+        return {
+            title: data.title,
+            amount: data.amount.toString(),
+            dueDate: toDateOnly(data.dueDate),
+            recurrenceType: data.recurrence.type,
+            recurrenceInterval: data.recurrence.interval,
+            recurrenceDaysOfWeek: data.recurrence.daysOfWeek || [],
+            recurrenceEndType: data.recurrence.endType,
+            recurrenceEndCount: data.recurrence.endCount || 1,
+            recurrenceEndDate: data.recurrence.endDate ? toDateOnly(data.recurrence.endDate) : '',
+            customPeriod: data.recurrence.customPeriod || 'monthly',
+            fixedExpenseId: data.fixedExpenseId || '',
+            templateId: data.templateId || '',
+        };
+    }
+    return {
+        title: '',
+        amount: '',
+        dueDate: format(new Date(), 'yyyy-MM-dd'),
+        recurrenceType: 'once',
+        recurrenceInterval: 1,
+        recurrenceDaysOfWeek: [],
+        recurrenceEndType: 'never',
+        recurrenceEndCount: 1,
+        recurrenceEndDate: '',
+        customPeriod: 'monthly',
+        fixedExpenseId: '',
+        templateId: '',
+    };
+};
 
 const ReminderForm = ({
     initialData,
@@ -51,10 +84,8 @@ const ReminderForm = ({
     const { data: templates = [] } = useMovementTemplatesQuery();
     const { data: fixedExpenseGroups = [] } = useFixedExpenseGroupsQuery();
 
-    // Create a map of group names for display
     const groupMap = new Map(fixedExpenseGroups.map(g => [g.id, g.name]));
 
-    // Filter only fixed expenses (those with a groupId)
     const allFixedExpenses = subPockets
         .filter((sp) => sp.groupId)
         .map((sp) => ({
@@ -63,102 +94,87 @@ const ReminderForm = ({
             amount: sp.valueTotal || 0
         }));
 
-    const [formData, setFormData] = useState(getDefaultFormState);
+    const {
+        register,
+        handleSubmit,
+        watch,
+        setValue,
+        reset,
+        formState: { errors, isDirty },
+    } = useForm<ReminderFormValues>({
+        mode: 'onBlur',
+        defaultValues: getDefaultValues(initialData),
+    });
 
+    // Reset form when initialData changes (edit vs create switch)
     useEffect(() => {
-        if (initialData) {
-            setFormData({
-                title: initialData.title,
-                amount: initialData.amount.toString(),
-                // toDateOnly extracts the YYYY-MM-DD portion without
-                // applying a timezone shift, so the form input matches the
-                // calendar date the reminder was created with.
-                dueDate: toDateOnly(initialData.dueDate),
-                recurrenceType: initialData.recurrence.type,
-                recurrenceInterval: initialData.recurrence.interval,
-                recurrenceDaysOfWeek: initialData.recurrence.daysOfWeek || [],
-                recurrenceEndType: initialData.recurrence.endType,
-                recurrenceEndCount: initialData.recurrence.endCount || 1,
-                recurrenceEndDate: initialData.recurrence.endDate ? toDateOnly(initialData.recurrence.endDate) : '',
-                customPeriod: initialData.recurrence.customPeriod || 'monthly',
-                fixedExpenseId: initialData.fixedExpenseId || '',
-                templateId: initialData.templateId || '',
-            });
-        } else {
-            // Reset to defaults when switching from edit to create mode.
-            // Without this, the form retains the previously-edited reminder's data.
-            setFormData(getDefaultFormState());
-        }
-    }, [initialData]);
+        reset(getDefaultValues(initialData));
+    }, [initialData, reset]);
 
-    // Handle fixed expense selection - auto-fill amount
+    useUnsavedChanges(isDirty);
+
+    const recurrenceType = watch('recurrenceType');
+    const recurrenceEndType = watch('recurrenceEndType');
+    const recurrenceDaysOfWeek = watch('recurrenceDaysOfWeek');
+
+    // Auto-fill from fixed expense selection
     const handleFixedExpenseChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
         const id = e.target.value;
-        setFormData(prev => ({ ...prev, fixedExpenseId: id }));
-
+        setValue('fixedExpenseId', id, { shouldDirty: true });
         if (id) {
             const expense = allFixedExpenses.find(exp => exp.id === id);
-            if (expense && !formData.amount) {
-                setFormData(prev => ({ ...prev, amount: expense.amount.toString() }));
+            if (expense && !watch('amount')) {
+                setValue('amount', expense.amount.toString(), { shouldDirty: true });
             }
         }
     };
 
-    // Handle template selection - auto-fill amount and title
+    // Auto-fill from template selection
     const handleTemplateChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
         const id = e.target.value;
-        setFormData(prev => ({ ...prev, templateId: id }));
-
+        setValue('templateId', id, { shouldDirty: true });
         if (id) {
             const template = templates.find((t) => t.id === id);
             if (template) {
-                setFormData(prev => ({
-                    ...prev,
-                    amount: template.defaultAmount?.toString() || prev.amount,
-                    title: template.name || prev.title,
-                }));
+                if (template.defaultAmount) {
+                    setValue('amount', template.defaultAmount.toString(), { shouldDirty: true });
+                }
+                if (template.name) {
+                    setValue('title', template.name, { shouldDirty: true });
+                }
             }
         }
     };
 
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-        const { name, value } = e.target;
-        setFormData(prev => ({ ...prev, [name]: value }));
-    };
-
     const toggleDayOfWeek = (day: number) => {
-        setFormData(prev => ({
-            ...prev,
-            recurrenceDaysOfWeek: prev.recurrenceDaysOfWeek.includes(day)
-                ? prev.recurrenceDaysOfWeek.filter(d => d !== day)
-                : [...prev.recurrenceDaysOfWeek, day].sort()
-        }));
+        const current = recurrenceDaysOfWeek;
+        const updated = current.includes(day)
+            ? current.filter(d => d !== day)
+            : [...current, day].sort();
+        setValue('recurrenceDaysOfWeek', updated, { shouldDirty: true, shouldValidate: true });
     };
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        await onSubmit({
-            title: formData.title,
-            amount: parseFloat(formData.amount),
-            // parseDate treats the YYYY-MM-DD form value as local midnight,
-            // so toISOString stores a moment that matches the user's intent.
-            dueDate: parseDate(formData.dueDate).toISOString(),
+    const onFormSubmit = (data: ReminderFormValues) => {
+        return onSubmit({
+            title: data.title,
+            amount: parseFloat(data.amount),
+            dueDate: parseDate(data.dueDate).toISOString(),
             recurrence: {
-                type: formData.recurrenceType,
-                interval: formData.recurrenceInterval,
-                daysOfWeek: formData.recurrenceType === 'weekly' ? formData.recurrenceDaysOfWeek : undefined,
-                endType: formData.recurrenceEndType,
-                endCount: formData.recurrenceEndType === 'after' ? formData.recurrenceEndCount : undefined,
-                endDate: formData.recurrenceEndType === 'on_date' ? parseDate(formData.recurrenceEndDate).toISOString() : undefined,
-                customPeriod: formData.recurrenceType === 'custom' ? formData.customPeriod : undefined,
+                type: data.recurrenceType,
+                interval: data.recurrenceInterval,
+                daysOfWeek: data.recurrenceType === 'weekly' ? data.recurrenceDaysOfWeek : undefined,
+                endType: data.recurrenceEndType,
+                endCount: data.recurrenceEndType === 'after' ? data.recurrenceEndCount : undefined,
+                endDate: data.recurrenceEndType === 'on_date' ? parseDate(data.recurrenceEndDate).toISOString() : undefined,
+                customPeriod: data.recurrenceType === 'custom' ? data.customPeriod : undefined,
             },
-            fixedExpenseId: formData.fixedExpenseId || undefined,
-            templateId: formData.templateId || undefined,
+            fixedExpenseId: data.fixedExpenseId || undefined,
+            templateId: data.templateId || undefined,
         });
     };
 
     return (
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit(onFormSubmit)} className="space-y-6">
             {/* Basic Info Section */}
             <div className="space-y-4">
                 <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 border-b border-gray-200 dark:border-gray-700 pb-2">
@@ -168,32 +184,32 @@ const ReminderForm = ({
                 <Input
                     type="text"
                     label="Title"
-                    name="title"
-                    value={formData.title}
-                    onChange={handleChange}
-                    required
                     placeholder="e.g., Rent payment"
+                    required
+                    error={errors.title?.message}
+                    {...register('title', { required: 'Title is required' })}
                 />
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <Input
                         type="number"
                         label="Amount"
-                        name="amount"
-                        value={formData.amount}
-                        onChange={handleChange}
-                        required
                         step="0.01"
                         placeholder="0.00"
+                        required
+                        error={errors.amount?.message}
+                        {...register('amount', {
+                            required: 'Amount is required',
+                            validate: (v) => parseFloat(v) >= 0.01 || 'Minimum amount is 0.01',
+                        })}
                     />
 
                     <Input
                         type="date"
                         label="Due Date"
-                        name="dueDate"
-                        value={formData.dueDate}
-                        onChange={handleChange}
                         required
+                        error={errors.dueDate?.message}
+                        {...register('dueDate', { required: 'Due date is required' })}
                     />
                 </div>
             </div>
@@ -206,9 +222,7 @@ const ReminderForm = ({
 
                 <Select
                     label="Repeat"
-                    name="recurrenceType"
-                    value={formData.recurrenceType}
-                    onChange={handleChange}
+                    {...register('recurrenceType')}
                     options={[
                         { value: 'once', label: 'Does not repeat' },
                         { value: 'daily', label: 'Daily' },
@@ -220,22 +234,23 @@ const ReminderForm = ({
                 />
 
                 {/* Custom Interval */}
-                {formData.recurrenceType === 'custom' && (
+                {recurrenceType === 'custom' && (
                     <div className="grid grid-cols-2 gap-4">
                         <Input
                             type="number"
                             label="Every"
-                            name="recurrenceInterval"
-                            value={formData.recurrenceInterval}
-                            onChange={handleChange}
                             min="1"
                             required
+                            error={errors.recurrenceInterval?.message}
+                            {...register('recurrenceInterval', {
+                                required: 'Interval is required',
+                                min: { value: 1, message: 'Minimum is 1' },
+                                valueAsNumber: true,
+                            })}
                         />
                         <Select
                             label="Period"
-                            name="customPeriod"
-                            value={formData.customPeriod}
-                            onChange={handleChange}
+                            {...register('customPeriod')}
                             options={[
                                 { value: 'daily', label: 'Days' },
                                 { value: 'weekly', label: 'Weeks' },
@@ -247,7 +262,7 @@ const ReminderForm = ({
                 )}
 
                 {/* Weekly Day Selection */}
-                {formData.recurrenceType === 'weekly' && (
+                {recurrenceType === 'weekly' && (
                     <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                             Repeat on
@@ -258,7 +273,7 @@ const ReminderForm = ({
                                     key={day.value}
                                     type="button"
                                     onClick={() => toggleDayOfWeek(day.value)}
-                                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${formData.recurrenceDaysOfWeek.includes(day.value)
+                                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${recurrenceDaysOfWeek.includes(day.value)
                                             ? 'bg-blue-600 text-white'
                                             : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
                                         }`}
@@ -271,7 +286,7 @@ const ReminderForm = ({
                 )}
 
                 {/* End Condition */}
-                {formData.recurrenceType !== 'once' && (
+                {recurrenceType !== 'once' && (
                     <div className="space-y-3">
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                             Ends
@@ -281,10 +296,8 @@ const ReminderForm = ({
                             <label className="flex items-center gap-2 cursor-pointer">
                                 <input
                                     type="radio"
-                                    name="recurrenceEndType"
                                     value="never"
-                                    checked={formData.recurrenceEndType === 'never'}
-                                    onChange={handleChange}
+                                    {...register('recurrenceEndType')}
                                     className="text-blue-600"
                                 />
                                 <span className="text-sm text-gray-700 dark:text-gray-300">Never</span>
@@ -293,22 +306,23 @@ const ReminderForm = ({
                             <label className="flex items-center gap-2 cursor-pointer">
                                 <input
                                     type="radio"
-                                    name="recurrenceEndType"
                                     value="after"
-                                    checked={formData.recurrenceEndType === 'after'}
-                                    onChange={handleChange}
+                                    {...register('recurrenceEndType')}
                                     className="text-blue-600"
                                 />
                                 <span className="text-sm text-gray-700 dark:text-gray-300">After</span>
-                                {formData.recurrenceEndType === 'after' && (
+                                {recurrenceEndType === 'after' && (
                                     <Input
                                         type="number"
-                                        name="recurrenceEndCount"
-                                        value={formData.recurrenceEndCount}
-                                        onChange={handleChange}
                                         min="1"
                                         required
                                         className="w-20"
+                                        error={errors.recurrenceEndCount?.message}
+                                        {...register('recurrenceEndCount', {
+                                            required: 'Required',
+                                            min: { value: 1, message: 'Min 1' },
+                                            valueAsNumber: true,
+                                        })}
                                     />
                                 )}
                                 <span className="text-sm text-gray-700 dark:text-gray-300">occurrences</span>
@@ -317,21 +331,20 @@ const ReminderForm = ({
                             <label className="flex items-center gap-2 cursor-pointer">
                                 <input
                                     type="radio"
-                                    name="recurrenceEndType"
                                     value="on_date"
-                                    checked={formData.recurrenceEndType === 'on_date'}
-                                    onChange={handleChange}
+                                    {...register('recurrenceEndType')}
                                     className="text-blue-600"
                                 />
                                 <span className="text-sm text-gray-700 dark:text-gray-300">On</span>
-                                {formData.recurrenceEndType === 'on_date' && (
+                                {recurrenceEndType === 'on_date' && (
                                     <Input
                                         type="date"
-                                        name="recurrenceEndDate"
-                                        value={formData.recurrenceEndDate}
-                                        onChange={handleChange}
                                         required
                                         className="flex-1"
+                                        error={errors.recurrenceEndDate?.message}
+                                        {...register('recurrenceEndDate', {
+                                            required: 'End date is required',
+                                        })}
                                     />
                                 )}
                             </label>
@@ -349,8 +362,7 @@ const ReminderForm = ({
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <Select
                         label="Fixed Expense"
-                        name="fixedExpenseId"
-                        value={formData.fixedExpenseId}
+                        value={watch('fixedExpenseId')}
                         onChange={handleFixedExpenseChange}
                         options={[
                             { value: '', label: 'None' },
@@ -360,8 +372,7 @@ const ReminderForm = ({
 
                     <Select
                         label="Template"
-                        name="templateId"
-                        value={formData.templateId}
+                        value={watch('templateId')}
                         onChange={handleTemplateChange}
                         options={[
                             { value: '', label: 'None' },
