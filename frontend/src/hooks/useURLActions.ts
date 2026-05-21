@@ -46,9 +46,6 @@ export const useURLActions = ({
     setEditingMovement,
     setDefaultValues,
     handleTemplateSelect,
-    setSelectedAccountId,
-    setSelectedPocketId,
-    setIsFixedExpense,
     setReminderId,
   } = formState;
 
@@ -88,6 +85,8 @@ export const useURLActions = ({
 
   // Effect 2: handle ?action=new|transfer with optional prefill params
   // (amount, notes, date, templateId, fixedExpenseId, reminderId).
+  // Pre-population of account/pocket for fixedExpenseId is handled by
+  // MovementForm itself when it receives defaultValues.fixedExpenseId.
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const action = params.get('action');
@@ -127,20 +126,6 @@ export const useURLActions = ({
 
         if (templateIdParam) {
           handleTemplateSelect(templateIdParam);
-        } else if (fixedExpenseIdParam) {
-          // fixedExpenseId is actually a subPocket id — find the pocket and
-          // account it belongs to so the form can pre-select them.
-          const subPocket = subPockets.find(
-            (sp) => sp.id === fixedExpenseIdParam
-          );
-          if (subPocket) {
-            const pocket = pockets.find((p) => p.id === subPocket.pocketId);
-            if (pocket) {
-              setSelectedAccountId(pocket.accountId);
-              setSelectedPocketId(pocket.id);
-              setIsFixedExpense(true);
-            }
-          }
         }
       }
 
@@ -166,9 +151,6 @@ export const useURLActions = ({
     setEditingMovement,
     setDefaultValues,
     handleTemplateSelect,
-    setSelectedAccountId,
-    setSelectedPocketId,
-    setIsFixedExpense,
     setReminderId,
   ]);
 };

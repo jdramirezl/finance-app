@@ -54,12 +54,13 @@ export const useBalanceDeltas = ({
         apply(r.type, r.accountId, r.pocketId, r.subPocketId, r.amount)
       );
     } else if (formState.showForm) {
+      const lv = formState.liveValues;
       apply(
-        formState.selectedType,
-        formState.selectedAccountId,
-        formState.selectedPocketId,
-        formState.selectedSubPocketId,
-        formState.amount
+        lv.type,
+        lv.accountId,
+        lv.pocketId,
+        lv.subPocketId || undefined,
+        lv.amount
       );
     }
 
@@ -68,10 +69,6 @@ export const useBalanceDeltas = ({
     showBatchForm,
     batchRows,
     formState.showForm,
-    formState.selectedType,
-    formState.selectedAccountId,
-    formState.selectedPocketId,
-    formState.selectedSubPocketId,
-    formState.amount,
+    formState.liveValues,
   ]);
 };

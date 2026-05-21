@@ -27,6 +27,7 @@ import type { Movement, MovementTemplate, Pocket, SubPocket } from '../types';
 import Button from '../components/ui/Button';
 import { Skeleton, SkeletonTable } from '../components/ui/Skeleton';
 import type { BatchMovementFormRef, BatchMovementRow } from '../components/BatchMovementForm';
+import type { MovementFormRef } from '../components/movements/MovementForm';
 import MovementFilters from '../components/movements/MovementFilters';
 import MovementList from '../components/movements/MovementList';
 import OrphanedMovementsPanel from '../components/movements/OrphanedMovementsPanel';
@@ -94,6 +95,7 @@ const MovementsPage = () => {
   const [showOrphaned, setShowOrphaned] = useState(false);
   const [showBatchForm, setShowBatchForm] = useState(false);
   const batchFormRef = useRef<BatchMovementFormRef>(null);
+  const movementFormRef = useRef<MovementFormRef>(null);
   const [activeBatchRowId, setActiveBatchRowId] = useState<string | null>(null);
   const [batchActiveAccountId, setBatchActiveAccountId] = useState<string>('');
   const [batchActivePocketId, setBatchActivePocketId] = useState<string>('');
@@ -169,20 +171,27 @@ const MovementsPage = () => {
   );
 
   // Side panel data
-  const activeAccountId = showBatchForm ? batchActiveAccountId : formState.selectedAccountId;
-  const activePocketId = showBatchForm ? batchActivePocketId : formState.selectedPocketId;
+  const activeAccountId = showBatchForm ? batchActiveAccountId : formState.liveValues.accountId;
+  const activePocketId = showBatchForm ? batchActivePocketId : formState.liveValues.pocketId;
   const selectedPocketBalance = useMemo(() => {
     const pocket = pockets.find((p) => p.id === activePocketId);
     return pocket ? pocket.balance : null;
   }, [pockets, activePocketId]);
   const balanceDeltas = useBalanceDeltas({ formState, showBatchForm, batchRows });
 
+  const handleValuesChange = useCallback(
+    (values: Pick<import('../components/movements/MovementForm').MovementFormData, 'type' | 'accountId' | 'pocketId' | 'subPocketId' | 'amount'>) => {
+      formState.setLiveValues(values);
+    },
+    [formState]
+  );
+
   const handleUseCalculatorAmount = (calculatedAmount: number) => {
     const formatted = calculatedAmount.toFixed(2);
     if (showBatchForm && activeBatchRowId) {
       batchFormRef.current?.updateAmount(activeBatchRowId, formatted);
     } else {
-      formState.setAmount(formatted);
+      movementFormRef.current?.setAmount(formatted);
     }
   };
   const handleBatchRowFocus = (row: BatchMovementRow) => {
@@ -319,6 +328,8 @@ const MovementsPage = () => {
           activeAccountId, activePocketId, balanceDeltas, selectedPocketBalance,
           onUseCalculatorAmount: handleUseCalculatorAmount,
         }}
+        movementFormRef={movementFormRef}
+        onValuesChange={handleValuesChange}
       />
 
       <RestoreOrphanedModal

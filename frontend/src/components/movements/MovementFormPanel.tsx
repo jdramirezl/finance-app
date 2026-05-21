@@ -4,7 +4,7 @@ import BatchMovementForm, {
   type BatchMovementFormRef,
   type BatchMovementRow,
 } from '../BatchMovementForm';
-import MovementForm from './MovementForm';
+import MovementForm, { type MovementFormData, type MovementFormRef } from './MovementForm';
 import AccountContextPanel from './AccountContextPanel';
 import QuickCalculator from './QuickCalculator';
 import type { MovementFormStateResult } from '../../hooks/useMovementFormState';
@@ -34,10 +34,12 @@ export interface SidePanelBindings {
 export interface MovementFormPanelProps {
   formState: MovementFormStateResult;
   isSaving: boolean;
-  onSubmit: (event: React.FormEvent<HTMLFormElement>) => Promise<void>;
+  onSubmit: (data: MovementFormData) => Promise<void>;
   onClose: () => void;
   batch: BatchFormBindings;
   sidePanel: SidePanelBindings;
+  movementFormRef: Ref<MovementFormRef>;
+  onValuesChange: (values: Pick<MovementFormData, 'type' | 'accountId' | 'pocketId' | 'subPocketId' | 'amount'>) => void;
 }
 
 /**
@@ -46,10 +48,6 @@ export interface MovementFormPanelProps {
  *
  * Visibility is driven by `formState.showForm` and `batch.showBatchForm` —
  * only one of the two forms renders at a time.
- *
- * Both inner forms now read accounts/pockets/sub-pockets directly from the
- * TanStack Query hooks (via the shared AccountPocketSelector), so this
- * panel no longer needs to receive or thread that data through.
  */
 const MovementFormPanel = ({
   formState,
@@ -58,6 +56,8 @@ const MovementFormPanel = ({
   onClose,
   batch,
   sidePanel,
+  movementFormRef,
+  onValuesChange,
 }: MovementFormPanelProps) => {
   const showSingle = formState.showForm;
   const showBatch = batch.showBatchForm;
@@ -110,31 +110,15 @@ const MovementFormPanel = ({
                 />
               ) : (
                 <MovementForm
+                  ref={movementFormRef}
                   initialData={formState.editingMovement}
                   onSubmit={onSubmit}
                   onCancel={onClose}
                   isSaving={isSaving}
-                  selectedAccountId={formState.selectedAccountId}
-                  setSelectedAccountId={formState.setSelectedAccountId}
-                  selectedPocketId={formState.selectedPocketId}
-                  setSelectedPocketId={formState.setSelectedPocketId}
-                  selectedSubPocketId={formState.selectedSubPocketId}
-                  setSelectedSubPocketId={formState.setSelectedSubPocketId}
-                  selectedType={formState.selectedType}
-                  setSelectedType={formState.setSelectedType}
-                  isFixedExpense={formState.isFixedExpense}
-                  setIsFixedExpense={formState.setIsFixedExpense}
-                  saveAsTemplate={formState.saveAsTemplate}
-                  setSaveAsTemplate={formState.setSaveAsTemplate}
-                  templateName={formState.templateName}
-                  setTemplateName={formState.setTemplateName}
+                  defaultValues={formState.defaultValues}
                   selectedTemplateId={formState.selectedTemplateId}
                   onTemplateSelect={formState.handleTemplateSelect}
-                  defaultValues={formState.defaultValues}
-                  amount={formState.amount}
-                  setAmount={formState.setAmount}
-                  notes={formState.notes}
-                  setNotes={formState.setNotes}
+                  onValuesChange={onValuesChange}
                 />
               )}
             </div>

@@ -1,4 +1,4 @@
-import type { MovementType } from '../types';
+import type { MovementFormData } from '../components/movements/MovementForm';
 import type { BatchMovementRow } from '../components/BatchMovementForm';
 import type { useToast } from './useToast';
 import type { useMovementMutations } from './queries/useMovementMutations';
@@ -33,7 +33,7 @@ export interface UseMovementSubmitParams {
 }
 
 export interface UseMovementSubmitResult {
-  handleSubmit: (e: React.FormEvent<HTMLFormElement>) => Promise<void>;
+  handleSubmit: (data: MovementFormData) => Promise<void>;
   handleBatchSave: (rows: BatchMovementRow[]) => Promise<void>;
   isSaving: boolean;
 }
@@ -42,8 +42,8 @@ export interface UseMovementSubmitResult {
  * Encapsulates the imperative submit flow for the movements modal:
  * create / update / transfer (single) and batch create.
  *
- * Mutations are received from the caller so they share the same instance
- * the rest of the page uses (and so `isSaving` reflects the page state).
+ * Receives validated MovementFormData from react-hook-form instead of
+ * extracting values from FormData.
  */
 export const useMovementSubmit = ({
   formState,
@@ -61,30 +61,26 @@ export const useMovementSubmit = ({
     markAsPaidMutation,
   } = mutations;
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
+  const handleSubmit = async (data: MovementFormData) => {
     setError(null);
-    const form = e.currentTarget;
-    const data = new FormData(form);
-    const type = data.get('type') as MovementType;
-    const accountId = data.get('accountId') as string;
-    const pocketId = data.get('pocketId') as string;
-    const subPocketId = (data.get('subPocketId') as string) || undefined;
-    const amount = parseFloat(data.get('amount') as string);
-    const notes = (data.get('notes') as string) || undefined;
-    // parseDate interprets the YYYY-MM-DD value from the date input as
-    // local midnight, avoiding the off-by-one shift caused by
-    // `new Date("YYYY-MM-DD")` (which parses as UTC midnight).
-    const displayedDate = parseDate(data.get('displayedDate') as string).toISOString();
-    const isPending = data.get('isPending') === 'on';
+    const {
+      type, accountId, pocketId, subPocketId,
+      amount: amountStr, notes, displayedDate: dateStr,
+      isPending, isTransfer, targetAccountId, targetPocketId,
+      saveAsTemplate, templateName,
+    } = data;
+
+    const amount = parseFloat(amountStr);
+    const displayedDate = parseDate(dateStr).toISOString();
 
     try {
       if (formState.editingMovement) {
         await updateMovement.mutateAsync({
           id: formState.editingMovement.id,
           updates: {
-            type, accountId, pocketId, subPocketId,
-            amount, notes, displayedDate, isPending,
+            type, accountId, pocketId,
+            subPocketId: subPocketId || undefined,
+            amount, notes: notes || undefined, displayedDate, isPending,
           },
         });
         closeForms();
@@ -92,28 +88,26 @@ export const useMovementSubmit = ({
         return;
       }
 
-      // Capture template / reminder state before close clears them.
+      // Capture reminder state before close clears it.
       const wasReminderId = formState.reminderId;
-      const wasSaveAsTemplate = formState.saveAsTemplate;
-      const wasTemplateName = formState.templateName;
-      form.reset();
       closeForms();
 
-      if (data.get('isTransfer') === 'true') {
+      if (isTransfer) {
         await createTransfer.mutateAsync({
           sourceAccountId: accountId,
           sourcePocketId: pocketId,
-          targetAccountId: data.get('targetAccountId') as string,
-          targetPocketId: data.get('targetPocketId') as string,
-          amount, displayedDate, notes,
+          targetAccountId,
+          targetPocketId,
+          amount, displayedDate, notes: notes || undefined,
         });
         toast.success('Transfer created successfully!');
         return;
       }
 
       const newMovement = await createMovement.mutateAsync({
-        type, accountId, pocketId, amount, notes,
-        displayedDate, subPocketId, isPending,
+        type, accountId, pocketId, amount,
+        notes: notes || undefined,
+        displayedDate, subPocketId: subPocketId || undefined, isPending,
       });
 
       if (wasReminderId) {
@@ -124,15 +118,16 @@ export const useMovementSubmit = ({
         formState.setReminderId(null);
       }
 
-      if (wasSaveAsTemplate && wasTemplateName.trim()) {
+      if (saveAsTemplate && templateName.trim()) {
         try {
           await createMovementTemplate.mutateAsync({
-            name: wasTemplateName.trim(),
+            name: templateName.trim(),
             type, accountId, pocketId,
-            defaultAmount: amount, notes, subPocketId,
+            defaultAmount: amount, notes: notes || undefined,
+            subPocketId: subPocketId || undefined,
           });
           toast.success(
-            `Movement created and saved as template "${wasTemplateName}"!`
+            `Movement created and saved as template "${templateName}"!`
           );
         } catch (templateErr) {
           const msg =
@@ -151,7 +146,6 @@ export const useMovementSubmit = ({
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to save movement';
       setError(msg);
-      // Toast is shown by the mutation's onError handler.
       formState.setShowForm(true);
     }
   };

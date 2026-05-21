@@ -15,6 +15,15 @@ export interface FormDefaultValues {
   templateId?: string;
 }
 
+/** Live field values reported by MovementForm via onValuesChange. */
+export interface LiveFormValues {
+  type: MovementType;
+  accountId: string;
+  pocketId: string;
+  subPocketId: string;
+  amount: string;
+}
+
 export interface MovementFormStateResult {
   // Visibility / mode
   showForm: boolean;
@@ -22,30 +31,9 @@ export interface MovementFormStateResult {
   editingMovement: Movement | null;
   setEditingMovement: (movement: Movement | null) => void;
 
-  // Field state
-  selectedAccountId: string;
-  setSelectedAccountId: (id: string) => void;
-  selectedPocketId: string;
-  setSelectedPocketId: (id: string) => void;
-  selectedSubPocketId: string;
-  setSelectedSubPocketId: (id: string) => void;
-  selectedType: MovementType;
-  setSelectedType: (type: MovementType) => void;
-  amount: string;
-  setAmount: (value: string) => void;
-  notes: string;
-  setNotes: (value: string) => void;
-  isFixedExpense: boolean;
-  setIsFixedExpense: (value: boolean) => void;
-
-  // Templates / save options
+  // Templates
   selectedTemplateId: string;
   setSelectedTemplateId: (id: string) => void;
-  saveAsTemplate: boolean;
-  setSaveAsTemplate: (value: boolean) => void;
-  templateName: string;
-  setTemplateName: (name: string) => void;
-  handleTemplateSelect: (templateId: string) => void;
 
   // URL prefill values
   defaultValues: FormDefaultValues;
@@ -55,108 +43,63 @@ export interface MovementFormStateResult {
   reminderId: string | null;
   setReminderId: (id: string | null) => void;
 
+  // Live values from the form (for side panel balance deltas)
+  liveValues: LiveFormValues;
+  setLiveValues: (values: LiveFormValues) => void;
+
   // Helpers
   resetFormState: () => void;
   openNewForm: () => void;
   openEditForm: (movement: Movement, pocket: Pocket | undefined) => void;
+  handleTemplateSelect: (templateId: string) => void;
 }
 
+const EMPTY_LIVE_VALUES: LiveFormValues = {
+  type: 'EgresoNormal',
+  accountId: '',
+  pocketId: '',
+  subPocketId: '',
+  amount: '',
+};
+
 /**
- * Encapsulates all controlled state for the single-movement form modal,
- * including template selection and URL-driven prefill values.
+ * Encapsulates visibility, editing state, template selection, and URL-driven
+ * prefill values for the single-movement form modal.
  *
- * Batch form state (rows, active row, etc.) is intentionally NOT included —
- * it has different lifecycles and lives alongside the page.
+ * Field state (amount, notes, type, accountId, etc.) is now owned by
+ * react-hook-form inside MovementForm. The `liveValues` field is updated
+ * via the form's onValuesChange callback for side panel balance previews.
  */
 export const useMovementFormState = (
-  movementTemplates: MovementTemplate[]
+  _movementTemplates: MovementTemplate[]
 ): MovementFormStateResult => {
   const [showForm, setShowForm] = useState(false);
   const [editingMovement, setEditingMovement] = useState<Movement | null>(null);
-
-  const [selectedAccountId, setSelectedAccountId] = useState<string>('');
-  const [selectedPocketId, setSelectedPocketId] = useState<string>('');
-  const [selectedSubPocketId, setSelectedSubPocketId] = useState<string>('');
-  const [selectedType, setSelectedType] = useState<MovementType>('EgresoNormal');
-  const [amount, setAmount] = useState<string>('');
-  const [notes, setNotes] = useState<string>('');
-  const [isFixedExpense, setIsFixedExpense] = useState(false);
-
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
-  const [saveAsTemplate, setSaveAsTemplate] = useState(false);
-  const [templateName, setTemplateName] = useState('');
-
   const [defaultValues, setDefaultValues] = useState<FormDefaultValues>({});
   const [reminderId, setReminderId] = useState<string | null>(null);
+  const [liveValues, setLiveValues] = useState<LiveFormValues>(EMPTY_LIVE_VALUES);
 
-  const handleTemplateSelect = useCallback(
-    (templateId: string) => {
-      setSelectedTemplateId(templateId);
-
-      if (!templateId) {
-        setSelectedAccountId('');
-        setSelectedPocketId('');
-        setSelectedSubPocketId('');
-        setAmount('');
-        setNotes('');
-        setIsFixedExpense(false);
-        return;
-      }
-
-      const template = movementTemplates.find((t) => t.id === templateId);
-      if (!template) return;
-
-      setSelectedAccountId(template.accountId);
-      setSelectedPocketId(template.pocketId);
-      setSelectedSubPocketId(template.subPocketId || '');
-      setSelectedType(template.type);
-      setAmount(template.defaultAmount ? template.defaultAmount.toString() : '');
-      setNotes(template.notes || '');
-      setIsFixedExpense(
-        template.type === 'IngresoFijo' || template.type === 'EgresoFijo'
-      );
-    },
-    [movementTemplates]
-  );
+  const handleTemplateSelect = useCallback((templateId: string) => {
+    setSelectedTemplateId(templateId);
+  }, []);
 
   const resetFormState = useCallback(() => {
     setShowForm(false);
     setEditingMovement(null);
-    setSelectedAccountId('');
-    setSelectedPocketId('');
-    setSelectedSubPocketId('');
-    setSelectedType('EgresoNormal');
-    setAmount('');
-    setNotes('');
-    setIsFixedExpense(false);
     setSelectedTemplateId('');
-    setSaveAsTemplate(false);
-    setTemplateName('');
     setDefaultValues({});
+    setLiveValues(EMPTY_LIVE_VALUES);
   }, []);
 
   const openNewForm = useCallback(() => {
     setShowForm(true);
     setEditingMovement(null);
-    setSelectedAccountId('');
-    setSelectedPocketId('');
-    setSelectedSubPocketId('');
-    setSelectedType('EgresoNormal');
-    setIsFixedExpense(false);
   }, []);
 
   const openEditForm = useCallback(
-    (movement: Movement, pocket: Pocket | undefined) => {
+    (movement: Movement, _pocket: Pocket | undefined) => {
       setEditingMovement(movement);
-      setSelectedAccountId(movement.accountId);
-      setSelectedSubPocketId(movement.subPocketId || '');
-      setSelectedType(movement.type);
-      setAmount(movement.amount.toString());
-      setNotes(movement.notes || '');
-      if (pocket) {
-        setSelectedPocketId(movement.pocketId);
-        setIsFixedExpense(pocket.type === 'fixed');
-      }
       setShowForm(true);
     },
     []
@@ -168,28 +111,8 @@ export const useMovementFormState = (
     editingMovement,
     setEditingMovement,
 
-    selectedAccountId,
-    setSelectedAccountId,
-    selectedPocketId,
-    setSelectedPocketId,
-    selectedSubPocketId,
-    setSelectedSubPocketId,
-    selectedType,
-    setSelectedType,
-    amount,
-    setAmount,
-    notes,
-    setNotes,
-    isFixedExpense,
-    setIsFixedExpense,
-
     selectedTemplateId,
     setSelectedTemplateId,
-    saveAsTemplate,
-    setSaveAsTemplate,
-    templateName,
-    setTemplateName,
-    handleTemplateSelect,
 
     defaultValues,
     setDefaultValues,
@@ -197,8 +120,12 @@ export const useMovementFormState = (
     reminderId,
     setReminderId,
 
+    liveValues,
+    setLiveValues,
+
     resetFormState,
     openNewForm,
     openEditForm,
+    handleTemplateSelect,
   };
 };
