@@ -176,14 +176,14 @@ const AccountsPage = () => {
       </div>
 
       {error && (
-        <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 rounded-lg">
+        <div className="p-4 bg-error/10 border border-error/20 text-error rounded-xl">
           {error}
         </div>
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className={listClasses}>
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4 md:mb-0">
+          <h2 className="text-xl font-semibold text-on-surface mb-4 md:mb-0">
             All Accounts
           </h2>
           {accounts.length === 0 ? (

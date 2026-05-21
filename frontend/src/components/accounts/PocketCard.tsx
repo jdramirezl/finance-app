@@ -37,45 +37,40 @@ const PocketCard = ({
     const isInvestment = pocket.name === 'Shares' || pocket.name === 'Invested Money';
 
     let icon = null;
-    let bgClass = "bg-gray-50 dark:bg-gray-700/50";
-    let borderClass = "";
+    let iconColor = 'text-on-surface-variant';
 
     if (isFixed) {
-        icon = <Lock className="w-4 h-4 text-blue-500" aria-hidden="true" />;
-        bgClass = "bg-blue-50 dark:bg-blue-900/20";
-        borderClass = "border-l-4 border-l-blue-500";
+        icon = <Lock className="w-4 h-4" aria-hidden="true" />;
+        iconColor = 'text-secondary';
     } else if (isInvestment) {
         icon = pocket.name === 'Shares'
-            ? <PieChart className="w-4 h-4 text-purple-500" aria-hidden="true" />
-            : <Banknote className="w-4 h-4 text-purple-500" aria-hidden="true" />;
-        bgClass = "bg-purple-50 dark:bg-purple-900/20";
-        borderClass = "border-l-4 border-l-purple-500";
+            ? <PieChart className="w-4 h-4" aria-hidden="true" />
+            : <Banknote className="w-4 h-4" aria-hidden="true" />;
+        iconColor = 'text-tertiary';
     } else {
-        icon = <Wallet className="w-4 h-4 text-slate-500" aria-hidden="true" />;
-        bgClass = "bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm";
-        borderClass = "border-l-4 border-l-slate-400 dark:border-l-slate-600";
+        icon = <Wallet className="w-4 h-4" aria-hidden="true" />;
     }
 
-    // Migration is only meaningful for fixed-expense pockets, regardless of
-    // whether the parent provided a handler. We hide the action otherwise.
     const showMigrate = isFixed && onMigrate;
 
     return (
-        <div className={`flex items-center justify-between p-3 rounded-lg group transition-all ${bgClass} ${borderClass}`}>
+        <div className="flex items-center justify-between p-3 rounded-lg group transition-all bg-surface-container-high/50 border border-white/[0.06] hover:bg-surface-container-high/80">
             <div className="flex items-center gap-3 min-w-0 flex-1">
                 {icon && (
-                    <div className="p-1.5 bg-white dark:bg-gray-800 rounded-md shadow-sm flex-shrink-0">
+                    <div className={`p-1.5 bg-surface-container-highest/50 rounded-md flex-shrink-0 ${iconColor}`}>
                         {icon}
                     </div>
                 )}
                 <div className="min-w-0 flex-1">
-                    <p className="font-medium text-gray-900 dark:text-gray-100 truncate">{pocket.name}</p>
-                    <p className="text-sm text-gray-500 dark:text-gray-400 truncate">
+                    <p className="font-medium text-on-surface truncate">{pocket.name}</p>
+                    <p className="text-sm text-on-surface-variant truncate">
                         {isFixed ? 'Fixed Expense' : (isInvestment ? 'Investment' : pocket.type)} •{' '}
-                        {pocket.balance.toLocaleString(undefined, {
-                            style: 'currency',
-                            currency: pocket.currency,
-                        })}
+                        <span className="font-mono">
+                            {pocket.balance.toLocaleString(undefined, {
+                                style: 'currency',
+                                currency: pocket.currency,
+                            })}
+                        </span>
                     </p>
                 </div>
             </div>

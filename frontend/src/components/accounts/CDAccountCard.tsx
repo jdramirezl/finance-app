@@ -41,41 +41,39 @@ const CDAccountCard = ({
         hasError = true;
     }
 
-    // Get display balance - use calculated current value or show error
     const displayBalance = hasError ? 0 : (calculation?.currentValue || 0);
 
     return (
         <div
             onClick={() => onSelect(account)}
-            className={`p-4 bg-white dark:bg-gray-800 rounded-lg border-2 cursor-pointer transition-all group relative overflow-hidden ${isSelected
-                ? 'border-blue-500 dark:border-blue-400 shadow-md'
-                : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
-                } bg-gradient-to-r from-white to-amber-50 dark:from-gray-800 dark:to-amber-900/10`}
+            className={`glass-card p-4 cursor-pointer transition-all group relative overflow-hidden border-l-4 ${isSelected
+                ? 'border-l-primary border-primary/40 bg-primary/5'
+                : 'hover:bg-surface-container-high/80'
+                }`}
+            style={{ borderLeftColor: isSelected ? undefined : account.color }}
         >
-            <div className="absolute top-0 right-0 w-16 h-16 bg-amber-100 dark:bg-amber-900/20 rounded-bl-full -mr-8 -mt-8 z-0" />
-
             <div className="flex flex-col sm:flex-row sm:items-center justify-between relative z-10 gap-4 sm:gap-0">
                 <div className="flex items-center gap-3 w-full sm:w-auto">
-                    <div className="w-10 h-10 rounded-full flex-shrink-0 flex items-center justify-center bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400">
+                    <div className="w-10 h-10 rounded-full flex-shrink-0 flex items-center justify-center bg-tertiary/10 text-tertiary">
                         <Landmark className="w-5 h-5" aria-hidden="true" />
                     </div>
                     <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2">
-                            <h3 className="font-semibold text-gray-900 dark:text-gray-100 truncate max-w-[200px] sm:max-w-none">{account.name}</h3>
-                            <span className="text-[11px] px-1.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 font-medium border border-amber-200 dark:border-amber-800 whitespace-nowrap">
+                            <h3 className="font-semibold text-on-surface truncate max-w-[200px] sm:max-w-none">{account.name}</h3>
+                            <span className="text-[11px] px-2 py-0.5 rounded-full bg-tertiary/10 text-tertiary font-medium whitespace-nowrap">
                                 Certificate of Deposit
                             </span>
                             {isNearMaturity && !hasError && (
-                                <AlertTriangle className="w-4 h-4 text-yellow-500 flex-shrink-0" aria-hidden="true" />
+                                <AlertTriangle className="w-4 h-4 text-tertiary flex-shrink-0" aria-hidden="true" />
                             )}
                         </div>
-                        <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+                        <div className="flex items-center gap-2 text-sm text-on-surface-variant">
                             <div className="w-2 h-2 rounded-full" style={{ backgroundColor: account.color }} />
-                            <span>{account.currency}</span>
+                            <span className="text-[11px] px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium">{account.currency}</span>
                             {!hasError && account.interestRate && (
                                 <>
                                     <span>•</span>
-                                    <span>{account.interestRate}% APY</span>
+                                    <span className="font-mono">{account.interestRate}% APY</span>
                                 </>
                             )}
                         </div>
@@ -83,7 +81,7 @@ const CDAccountCard = ({
                 </div>
                 <div className="flex items-center justify-between sm:justify-end gap-2 sm:gap-3 w-full sm:w-auto min-w-0">
                     <div className="flex flex-col items-end">
-                        <span className="font-mono text-sm sm:text-lg truncate min-w-0 flex-1 sm:flex-none text-amber-700 dark:text-amber-300 font-bold">
+                        <span className="font-mono text-sm sm:text-lg truncate min-w-0 flex-1 sm:flex-none text-primary font-semibold">
                             <SelectableValue id={`cd-bal-${account.id}`} value={displayBalance} currency={account.currency}>
                                 {displayBalance.toLocaleString(undefined, {
                                     style: 'currency',
@@ -92,9 +90,9 @@ const CDAccountCard = ({
                             </SelectableValue>
                         </span>
                         {!hasError && calculation && calculation.accruedInterest > 0 && (
-                            <div className="flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
+                            <div className="flex items-center gap-1 text-xs text-success">
                                 <TrendingUp className="w-3 h-3" aria-hidden="true" />
-                                <span>+{currencyService.formatCurrency(calculation.accruedInterest, account.currency)}</span>
+                                <span className="font-mono">+{currencyService.formatCurrency(calculation.accruedInterest, account.currency)}</span>
                             </div>
                         )}
                     </div>

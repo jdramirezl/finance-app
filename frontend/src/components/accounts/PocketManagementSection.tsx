@@ -102,7 +102,7 @@ const PocketManagementSection = ({
   return (
     <>
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
+        <h2 className="text-xl font-semibold text-on-surface">
           Pockets
         </h2>
         <Button
@@ -117,7 +117,7 @@ const PocketManagementSection = ({
       </div>
 
       {showForm && (
-        <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+        <div className="p-4 bg-surface-container-high/50 rounded-lg border border-white/[0.06]">
           <PocketForm
             initialData={editingPocket}
             onSubmit={handleSubmit}
@@ -181,21 +181,21 @@ const MigrationDialog = ({
   return (
     <Modal isOpen={migration.isOpen} onClose={migration.close}>
       <div className="space-y-4">
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+        <h3 className="text-lg font-semibold text-on-surface">
           Migrate Pocket
         </h3>
-        <p className="text-gray-600 dark:text-gray-400">
+        <p className="text-on-surface-variant">
           Select an account to migrate this pocket and all its movements to.
         </p>
 
         <div>
-          <label className="block text-sm font-medium mb-1 text-gray-900 dark:text-gray-100">
+          <label className="block text-sm font-medium mb-1 text-on-surface">
             Target Account
           </label>
           <select
             value={migration.targetAccountId}
             onChange={(e) => migration.setTargetAccountId(e.target.value)}
-            className="w-full px-3 py-2 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+            className="w-full px-3 py-2 border border-outline-variant rounded-lg bg-surface-container-highest text-on-surface"
           >
             <option value="">Select an account</option>
             {accounts
