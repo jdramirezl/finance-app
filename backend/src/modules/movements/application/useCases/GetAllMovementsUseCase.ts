@@ -94,13 +94,9 @@ export class GetAllMovementsUseCase {
       return GET_ALL_MOVEMENTS_DEFAULT_LIMIT;
     }
     if (!Number.isFinite(limit) || !Number.isInteger(limit) || limit < 1) {
-      throw new ValidationError('limit must be a positive integer');
+      return GET_ALL_MOVEMENTS_DEFAULT_LIMIT;
     }
-    if (limit > GET_ALL_MOVEMENTS_MAX_LIMIT) {
-      throw new ValidationError(
-        `limit must be at most ${GET_ALL_MOVEMENTS_MAX_LIMIT}`
-      );
-    }
-    return limit;
+    // Cap at max instead of rejecting — frontend may request more for legacy reasons
+    return Math.min(limit, GET_ALL_MOVEMENTS_MAX_LIMIT);
   }
 }

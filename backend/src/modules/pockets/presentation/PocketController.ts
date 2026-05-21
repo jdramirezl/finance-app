@@ -28,7 +28,8 @@ export class PocketController {
     @inject(UpdatePocketUseCase) private updatePocketUseCase: UpdatePocketUseCase,
     @inject(DeletePocketUseCase) private deletePocketUseCase: DeletePocketUseCase,
     @inject(MigrateFixedPocketUseCase) private migrateFixedPocketUseCase: MigrateFixedPocketUseCase,
-    @inject(ReorderPocketsUseCase) private reorderPocketsUseCase: ReorderPocketsUseCase
+    @inject(ReorderPocketsUseCase) private reorderPocketsUseCase: ReorderPocketsUseCase,
+    @inject('PocketRepository') private pocketRepo: { findAllByUserId(userId: string): Promise<any[]> }
   ) {}
 
   /**
@@ -70,7 +71,9 @@ export class PocketController {
 
       const accountId = req.query.accountId as string;
       if (!accountId) {
-        res.status(400).json({ error: 'Account ID is required' });
+        // No filter — return all pockets for the user
+        const allPockets = await this.pocketRepo.findAllByUserId(userId);
+        res.status(200).json(allPockets);
         return;
       }
 

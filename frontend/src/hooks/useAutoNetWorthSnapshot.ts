@@ -16,7 +16,7 @@
  * for the same day resolve to a single row.
  */
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 import { useSettingsQuery } from './queries';
 import { useLatestSnapshotQuery, useNetWorthSnapshotMutations } from './queries/useNetWorthSnapshotQueries';
 import { parseDate } from '../utils/dateUtils';
@@ -37,6 +37,28 @@ export const useAutoNetWorthSnapshot = ({
   const { data: latestSnapshot, isLoading: loadingSnapshot } = useLatestSnapshotQuery();
   const { createMutation } = useNetWorthSnapshotMutations();
   const hasRun = useRef(false);
+  const totalRef = useRef(consolidatedTotal);
+  const breakdownRef = useRef(totalsByCurrency);
+
+  // Keep refs in sync without triggering re-renders
+  totalRef.current = consolidatedTotal;
+  breakdownRef.current = totalsByCurrency;
+
+  const takeSnapshot = useCallback(() => {
+    if (!settings) return;
+    const primaryCurrency = (settings.primaryCurrency || 'USD') as Currency;
+    createMutation.mutate(
+      {
+        totalNetWorth: totalRef.current,
+        baseCurrency: primaryCurrency,
+        breakdown: breakdownRef.current as Record<string, number>,
+      },
+      {
+        onSuccess: () => { hasRun.current = true; },
+        onError: () => { /* Allow retry on next effect cycle */ },
+      }
+    );
+  }, [settings, createMutation]);
 
   useEffect(() => {
     if (hasRun.current) return;
@@ -67,24 +89,10 @@ export const useAutoNetWorthSnapshot = ({
     };
 
     if (shouldTakeSnapshot()) {
-      const primaryCurrency = (settings.primaryCurrency || 'USD') as Currency;
-
-      createMutation.mutate(
-        {
-          totalNetWorth: consolidatedTotal,
-          baseCurrency: primaryCurrency,
-          breakdown: totalsByCurrency as Record<string, number>,
-        },
-        {
-          onSuccess: () => {
-            hasRun.current = true;
-          },
-        }
-      );
+      takeSnapshot();
     } else {
-      // Frequency check passed but no snapshot needed — mark as run to avoid
-      // re-evaluating on every render.
       hasRun.current = true;
     }
-  }, [settings, latestSnapshot, loadingSnapshot, isConsolidatedReady, consolidatedTotal, totalsByCurrency, createMutation]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settings, latestSnapshot, loadingSnapshot, isConsolidatedReady, takeSnapshot]);
 };

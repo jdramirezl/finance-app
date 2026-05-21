@@ -37,7 +37,8 @@ export class SubPocketController {
     @inject(DeleteSubPocketUseCase) private deleteSubPocketUseCase: DeleteSubPocketUseCase,
     @inject(ToggleSubPocketEnabledUseCase) private toggleSubPocketEnabledUseCase: ToggleSubPocketEnabledUseCase,
     @inject(MoveSubPocketToGroupUseCase) private moveSubPocketToGroupUseCase: MoveSubPocketToGroupUseCase,
-    @inject(ReorderSubPocketsUseCase) private reorderSubPocketsUseCase: ReorderSubPocketsUseCase
+    @inject(ReorderSubPocketsUseCase) private reorderSubPocketsUseCase: ReorderSubPocketsUseCase,
+    @inject('SubPocketRepository') private subPocketRepo: { findAllByUserId(userId: string): Promise<any[]> }
   ) {}
 
   /**
@@ -93,7 +94,9 @@ export class SubPocketController {
         return;
       }
 
-      res.status(400).json({ error: 'Either pocketId or groupId is required' });
+      // No filter — return all sub-pockets for the user
+      const allSubPockets = await this.subPocketRepo.findAllByUserId(userId);
+      res.status(200).json(allSubPockets);
     } catch (error) {
       next(error);
     }
