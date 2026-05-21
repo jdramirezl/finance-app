@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation } from 'react-router-dom';
-import { Plus, Wallet, Search } from 'lucide-react';
+import { Plus, Wallet, Search, TrendingUp, Lock, Edit2, Trash2 } from 'lucide-react';
 import {
   useAccountsQuery,
   usePocketsQuery,
@@ -10,13 +10,12 @@ import {
 import { useToast } from '../hooks/useToast';
 import { useConfirmDialog } from '../contexts/ConfirmDialogContext';
 import { useAccountActions } from '../hooks/actions/useAccountActions';
+import { currencyService } from '../services/currencyService';
 import type { Account, CDInvestmentAccount } from '../types';
 import Modal from '../components/ui/Modal';
 import Button from '../components/ui/Button';
 import { Skeleton } from '../components/ui/Skeleton';
 import EmptyState from '../components/ui/EmptyState';
-import { AccountCard } from '../components/accounts';
-import CDAccountCard from '../components/accounts/CDAccountCard';
 import CDAccountForm, {
   type CDFormData,
 } from '../components/accounts/CDAccountForm';
@@ -26,6 +25,32 @@ import PocketManagementSection from '../components/accounts/PocketManagementSect
 
 const isCDAccount = (account: Account): account is CDInvestmentAccount =>
   account.type === 'cd';
+
+function getAccountSubtitle(account: Account, pocketCount: number) {
+  if (account.type === 'investment' && account.stockSymbol) {
+    const shares = account.shares ?? 0;
+    // Gains % would need investment data; show shares for now
+    return `${account.stockSymbol} • ${shares} shares`;
+  }
+  if (isCDAccount(account)) {
+    const rate = account.interestRate ?? 0;
+    const maturity = account.maturityDate
+      ? new Date(account.maturityDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+      : '—';
+    const days = account.maturityDate
+      ? Math.max(0, Math.ceil((new Date(account.maturityDate).getTime() - Date.now()) / 86400000))
+      : 0;
+    return `${rate}% APY • Due ${maturity} • ${days}d`;
+  }
+  if (pocketCount > 0) return `${pocketCount} pocket${pocketCount !== 1 ? 's' : ''} • ${account.currency}`;
+  return account.currency;
+}
+
+function getAccountIcon(type: string | undefined) {
+  if (type === 'investment') return TrendingUp;
+  if (type === 'cd') return Lock;
+  return Wallet;
+}
 
 type AccountFilter = 'all' | 'investment' | 'normal' | 'cd';
 
@@ -90,14 +115,6 @@ const AccountsPage = () => {
     }
   }, [location.search, accounts]);
 
-  const fixedExpenseAccountIds = useMemo(() => {
-    const set = new Set<string>();
-    for (const p of pockets) {
-      if (p.type === 'fixed') set.add(p.accountId);
-    }
-    return set;
-  }, [pockets]);
-
   // Handlers
   const handleSelectAccount = useCallback((account: Account) => {
     setSelectedAccountId(account.id);
@@ -151,9 +168,9 @@ const AccountsPage = () => {
           <Skeleton className="h-8 w-48" />
           <Skeleton className="h-10 w-32" />
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-          {[1, 2, 3].map((i) => (
-            <Skeleton key={i} className="h-64 rounded-xl" />
+        <div className="space-y-2">
+          {[1, 2, 3, 4, 5].map((i) => (
+            <Skeleton key={i} className="h-14 rounded-lg" />
           ))}
         </div>
       </div>
@@ -223,9 +240,9 @@ const AccountsPage = () => {
         </div>
       </div>
 
-      {/* Split Layout: Account Grid (left) + Pocket Panel (right) */}
+      {/* Split Layout: Account List (left) + Pocket Panel (right) */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left: Account Grid */}
+        {/* Left: Account List */}
         <div className="lg:col-span-2">
           {filteredAccounts.length === 0 ? (
             <EmptyState
@@ -243,32 +260,55 @@ const AccountsPage = () => {
               } : undefined}
             />
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {filteredAccounts.map((account) =>
-                isCDAccount(account) ? (
-                  <CDAccountCard
+            <div className="space-y-1">
+              {filteredAccounts.map((account) => {
+                const Icon = getAccountIcon(account.type);
+                const pocketCount = (pocketsByAccount.get(account.id) || []).length;
+                const subtitle = getAccountSubtitle(account, pocketCount);
+                const isSelected = selectedAccountId === account.id;
+
+                return (
+                  <div
                     key={account.id}
-                    account={account}
-                    isSelected={selectedAccountId === account.id}
-                    pockets={pocketsByAccount.get(account.id) || []}
-                    onSelect={handleSelectAccount}
-                    onEdit={handleEditCD}
-                    onDelete={handleDeleteAccount}
-                  />
-                ) : (
-                  <AccountCard
-                    key={account.id}
-                    account={account}
-                    isSelected={selectedAccountId === account.id}
-                    pockets={pocketsByAccount.get(account.id) || []}
-                    onSelect={handleSelectAccount}
-                    onEdit={handleEditAccount}
-                    onDelete={handleDeleteAccount}
-                    onAddPocket={() => setSelectedAccountId(account.id)}
-                    isFixedExpensesAccount={fixedExpenseAccountIds.has(account.id)}
-                  />
-                )
-              )}
+                    onClick={() => handleSelectAccount(account)}
+                    className={`flex items-center gap-4 px-4 py-3 rounded-lg cursor-pointer transition-colors border ${
+                      isSelected
+                        ? 'bg-primary/10 border-primary/30'
+                        : 'bg-white/5 border-white/5 hover:bg-white/10'
+                    }`}
+                  >
+                    <div className="w-9 h-9 rounded-lg flex items-center justify-center bg-primary/10 text-primary shrink-0">
+                      <Icon className="w-4 h-4" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-bold text-on-surface truncate">{account.name}</p>
+                      <p className="text-xs text-on-surface-variant font-mono truncate">{subtitle}</p>
+                    </div>
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-white/5 text-on-surface-variant shrink-0">
+                      {account.currency}
+                    </span>
+                    <span className="font-mono text-sm font-bold text-on-surface whitespace-nowrap">
+                      {currencyService.formatCurrency(account.balance, account.currency)}
+                    </span>
+                    <div className="flex gap-1 shrink-0">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); isCDAccount(account) ? handleEditCD(account) : handleEditAccount(account); }}
+                        className="p-1.5 rounded-md hover:bg-white/10 text-on-surface-variant hover:text-on-surface transition-colors"
+                        aria-label={`Edit ${account.name}`}
+                      >
+                        <Edit2 className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleDeleteAccount(account.id); }}
+                        className="p-1.5 rounded-md hover:bg-error/10 text-on-surface-variant hover:text-error transition-colors"
+                        aria-label={`Delete ${account.name}`}
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>

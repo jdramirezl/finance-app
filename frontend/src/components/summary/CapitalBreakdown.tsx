@@ -47,69 +47,90 @@ const CapitalBreakdown = ({ accounts, pockets, investmentData, primaryCurrency }
     );
   }
 
-  const activeCount = accounts.filter((a) => a.balance !== 0 || a.type === 'investment').length;
+  // Group accounts by currency
+  const groupedByCurrency = accounts.reduce<Record<string, Account[]>>((acc, account) => {
+    const key = account.currency;
+    if (!acc[key]) acc[key] = [];
+    acc[key].push(account);
+    return acc;
+  }, {});
+
+  const currencyGroups = Object.entries(groupedByCurrency).sort(([a], [b]) => a.localeCompare(b));
 
   return (
     <div className="glass-card rounded-xl flex flex-col min-h-0 flex-1">
       <div className="p-4 border-b border-white/5 flex justify-between items-center">
         <h3 className="text-xl font-semibold text-on-surface">Liquidity Pools</h3>
         <span className="font-mono text-xs text-on-surface-variant">
-          {activeCount} ACCOUNTS ACTIVE
+          {accounts.length} ACCOUNTS
         </span>
       </div>
 
-      <div className="overflow-y-auto flex-1 p-2 space-y-2">
-        {accounts.map((account) => {
-          const type = account.type || 'normal';
-          const invData = investmentData.get(account.id);
-          const balance = type === 'investment' && invData ? invData.totalValue : account.balance;
-          const status = getStatusLabel(account, invData);
-          const subtitle = getSubtitle(account, pockets);
-
-          const needsConversion = account.currency !== primaryCurrency;
-          const convertedBalance = needsConversion
-            ? balance * currencyService.getExchangeRate(account.currency, primaryCurrency)
-            : balance;
-
-          const Icon = type === 'investment' ? TrendingUp
-            : type === 'cd' ? Lock
-              : account.currency !== 'USD' ? Globe
-                : Wallet;
-
-          const iconColor = type === 'investment' ? 'bg-tertiary/10 text-tertiary'
-            : type === 'cd' ? 'bg-secondary/10 text-secondary'
-              : 'bg-primary/10 text-primary';
-
-          return (
-            <div
-              key={account.id}
-              className="flex items-center justify-between p-4 bg-white/5 hover:bg-white/10 transition-colors rounded-lg border border-white/5"
-            >
-              <div className="flex items-center gap-4">
-                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${iconColor}`}>
-                  <Icon className="w-5 h-5" />
-                </div>
-                <div>
-                  <p className="text-sm font-bold text-on-surface">{account.name}</p>
-                  <p className="font-mono text-xs text-on-surface-variant">{subtitle}</p>
-                </div>
-              </div>
-              <div className="text-right">
-                <p className="font-mono text-sm font-bold text-on-surface">
-                  {currencyService.formatCurrency(convertedBalance, primaryCurrency)}
-                </p>
-                {needsConversion && (
-                  <p className="font-mono text-[10px] text-on-surface-variant">
-                    {currencyService.formatCurrency(balance, account.currency)}
-                  </p>
-                )}
-                <p className={`text-[10px] font-bold uppercase tracking-wider ${status.color}`}>
-                  {status.text}
-                </p>
-              </div>
+      <div className="overflow-y-auto flex-1 p-2 space-y-4">
+        {currencyGroups.map(([currency, groupAccounts]) => (
+          <div key={currency}>
+            <div className="flex items-center gap-2 px-2 py-1.5 mb-1">
+              <div className="h-px flex-1 bg-white/10" />
+              <span className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">
+                {currency} ({groupAccounts.length} account{groupAccounts.length !== 1 ? 's' : ''})
+              </span>
+              <div className="h-px flex-1 bg-white/10" />
             </div>
-          );
-        })}
+            <div className="space-y-2">
+              {groupAccounts.map((account) => {
+                const type = account.type || 'normal';
+                const invData = investmentData.get(account.id);
+                const balance = type === 'investment' && invData ? invData.totalValue : account.balance;
+                const status = getStatusLabel(account, invData);
+                const subtitle = getSubtitle(account, pockets);
+
+                const needsConversion = account.currency !== primaryCurrency;
+                const convertedBalance = needsConversion
+                  ? balance * currencyService.getExchangeRate(account.currency, primaryCurrency)
+                  : balance;
+
+                const Icon = type === 'investment' ? TrendingUp
+                  : type === 'cd' ? Lock
+                    : account.currency !== 'USD' ? Globe
+                      : Wallet;
+
+                const iconColor = type === 'investment' ? 'bg-tertiary/10 text-tertiary'
+                  : type === 'cd' ? 'bg-secondary/10 text-secondary'
+                    : 'bg-primary/10 text-primary';
+
+                return (
+                  <div
+                    key={account.id}
+                    className="flex items-center justify-between p-4 bg-white/5 hover:bg-white/10 transition-colors rounded-lg border border-white/5"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${iconColor}`}>
+                        <Icon className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold text-on-surface">{account.name}</p>
+                        <p className="font-mono text-xs text-on-surface-variant">{subtitle}</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-mono text-sm font-bold text-on-surface">
+                        {currencyService.formatCurrency(convertedBalance, primaryCurrency)}
+                      </p>
+                      {needsConversion && (
+                        <p className="font-mono text-[10px] text-on-surface-variant">
+                          {currencyService.formatCurrency(balance, account.currency)}
+                        </p>
+                      )}
+                      <p className={`text-[10px] font-bold uppercase tracking-wider ${status.color}`}>
+                        {status.text}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );
