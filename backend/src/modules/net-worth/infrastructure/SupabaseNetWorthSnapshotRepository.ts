@@ -5,7 +5,7 @@
 import { injectable, inject } from 'tsyringe';
 import { SupabaseClient } from '@supabase/supabase-js';
 import type { NetWorthSnapshot, CreateSnapshotDTO } from '../domain/NetWorthSnapshot';
-import type { INetWorthSnapshotRepository } from '../interfaces/INetWorthSnapshotRepository';
+import type { INetWorthSnapshotRepository } from './INetWorthSnapshotRepository';
 import { DatabaseError } from '../../../shared/errors/AppError';
 
 @injectable()
@@ -38,6 +38,20 @@ export class SupabaseNetWorthSnapshotRepository implements INetWorthSnapshotRepo
 
         if (error) {
             if (error.code === 'PGRST116') return null; // No rows found
+            throw new DatabaseError(error.message);
+        }
+        return this.mapToDomain(data);
+    }
+
+    async findById(id: string): Promise<NetWorthSnapshot | null> {
+        const { data, error } = await this.supabase
+            .from('net_worth_snapshots')
+            .select('*')
+            .eq('id', id)
+            .single();
+
+        if (error) {
+            if (error.code === 'PGRST116') return null;
             throw new DatabaseError(error.message);
         }
         return this.mapToDomain(data);

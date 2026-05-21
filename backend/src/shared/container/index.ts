@@ -297,6 +297,26 @@ function registerReminderModule(): void {
 }
 
 /**
+ * Register Net-Worth Module dependencies
+ */
+function registerNetWorthModule(): void {
+  // Repository
+  container.register<INetWorthSnapshotRepository>('NetWorthSnapshotRepository', {
+    useClass: SupabaseNetWorthSnapshotRepository,
+  });
+
+  // Use Cases
+  container.register(GetAllSnapshotsUseCase, { useClass: GetAllSnapshotsUseCase });
+  container.register(GetLatestSnapshotUseCase, { useClass: GetLatestSnapshotUseCase });
+  container.register(CreateSnapshotUseCase, { useClass: CreateSnapshotUseCase });
+  container.register(UpdateSnapshotUseCase, { useClass: UpdateSnapshotUseCase });
+  container.register(DeleteSnapshotUseCase, { useClass: DeleteSnapshotUseCase });
+
+  // Controller
+  container.register(NetWorthController, { useClass: NetWorthController });
+}
+
+/**
  * Initialize all module registrations
  */
 export function initializeContainer(): void {
@@ -308,4 +328,5 @@ export function initializeContainer(): void {
   registerMovementModule();
   registerSettingsModule();
   registerReminderModule();
+  registerNetWorthModule();
 }
