@@ -16,17 +16,15 @@
  * `breakdown` mode and ignores it in `total` mode.
  */
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import type { TooltipProps } from 'recharts';
 import { format, parseISO, subDays, subMonths, subYears } from 'date-fns';
 
-import { currencyService } from '../services/currencyService';
 import {
     formatCurrencyAmount,
     type FormatCurrencyAmountOptions,
 } from '../components/ui/CurrencyAmount';
 import type { NetWorthSnapshot } from '../services/netWorthSnapshotService';
-import type { Currency } from '../types';
 
 export type NetWorthViewMode = 'total' | 'breakdown';
 export type NetWorthDateRange = '30d' | '6m' | '1y' | 'all';
@@ -130,8 +128,6 @@ export const useNetWorthChartData = ({
     viewMode,
     showVariation,
 }: UseNetWorthChartDataParams): UseNetWorthChartDataResult => {
-    const [rates, setRates] = useState<Record<string, number>>({});
-
     const filteredSnapshots = useMemo(
         () => filterByRange(snapshots, dateRange),
         [snapshots, dateRange],
@@ -148,51 +144,8 @@ export const useNetWorthChartData = ({
         return Array.from(allCurrencies);
     }, [snapshots]);
 
-    // Fetch the exchange rates needed to project every breakdown amount
-    // into `primaryCurrency`. Falls back to the synchronous cached rate
-    // when the async lookup fails so the chart can always render
-    // something rather than getting stuck on `[]`.
-    useEffect(() => {
-        const fetchRates = async () => {
-            const newRates: Record<string, number> = {};
-
-            const promises = currencies.map(async (currency) => {
-                if (currency === primaryCurrency) {
-                    newRates[currency] = 1;
-                    return;
-                }
-                try {
-                    const rate = await currencyService.getExchangeRateAsync(
-                        currency as Currency,
-                        primaryCurrency as Currency,
-                    );
-                    newRates[currency] = rate;
-                } catch {
-                    newRates[currency] = currencyService.getExchangeRate(
-                        currency as Currency,
-                        primaryCurrency as Currency,
-                    );
-                }
-            });
-
-            await Promise.all(promises);
-            setRates(newRates);
-        };
-
-        if (currencies.length > 0) {
-            fetchRates();
-        }
-    }, [currencies, primaryCurrency]);
-
     const chartData = useMemo<NetWorthChartDatum[]>(() => {
         if (filteredSnapshots.length === 0) return [];
-
-        // Wait for cross-currency rates to land before rendering anything
-        // when the user holds a foreign currency — otherwise breakdown
-        // amounts would be projected with stale `1` rates and produce a
-        // visibly wrong chart on the first paint.
-        const hasForeignCurrency = currencies.some((c) => c !== primaryCurrency);
-        if (hasForeignCurrency && Object.keys(rates).length === 0) return [];
 
         const processedSnapshots: NetWorthChartDatum[] = filteredSnapshots.map(
             (snapshot) => {
@@ -205,9 +158,7 @@ export const useNetWorthChartData = ({
 
                 if (snapshot.breakdown) {
                     Object.entries(snapshot.breakdown).forEach(([currency, value]) => {
-                        const rate = rates[currency] || 1;
-                        data[currency] =
-                            currency === primaryCurrency ? value : value * rate;
+                        data[currency] = value; // Native amount — no conversion
                     });
                 }
                 return data;
@@ -263,7 +214,6 @@ export const useNetWorthChartData = ({
         showVariation,
         primaryCurrency,
         currencies,
-        rates,
     ]);
 
     const tooltipFormatter = useMemo<NetWorthTooltipFormatter>(() => {
@@ -293,7 +243,7 @@ export const useNetWorthChartData = ({
                     originalValue !== undefined
                         ? formatCurrencyAmount(
                               originalValue,
-                              primaryCurrency,
+                              currencies.includes(displayName) ? displayName : primaryCurrency,
                               CHART_CURRENCY_FORMAT_OPTIONS,
                           )
                         : 'N/A';
@@ -303,16 +253,19 @@ export const useNetWorthChartData = ({
                 ];
             }
 
+            // In breakdown mode, displayName is the currency code (e.g. "MXN")
+            // Use it for formatting if it's a valid currency, otherwise fall back
+            const formatCurrency = currencies.includes(displayName) ? displayName : primaryCurrency;
             return [
                 formatCurrencyAmount(
                     numValue,
-                    primaryCurrency,
+                    formatCurrency,
                     CHART_CURRENCY_FORMAT_OPTIONS,
                 ),
                 displayName,
             ];
         };
-    }, [showVariation, primaryCurrency]);
+    }, [showVariation, primaryCurrency, currencies]);
 
     return {
         chartData,

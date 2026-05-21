@@ -108,7 +108,10 @@ const NetWorthTimelineWidget = () => {
                                 Total
                             </button>
                             <button
-                                onClick={() => setViewMode('breakdown')}
+                                onClick={() => {
+                                    setViewMode('breakdown');
+                                    setShowVariation(true);
+                                }}
                                 className={`px-3 py-1.5 text-sm font-medium transition-colors ${
                                     viewMode === 'breakdown'
                                         ? 'bg-blue-500 text-white'

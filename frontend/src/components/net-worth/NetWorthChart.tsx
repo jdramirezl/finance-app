@@ -117,15 +117,15 @@ const NetWorthChart = ({
                         className="text-gray-600 dark:text-gray-400"
                     />
                     <YAxis
-                        tickFormatter={(value) =>
-                            showVariation
-                                ? `${value.toFixed(0)}%`
-                                : formatCurrencyAmount(
-                                      value,
-                                      primaryCurrency,
-                                      CHART_CURRENCY_FORMAT_OPTIONS,
-                                  )
-                        }
+                        tickFormatter={(value) => {
+                            if (showVariation) return `${value.toFixed(0)}%`;
+                            if (viewMode === 'breakdown') {
+                                if (Math.abs(value) >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
+                                if (Math.abs(value) >= 1_000) return `${(value / 1_000).toFixed(0)}K`;
+                                return value.toFixed(0);
+                            }
+                            return formatCurrencyAmount(value, primaryCurrency, CHART_CURRENCY_FORMAT_OPTIONS);
+                        }}
                         tick={{ fontSize: 12 }}
                         width={showVariation ? 50 : 80}
                         className="text-gray-600 dark:text-gray-400"
