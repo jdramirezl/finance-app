@@ -45,11 +45,14 @@ export const useMovementsQuery = () => {
  * `data.length === limit` would be incorrect on the boundary case
  * where the total count is an exact multiple of the page size.
  */
-export const useInfiniteMovementsQuery = (limit: number = DEFAULT_MOVEMENTS_PAGE_SIZE) => {
+export const useInfiniteMovementsQuery = (
+    limit: number = DEFAULT_MOVEMENTS_PAGE_SIZE,
+    filters?: { category?: string; tags?: string[] },
+) => {
     return useInfiniteQuery({
-        queryKey: ['movements', 'infinite', limit],
+        queryKey: ['movements', 'infinite', limit, filters?.category, filters?.tags],
         queryFn: ({ pageParam }) =>
-            movementService.getAllMovementsPaginated(pageParam, limit),
+            movementService.getAllMovementsPaginated(pageParam, limit, filters),
         getNextPageParam: (lastPage) =>
             lastPage.hasMore ? lastPage.page + 1 : undefined,
         initialPageParam: 1,

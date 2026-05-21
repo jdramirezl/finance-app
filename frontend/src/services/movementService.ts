@@ -96,10 +96,16 @@ class MovementService {
    * that needs to know whether more pages exist (`hasMore`) or display
    * a total count (`total`).
    */
-  async getAllMovementsPaginated(page: number, limit: number): Promise<PaginatedResponse<Movement>> {
+  async getAllMovementsPaginated(
+    page: number,
+    limit: number,
+    filters?: { category?: string; tags?: string[] },
+  ): Promise<PaginatedResponse<Movement>> {
     const params = new URLSearchParams();
     params.set('page', String(page));
     params.set('limit', String(limit));
+    if (filters?.category) params.set('category', filters.category);
+    if (filters?.tags?.length) params.set('tags', filters.tags.join(','));
     return await apiClient.get<PaginatedResponse<Movement>>(`/api/movements?${params.toString()}`);
   }
 

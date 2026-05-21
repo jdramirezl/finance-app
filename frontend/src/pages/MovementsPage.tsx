@@ -46,6 +46,11 @@ const MovementsPage = () => {
   const { data: pockets = EMPTY_POCKETS } = usePocketsQuery();
   const { data: subPockets = EMPTY_SUBPOCKETS } = useSubPocketsQuery();
 
+  // Server-side filter state for category/tags — drives the API query.
+  // These are also exposed via the filter hook for client-side redundancy.
+  const [apiCategory, setApiCategory] = useState<string>('all');
+  const [apiTags, setApiTags] = useState<string[]>([]);
+
   // Movements are loaded incrementally via an infinite query. The first
   // page is fetched on mount; further pages are pulled in by the user
   // via the Load More button below the list.
@@ -55,7 +60,10 @@ const MovementsPage = () => {
     hasNextPage: hasMoreMovements,
     fetchNextPage: fetchMoreMovements,
     isFetchingNextPage: isLoadingMoreMovements,
-  } = useInfiniteMovementsQuery();
+  } = useInfiniteMovementsQuery(undefined, {
+    category: apiCategory !== 'all' ? apiCategory : undefined,
+    tags: apiTags.length > 0 ? apiTags : undefined,
+  });
 
   // Flatten the page list into a single Movement[] for the existing
   // filter/sort hooks, dropping orphaned entries (which are surfaced
@@ -281,7 +289,13 @@ const MovementsPage = () => {
 
       <MovementFilters
         showFilters={showFilters} setShowFilters={setShowFilters}
-        filters={filters} setFilters={setFilters}
+        movements={movements}
+        filters={filters}
+        setFilters={{
+          ...setFilters,
+          setCategory: (v: string) => { setFilters.setCategory(v); setApiCategory(v); },
+          setTags: (v: string[]) => { setFilters.setTags(v); setApiTags(v); },
+        }}
       />
 
       <BulkActionsToolbar

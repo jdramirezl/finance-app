@@ -28,6 +28,8 @@ export const useMovementsFilter = ({ movements }: UseMovementsFilterProps) => {
     const [filterMinAmount, setFilterMinAmount] = useState<string>('');
     const [filterMaxAmount, setFilterMaxAmount] = useState<string>('');
     const [showPending, setShowPending] = useState<ShowPendingOption>('all');
+    const [filterCategory, setFilterCategory] = useState<string>('all');
+    const [filterTags, setFilterTags] = useState<string[]>([]);
 
     // Calculate date range based on filter
     const getDateRange = () => {
@@ -94,6 +96,12 @@ export const useMovementsFilter = ({ movements }: UseMovementsFilterProps) => {
             if (filterMinAmount && movement.amount < parseFloat(filterMinAmount)) return false;
             if (filterMaxAmount && movement.amount > parseFloat(filterMaxAmount)) return false;
 
+            // Category filter
+            if (filterCategory !== 'all' && movement.category !== filterCategory) return false;
+
+            // Tags filter (OR logic — movement must have at least one of the selected tags)
+            if (filterTags.length > 0 && !movement.tags?.some(t => filterTags.includes(t))) return false;
+
             return true;
         });
     }, [
@@ -107,7 +115,9 @@ export const useMovementsFilter = ({ movements }: UseMovementsFilterProps) => {
         filterDateTo,
         filterSearch,
         filterMinAmount,
-        filterMaxAmount
+        filterMaxAmount,
+        filterCategory,
+        filterTags
     ]);
 
     return {
@@ -123,6 +133,8 @@ export const useMovementsFilter = ({ movements }: UseMovementsFilterProps) => {
             minAmount: filterMinAmount,
             maxAmount: filterMaxAmount,
             showPending,
+            category: filterCategory,
+            tags: filterTags,
         },
         setFilters: {
             setAccount: setFilterAccount,
@@ -135,6 +147,8 @@ export const useMovementsFilter = ({ movements }: UseMovementsFilterProps) => {
             setMinAmount: setFilterMinAmount,
             setMaxAmount: setFilterMaxAmount,
             setShowPending,
+            setCategory: setFilterCategory,
+            setTags: setFilterTags,
         }
     };
 };
