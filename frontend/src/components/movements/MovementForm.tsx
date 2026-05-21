@@ -8,6 +8,7 @@ import Input from '../ui/Input';
 import Select from '../ui/Select';
 import AccountPocketSelector from './AccountPocketSelector';
 import CategorySelector from './CategorySelector';
+import TagInput from './TagInput';
 import { toDateOnly } from '../../utils/dateUtils';
 import { MOVEMENT_TYPES, isFixedMovement } from '../../constants/movementTypes';
 import type { Movement, MovementType } from '../../types';
@@ -21,6 +22,7 @@ export interface MovementFormData {
   amount: string;
   notes: string;
   category: string;
+  tags: string[];
   isPending: boolean;
   isTransfer: boolean;
   targetAccountId: string;
@@ -80,6 +82,7 @@ const MovementForm = forwardRef<MovementFormRef, MovementFormProps>(
         amount: initialData ? initialData.amount.toString() : (prefillValues?.amount ? prefillValues.amount.toString() : ''),
         notes: initialData?.notes ?? prefillValues?.notes ?? '',
         category: initialData?.category ?? '',
+        tags: initialData?.tags ?? [],
         isPending: initialData?.isPending ?? false,
         isTransfer: false,
         targetAccountId: '',
@@ -148,6 +151,7 @@ const MovementForm = forwardRef<MovementFormRef, MovementFormProps>(
         setValue('amount', '');
         setValue('notes', '');
         setValue('category', '');
+        setValue('tags', []);
         setValue('type', 'EgresoNormal');
         return;
       }
@@ -283,6 +287,11 @@ const MovementForm = forwardRef<MovementFormRef, MovementFormProps>(
         <CategorySelector
           value={watch('category')}
           onChange={(val) => setValue('category', val)}
+        />
+
+        <TagInput
+          value={watch('tags')}
+          onChange={(tags) => setValue('tags', tags)}
         />
 
         <Input
