@@ -1,6 +1,6 @@
 import { Wallet, TrendingUp, Lock, Globe } from 'lucide-react';
 import { currencyService } from '../../services/currencyService';
-import type { Account, Pocket } from '../../types';
+import type { Account, Currency, Pocket } from '../../types';
 import type { InvestmentData } from './InvestmentCard';
 import EmptyState from '../ui/EmptyState';
 
@@ -8,6 +8,7 @@ interface CapitalBreakdownProps {
   accounts: Account[];
   pockets: Pocket[];
   investmentData: Map<string, InvestmentData>;
+  primaryCurrency: Currency;
 }
 
 function getStatusLabel(account: Account, investmentData?: InvestmentData) {
@@ -35,7 +36,7 @@ function getSubtitle(account: Account, pockets: Pocket[]) {
   return account.currency;
 }
 
-const CapitalBreakdown = ({ accounts, pockets, investmentData }: CapitalBreakdownProps) => {
+const CapitalBreakdown = ({ accounts, pockets, investmentData, primaryCurrency }: CapitalBreakdownProps) => {
   if (accounts.length === 0) {
     return (
       <EmptyState
@@ -65,6 +66,11 @@ const CapitalBreakdown = ({ accounts, pockets, investmentData }: CapitalBreakdow
           const status = getStatusLabel(account, invData);
           const subtitle = getSubtitle(account, pockets);
 
+          const needsConversion = account.currency !== primaryCurrency;
+          const convertedBalance = needsConversion
+            ? balance * currencyService.getExchangeRate(account.currency, primaryCurrency)
+            : balance;
+
           const Icon = type === 'investment' ? TrendingUp
             : type === 'cd' ? Lock
               : account.currency !== 'USD' ? Globe
@@ -90,8 +96,13 @@ const CapitalBreakdown = ({ accounts, pockets, investmentData }: CapitalBreakdow
               </div>
               <div className="text-right">
                 <p className="font-mono text-sm font-bold text-on-surface">
-                  {currencyService.formatCurrency(balance, account.currency)}
+                  {currencyService.formatCurrency(convertedBalance, primaryCurrency)}
                 </p>
+                {needsConversion && (
+                  <p className="font-mono text-[10px] text-on-surface-variant">
+                    {currencyService.formatCurrency(balance, account.currency)}
+                  </p>
+                )}
                 <p className={`text-[10px] font-bold uppercase tracking-wider ${status.color}`}>
                   {status.text}
                 </p>
