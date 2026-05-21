@@ -112,13 +112,22 @@ class ApiClient {
       payloadSize: body !== undefined ? body.length : undefined,
     };
 
+    if (!navigator.onLine) {
+      throw new AppError(0, `Cannot ${method} ${path}: you are offline`);
+    }
+
     try {
       const headers = await this.buildHeaders();
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30_000);
+
       const response = await fetch(`${this.baseURL}${path}`, {
         method,
         headers,
         body,
+        signal: controller.signal,
       });
+      clearTimeout(timeoutId);
 
       if (response.ok) return this.parseSuccess<T>(response);
 
@@ -155,6 +164,9 @@ class ApiClient {
         `${method} ${path} failed: ${serverMessage}`,
       );
     } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        throw new AppError(0, `${method} ${path} timed out after 30s`);
+      }
       return this.handleError(error, context);
     }
   }

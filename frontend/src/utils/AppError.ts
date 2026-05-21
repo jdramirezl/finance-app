@@ -16,4 +16,13 @@ export class AppError extends Error {
     // Restore prototype chain when targeting ES5 transpilation.
     Object.setPrototypeOf(this, AppError.prototype);
   }
+
+  /**
+   * Returns true for transient failures that are safe to retry:
+   * network errors (status 0) and server errors (5xx).
+   */
+  static isTransient(error: unknown): boolean {
+    if (!(error instanceof AppError)) return false;
+    return error.statusCode === 0 || (error.statusCode >= 500 && error.statusCode < 600);
+  }
 }
