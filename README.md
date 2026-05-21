@@ -1,5 +1,7 @@
 # Finance App - Personal Finance Management System
 
+![CI](https://github.com/jdramirezl/finance-app/actions/workflows/ci.yml/badge.svg)
+
 A modern web application for managing personal finances with multi-user support, cloud sync, and comprehensive financial tracking.
 
 ## ✨ Features
