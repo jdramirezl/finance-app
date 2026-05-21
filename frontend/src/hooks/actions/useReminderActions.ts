@@ -136,6 +136,10 @@ export const useReminderActions = ({
       const reminderId = reminder.originalReminderId || reminder.id;
       params.set('reminderId', reminderId);
 
+      if (reminder.recurrence.type !== 'once') {
+        params.set('reminderRecurring', 'true');
+      }
+
       navigate(`/movements?${params.toString()}`);
     },
     [navigate]

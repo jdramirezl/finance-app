@@ -87,7 +87,7 @@ const MovementsPage = () => {
   const { data: orphanedMovements = EMPTY_MOVEMENTS } = useOrphanedMovementsQuery();
   const movementMutations = useMovementMutations();
   const { createMovementTemplate } = useMovementTemplateMutations();
-  const { markAsPaidMutation } = useReminderMutations();
+  const { markAsPaidMutation, createExceptionMutation } = useReminderMutations();
   const toast = useToast();
   const { confirm } = useConfirmDialog();
 
@@ -150,6 +150,7 @@ const MovementsPage = () => {
       updateMovement: movementMutations.updateMovement,
       createMovementTemplate,
       markAsPaidMutation,
+      createExceptionMutation,
     },
   });
   const { handleDelete, handleApplyPending, deletingId, applyingId } = useMovementRowActions({

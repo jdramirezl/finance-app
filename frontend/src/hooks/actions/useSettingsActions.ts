@@ -8,6 +8,7 @@ import type {
   AccountCardDisplayMode,
   AccountCardDisplaySettings,
   Currency,
+  DateFormatPreference,
   Settings,
   SnapshotFrequency,
 } from '../../types';
@@ -51,6 +52,12 @@ export interface UseSettingsActionsResult {
     mode: AccountCardDisplayMode
   ) => Promise<void>;
   handleSnapshotFrequencyChange: (frequency: SnapshotFrequency) => Promise<void>;
+  handleDefaultExpenseChange: (accountId: string, pocketId: string) => Promise<void>;
+  handleDefaultIncomeChange: (accountId: string, pocketId: string) => Promise<void>;
+  handleDateFormatChange: (format: DateFormatPreference) => Promise<void>;
+  handleMovementsPerPageChange: (count: number) => Promise<void>;
+  handleReminderAdvanceDaysChange: (days: number) => Promise<void>;
+  handleDefaultCurrencyChange: (currency: Currency) => Promise<void>;
 }
 
 /**
@@ -151,11 +158,79 @@ export const useSettingsActions = ({
     }
   };
 
+  const handleDefaultExpenseChange = async (accountId: string, pocketId: string) => {
+    if (!settings) return;
+    try {
+      await updateMutation.mutateAsync({
+        ...settings,
+        defaultExpenseAccountId: accountId || undefined,
+        defaultExpensePocketId: pocketId || undefined,
+      });
+    } catch {
+      // Toast is shown by the mutation's onError handler.
+    }
+  };
+
+  const handleDefaultIncomeChange = async (accountId: string, pocketId: string) => {
+    if (!settings) return;
+    try {
+      await updateMutation.mutateAsync({
+        ...settings,
+        defaultIncomeAccountId: accountId || undefined,
+        defaultIncomePocketId: pocketId || undefined,
+      });
+    } catch {
+      // Toast is shown by the mutation's onError handler.
+    }
+  };
+
+  const handleDateFormatChange = async (format: DateFormatPreference) => {
+    if (!settings) return;
+    try {
+      await updateMutation.mutateAsync({ ...settings, dateFormat: format });
+    } catch {
+      // Toast is shown by the mutation's onError handler.
+    }
+  };
+
+  const handleMovementsPerPageChange = async (count: number) => {
+    if (!settings) return;
+    try {
+      await updateMutation.mutateAsync({ ...settings, movementsPerPage: count });
+    } catch {
+      // Toast is shown by the mutation's onError handler.
+    }
+  };
+
+  const handleReminderAdvanceDaysChange = async (days: number) => {
+    if (!settings) return;
+    try {
+      await updateMutation.mutateAsync({ ...settings, reminderAdvanceDays: days });
+    } catch {
+      // Toast is shown by the mutation's onError handler.
+    }
+  };
+
+  const handleDefaultCurrencyChange = async (currency: Currency) => {
+    if (!settings) return;
+    try {
+      await updateMutation.mutateAsync({ ...settings, defaultCurrencyForNewAccounts: currency });
+    } catch {
+      // Toast is shown by the mutation's onError handler.
+    }
+  };
+
   return {
     isExporting,
     handleExport,
     handleCurrencyChange,
     handleDisplayChange,
     handleSnapshotFrequencyChange,
+    handleDefaultExpenseChange,
+    handleDefaultIncomeChange,
+    handleDateFormatChange,
+    handleMovementsPerPageChange,
+    handleReminderAdvanceDaysChange,
+    handleDefaultCurrencyChange,
   };
 };

@@ -42,6 +42,10 @@ export interface MovementFormStateResult {
   // Reminder linkage
   reminderId: string | null;
   setReminderId: (id: string | null) => void;
+  reminderDate: string | null;
+  setReminderDate: (date: string | null) => void;
+  reminderRecurring: boolean;
+  setReminderRecurring: (recurring: boolean) => void;
 
   // Live values from the form (for side panel balance deltas)
   liveValues: LiveFormValues;
@@ -78,6 +82,8 @@ export const useMovementFormState = (
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
   const [defaultValues, setDefaultValues] = useState<FormDefaultValues>({});
   const [reminderId, setReminderId] = useState<string | null>(null);
+  const [reminderDate, setReminderDate] = useState<string | null>(null);
+  const [reminderRecurring, setReminderRecurring] = useState(false);
   const [liveValues, setLiveValues] = useState<LiveFormValues>(EMPTY_LIVE_VALUES);
 
   const handleTemplateSelect = useCallback((templateId: string) => {
@@ -119,6 +125,10 @@ export const useMovementFormState = (
 
     reminderId,
     setReminderId,
+    reminderDate,
+    setReminderDate,
+    reminderRecurring,
+    setReminderRecurring,
 
     liveValues,
     setLiveValues,

@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Check, ChevronRight } from 'lucide-react';
 import { useMovementMutations } from '../../hooks/queries/useMovementMutations';
-import { useAccountsQuery, usePocketsQuery } from '../../hooks/queries';
+import { useAccountsQuery, usePocketsQuery, useSettingsQuery } from '../../hooks/queries';
 import { resolveLastUsedPocket, toSimpleType } from '../../store/useLastUsedPocket';
 import { format } from 'date-fns';
 import type { MovementType } from '../../types';
@@ -28,9 +28,10 @@ const QuickAddMovement = ({ variant, onExpandToFull, onClose, onSuccess }: Quick
 
   const { data: accounts = [] } = useAccountsQuery();
   const { data: pockets = [] } = usePocketsQuery();
+  const { data: settings } = useSettingsQuery();
   const { createMovement } = useMovementMutations();
 
-  const resolved = resolveLastUsedPocket(type, accounts, pockets);
+  const resolved = resolveLastUsedPocket(type, accounts, pockets, settings);
   const accountName = accounts.find((a) => a.id === resolved?.accountId)?.name;
   const pocketName = pockets.find((p) => p.id === resolved?.pocketId)?.name;
 

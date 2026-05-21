@@ -59,6 +59,36 @@ export class UpdateSettingsUseCase {
       settings.updateSnapshotFrequency(dto.snapshotFrequency);
     }
 
+    if ('defaultExpenseAccountId' in dto || 'defaultExpensePocketId' in dto) {
+      settings.updateDefaultExpenseAccount(
+        dto.defaultExpenseAccountId ?? undefined,
+        dto.defaultExpensePocketId ?? undefined
+      );
+    }
+
+    if ('defaultIncomeAccountId' in dto || 'defaultIncomePocketId' in dto) {
+      settings.updateDefaultIncomeAccount(
+        dto.defaultIncomeAccountId ?? undefined,
+        dto.defaultIncomePocketId ?? undefined
+      );
+    }
+
+    if (dto.dateFormat !== undefined) {
+      settings.updateDateFormat(dto.dateFormat);
+    }
+
+    if (dto.movementsPerPage !== undefined) {
+      settings.updateMovementsPerPage(dto.movementsPerPage);
+    }
+
+    if (dto.reminderAdvanceDays !== undefined) {
+      settings.updateReminderAdvanceDays(dto.reminderAdvanceDays);
+    }
+
+    if (dto.defaultCurrencyForNewAccounts !== undefined) {
+      settings.updateDefaultCurrencyForNewAccounts(dto.defaultCurrencyForNewAccounts);
+    }
+
     await this.settingsRepository.update(settings);
 
     const updated = await this.settingsRepository.findByUserId(userId);

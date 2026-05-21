@@ -4,6 +4,7 @@ import { useToast } from '../hooks/useToast';
 import Card from '../components/ui/Card';
 import {
   DangerZoneSection,
+  DefaultAccountsSection,
   ExportImportSection,
   PreferencesSection,
 } from '../components/settings';
@@ -50,6 +51,16 @@ const SettingsPage = () => {
             onCurrencyChange={actions.handleCurrencyChange}
             onDisplayChange={actions.handleDisplayChange}
             onSnapshotFrequencyChange={actions.handleSnapshotFrequencyChange}
+            onDateFormatChange={actions.handleDateFormatChange}
+            onMovementsPerPageChange={actions.handleMovementsPerPageChange}
+            onReminderAdvanceDaysChange={actions.handleReminderAdvanceDaysChange}
+            onDefaultCurrencyChange={actions.handleDefaultCurrencyChange}
+          />
+          <DefaultAccountsSection
+            settings={settings}
+            isUpdating={updateMutation.isPending}
+            onDefaultExpenseChange={actions.handleDefaultExpenseChange}
+            onDefaultIncomeChange={actions.handleDefaultIncomeChange}
           />
         </div>
 

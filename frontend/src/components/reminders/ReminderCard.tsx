@@ -135,7 +135,7 @@ const ReminderCard = ({ reminder, onPayNow, onEdit, onDelete, onMarkAsPaid }: Re
                 {/* Action buttons stay visible at lower opacity by default so
                     keyboard and touch users can always reach them. */}
                 <div className="flex justify-end gap-1 mt-2 opacity-70 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
-                    {!isPaid && !isProjected && (
+                    {!isPaid && (
                         <>
                             <button
                                 onClick={() => onPayNow(reminder)}

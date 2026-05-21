@@ -5,7 +5,7 @@ import type { useMovementMutations } from '../queries/useMovementMutations';
 import type { useMovementTemplateMutations } from '../queries/useMovementTemplates';
 import type { useReminderMutations } from '../queries/useReminderQueries';
 import type { MovementFormStateResult } from '../useMovementFormState';
-import { parseDate } from '../../utils/dateUtils';
+import { parseDate, toDateOnly } from '../../utils/dateUtils';
 import { movementService } from '../../services/movementService';
 import { useLastUsedPocket, toSimpleType } from '../../store/useLastUsedPocket';
 
@@ -21,7 +21,7 @@ type TemplateMutations = Pick<
 
 type ReminderMutations = Pick<
   ReturnType<typeof useReminderMutations>,
-  'markAsPaidMutation'
+  'markAsPaidMutation' | 'createExceptionMutation'
 >;
 
 export interface UseMovementSubmitParams {
@@ -60,6 +60,7 @@ export const useMovementSubmit = ({
     updateMovement,
     createMovementTemplate,
     markAsPaidMutation,
+    createExceptionMutation,
   } = mutations;
 
   const handleSubmit = async (data: MovementFormData) => {
@@ -92,6 +93,8 @@ export const useMovementSubmit = ({
 
       // Capture reminder state before close clears it.
       const wasReminderId = formState.reminderId;
+      const wasReminderDate = formState.reminderDate;
+      const wasReminderRecurring = formState.reminderRecurring;
       closeForms();
 
       if (isTransfer) {
@@ -117,10 +120,25 @@ export const useMovementSubmit = ({
       useLastUsedPocket.getState().setLastUsed(toSimpleType(type), accountId, pocketId);
 
       if (wasReminderId) {
-        await markAsPaidMutation.mutateAsync({
-          id: wasReminderId,
-          movementId: newMovement?.id,
-        });
+        if (wasReminderRecurring && wasReminderDate) {
+          // Recurring: create per-occurrence exception instead of marking
+          // the entire series as paid.
+          await createExceptionMutation.mutateAsync({
+            id: wasReminderId,
+            data: {
+              originalDate: toDateOnly(wasReminderDate),
+              action: 'modified',
+              isPaid: true,
+              linkedMovementId: newMovement?.id,
+            },
+          });
+        } else {
+          // One-time: mark the whole reminder as paid.
+          await markAsPaidMutation.mutateAsync({
+            id: wasReminderId,
+            movementId: newMovement?.id,
+          });
+        }
         formState.setReminderId(null);
       }
 

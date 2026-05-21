@@ -47,6 +47,8 @@ export const useURLActions = ({
     setDefaultValues,
     handleTemplateSelect,
     setReminderId,
+    setReminderDate,
+    setReminderRecurring,
   } = formState;
 
   // Effect 1: handle ?date=YYYY-MM-DD by setting custom date filter and
@@ -131,6 +133,8 @@ export const useURLActions = ({
 
       if (reminderIdParam) {
         setReminderId(reminderIdParam);
+        setReminderDate(dateParam || null);
+        setReminderRecurring(params.get('reminderRecurring') === 'true');
       }
 
       navigate(location.pathname, { replace: true });
@@ -152,5 +156,7 @@ export const useURLActions = ({
     setDefaultValues,
     handleTemplateSelect,
     setReminderId,
+    setReminderDate,
+    setReminderRecurring,
   ]);
 };

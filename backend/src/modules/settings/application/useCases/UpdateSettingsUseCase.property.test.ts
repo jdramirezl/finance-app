@@ -294,4 +294,85 @@ describe('UpdateSettingsUseCase Property-Based Tests', () => {
       );
     });
   });
+
+  describe('Property 53: Settings update persists default account/pocket fields', () => {
+    it('should persist default expense and income account/pocket IDs', async () => {
+      await fc.assert(
+        fc.asyncProperty(
+          fc.string({ minLength: 1, maxLength: 20 }).filter(s => s.trim().length > 0),
+          fc.uuid(),
+          fc.uuid(),
+          fc.uuid(),
+          fc.uuid(),
+          async (userId, expAccId, expPktId, incAccId, incPktId) => {
+            const existingSettings = new Settings('settings-id', userId, 'USD');
+
+            const mockRepo: jest.Mocked<ISettingsRepository> = {
+              findByUserId: jest.fn().mockResolvedValue(existingSettings),
+              save: jest.fn().mockResolvedValue(undefined),
+              update: jest.fn().mockResolvedValue(undefined),
+              createDefault: jest.fn().mockResolvedValue(undefined),
+            };
+
+            const useCase = new UpdateSettingsUseCase(mockRepo);
+
+            const dto: UpdateSettingsDTO = {
+              defaultExpenseAccountId: expAccId,
+              defaultExpensePocketId: expPktId,
+              defaultIncomeAccountId: incAccId,
+              defaultIncomePocketId: incPktId,
+            };
+
+            const result = await useCase.execute(userId, dto);
+
+            expect(result.defaultExpenseAccountId).toBe(expAccId);
+            expect(result.defaultExpensePocketId).toBe(expPktId);
+            expect(result.defaultIncomeAccountId).toBe(incAccId);
+            expect(result.defaultIncomePocketId).toBe(incPktId);
+            expect(mockRepo.update).toHaveBeenCalled();
+          }
+        ),
+        { numRuns: 50 }
+      );
+    });
+
+    it('should allow clearing default accounts by setting to undefined', async () => {
+      await fc.assert(
+        fc.asyncProperty(
+          fc.string({ minLength: 1, maxLength: 20 }).filter(s => s.trim().length > 0),
+          fc.uuid(),
+          fc.uuid(),
+          async (userId, existingAccId, existingPktId) => {
+            const existingSettings = new Settings(
+              'settings-id', userId, 'USD', undefined, undefined, undefined,
+              existingAccId, existingPktId, existingAccId, existingPktId
+            );
+
+            const mockRepo: jest.Mocked<ISettingsRepository> = {
+              findByUserId: jest.fn().mockResolvedValue(existingSettings),
+              save: jest.fn().mockResolvedValue(undefined),
+              update: jest.fn().mockResolvedValue(undefined),
+              createDefault: jest.fn().mockResolvedValue(undefined),
+            };
+
+            const useCase = new UpdateSettingsUseCase(mockRepo);
+
+            const dto: UpdateSettingsDTO = {
+              defaultExpenseAccountId: undefined,
+              defaultExpensePocketId: undefined,
+            };
+
+            const result = await useCase.execute(userId, dto);
+
+            expect(result.defaultExpenseAccountId).toBeUndefined();
+            expect(result.defaultExpensePocketId).toBeUndefined();
+            // Income defaults should be preserved
+            expect(result.defaultIncomeAccountId).toBe(existingAccId);
+            expect(result.defaultIncomePocketId).toBe(existingPktId);
+          }
+        ),
+        { numRuns: 50 }
+      );
+    });
+  });
 });
