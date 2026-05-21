@@ -5,7 +5,9 @@ const currency = z.enum(['USD', 'MXN', 'COP', 'EUR', 'GBP']);
 export const updateSettingsSchema = z.object({
   primaryCurrency: currency.optional(),
   alphaVantageApiKey: z.string().min(1).optional(),
-}).strict();
+  snapshotFrequency: z.enum(['daily', 'weekly', 'monthly', 'manual']).optional(),
+  accountCardDisplay: z.enum(['compact', 'detailed']).optional(),
+}).passthrough();
 
 export const convertCurrencySchema = z.object({
   amount: z.number(),
