@@ -29,6 +29,7 @@ function getTypeLabel(account: Account, isFixedExpensesAccount: boolean) {
 
 const AccountCard = ({
     account,
+    isSelected = false,
     pockets = [],
     onSelect,
     onEdit,
@@ -42,7 +43,7 @@ const AccountCard = ({
     return (
         <div
             onClick={() => onSelect(account)}
-            className="glass-card rounded-xl overflow-hidden flex flex-col relative border-t-4 transition-transform hover:scale-[1.01] shadow-xl group cursor-pointer"
+            className={`glass-card rounded-xl overflow-hidden flex flex-col relative border-t-4 transition-transform hover:scale-[1.01] shadow-xl group cursor-pointer ${isSelected ? 'ring-2 ring-primary' : ''}`}
             style={{ borderTopColor: account.color }}
         >
             <div className="p-5 flex-1">

@@ -22,7 +22,6 @@ import CDAccountForm, {
 } from '../components/accounts/CDAccountForm';
 import AccountForm from '../components/accounts/AccountForm';
 import CascadeDeleteDialog from '../components/accounts/CascadeDeleteDialog';
-import SidePanel from '../components/ui/SidePanel';
 import PocketManagementSection from '../components/accounts/PocketManagementSection';
 
 const isCDAccount = (account: Account): account is CDInvestmentAccount =>
@@ -224,51 +223,78 @@ const AccountsPage = () => {
         </div>
       </div>
 
-      {/* Account Grid */}
-      {filteredAccounts.length === 0 ? (
-        <EmptyState
-          icon={Wallet}
-          title={accounts.length === 0 ? 'No accounts yet' : 'No matching accounts'}
-          description={
-            accounts.length === 0
-              ? 'Create your first account to start tracking your finances.'
-              : 'Try adjusting your search or filter.'
-          }
-          action={accounts.length === 0 ? {
-            label: 'Create Account',
-            onClick: () => setShowAccountForm(true),
-            icon: Plus,
-          } : undefined}
-        />
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-          {filteredAccounts.map((account) =>
-            isCDAccount(account) ? (
-              <CDAccountCard
-                key={account.id}
-                account={account}
-                pockets={pocketsByAccount.get(account.id) || []}
-                onSelect={handleSelectAccount}
-                onEdit={handleEditCD}
-                onDelete={handleDeleteAccount}
-              />
-            ) : (
-              <AccountCard
-                key={account.id}
-                account={account}
-                pockets={pocketsByAccount.get(account.id) || []}
-                onSelect={handleSelectAccount}
-                onEdit={handleEditAccount}
-                onDelete={handleDeleteAccount}
-                onAddPocket={() => setSelectedAccountId(account.id)}
-                isFixedExpensesAccount={fixedExpenseAccountIds.has(account.id)}
-              />
-            )
+      {/* Split Layout: Account Grid (left) + Pocket Panel (right) */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left: Account Grid */}
+        <div className="lg:col-span-2">
+          {filteredAccounts.length === 0 ? (
+            <EmptyState
+              icon={Wallet}
+              title={accounts.length === 0 ? 'No accounts yet' : 'No matching accounts'}
+              description={
+                accounts.length === 0
+                  ? 'Create your first account to start tracking your finances.'
+                  : 'Try adjusting your search or filter.'
+              }
+              action={accounts.length === 0 ? {
+                label: 'Create Account',
+                onClick: () => setShowAccountForm(true),
+                icon: Plus,
+              } : undefined}
+            />
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {filteredAccounts.map((account) =>
+                isCDAccount(account) ? (
+                  <CDAccountCard
+                    key={account.id}
+                    account={account}
+                    isSelected={selectedAccountId === account.id}
+                    pockets={pocketsByAccount.get(account.id) || []}
+                    onSelect={handleSelectAccount}
+                    onEdit={handleEditCD}
+                    onDelete={handleDeleteAccount}
+                  />
+                ) : (
+                  <AccountCard
+                    key={account.id}
+                    account={account}
+                    isSelected={selectedAccountId === account.id}
+                    pockets={pocketsByAccount.get(account.id) || []}
+                    onSelect={handleSelectAccount}
+                    onEdit={handleEditAccount}
+                    onDelete={handleDeleteAccount}
+                    onAddPocket={() => setSelectedAccountId(account.id)}
+                    isFixedExpensesAccount={fixedExpenseAccountIds.has(account.id)}
+                  />
+                )
+              )}
+            </div>
           )}
         </div>
-      )}
 
-      {/* Modals */}
+        {/* Right: Pocket Management Panel */}
+        <div className="lg:col-span-1">
+          <div className="glass-card rounded-xl p-5 sticky top-6">
+            {selectedAccountId ? (
+              <PocketManagementSection
+                accountId={selectedAccountId}
+                accounts={accounts}
+                pockets={pocketsByAccount.get(selectedAccountId) || []}
+                pocketMutations={pocketMutations}
+                toast={toast}
+                confirm={confirm}
+                setError={setError}
+              />
+            ) : (
+              <div className="flex flex-col items-center justify-center py-12 text-center">
+                <Wallet className="w-10 h-10 text-on-surface-variant/40 mb-3" aria-hidden="true" />
+                <p className="text-on-surface-variant text-sm">Select an account to manage pockets</p>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
       <Modal
         isOpen={showAccountForm}
         onClose={closeAccountForm}
@@ -306,23 +332,6 @@ const AccountsPage = () => {
         onClose={accountActions.cascadeDelete.close}
       />
 
-      <SidePanel
-        isOpen={selectedAccountId !== null}
-        onClose={() => setSelectedAccountId(null)}
-        title={accounts.find((a) => a.id === selectedAccountId)?.name ?? 'Pockets'}
-      >
-        {selectedAccountId && (
-          <PocketManagementSection
-            accountId={selectedAccountId}
-            accounts={accounts}
-            pockets={pocketsByAccount.get(selectedAccountId) || []}
-            pocketMutations={pocketMutations}
-            toast={toast}
-            confirm={confirm}
-            setError={setError}
-          />
-        )}
-      </SidePanel>
     </div>
   );
 };
