@@ -188,9 +188,21 @@ const FixedExpenseGroupCard = ({
               >
                 {/* Name + amounts + hover actions */}
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-on-surface text-left">
-                    {sp.name}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => onToggleExpense(sp.id)}
+                      disabled={togglingId === sp.id}
+                      className="text-on-surface-variant hover:text-primary transition-colors disabled:opacity-50"
+                      title={sp.enabled ? 'Disable expense' : 'Enable expense'}
+                    >
+                      {sp.enabled
+                        ? <ToggleRight className="w-5 h-5 text-primary" />
+                        : <ToggleLeft className="w-5 h-5" />}
+                    </button>
+                    <span className="text-sm text-on-surface text-left">
+                      {sp.name}
+                    </span>
+                  </div>
                   <div className="flex items-center gap-1">
                     {/* Hover-reveal action buttons */}
                     <div className="flex items-center gap-0.5 opacity-0 group-hover/row:opacity-100 transition-opacity">

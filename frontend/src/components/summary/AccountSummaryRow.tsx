@@ -75,8 +75,9 @@ const AccountSummaryRow = ({ account, pockets, investmentData }: AccountSummaryR
     if (type === 'investment' && investmentData) {
       return `Invested ${currencyService.formatCurrency(investmentData.montoInvertido ?? 0, account.currency)} • ${currencyService.formatCurrency(investmentData.precioActual, account.currency)}/share`;
     }
-    if (type === 'cd' && cdCalc) {
-      return `Net interest: ${currencyService.formatCurrency(cdCalc.netInterest, account.currency)}`;
+    if (type === 'cd' && cdCalc && isCDAccount(account)) {
+      const matDate = new Date(account.maturityDate).toLocaleDateString(undefined, { month: 'short', day: '2-digit', year: 'numeric' });
+      return `Principal: ${currencyService.formatCurrency(account.principal, account.currency)} • Net interest: ${currencyService.formatCurrency(cdCalc.netInterest, account.currency)} • Matures: ${matDate} (${cdCalc.daysToMaturity}d)`;
     }
     return null;
   })();

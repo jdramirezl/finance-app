@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import {
   usePocketsQuery,
   useInfiniteMovementsQuery,
@@ -222,20 +222,20 @@ const MovementsPage = () => {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold text-on-surface tracking-tight">Movements</h1>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-3">
+          <h1 className="text-3xl font-bold text-on-surface tracking-tight">Movements</h1>
           {orphanedCount > 0 && (
-            <Button
-              variant="secondary"
+            <button
               onClick={() => setShowOrphaned((v) => !v)}
-              className="px-2 sm:px-4"
+              className="text-xs text-on-surface-variant hover:text-primary transition-colors"
               aria-label={`${showOrphaned ? 'Hide' : 'Show'} orphaned movements (${orphanedCount})`}
               aria-expanded={showOrphaned}
             >
-              <Trash2 className="w-5 h-5" />
-              <span className="hidden sm:inline ml-2">Orphaned ({orphanedCount})</span>
-            </Button>
+              ({orphanedCount} unassigned)
+            </button>
           )}
+        </div>
+        <div className="flex gap-2">
           <Button
             variant="secondary"
             onClick={() => setShowBatchForm(true)}

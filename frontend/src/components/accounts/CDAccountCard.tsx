@@ -115,6 +115,31 @@ const CDAccountCard = ({
 
                 {/* Collapsible Pockets */}
                 <div className="border-t border-white/5 pt-4">
+                    {/* CD Details */}
+                    {!hasError && calculation && (
+                        <div className="mb-4 space-y-1.5 text-xs text-on-surface-variant font-mono">
+                            <div className="flex justify-between">
+                                <span>Principal</span>
+                                <span className="text-on-surface">{account.principal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span>Net Interest</span>
+                                <span className="text-success">+{calculation.netInterest.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span>Maturity</span>
+                                <span className="text-on-surface">{new Date(account.maturityDate).toLocaleDateString(undefined, { month: 'short', day: '2-digit', year: 'numeric' })}</span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span>Days to Maturity</span>
+                                <span className={calculation.daysToMaturity <= 30 ? 'text-tertiary' : 'text-on-surface'}>{calculation.isMatured ? 'MATURED' : calculation.daysToMaturity}</span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span>APY</span>
+                                <span className="text-on-surface">{account.interestRate}%</span>
+                            </div>
+                        </div>
+                    )}
                     <button
                         className="w-full flex justify-between items-center text-on-surface-variant hover:text-on-surface transition-colors mb-2"
                         onClick={(e) => { e.stopPropagation(); setPocketsExpanded(!pocketsExpanded); }}
