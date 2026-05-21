@@ -35,6 +35,8 @@ describe('RestoreOrphanedMovementsUseCase Property-Based Tests', () => {
 
     const mockMovementRepo: jest.Mocked<IMovementRepository> = {
       save: jest.fn().mockResolvedValue(undefined),
+      createTransferAtomic: jest.fn().mockResolvedValue({ expense: null as any, income: null as any }),
+      batchCreate: jest.fn().mockResolvedValue([]),
       findById: jest.fn().mockResolvedValue(null),
       findAll: jest.fn().mockResolvedValue([]),
       findByAccountId: jest.fn().mockResolvedValue([]),
@@ -77,10 +79,12 @@ describe('RestoreOrphanedMovementsUseCase Property-Based Tests', () => {
       findAllByUserId: jest.fn().mockResolvedValue(pockets),
       existsByNameInAccount: jest.fn().mockResolvedValue(false),
       existsByNameInAccountExcludingId: jest.fn().mockResolvedValue(false),
+      existsFixedPocketInAccount: jest.fn().mockResolvedValue(false),
       existsFixedPocketForUser: jest.fn().mockResolvedValue(false),
       existsFixedPocketForUserExcludingId: jest.fn().mockResolvedValue(false),
       update: jest.fn().mockResolvedValue(undefined),
       delete: jest.fn().mockResolvedValue(undefined),
+      deleteByAccountId: jest.fn().mockResolvedValue(0),
       updateDisplayOrders: jest.fn().mockResolvedValue(undefined),
     };
 
@@ -92,6 +96,7 @@ describe('RestoreOrphanedMovementsUseCase Property-Based Tests', () => {
       findAllByUserId: jest.fn().mockResolvedValue([mockSubPocket]),
       update: jest.fn().mockResolvedValue(undefined),
       delete: jest.fn().mockResolvedValue(undefined),
+      deleteByPocketIds: jest.fn().mockResolvedValue(0),
       updateDisplayOrders: jest.fn().mockResolvedValue(undefined),
       countMovements: jest.fn().mockResolvedValue(0),
       hasMovements: jest.fn().mockResolvedValue(false),

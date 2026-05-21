@@ -34,6 +34,8 @@ describe('Movement Filtering Property-Based Tests', () => {
   const createMockRepoWithMovements = (movements: Movement[]) => {
     const mockRepo: jest.Mocked<IMovementRepository> = {
       save: jest.fn().mockResolvedValue(undefined),
+      createTransferAtomic: jest.fn().mockResolvedValue({ expense: null as any, income: null as any }),
+      batchCreate: jest.fn().mockResolvedValue([]),
       findById: jest.fn().mockResolvedValue(null),
       findAll: jest.fn().mockImplementation(async (userId, filters) => {
         let filtered = movements;

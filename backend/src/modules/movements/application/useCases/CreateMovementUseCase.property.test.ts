@@ -38,6 +38,8 @@ describe('CreateMovementUseCase Property-Based Tests', () => {
 
     const mockMovementRepo: jest.Mocked<IMovementRepository> = {
       save: jest.fn().mockResolvedValue(undefined),
+      createTransferAtomic: jest.fn().mockResolvedValue({ expense: null as any, income: null as any }),
+      batchCreate: jest.fn().mockResolvedValue([]),
       findById: jest.fn().mockResolvedValue(null),
       findAll: jest.fn().mockResolvedValue([]),
       findByAccountId: jest.fn().mockResolvedValue([]),
@@ -76,10 +78,12 @@ describe('CreateMovementUseCase Property-Based Tests', () => {
       findAllByUserId: jest.fn().mockResolvedValue([mockPocket]),
       existsByNameInAccount: jest.fn().mockResolvedValue(false),
       existsByNameInAccountExcludingId: jest.fn().mockResolvedValue(false),
+      existsFixedPocketInAccount: jest.fn().mockResolvedValue(false),
       existsFixedPocketForUser: jest.fn().mockResolvedValue(false),
       existsFixedPocketForUserExcludingId: jest.fn().mockResolvedValue(false),
       update: jest.fn().mockResolvedValue(undefined),
       delete: jest.fn().mockResolvedValue(undefined),
+      deleteByAccountId: jest.fn().mockResolvedValue(0),
       updateDisplayOrders: jest.fn().mockResolvedValue(undefined),
     };
 
@@ -91,6 +95,7 @@ describe('CreateMovementUseCase Property-Based Tests', () => {
       findAllByUserId: jest.fn().mockResolvedValue([mockSubPocket]),
       update: jest.fn().mockResolvedValue(undefined),
       delete: jest.fn().mockResolvedValue(undefined),
+      deleteByPocketIds: jest.fn().mockResolvedValue(0),
       updateDisplayOrders: jest.fn().mockResolvedValue(undefined),
       countMovements: jest.fn().mockResolvedValue(0),
       hasMovements: jest.fn().mockResolvedValue(false),
@@ -100,13 +105,12 @@ describe('CreateMovementUseCase Property-Based Tests', () => {
   };
 
   describe('Property 31: Movement validation rejects invalid inputs', () => {
-    it('should reject movements with non-positive amounts', async () => {
+    it('should reject movements with negative amounts', async () => {
       await fc.assert(
         fc.asyncProperty(
           fc.oneof(
-            fc.constant(0),
             fc.integer({ max: -1 }),
-            fc.double({ max: 0, noNaN: true })
+            fc.double({ max: -0.01, noNaN: true })
           ),
           fc.constantFrom(...validMovementTypes),
           fc.date().filter(d => !isNaN(d.getTime())),

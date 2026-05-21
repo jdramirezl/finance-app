@@ -36,14 +36,14 @@ describeIntegration('SupabaseMovementRepository Integration Tests', () => {
 
   // Setup: Create repository, test user ID, and test account/pocket
   beforeAll(async () => {
-    repository = new SupabaseMovementRepository();
-    testUserId = `test-user-${Date.now()}-${Math.random().toString(36).substring(7)}`;
-    
     // Create Supabase client for setup and cleanup
     supabase = createClient(
       process.env.SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_KEY!
     );
+
+    repository = new SupabaseMovementRepository(supabase);
+    testUserId = `test-user-${Date.now()}-${Math.random().toString(36).substring(7)}`;
 
     // Create test account
     testAccountId = `test-acc-${Date.now()}`;

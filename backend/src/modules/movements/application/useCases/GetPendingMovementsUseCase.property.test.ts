@@ -32,6 +32,8 @@ describe('GetPendingMovementsUseCase Property-Based Tests', () => {
   const createMockRepoWithMovements = (movements: Movement[]) => {
     const mockRepo: jest.Mocked<IMovementRepository> = {
       save: jest.fn().mockResolvedValue(undefined),
+      createTransferAtomic: jest.fn().mockResolvedValue({ expense: null, income: null }),
+      batchCreate: jest.fn().mockResolvedValue([]),
       findById: jest.fn().mockResolvedValue(null),
       findAll: jest.fn().mockResolvedValue([]),
       findByAccountId: jest.fn().mockResolvedValue([]),
