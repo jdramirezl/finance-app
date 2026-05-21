@@ -1,46 +1,38 @@
 import {
   forwardRef,
+  useCallback,
   useEffect,
   useImperativeHandle,
   useRef,
   useState,
 } from 'react';
 import { format } from 'date-fns';
-import { Plus, Trash2, X } from 'lucide-react';
+import { Plus, X } from 'lucide-react';
 import Button from './Button';
-import Input from './Input';
-import Select from './Select';
-import AccountPocketSelector from './selectors/AccountPocketSelector';
+import BatchMovementRow from './movements/BatchMovementRow';
 import { usePocketsQuery } from '../hooks/queries';
 import { useToast } from '../hooks/useToast';
-import { MOVEMENT_TYPES } from '../utils/movementTypes';
-import type { MovementType } from '../types';
 
-export interface BatchMovementRow {
-  id: string;
-  type: MovementType;
-  accountId: string;
-  pocketId: string;
-  subPocketId?: string;
-  amount: string;
-  notes: string;
-  displayedDate: string;
-  isPending?: boolean;
-}
+// Re-export the row data type from its new home so existing consumers
+// (useBudgetActions, useFixedExpenseActions, useMovementSubmit,
+// useBalanceDeltas, MovementFormPanel, MovementsPage) keep working without
+// import-path churn. The single source of truth is now the row component.
+export type { BatchMovementRow } from './movements/BatchMovementRow';
+import type { BatchMovementRow as BatchMovementRowData } from './movements/BatchMovementRow';
 
 interface BatchMovementFormProps {
-  onSave: (rows: BatchMovementRow[]) => Promise<void>;
+  onSave: (rows: BatchMovementRowData[]) => Promise<void>;
   onCancel: () => void;
   /**
    * Notified whenever the focused row's data changes (e.g. the user edits a
    * field on the row that currently has keyboard focus). The parent uses
    * this to keep the side-panel context in sync with the row.
    */
-  onFocusRow?: (row: BatchMovementRow) => void;
+  onFocusRow?: (row: BatchMovementRowData) => void;
   /** Notified when rows are added or removed (not when fields are edited). */
-  onRowsChange?: (rows: BatchMovementRow[]) => void;
+  onRowsChange?: (rows: BatchMovementRowData[]) => void;
   /** Optional pre-populated rows (e.g. from a budget plan). */
-  initialRows?: BatchMovementRow[];
+  initialRows?: BatchMovementRowData[];
 }
 
 export interface BatchMovementFormRef {
@@ -55,7 +47,7 @@ const BatchMovementForm = forwardRef<BatchMovementFormRef, BatchMovementFormProp
     // through the same query hook.
     const { data: pockets = [] } = usePocketsQuery();
 
-    const [rows, setRows] = useState<BatchMovementRow[]>(
+    const [rows, setRows] = useState<BatchMovementRowData[]>(
       initialRows && initialRows.length > 0
         ? initialRows
         : [
@@ -75,59 +67,29 @@ const BatchMovementForm = forwardRef<BatchMovementFormRef, BatchMovementFormProp
     const [markAsPending, setMarkAsPending] = useState(false);
     const toast = useToast();
 
-    // Keep the parent's "active row" state in sync with field edits.
-    //
-    // The previous implementation hand-merged each onChange's next value
-    // into a synthetic row before calling onFocusRow. That pattern relied
-    // on every cascading reset (e.g. clearing the pocket when the account
-    // changes) being expressed in the same callback, which doesn't compose
-    // with AccountPocketSelector's internal cascading.
-    //
-    // Instead, we treat the row state as the source of truth: the row's
-    // wrapper records itself as focused, and a re-publish effect fires
-    // onFocusRow whenever the focused row's data updates. The ref dance
-    // keeps the effect's identity stable across renders while always
-    // calling the latest onFocusRow.
+    // Keep callbacks (onFocusRow, onRowsChange) in refs so the per-row
+    // memoized handlers below can stay referentially stable across renders
+    // even when callers pass inline functions. Without this, every
+    // BatchMovementRow would re-render whenever the parent re-renders,
+    // defeating React.memo on the row component.
     const lastFocusedRowIdRef = useRef<string | null>(null);
     const onFocusRowRef = useRef(onFocusRow);
+    const onRowsChangeRef = useRef(onRowsChange);
     onFocusRowRef.current = onFocusRow;
+    onRowsChangeRef.current = onRowsChange;
 
+    // Re-publish the focused row whenever its data changes. We treat
+    // `rows` as the source of truth: a row marks itself as focused via
+    // handleRowFocus, and this effect fires onFocusRow whenever the
+    // focused row's contents change. This avoids hand-merging next-state
+    // values inside individual onChange callbacks, which doesn't compose
+    // with AccountPocketSelector's internal cascading.
     useEffect(() => {
       const focusedId = lastFocusedRowIdRef.current;
       if (!focusedId) return;
       const focused = rows.find((r) => r.id === focusedId);
       if (focused) onFocusRowRef.current?.(focused);
     }, [rows]);
-
-    useImperativeHandle(ref, () => ({
-      updateAmount: (id, amount) => {
-        updateRow(id, { amount });
-      },
-    }));
-
-    const addRow = () => {
-      const newRows: BatchMovementRow[] = [
-        ...rows,
-        {
-          id: crypto.randomUUID(),
-          type: 'IngresoNormal',
-          accountId: '',
-          pocketId: '',
-          amount: '',
-          notes: '',
-          displayedDate: format(new Date(), 'yyyy-MM-dd'),
-        },
-      ];
-      setRows(newRows);
-      onRowsChange?.(newRows);
-    };
-
-    const removeRow = (id: string) => {
-      if (rows.length === 1) return; // Keep at least one row
-      const newRows = rows.filter((row) => row.id !== id);
-      setRows(newRows);
-      onRowsChange?.(newRows);
-    };
 
     // Functional updater is required because AccountPocketSelector may emit
     // back-to-back callbacks (e.g. onAccountChange followed by an internal
@@ -138,11 +100,57 @@ const BatchMovementForm = forwardRef<BatchMovementFormRef, BatchMovementFormProp
     // Cascading resets and movement-type-driven filtering live inside
     // AccountPocketSelector now, so updateRow no longer needs to perform
     // any of that bookkeeping — it just merges the requested change.
-    const updateRow = (id: string, updates: Partial<BatchMovementRow>) => {
-      setRows((prev) =>
-        prev.map((row) => (row.id === id ? { ...row, ...updates } : row))
-      );
-    };
+    const updateRow = useCallback(
+      (id: string, updates: Partial<BatchMovementRowData>) => {
+        setRows((prev) =>
+          prev.map((row) => (row.id === id ? { ...row, ...updates } : row))
+        );
+      },
+      []
+    );
+
+    const removeRow = useCallback((id: string) => {
+      setRows((prev) => {
+        if (prev.length === 1) return prev; // Keep at least one row
+        const next = prev.filter((row) => row.id !== id);
+        onRowsChangeRef.current?.(next);
+        return next;
+      });
+    }, []);
+
+    const addRow = useCallback(() => {
+      setRows((prev) => {
+        const next: BatchMovementRowData[] = [
+          ...prev,
+          {
+            id: crypto.randomUUID(),
+            type: 'IngresoNormal',
+            accountId: '',
+            pocketId: '',
+            amount: '',
+            notes: '',
+            displayedDate: format(new Date(), 'yyyy-MM-dd'),
+          },
+        ];
+        onRowsChangeRef.current?.(next);
+        return next;
+      });
+    }, []);
+
+    const handleRowFocus = useCallback((row: BatchMovementRowData) => {
+      lastFocusedRowIdRef.current = row.id;
+      onFocusRowRef.current?.(row);
+    }, []);
+
+    useImperativeHandle(
+      ref,
+      () => ({
+        updateAmount: (id, amount) => {
+          updateRow(id, { amount });
+        },
+      }),
+      [updateRow]
+    );
 
     const handleSave = async () => {
       // Validate all rows
@@ -214,84 +222,16 @@ const BatchMovementForm = forwardRef<BatchMovementFormRef, BatchMovementFormProp
               selectedPocket?.name === 'Shares' ? '0.000001' : '0.01';
 
             return (
-              <div
+              <BatchMovementRow
                 key={row.id}
-                onFocus={() => {
-                  lastFocusedRowIdRef.current = row.id;
-                  onFocusRow?.(row);
-                }}
-                className="p-4 border dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-800/50 space-y-3"
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Movement #{index + 1}
-                  </span>
-                  {rows.length > 1 && (
-                    <button
-                      onClick={() => removeRow(row.id)}
-                      className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
-                      aria-label={`Remove movement #${index + 1}`}
-                      title="Remove this row"
-                    >
-                      <Trash2 className="w-4 h-4" aria-hidden="true" />
-                    </button>
-                  )}
-                </div>
-
-                <Select
-                  label="Type"
-                  value={row.type}
-                  onChange={(e) =>
-                    updateRow(row.id, { type: e.target.value as MovementType })
-                  }
-                  required
-                  options={MOVEMENT_TYPES}
-                />
-
-                <AccountPocketSelector
-                  accountId={row.accountId}
-                  pocketId={row.pocketId}
-                  subPocketId={row.subPocketId || ''}
-                  onAccountChange={(accountId) => updateRow(row.id, { accountId })}
-                  onPocketChange={(pocketId) => updateRow(row.id, { pocketId })}
-                  onSubPocketChange={(subPocketId) =>
-                    updateRow(row.id, { subPocketId: subPocketId || undefined })
-                  }
-                  movementType={row.type}
-                  enforceMovementType
-                  showSubPocket
-                  showAccountCurrency
-                  required
-                />
-
-                <div className="grid grid-cols-2 gap-3">
-                  <Input
-                    label="Amount"
-                    type="number"
-                    step={amountStep}
-                    value={row.amount}
-                    onChange={(e) => updateRow(row.id, { amount: e.target.value })}
-                    required
-                  />
-
-                  <Input
-                    label="Date"
-                    type="date"
-                    value={row.displayedDate}
-                    onChange={(e) =>
-                      updateRow(row.id, { displayedDate: e.target.value })
-                    }
-                    required
-                  />
-                </div>
-
-                <Input
-                  label="Notes (optional)"
-                  value={row.notes}
-                  onChange={(e) => updateRow(row.id, { notes: e.target.value })}
-                  placeholder="Add notes..."
-                />
-              </div>
+                row={row}
+                index={index}
+                canRemove={rows.length > 1}
+                amountStep={amountStep}
+                onUpdate={updateRow}
+                onRemove={removeRow}
+                onFocus={handleRowFocus}
+              />
             );
           })}
         </div>
