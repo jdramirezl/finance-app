@@ -243,7 +243,7 @@ const MovementsPage = () => {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Movements</h1>
+        <h1 className="text-3xl font-bold text-on-surface tracking-tight">Movements</h1>
         <div className="flex gap-2">
           {orphanedCount > 0 && (
             <Button
@@ -276,7 +276,7 @@ const MovementsPage = () => {
       <QuickAddMovement variant="inline" onExpandToFull={handleQuickAddExpand} />
 
       {error && (
-        <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 rounded-lg">
+        <div className="p-4 bg-error/10 border border-error/20 text-error rounded-xl">
           {error}
         </div>
       )}
@@ -328,7 +328,7 @@ const MovementsPage = () => {
       */}
       {hasMoreMovements && (
         <div className="flex flex-col items-center gap-2 py-4">
-          <p className="text-sm text-gray-600 dark:text-gray-400">
+          <p className="text-sm text-on-surface-variant">
             Showing {loadedCount} of {totalMovements} movements
           </p>
           <Button

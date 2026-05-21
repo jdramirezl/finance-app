@@ -95,20 +95,20 @@ const QuickAddMovement = ({ variant, onExpandToFull, onClose, onSuccess }: Quick
       aria-label="Quick add movement"
       className={
         variant === 'inline'
-          ? 'flex items-center gap-2 p-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl'
+          ? 'flex items-center gap-2 p-3 bg-surface-container/80 backdrop-blur-xl border border-white/[0.08] rounded-xl'
           : 'flex flex-col gap-3'
       }
     >
       {/* Type toggle */}
-      <div className="flex rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 shrink-0">
+      <div className="flex rounded-lg overflow-hidden border border-outline-variant shrink-0">
         <button
           type="button"
           aria-pressed={type === 'expense'}
           onClick={() => setType('expense')}
           className={`px-3 py-1.5 text-sm font-medium transition-colors ${
             type === 'expense'
-              ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'
-              : 'bg-white text-gray-500 dark:bg-gray-800 dark:text-gray-400'
+              ? 'bg-error/10 text-error'
+              : 'bg-surface-container-highest text-on-surface-variant'
           }`}
         >
           Expense
@@ -119,8 +119,8 @@ const QuickAddMovement = ({ variant, onExpandToFull, onClose, onSuccess }: Quick
           onClick={() => setType('income')}
           className={`px-3 py-1.5 text-sm font-medium transition-colors ${
             type === 'income'
-              ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300'
-              : 'bg-white text-gray-500 dark:bg-gray-800 dark:text-gray-400'
+              ? 'bg-success/10 text-success'
+              : 'bg-surface-container-highest text-on-surface-variant'
           }`}
         >
           Income
@@ -139,7 +139,7 @@ const QuickAddMovement = ({ variant, onExpandToFull, onClose, onSuccess }: Quick
         value={amount}
         onChange={(e) => setAmount(e.target.value)}
         onKeyDown={handleKeyDown}
-        className="w-28 px-3 py-1.5 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        className="w-28 px-3 py-1.5 text-sm font-mono border border-outline-variant rounded-lg bg-surface-container-highest text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary"
       />
 
       {/* Notes */}
@@ -149,7 +149,7 @@ const QuickAddMovement = ({ variant, onExpandToFull, onClose, onSuccess }: Quick
         value={notes}
         onChange={(e) => setNotes(e.target.value)}
         onKeyDown={handleKeyDown}
-        className="flex-1 min-w-0 px-3 py-1.5 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        className="flex-1 min-w-0 px-3 py-1.5 text-sm border border-outline-variant rounded-lg bg-surface-container-highest text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary"
       />
 
       {/* Submit */}
@@ -157,7 +157,7 @@ const QuickAddMovement = ({ variant, onExpandToFull, onClose, onSuccess }: Quick
         type="button"
         disabled={!isValid || createMovement.isPending}
         onClick={handleSubmit}
-        className="p-2 rounded-lg bg-blue-600 text-white disabled:opacity-40 hover:bg-blue-700 transition-colors shrink-0"
+        className="p-2 rounded-lg bg-primary text-on-primary disabled:opacity-40 hover:bg-primary-container transition-colors shrink-0"
         aria-label="Submit quick add"
       >
         <Check className="w-4 h-4" />
@@ -165,7 +165,7 @@ const QuickAddMovement = ({ variant, onExpandToFull, onClose, onSuccess }: Quick
 
       {/* Success indicator */}
       {showSuccess && (
-        <span className="text-green-600 dark:text-green-400 text-sm font-medium animate-pulse">
+        <span className="text-success text-sm font-medium animate-pulse">
           ✓
         </span>
       )}
@@ -175,7 +175,7 @@ const QuickAddMovement = ({ variant, onExpandToFull, onClose, onSuccess }: Quick
         <button
           type="button"
           onClick={handleExpand}
-          className="flex items-center gap-0.5 text-xs text-blue-600 dark:text-blue-400 hover:underline shrink-0"
+          className="flex items-center gap-0.5 text-xs text-primary hover:underline shrink-0"
         >
           More <ChevronRight className="w-3 h-3" />
         </button>
@@ -185,26 +185,26 @@ const QuickAddMovement = ({ variant, onExpandToFull, onClose, onSuccess }: Quick
 
   // Destination label
   const destination = resolved && accountName && pocketName ? (
-    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 ml-1">
+    <p className="text-xs text-on-surface-variant mt-1 ml-1">
       → {accountName} / {pocketName}
     </p>
   ) : null;
 
   // Error display
   const errorEl = error ? (
-    <p className="text-xs text-red-600 dark:text-red-400 mt-1 ml-1">{error}</p>
+    <p className="text-xs text-error mt-1 ml-1">{error}</p>
   ) : null;
 
   if (variant === 'modal') {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
         <div
-          className="absolute inset-0 bg-gray-900/40 dark:bg-black/60 backdrop-blur-sm"
+          className="absolute inset-0 bg-black/60 backdrop-blur-sm"
           onClick={onClose}
           aria-hidden="true"
         />
-        <div className="relative w-full max-w-sm bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-100 dark:border-gray-700 p-5">
-          <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Quick Add</h3>
+        <div className="relative w-full max-w-sm bg-surface-container-high/95 backdrop-blur-xl rounded-2xl border border-white/[0.08] p-5">
+          <h3 className="text-sm font-semibold text-on-surface-variant mb-3">Quick Add</h3>
           {form}
           {destination}
           {errorEl}

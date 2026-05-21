@@ -33,20 +33,20 @@ export default function TagInput({ value, onChange, label = 'Tags', maxTags = 10
 
   return (
     <div className="space-y-1">
-      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+      <label className="block text-sm font-medium text-on-surface-variant">
         {label}
       </label>
-      <div className="flex flex-wrap items-center gap-1.5 px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 focus-within:ring-4 focus-within:ring-blue-500/20 dark:focus-within:ring-blue-400/20 focus-within:border-blue-500 dark:focus-within:border-blue-400 transition-all duration-200 shadow-sm">
+      <div className="flex flex-wrap items-center gap-1.5 px-3 py-2 border border-outline-variant rounded-xl bg-surface-container-highest focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary transition-all duration-200">
         {value.map((tag, i) => (
           <span
             key={tag}
-            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-gray-100 dark:bg-gray-700 text-sm text-gray-800 dark:text-gray-200"
+            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-outline-variant text-sm text-on-surface-variant"
           >
             {tag}
             <button
               type="button"
               onClick={() => removeTag(i)}
-              className="text-gray-500 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400"
+              className="text-on-surface-variant hover:text-error"
               aria-label={`Remove tag ${tag}`}
             >
               &times;
@@ -61,12 +61,12 @@ export default function TagInput({ value, onChange, label = 'Tags', maxTags = 10
             onKeyDown={handleKeyDown}
             onBlur={() => { if (input) addTag(input); }}
             placeholder={value.length === 0 ? 'Add tags...' : ''}
-            className="flex-1 min-w-[80px] bg-transparent outline-none text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400"
+            className="flex-1 min-w-[80px] bg-transparent outline-none text-sm text-on-surface placeholder-on-surface-variant/50"
           />
         )}
       </div>
       {value.length >= maxTags && (
-        <p className="text-xs text-gray-500">Maximum {maxTags} tags reached</p>
+        <p className="text-xs text-on-surface-variant">Maximum {maxTags} tags reached</p>
       )}
     </div>
   );

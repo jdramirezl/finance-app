@@ -32,15 +32,15 @@ interface MovementListProps {
 const getMovementTypeColor = (type: MovementType): string => {
     switch (type) {
         case 'IngresoNormal':
-            return 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 border-green-300 dark:border-green-700';
+            return 'bg-success/10 text-success';
         case 'EgresoNormal':
-            return 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300 border-red-300 dark:border-red-700';
+            return 'bg-error/10 text-error';
         case 'IngresoFijo':
-            return 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 border-blue-300 dark:border-blue-700';
+            return 'bg-secondary/10 text-secondary';
         case 'EgresoFijo':
-            return 'bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-300 border-orange-300 dark:border-orange-700';
+            return 'bg-tertiary/10 text-tertiary';
         default:
-            return 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-300 border-gray-300 dark:border-gray-700';
+            return 'bg-on-surface-variant/10 text-on-surface-variant';
     }
 };
 
@@ -98,12 +98,12 @@ const MovementRow = memo(({
     return (
         <div
             className={`
-                group relative flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-white dark:bg-gray-800 rounded-lg border transition-all gap-4 sm:gap-0
+                group relative flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-lg transition-all gap-4 sm:gap-0 border-b border-white/[0.06] last:border-b-0
                 ${isSelected
-                    ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
-                    : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+                    ? 'bg-primary/10'
+                    : 'hover:bg-surface-container-high'
                 }
-                ${movement.isPending ? 'opacity-75 border-dashed' : ''}
+                ${movement.isPending ? 'opacity-75 border-dashed border-outline-variant' : ''}
             `}
         >
             <div className="flex items-start gap-4">
@@ -113,39 +113,39 @@ const MovementRow = memo(({
                             type="checkbox"
                             checked={isSelected}
                             onChange={() => onToggleSelection(movement.id)}
-                            className="w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                            className="w-5 h-5 text-primary rounded border-outline-variant focus:ring-primary"
                             aria-label={`Select movement: ${movement.notes || 'Untitled Movement'}`}
                         />
                     </label>
                 </div>
 
-                <div className={`p-2.5 rounded-xl bg-gradient-to-br ${isIncome ? 'from-green-50 to-emerald-100 dark:from-green-900/20 dark:to-emerald-900/30' : 'from-red-50 to-rose-100 dark:from-red-900/20 dark:to-rose-900/30'} shadow-sm`}>
-                    <IconComponent className={`w-5 h-5 ${smartIcon ? iconData.color : (isIncome ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400')}`} aria-hidden="true" />
+                <div className={`p-2.5 rounded-xl ${isIncome ? 'bg-success/10' : 'bg-error/10'}`}>
+                    <IconComponent className={`w-5 h-5 ${smartIcon ? iconData.color : (isIncome ? 'text-success' : 'text-error')}`} aria-hidden="true" />
                 </div>
 
                 <div>
                     <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-medium text-gray-900 dark:text-gray-100">
+                        <span className="font-medium text-on-surface">
                             {movement.notes || 'Untitled Movement'}
                         </span>
-                        <span className={`text-xs px-2 py-0.5 rounded-full border ${getMovementTypeColor(movement.type)}`}>
+                        <span className={`text-xs px-2 py-0.5 rounded-full ${getMovementTypeColor(movement.type)}`}>
                             {getMovementTypeLabel(movement.type)}
                         </span>
                         {linkedReminder && (
-                            <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-indigo-800 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 flex items-center gap-1" title="Paid Reminder">
+                            <span className="text-xs px-2 py-0.5 rounded-full bg-secondary/10 text-secondary flex items-center gap-1" title="Paid Reminder">
                                 <Bell className="w-3 h-3" aria-hidden="true" />
                                 {linkedReminder.title}
                             </span>
                         )}
                         {movement.isPending && (
-                            <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-800 border border-yellow-200">
+                            <span className="text-xs px-2 py-0.5 rounded-full bg-tertiary/10 text-tertiary">
                                 Pending
                             </span>
                         )}
                         {movement.category && (
                             <span
-                                className="text-xs px-2 py-0.5 rounded-full text-white flex items-center gap-1"
-                                style={{ backgroundColor: getCategoryColor(movement.category) }}
+                                className="text-xs px-2 py-0.5 rounded-full"
+                                style={{ backgroundColor: `${getCategoryColor(movement.category)}1a`, color: getCategoryColor(movement.category) }}
                             >
                                 {movement.category}
                             </span>
@@ -153,20 +153,20 @@ const MovementRow = memo(({
                         {movement.tags && movement.tags.length > 0 && (
                             <>
                                 {movement.tags.slice(0, 3).map((tag) => (
-                                    <span key={tag} className="text-xs px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-600">
+                                    <span key={tag} className="text-xs px-2 py-0.5 rounded-full border border-outline-variant text-on-surface-variant">
                                         {tag}
                                     </span>
                                 ))}
                                 {movement.tags.length > 3 && (
-                                    <span className="text-xs text-gray-500 dark:text-gray-400">
+                                    <span className="text-xs text-on-surface-variant">
                                         +{movement.tags.length - 3} more
                                     </span>
                                 )}
                             </>
                         )}
                     </div>
-                    <div className="text-sm text-gray-500 dark:text-gray-400 mt-1 flex flex-wrap items-center gap-2">
-                        <span>{format(parseISO(movement.displayedDate), 'MMM d, yyyy')}</span>
+                    <div className="text-sm text-on-surface-variant mt-1 flex flex-wrap items-center gap-2">
+                        <span className="font-mono">{format(parseISO(movement.displayedDate), 'MMM d, yyyy')}</span>
                         <span className="hidden sm:inline">•</span>
                         <span>{account?.name || 'Unknown Account'}</span>
                         <span className="hidden sm:inline">•</span>
@@ -189,7 +189,7 @@ const MovementRow = memo(({
                             variant="secondary"
                             onClick={() => onApplyPending(movement.id)}
                             loading={isApplying}
-                            className="text-green-600 hover:text-green-700"
+                            className="text-success hover:text-success"
                             title="Apply Pending Movement"
                             aria-label={`Apply pending movement: ${movement.notes || 'Untitled Movement'}`}
                         >
@@ -200,7 +200,7 @@ const MovementRow = memo(({
                         size="sm"
                         variant="ghost"
                         onClick={() => onEdit(movement)}
-                        className="text-gray-500 hover:text-blue-600 p-2.5"
+                        className="text-on-surface-variant hover:text-primary p-2.5"
                         title="Edit"
                         aria-label={`Edit movement: ${movement.notes || 'Untitled Movement'}`}
                     >
@@ -211,7 +211,7 @@ const MovementRow = memo(({
                         variant="ghost"
                         onClick={() => onDelete(movement.id)}
                         loading={isDeleting}
-                        className="text-gray-500 hover:text-red-600 p-2.5"
+                        className="text-on-surface-variant hover:text-error p-2.5"
                         title="Delete"
                         aria-label={`Delete movement: ${movement.notes || 'Untitled Movement'}`}
                     >
@@ -322,11 +322,11 @@ const MovementList = ({
         return (
             <Card padding="lg">
                 <div className="text-center py-12">
-                    <div className="bg-gray-100 dark:bg-gray-800 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <Filter className="w-8 h-8 text-gray-400" aria-hidden="true" />
+                    <div className="bg-surface-container-high w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <Filter className="w-8 h-8 text-on-surface-variant" aria-hidden="true" />
                     </div>
-                    <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">No movements found</h3>
-                    <p className="text-gray-500 dark:text-gray-400 mt-2">
+                    <h3 className="text-lg font-medium text-on-surface">No movements found</h3>
+                    <p className="text-on-surface-variant mt-2">
                         Try adjusting your filters or create a new movement.
                     </p>
                 </div>
@@ -342,7 +342,7 @@ const MovementList = ({
                     variant="ghost"
                     size="sm"
                     onClick={() => handleSort('displayedDate')}
-                    className={sortField === 'displayedDate' ? 'bg-gray-100 dark:bg-gray-800' : ''}
+                    className={sortField === 'displayedDate' ? 'bg-primary/10 text-primary' : ''}
                 >
                     Date {getSortIcon('displayedDate')}
                 </Button>
@@ -350,7 +350,7 @@ const MovementList = ({
                     variant="ghost"
                     size="sm"
                     onClick={() => handleSort('amount')}
-                    className={sortField === 'amount' ? 'bg-gray-100 dark:bg-gray-800' : ''}
+                    className={sortField === 'amount' ? 'bg-primary/10 text-primary' : ''}
                 >
                     Amount {getSortIcon('amount')}
                 </Button>
@@ -358,7 +358,7 @@ const MovementList = ({
                     variant="ghost"
                     size="sm"
                     onClick={() => handleSort('type')}
-                    className={sortField === 'type' ? 'bg-gray-100 dark:bg-gray-800' : ''}
+                    className={sortField === 'type' ? 'bg-primary/10 text-primary' : ''}
                 >
                     Type {getSortIcon('type')}
                 </Button>
@@ -366,7 +366,7 @@ const MovementList = ({
                     variant="ghost"
                     size="sm"
                     onClick={() => handleSort('createdAt')}
-                    className={sortField === 'createdAt' ? 'bg-gray-100 dark:bg-gray-800' : ''}
+                    className={sortField === 'createdAt' ? 'bg-primary/10 text-primary' : ''}
                 >
                     Created {getSortIcon('createdAt')}
                 </Button>
@@ -381,33 +381,33 @@ const MovementList = ({
                     <div key={monthKey} className="space-y-2">
                         <button
                             onClick={() => toggleMonth(monthKey)}
-                            className="sticky top-0 z-10 w-full flex items-center justify-between p-4 bg-white/90 dark:bg-gray-800/90 backdrop-blur-lg rounded-lg shadow-md hover:shadow-lg border border-gray-200 dark:border-gray-700 transition-all"
+                            className="sticky top-0 z-10 w-full flex items-center justify-between p-4 bg-surface-container/80 backdrop-blur-lg rounded-xl border border-white/[0.08] transition-all hover:bg-surface-container-high/80"
                             aria-expanded={isExpanded}
                             aria-label={`${isExpanded ? 'Collapse' : 'Expand'} ${format(monthDate, 'MMMM yyyy')}`}
                         >
                             <div className="flex items-center gap-4">
                                 {isExpanded
-                                    ? <ChevronUp className="w-5 h-5 text-gray-500" aria-hidden="true" />
-                                    : <ChevronDown className="w-5 h-5 text-gray-500" aria-hidden="true" />}
-                                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                                    ? <ChevronUp className="w-5 h-5 text-on-surface-variant" aria-hidden="true" />
+                                    : <ChevronDown className="w-5 h-5 text-on-surface-variant" aria-hidden="true" />}
+                                <h3 className="text-sm font-semibold text-on-surface-variant uppercase tracking-wider">
                                     {format(monthDate, 'MMMM yyyy')}
                                 </h3>
-                                <span className="text-sm text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded-full">
+                                <span className="text-xs text-on-surface-variant bg-surface-container-high px-2 py-0.5 rounded-full font-mono">
                                     {monthMovements.length}
                                 </span>
                             </div>
-                            <div className="flex items-center gap-4 text-sm">
-                                <span className="text-green-600 dark:text-green-400 font-medium">
+                            <div className="flex items-center gap-4 text-sm font-mono">
+                                <span className="text-success font-medium">
                                     +${totals.income.toLocaleString()}
                                 </span>
-                                <span className="text-red-600 dark:text-red-400 font-medium">
+                                <span className="text-error font-medium">
                                     -${totals.expense.toLocaleString()}
                                 </span>
                             </div>
                         </button>
 
                         {isExpanded && (
-                            <div className="space-y-2 pl-4 border-l-2 border-gray-200 dark:border-gray-700 ml-4">
+                            <div className="space-y-0 ml-4">
                                 {monthMovements.map((movement) => (
                                     <MovementRow
                                         key={movement.id}
@@ -432,25 +432,25 @@ const MovementList = ({
             })}
             {/* Floating Stats Bar */}
             {selectedMovementIds.size > 0 && (
-                <div className="fixed bottom-24 md:bottom-6 left-1/2 transform -translate-x-1/2 bg-gray-900/90 dark:bg-gray-800/90 text-white backdrop-blur-md px-6 py-3 rounded-full shadow-xl z-50 flex items-center gap-6 animate-in slide-in-from-bottom-4 fade-in duration-200 border border-gray-700/50">
+                <div className="fixed bottom-24 md:bottom-6 left-1/2 transform -translate-x-1/2 bg-surface-container/90 text-on-surface backdrop-blur-xl px-6 py-3 rounded-full z-50 flex items-center gap-6 animate-in slide-in-from-bottom-4 fade-in duration-200 border border-white/[0.08]">
                     <div className="flex flex-col">
-                        <span className="text-xs text-gray-400 font-medium uppercase tracking-wider">Selected</span>
-                        <span className="font-bold text-lg leading-none">{selectedMovementIds.size}</span>
+                        <span className="text-xs text-on-surface-variant font-medium uppercase tracking-wider">Selected</span>
+                        <span className="font-bold text-lg leading-none font-mono">{selectedMovementIds.size}</span>
                     </div>
-                    <div className="w-px h-8 bg-gray-700"></div>
+                    <div className="w-px h-8 bg-outline-variant"></div>
                     <div className="flex flex-col">
-                        <span className="text-xs text-gray-400 font-medium uppercase tracking-wider">Sum</span>
-                        <span className="font-bold text-lg leading-none">
+                        <span className="text-xs text-on-surface-variant font-medium uppercase tracking-wider">Sum</span>
+                        <span className="font-bold text-lg leading-none font-mono">
                             {(selectionStats.sum >= 0 ? '+' : '-') + Math.abs(selectionStats.sum).toLocaleString(undefined, {
                                 style: 'currency',
                                 currency: 'USD',
                             })}
                         </span>
                     </div>
-                    <div className="w-px h-8 bg-gray-700"></div>
+                    <div className="w-px h-8 bg-outline-variant"></div>
                     <div className="flex flex-col">
-                        <span className="text-xs text-gray-400 font-medium uppercase tracking-wider">Average</span>
-                        <span className="font-bold text-lg leading-none">
+                        <span className="text-xs text-on-surface-variant font-medium uppercase tracking-wider">Average</span>
+                        <span className="font-bold text-lg leading-none font-mono">
                             {(selectionStats.average >= 0 ? '+' : '-') + Math.abs(selectionStats.average).toLocaleString(undefined, {
                                 style: 'currency',
                                 currency: 'USD',

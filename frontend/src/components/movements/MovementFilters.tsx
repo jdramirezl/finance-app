@@ -116,13 +116,13 @@ const MovementFilters = ({ showFilters, setShowFilters, movements, filters, setF
                     <Button
                         variant="secondary"
                         onClick={() => setShowFilters(!showFilters)}
-                        className={showFilters || activeFiltersCount > 0 ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800' : ''}
+                        className={showFilters || activeFiltersCount > 0 ? 'bg-primary/10 text-primary border-primary/30' : ''}
                         aria-expanded={showFilters}
                     >
                         <Filter className="w-5 h-5" aria-hidden="true" />
                         Filters
                         {activeFiltersCount > 0 && (
-                            <span className="ml-2 bg-blue-100 dark:bg-blue-800 text-blue-700 dark:text-blue-200 text-xs px-2 py-0.5 rounded-full">
+                            <span className="ml-2 bg-primary/20 text-primary text-xs px-2 py-0.5 rounded-full">
                                 {activeFiltersCount}
                             </span>
                         )}
@@ -131,7 +131,7 @@ const MovementFilters = ({ showFilters, setShowFilters, movements, filters, setF
                         <Button
                             variant="ghost"
                             onClick={clearFilters}
-                            className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                            className="text-on-surface-variant hover:text-on-surface"
                             aria-label="Clear all filters"
                             title="Clear all filters"
                         >
@@ -142,7 +142,7 @@ const MovementFilters = ({ showFilters, setShowFilters, movements, filters, setF
             </div>
 
             {showFilters && (
-                <div className="p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="p-4 bg-surface-container/80 backdrop-blur-xl rounded-xl border border-white/[0.08] grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     <Select
                         label="Status"
                         value={filters.showPending}
@@ -216,10 +216,7 @@ const MovementFilters = ({ showFilters, setShowFilters, movements, filters, setF
                                 value={filters.dateFrom}
                                 onChange={(e) => {
                                     const newFromDate = e.target.value;
-                                    // Prevent start date from being after end date
                                     if (filters.dateTo && newFromDate && newFromDate > filters.dateTo) {
-                                        // If user tries to set start date after end date,
-                                        // set end date to the same as start date
                                         setFilters.setDateTo(newFromDate);
                                     }
                                     setFilters.setDateFrom(newFromDate);
@@ -232,10 +229,7 @@ const MovementFilters = ({ showFilters, setShowFilters, movements, filters, setF
                                 value={filters.dateTo}
                                 onChange={(e) => {
                                     const newToDate = e.target.value;
-                                    // Prevent end date from being before start date
                                     if (filters.dateFrom && newToDate && newToDate < filters.dateFrom) {
-                                        // If user tries to set end date before start date, 
-                                        // set start date to the same as end date
                                         setFilters.setDateFrom(newToDate);
                                     }
                                     setFilters.setDateTo(newToDate);
@@ -275,10 +269,10 @@ const MovementFilters = ({ showFilters, setShowFilters, movements, filters, setF
 
                     {availableTags.length > 0 && (
                         <div className="space-y-1">
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                            <label className="block text-sm font-medium text-on-surface-variant">
                                 Tags
                             </label>
-                            <div className="flex flex-wrap gap-1.5 p-2 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 min-h-[44px]">
+                            <div className="flex flex-wrap gap-1.5 p-2 border border-outline-variant rounded-xl bg-surface-container-highest min-h-[44px]">
                                 {availableTags.map(tag => {
                                     const selected = filters.tags.includes(tag);
                                     return (
@@ -294,8 +288,8 @@ const MovementFilters = ({ showFilters, setShowFilters, movements, filters, setF
                                             }}
                                             className={`px-2 py-0.5 text-xs rounded-full border transition-colors ${
                                                 selected
-                                                    ? 'bg-blue-100 dark:bg-blue-900/40 border-blue-300 dark:border-blue-700 text-blue-700 dark:text-blue-300'
-                                                    : 'bg-gray-100 dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
+                                                    ? 'bg-primary/10 border-primary/30 text-primary'
+                                                    : 'border-outline-variant text-on-surface-variant hover:bg-surface-container-high'
                                             }`}
                                         >
                                             {tag}

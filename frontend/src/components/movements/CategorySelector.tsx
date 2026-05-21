@@ -44,7 +44,7 @@ export default function CategorySelector({ value, onChange, label = 'Category' }
 
   return (
     <div ref={containerRef} className="space-y-1 relative">
-      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+      <label className="block text-sm font-medium text-on-surface-variant">
         {label}
       </label>
       <div className="relative">
@@ -60,16 +60,16 @@ export default function CategorySelector({ value, onChange, label = 'Category' }
           onChange={handleInputChange}
           onFocus={() => setOpen(true)}
           placeholder="Select or type category..."
-          className={`w-full px-4 py-3 border rounded-xl transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-0 shadow-sm border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:border-blue-500 dark:focus:border-blue-400 focus:ring-blue-500/20 dark:focus:ring-blue-400/20 focus:ring-4 ${value ? 'pl-9' : ''}`}
+          className={`w-full px-4 py-3 border rounded-xl transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-0 border-outline-variant bg-surface-container-highest text-on-surface focus:border-primary focus:ring-primary/20 ${value ? 'pl-9' : ''}`}
         />
       </div>
       {open && filtered.length > 0 && (
-        <ul className="absolute z-50 mt-1 w-full max-h-48 overflow-y-auto bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg">
+        <ul className="absolute z-50 mt-1 w-full max-h-48 overflow-y-auto bg-surface-container-high border border-white/[0.08] rounded-xl">
           {filtered.map((cat) => (
             <li
               key={cat}
               onClick={() => handleSelect(cat)}
-              className="flex items-center gap-2 px-4 py-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 text-sm text-gray-900 dark:text-gray-100"
+              className="flex items-center gap-2 px-4 py-2 cursor-pointer hover:bg-surface-container-highest text-sm text-on-surface"
             >
               <span
                 className="w-2.5 h-2.5 rounded-full flex-shrink-0"

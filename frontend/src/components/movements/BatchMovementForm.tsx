@@ -130,13 +130,13 @@ const BatchMovementForm = forwardRef<BatchMovementFormRef, BatchMovementFormProp
     return (
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+          <h3 className="text-lg font-semibold text-on-surface">
             Add Multiple Movements
           </h3>
           <button
             type="button"
             onClick={onCancel}
-            className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+            className="text-on-surface-variant hover:text-on-surface"
             aria-label="Close batch movement form"
             title="Close"
           >
@@ -145,7 +145,7 @@ const BatchMovementForm = forwardRef<BatchMovementFormRef, BatchMovementFormProp
         </div>
 
         <div className="space-y-3 mb-4">
-          <div className="text-sm text-gray-600 dark:text-gray-400">
+          <div className="text-sm text-on-surface-variant">
             Add multiple movements at once. All movements will be saved together when you click "Save All".
           </div>
 
@@ -154,9 +154,9 @@ const BatchMovementForm = forwardRef<BatchMovementFormRef, BatchMovementFormProp
               type="checkbox"
               checked={watch('markAsPending')}
               onChange={(e) => setValue('markAsPending', e.target.checked)}
-              className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+              className="w-4 h-4 text-primary bg-surface-container-highest border-outline-variant rounded focus:ring-primary"
             />
-            <span className="text-gray-700 dark:text-gray-300">
+            <span className="text-on-surface-variant">
               Mark all as pending (won't affect balances until applied)
             </span>
           </label>
@@ -186,7 +186,7 @@ const BatchMovementForm = forwardRef<BatchMovementFormRef, BatchMovementFormProp
           })}
         </div>
 
-        <div className="flex items-center justify-between pt-4 border-t dark:border-gray-700">
+        <div className="flex items-center justify-between pt-4 border-t border-outline-variant">
           <Button type="button" variant="secondary" onClick={addRow} className="flex items-center gap-2">
             <Plus className="w-4 h-4" aria-hidden="true" />
             Add Row
