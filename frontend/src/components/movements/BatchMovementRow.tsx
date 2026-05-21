@@ -1,4 +1,5 @@
 import { memo } from 'react';
+import { Controller, type Control } from 'react-hook-form';
 import { Trash2 } from 'lucide-react';
 import Input from '../ui/Input';
 import Select from '../ui/Select';
@@ -28,59 +29,46 @@ export interface BatchMovementRow {
     isPending?: boolean;
 }
 
+export interface BatchFormValues {
+    rows: BatchMovementRow[];
+    markAsPending: boolean;
+}
+
 interface BatchMovementRowProps {
-    /** The row's current data (controlled by the parent). */
-    row: BatchMovementRow;
-    /** Zero-based index, used purely for the "Movement #N" label. */
+    /** Zero-based index into the field array. */
     index: number;
-    /**
-     * Whether the remove button should be rendered. The parent keeps at
-     * least one row visible at all times, so it passes `false` when this
-     * is the only row.
-     */
+    /** react-hook-form control for Controller fields. */
+    control: Control<BatchFormValues>;
+    /** Per-row errors from formState.errors.rows[index]. */
+    errors?: Record<string, { message?: string }>;
+    /** Whether the remove button should be rendered. */
     canRemove: boolean;
-    /**
-     * The amount input's `step` attribute. The parent computes this per
-     * row based on the selected pocket (e.g. share-tracking pockets need
-     * higher precision than currency pockets).
-     */
+    /** The amount input's `step` attribute. */
     amountStep: string;
-    /** Merge a partial update into this row. Parent owns row state. */
-    onUpdate: (id: string, updates: Partial<BatchMovementRow>) => void;
-    /** Request removal of this row. Ignored by the parent if it would empty the list. */
-    onRemove: (id: string) => void;
-    /**
-     * Fired when any input inside the row receives focus. The parent uses
-     * this to keep its side-panel context in sync with the focused row.
-     */
-    onFocus: (row: BatchMovementRow) => void;
+    /** Request removal of this row. */
+    onRemove: () => void;
+    /** Fired when any input inside the row receives focus. */
+    onFocus: () => void;
 }
 
 /**
  * A single editable row inside BatchMovementForm.
  *
- * Wrapped in React.memo so editing one row only re-renders that row;
- * sibling rows skip rendering as long as the parent hands down stable
- * callback identities (via useCallback) and the row's own props are
- * shallow-equal to the previous render.
- *
- * Cascading account → pocket → sub-pocket logic and movement-type-driven
- * filtering live entirely inside AccountPocketSelector, so this component
- * is purely presentational: every input change is forwarded to the parent
- * via `onUpdate`, and the parent re-renders this row with the new data.
+ * Uses react-hook-form Controller for AccountPocketSelector (controlled
+ * component) and register-compatible inputs for simple fields.
  */
-const BatchMovementRow = ({
-    row,
+const BatchMovementRowComponent = ({
     index,
+    control,
+    errors,
     canRemove,
     amountStep,
-    onUpdate,
     onRemove,
     onFocus,
 }: BatchMovementRowProps) => {
     return (
         <div
-            onFocus={() => onFocus(row)}
+            onFocus={onFocus}
             className="p-4 border dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-800/50 space-y-3"
         >
             <div className="flex items-center justify-between mb-2">
@@ -89,7 +77,8 @@ const BatchMovementRow = ({
                 </span>
                 {canRemove && (
                     <button
-                        onClick={() => onRemove(row.id)}
+                        type="button"
+                        onClick={onRemove}
                         className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
                         aria-label={`Remove movement #${index + 1}`}
                         title="Remove this row"
@@ -99,61 +88,127 @@ const BatchMovementRow = ({
                 )}
             </div>
 
-            <Select
-                label="Type"
-                value={row.type}
-                onChange={(e) =>
-                    onUpdate(row.id, { type: e.target.value as MovementType })
-                }
-                required
-                options={MOVEMENT_TYPES}
+            <Controller
+                control={control}
+                name={`rows.${index}.type`}
+                render={({ field }) => (
+                    <Select
+                        label="Type"
+                        value={field.value}
+                        onChange={(e) => field.onChange(e.target.value)}
+                        onBlur={field.onBlur}
+                        required
+                        options={MOVEMENT_TYPES}
+                    />
+                )}
             />
 
-            <AccountPocketSelector
-                accountId={row.accountId}
-                pocketId={row.pocketId}
-                subPocketId={row.subPocketId || ''}
-                onAccountChange={(accountId) => onUpdate(row.id, { accountId })}
-                onPocketChange={(pocketId) => onUpdate(row.id, { pocketId })}
-                onSubPocketChange={(subPocketId) =>
-                    onUpdate(row.id, { subPocketId: subPocketId || undefined })
-                }
-                movementType={row.type}
-                enforceMovementType
-                showSubPocket
-                showAccountCurrency
-                required
+            <Controller
+                control={control}
+                name={`rows.${index}.accountId`}
+                rules={{ required: 'Account is required' }}
+                render={({ field: accountField }) => (
+                    <Controller
+                        control={control}
+                        name={`rows.${index}.pocketId`}
+                        rules={{ required: 'Pocket is required' }}
+                        render={({ field: pocketField }) => (
+                            <Controller
+                                control={control}
+                                name={`rows.${index}.subPocketId`}
+                                render={({ field: subPocketField }) => (
+                                    <Controller
+                                        control={control}
+                                        name={`rows.${index}.type`}
+                                        render={({ field: typeField }) => (
+                                            <>
+                                                <AccountPocketSelector
+                                                    accountId={accountField.value}
+                                                    pocketId={pocketField.value}
+                                                    subPocketId={subPocketField.value || ''}
+                                                    onAccountChange={(id) => accountField.onChange(id)}
+                                                    onPocketChange={(id) => pocketField.onChange(id)}
+                                                    onSubPocketChange={(id) =>
+                                                        subPocketField.onChange(id || undefined)
+                                                    }
+                                                    movementType={typeField.value}
+                                                    enforceMovementType
+                                                    showSubPocket
+                                                    showAccountCurrency
+                                                    required
+                                                />
+                                                {(errors?.accountId || errors?.pocketId) && (
+                                                    <p className="text-sm text-red-600 dark:text-red-400">
+                                                        {errors?.accountId?.message || errors?.pocketId?.message}
+                                                    </p>
+                                                )}
+                                            </>
+                                        )}
+                                    />
+                                )}
+                            />
+                        )}
+                    />
+                )}
             />
 
             <div className="grid grid-cols-2 gap-3">
-                <Input
-                    label="Amount"
-                    type="number"
-                    step={amountStep}
-                    value={row.amount}
-                    onChange={(e) => onUpdate(row.id, { amount: e.target.value })}
-                    required
+                <Controller
+                    control={control}
+                    name={`rows.${index}.amount`}
+                    rules={{
+                        required: 'Amount is required',
+                        validate: (v) => {
+                            const num = parseFloat(v);
+                            if (isNaN(num) || num < 0) return 'Amount must be 0 or greater';
+                            return true;
+                        },
+                    }}
+                    render={({ field }) => (
+                        <Input
+                            label="Amount"
+                            type="number"
+                            step={amountStep}
+                            value={field.value}
+                            onChange={field.onChange}
+                            onBlur={field.onBlur}
+                            required
+                            error={errors?.amount?.message}
+                        />
+                    )}
                 />
 
-                <Input
-                    label="Date"
-                    type="date"
-                    value={row.displayedDate}
-                    onChange={(e) =>
-                        onUpdate(row.id, { displayedDate: e.target.value })
-                    }
-                    required
+                <Controller
+                    control={control}
+                    name={`rows.${index}.displayedDate`}
+                    render={({ field }) => (
+                        <Input
+                            label="Date"
+                            type="date"
+                            value={field.value}
+                            onChange={field.onChange}
+                            onBlur={field.onBlur}
+                            required
+                        />
+                    )}
                 />
             </div>
 
-            <Input
-                label="Notes (optional)"
-                value={row.notes}
-                onChange={(e) => onUpdate(row.id, { notes: e.target.value })}
-                placeholder="Add notes..."
+            <Controller
+                control={control}
+                name={`rows.${index}.notes`}
+                render={({ field }) => (
+                    <Input
+                        label="Notes (optional)"
+                        value={field.value}
+                        onChange={field.onChange}
+                        onBlur={field.onBlur}
+                        placeholder="Add notes..."
+                    />
+                )}
             />
         </div>
     );
 };
 
-export default memo(BatchMovementRow);
+export default memo(BatchMovementRowComponent);
