@@ -2,8 +2,11 @@ import { useState } from 'react';
 import PageHeader from '../components/ui/PageHeader';
 import Card from '../components/ui/Card';
 import PeriodSelector, { computeRange } from '../components/reports/PeriodSelector';
-import { SpendingByCategory, MonthlyTrend } from '../components/reports';
 import type { DateRange } from '../components/reports/PeriodSelector';
+import SpendingByCategory from '../components/reports/SpendingByCategory';
+import MonthlyTrend from '../components/reports/MonthlyTrend';
+import CategoryTrend from '../components/reports/CategoryTrend';
+import TopExpenses from '../components/reports/TopExpenses';
 
 type TabKey = 'category' | 'monthly' | 'category-trend' | 'top-expenses';
 
@@ -44,25 +47,15 @@ const ReportsPage = () => {
         </nav>
       </div>
 
-      {/* Tab content — placeholders for Wave 2 */}
+      {/* Tab content */}
       <Card>
         {activeTab === 'category' && (
           <SpendingByCategory startDate={dateRange.startDate} endDate={dateRange.endDate} />
         )}
-        {activeTab === 'monthly' && (
-          <MonthlyTrend months={6} />
-        )}
-        {activeTab === 'category-trend' && (
-          <div className="text-center py-12 text-gray-500 dark:text-gray-400">
-            <p className="text-lg font-medium">Category Trend</p>
-            <p className="text-sm mt-1">Spending in a single category over time</p>
-          </div>
-        )}
+        {activeTab === 'monthly' && <MonthlyTrend months={6} />}
+        {activeTab === 'category-trend' && <CategoryTrend />}
         {activeTab === 'top-expenses' && (
-          <div className="text-center py-12 text-gray-500 dark:text-gray-400">
-            <p className="text-lg font-medium">Top Expenses</p>
-            <p className="text-sm mt-1">Largest individual expenses in period</p>
-          </div>
+          <TopExpenses startDate={dateRange.startDate} endDate={dateRange.endDate} />
         )}
       </Card>
     </div>
