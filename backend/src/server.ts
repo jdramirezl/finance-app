@@ -35,6 +35,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import compression from 'compression';
 import { errorHandler } from './shared/middleware/errorHandler';
+import { cacheControl } from './shared/middleware/cacheControl';
 import { initializeContainer } from './shared/container';
 
 // Initialize dependency injection container BEFORE importing routes
@@ -104,38 +105,48 @@ app.get('/api', (req: Request, res: Response) => {
   });
 });
 
+// Cache-Control headers per route group (GET responses only).
+// Tunes browser caching to data volatility: stable data caches longer,
+// volatile data (movements) caches briefly. Mutations are never cached.
+const cacheStable = cacheControl(120, 300);            // accounts, pockets, sub-pockets, fixed-expense-groups
+const cacheMovements = cacheControl(60, 120);          // movements (volatile)
+const cacheInvestments = cacheControl(900, 1800);      // investments (15 min)
+const cacheCurrency = cacheControl(3600, 7200);        // currency rates (1 hour)
+const cacheSettings = cacheControl(300, 600);          // settings, snapshots, templates
+const cacheReminders = cacheControl(120, 300);         // reminders
+
 // Mount account routes
-app.use('/api/accounts', accountRoutes);
+app.use('/api/accounts', cacheStable, accountRoutes);
 
 // Mount investment routes
-app.use('/api/investments', investmentRoutes);
+app.use('/api/investments', cacheInvestments, investmentRoutes);
 
 // Mount pocket routes
-app.use('/api/pockets', pocketRoutes);
+app.use('/api/pockets', cacheStable, pocketRoutes);
 
 // Mount sub-pocket routes
-app.use('/api/sub-pockets', subPocketRoutes);
+app.use('/api/sub-pockets', cacheStable, subPocketRoutes);
 
 // Mount fixed expense group routes
-app.use('/api/fixed-expense-groups', groupRoutes);
+app.use('/api/fixed-expense-groups', cacheStable, groupRoutes);
 
 // Mount movement routes
-app.use('/api/movements', movementRoutes);
+app.use('/api/movements', cacheMovements, movementRoutes);
 
 // Mount movement template routes
-app.use('/api/movement-templates', templateRoutes);
+app.use('/api/movement-templates', cacheSettings, templateRoutes);
 
 // Mount settings routes
-app.use('/api/settings', settingsRoutes);
+app.use('/api/settings', cacheSettings, settingsRoutes);
 
 // Mount currency routes
-app.use('/api/currency', currencyRoutes);
+app.use('/api/currency', cacheCurrency, currencyRoutes);
 
 // Mount reminder routes
-app.use('/api/reminders', reminderRoutes);
+app.use('/api/reminders', cacheReminders, reminderRoutes);
 
 // Mount net worth snapshot routes
-app.use('/api/net-worth-snapshots', netWorthRoutes);
+app.use('/api/net-worth-snapshots', cacheSettings, netWorthRoutes);
 
 // 404 handler
 app.use((req: Request, res: Response) => {
