@@ -29,6 +29,7 @@ import RemindersWidget from '../components/reminders/RemindersWidget';
 import {
   CurrencyBreakdownSection,
   FixedExpensesSummary,
+  SpendingCard,
   TotalsSummary,
 } from '../components/summary';
 import FloatingStatsBar from '../components/summary/FloatingStatsBar';
@@ -149,6 +150,10 @@ const SummaryPage = () => {
               isConsolidatedReady={isConsolidatedReady}
             />
           )}
+        </ErrorBoundary>
+
+        <ErrorBoundary>
+          <SpendingCard primaryCurrency={primaryCurrency} />
         </ErrorBoundary>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

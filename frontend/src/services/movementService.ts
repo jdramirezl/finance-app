@@ -2,6 +2,23 @@ import type { Movement, MovementType } from '../types';
 import { apiClient } from './apiClient';
 import { parseDate } from '../utils/dateUtils';
 
+export interface CurrencyTotal {
+  currency: string;
+  amount: number;
+}
+
+export interface PeriodSummary {
+  totals: CurrencyTotal[];
+}
+
+export interface SpendingSummaryResponse {
+  today: PeriodSummary;
+  thisWeek: PeriodSummary;
+  lastWeek: PeriodSummary;
+  thisMonth: PeriodSummary;
+  lastMonth: PeriodSummary;
+}
+
 /**
  * Generic paginated response shape returned by the backend's list endpoints.
  *
@@ -257,6 +274,10 @@ class MovementService {
       { pocketId, newAccountId }
     );
     return result.count;
+  }
+
+  async getSpendingSummary(): Promise<SpendingSummaryResponse> {
+    return apiClient.get<SpendingSummaryResponse>('/api/movements/spending-summary');
   }
 }
 
