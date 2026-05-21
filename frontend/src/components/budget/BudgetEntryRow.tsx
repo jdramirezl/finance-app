@@ -87,7 +87,7 @@ const BudgetEntryRow = ({
 
     return (
         <div
-            className={`grid ${showConversion ? 'grid-cols-[2fr_1fr_1.5fr_1.5fr_1fr]' : 'grid-cols-12'} gap-4 items-center p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors`}
+            className={`grid ${showConversion ? 'grid-cols-[2fr_1fr_1.5fr_1.5fr_1fr]' : 'grid-cols-12'} gap-4 items-center p-3 bg-surface-container-high/50 rounded-lg hover:bg-surface-container-high transition-colors`}
         >
             {isEditing ? (
                 <>
@@ -95,7 +95,7 @@ const BudgetEntryRow = ({
                         <select
                             value={editPocketId}
                             onChange={(e) => onEditPocketChange(e.target.value)}
-                            className="w-full px-3 py-2 border dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                            className="w-full px-3 py-2 border border-outline-variant rounded-lg text-sm bg-surface-container-highest text-on-surface"
                             aria-label="Link to pocket (optional)"
                         >
                             <option value="">Not linked to a pocket</option>
@@ -110,7 +110,7 @@ const BudgetEntryRow = ({
                             value={editName}
                             onChange={(e) => onEditNameChange(e.target.value)}
                             placeholder="Entry name"
-                            className="w-full px-3 py-2 border dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                            className="w-full px-3 py-2 border border-outline-variant rounded-lg text-sm bg-surface-container-highest text-on-surface"
                             autoFocus
                         />
                     </div>
@@ -123,11 +123,11 @@ const BudgetEntryRow = ({
                             value={editPercentage || ''}
                             onChange={(e) => onEditPercentageChange(parseFloat(e.target.value) || 0)}
                             placeholder="%"
-                            className="w-full px-3 py-2 border dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                            className="w-full px-3 py-2 border border-outline-variant rounded-lg text-sm bg-surface-container-highest text-on-surface font-mono"
                         />
                     </div>
                     <div className={showConversion ? '' : 'col-span-3'}>
-                        <div className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                        <div className="text-sm font-medium text-on-surface font-mono">
                             {amount.toLocaleString(undefined, {
                                 style: 'currency',
                                 currency,
@@ -135,7 +135,7 @@ const BudgetEntryRow = ({
                         </div>
                     </div>
                     {showConversion && (
-                        <div className="text-sm font-medium text-blue-700 dark:text-blue-300">
+                        <div className="text-sm font-medium text-primary font-mono">
                             {convertedAmount !== undefined
                                 ? convertedAmount.toLocaleString(undefined, {
                                     style: 'currency',
@@ -149,7 +149,7 @@ const BudgetEntryRow = ({
                             variant="ghost"
                             size="sm"
                             onClick={() => onSave(entry.id)}
-                            className="p-1.5 text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/30"
+                            className="p-1.5 text-[#34d399] hover:bg-[#34d399]/10"
                             title="Save"
                         >
                             <Save className="w-4 h-4" aria-hidden="true" />
@@ -158,7 +158,7 @@ const BudgetEntryRow = ({
                             variant="ghost"
                             size="sm"
                             onClick={onCancel}
-                            className="p-1.5 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600"
+                            className="p-1.5 text-on-surface-variant hover:bg-surface-container-high"
                             title="Cancel"
                         >
                             <X className="w-4 h-4" aria-hidden="true" />
@@ -168,11 +168,11 @@ const BudgetEntryRow = ({
             ) : (
                 <>
                     <div className={`${showConversion ? '' : 'col-span-4'}`}>
-                        <div className="font-medium text-gray-900 dark:text-gray-100">
-                            {entry.name || <span className="text-gray-400 dark:text-gray-500 italic">Unnamed</span>}
+                        <div className="font-medium text-on-surface">
+                            {entry.name || <span className="text-outline italic">Unnamed</span>}
                         </div>
                         {linkedPocket ? (
-                            <div className="mt-0.5 text-xs text-blue-600 dark:text-blue-400 flex items-center gap-1">
+                            <div className="mt-0.5 text-xs text-primary flex items-center gap-1">
                                 <Link2 className="w-3 h-3" aria-hidden="true" />
                                 <span className="truncate">
                                     {linkedPocket.name}
@@ -180,21 +180,21 @@ const BudgetEntryRow = ({
                                 </span>
                             </div>
                         ) : entry.pocketId ? (
-                            <div className="mt-0.5 text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                            <div className="mt-0.5 text-xs text-[#ffb873] flex items-center gap-1">
                                 <Link2 className="w-3 h-3" aria-hidden="true" />
                                 <span>Linked pocket no longer exists</span>
                             </div>
                         ) : null}
                     </div>
-                    <div className={`text-gray-700 dark:text-gray-300 ${showConversion ? '' : 'col-span-3'}`}>{entry.percentage}%</div>
-                    <div className={`font-semibold text-gray-900 dark:text-gray-100 ${showConversion ? '' : 'col-span-3'}`}>
+                    <div className={`text-on-surface-variant font-mono ${showConversion ? '' : 'col-span-3'}`}>{entry.percentage}%</div>
+                    <div className={`font-semibold text-on-surface font-mono ${showConversion ? '' : 'col-span-3'}`}>
                         {amount.toLocaleString(undefined, {
                             style: 'currency',
                             currency,
                         })}
                     </div>
                     {showConversion && (
-                        <div className="font-semibold text-blue-700 dark:text-blue-300">
+                        <div className="font-semibold text-primary font-mono">
                             {convertedAmount !== undefined
                                 ? convertedAmount.toLocaleString(undefined, {
                                     style: 'currency',
@@ -208,7 +208,7 @@ const BudgetEntryRow = ({
                             variant="ghost"
                             size="sm"
                             onClick={() => onStartEdit(entry)}
-                            className="p-1.5 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30"
+                            className="p-1.5 text-primary hover:bg-primary/10"
                             title="Edit"
                         >
                             <Edit2 className="w-4 h-4" aria-hidden="true" />
@@ -217,7 +217,7 @@ const BudgetEntryRow = ({
                             variant="ghost"
                             size="sm"
                             onClick={() => onDelete(entry.id)}
-                            className="p-1.5 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30"
+                            className="p-1.5 text-[#ffb4ab] hover:bg-[#ffb4ab]/10"
                             title="Delete"
                         >
                             <Trash2 className="w-4 h-4" aria-hidden="true" />

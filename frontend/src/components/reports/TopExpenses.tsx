@@ -42,7 +42,7 @@ const TopExpenses = ({ startDate, endDate }: TopExpensesProps) => {
     return (
       <div className="animate-pulse space-y-3 py-8">
         {Array.from({ length: 5 }).map((_, i) => (
-          <div key={i} className="h-12 bg-gray-200 dark:bg-gray-700 rounded" />
+          <div key={i} className="h-12 bg-surface-container-high rounded" />
         ))}
       </div>
     );
@@ -55,7 +55,7 @@ const TopExpenses = ({ startDate, endDate }: TopExpensesProps) => {
         <select
           value={categoryFilter}
           onChange={(e) => setCategoryFilter(e.target.value)}
-          className="px-3 py-1.5 text-sm border rounded-md bg-white dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200"
+          className="px-3 py-1.5 text-sm border border-outline-variant rounded-md bg-surface-container-highest text-on-surface"
         >
           <option value="">All Categories</option>
           {PREDEFINED_CATEGORIES.map((cat) => (
@@ -66,7 +66,7 @@ const TopExpenses = ({ startDate, endDate }: TopExpensesProps) => {
 
       {/* List */}
       {topExpenses.length === 0 ? (
-        <div className="text-center py-12 text-gray-500 dark:text-gray-400">
+        <div className="text-center py-12 text-on-surface-variant">
           <p className="text-lg font-medium">No expenses found</p>
           <p className="text-sm mt-1">No expense movements match the selected filters.</p>
         </div>
@@ -74,7 +74,7 @@ const TopExpenses = ({ startDate, endDate }: TopExpensesProps) => {
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-gray-200 dark:border-gray-700 text-left text-gray-500 dark:text-gray-400">
+              <tr className="border-b border-white/[0.06] text-left text-on-surface-variant">
                 <th className="pb-2 font-medium w-8">#</th>
                 <th className="pb-2 font-medium">Date</th>
                 <th className="pb-2 font-medium">Category</th>
@@ -85,9 +85,9 @@ const TopExpenses = ({ startDate, endDate }: TopExpensesProps) => {
             </thead>
             <tbody>
               {topExpenses.map((m, idx) => (
-                <tr key={m.id} className="border-b border-gray-100 dark:border-gray-800">
-                  <td className="py-2 text-gray-400">{idx + 1}</td>
-                  <td className="py-2">{m.displayedDate}</td>
+                <tr key={m.id} className="border-b border-white/[0.04]">
+                  <td className="py-2 text-on-surface-variant font-mono">{idx + 1}</td>
+                  <td className="py-2 font-mono">{m.displayedDate}</td>
                   <td className="py-2">
                     {m.category && (
                       <span
@@ -99,13 +99,13 @@ const TopExpenses = ({ startDate, endDate }: TopExpensesProps) => {
                       </span>
                     )}
                   </td>
-                  <td className="py-2 text-gray-600 dark:text-gray-400 max-w-[200px] truncate">
+                  <td className="py-2 text-on-surface-variant max-w-[200px] truncate">
                     {m.notes || '—'}
                   </td>
-                  <td className="py-2 text-gray-600 dark:text-gray-400">
+                  <td className="py-2 text-on-surface-variant">
                     {accountMap.get(m.accountId) || '—'}
                   </td>
-                  <td className="py-2 text-right font-medium text-red-600 dark:text-red-400">
+                  <td className="py-2 text-right font-medium text-[#ffb4ab] font-mono">
                     {formatCurrencyAmount(m.amount, 'USD')}
                   </td>
                 </tr>

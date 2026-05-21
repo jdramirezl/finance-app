@@ -78,8 +78,8 @@ const PeriodSelector = ({ value, onChange }: PeriodSelectorProps) => {
           onClick={() => handlePreset(key)}
           className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
             activePreset === key
-              ? 'bg-blue-600 text-white'
-              : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+              ? 'bg-primary-container text-on-primary'
+              : 'bg-surface-container-high text-on-surface-variant hover:bg-surface-container-highest'
           }`}
         >
           {label}
@@ -91,14 +91,14 @@ const PeriodSelector = ({ value, onChange }: PeriodSelectorProps) => {
             type="date"
             value={customStart}
             onChange={(e) => handleCustomChange(e.target.value, customEnd)}
-            className="px-2 py-1 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
+            className="px-2 py-1 text-sm border border-outline-variant rounded bg-surface-container-highest text-on-surface"
           />
-          <span className="text-gray-500 dark:text-gray-400">to</span>
+          <span className="text-on-surface-variant">to</span>
           <input
             type="date"
             value={customEnd}
             onChange={(e) => handleCustomChange(customStart, e.target.value)}
-            className="px-2 py-1 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
+            className="px-2 py-1 text-sm border border-outline-variant rounded bg-surface-container-highest text-on-surface"
           />
         </div>
       )}

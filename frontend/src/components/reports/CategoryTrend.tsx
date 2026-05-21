@@ -86,7 +86,7 @@ const CategoryTrend = ({ months: initialMonths = 6 }: CategoryTrendProps) => {
         <select
           value={selectedCategory}
           onChange={(e) => setSelectedCategory(e.target.value)}
-          className="px-3 py-1.5 text-sm border rounded-md bg-white dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200"
+          className="px-3 py-1.5 text-sm border border-outline-variant rounded-md bg-surface-container-highest text-on-surface"
         >
           {PREDEFINED_CATEGORIES.map((cat) => (
             <option key={cat} value={cat}>{cat}</option>
@@ -100,8 +100,8 @@ const CategoryTrend = ({ months: initialMonths = 6 }: CategoryTrendProps) => {
               onClick={() => setMonths(m)}
               className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
                 months === m
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                  ? 'bg-primary-container text-on-primary'
+                  : 'bg-surface-container-high text-on-surface-variant hover:bg-surface-container-highest'
               }`}
             >
               {m}mo
@@ -117,7 +117,7 @@ const CategoryTrend = ({ months: initialMonths = 6 }: CategoryTrendProps) => {
           <Skeleton className="h-64 w-full" />
         </div>
       ) : !chartData?.length ? (
-        <div className="text-center py-12 text-gray-500 dark:text-gray-400">
+        <div className="text-center py-12 text-on-surface-variant">
           <p className="text-lg font-medium">No data available</p>
           <p className="text-sm mt-1">No spending found for {selectedCategory} in this period.</p>
         </div>

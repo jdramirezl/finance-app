@@ -29,7 +29,7 @@ const ReportsPage = () => {
       />
 
       {/* Tab navigation */}
-      <div className="border-b border-gray-200 dark:border-gray-700">
+      <div className="border-b border-white/[0.06]">
         <nav className="flex gap-4 -mb-px">
           {TABS.map(({ key, label }) => (
             <button
@@ -37,8 +37,8 @@ const ReportsPage = () => {
               onClick={() => setActiveTab(key)}
               className={`pb-3 px-1 text-sm font-medium border-b-2 transition-colors ${
                 activeTab === key
-                  ? 'border-blue-600 text-blue-600 dark:border-blue-400 dark:text-blue-400'
-                  : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                  ? 'border-primary text-primary'
+                  : 'border-transparent text-on-surface-variant hover:text-on-surface'
               }`}
             >
               {label}

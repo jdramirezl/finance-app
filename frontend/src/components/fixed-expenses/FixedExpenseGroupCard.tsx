@@ -86,50 +86,50 @@ const FixedExpenseGroupCard = ({
 
   return (
     <div
-      className="border dark:border-gray-700 rounded-xl transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5"
+      className="border border-outline-variant rounded-xl transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5"
       style={{ borderLeftWidth: '4px', borderLeftColor: group.color }}
     >
       {/* Group Header */}
-      <div className="bg-gray-50 dark:bg-gray-800 p-4 sticky top-0 z-10 border-b dark:border-gray-700 rounded-t-xl">
+      <div className="bg-surface-container-high p-4 sticky top-0 z-10 border-b border-white/[0.06] rounded-t-xl">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3 flex-1">
             <button
               onClick={() => onToggleCollapse(group.id)}
-              className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors"
+              className="p-1 hover:bg-surface-container-highest rounded transition-colors"
               aria-label={isCollapsed ? `Expand ${group.name}` : `Collapse ${group.name}`}
               aria-expanded={!isCollapsed}
             >
               {isCollapsed ? (
-                <ChevronRight className="w-5 h-5 text-gray-600 dark:text-gray-400" aria-hidden="true" />
+                <ChevronRight className="w-5 h-5 text-on-surface-variant" aria-hidden="true" />
               ) : (
-                <ChevronDown className="w-5 h-5 text-gray-600 dark:text-gray-400" aria-hidden="true" />
+                <ChevronDown className="w-5 h-5 text-on-surface-variant" aria-hidden="true" />
               )}
             </button>
 
             <div className="flex-1">
               <div className="flex items-center gap-2">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                <h3 className="text-lg font-semibold text-on-surface">
                   {group.name}
                 </h3>
-                <span className="text-sm text-gray-500 dark:text-gray-400">
+                <span className="text-sm text-on-surface-variant">
                   ({enabledCount}/{subPockets.length} enabled)
                 </span>
               </div>
               <div className="flex items-center gap-4 text-sm">
                 <div>
-                  <span className="text-gray-500 dark:text-gray-400">Expected:</span>
+                  <span className="text-on-surface-variant">Expected:</span>
                   <CurrencyAmount
                     amount={totalMonthlyExpected}
                     currency={currency}
-                    className="ml-1 font-medium text-gray-900 dark:text-gray-100"
+                    className="ml-1 font-medium text-on-surface"
                   />
                 </div>
                 <div>
-                  <span className="text-gray-500 dark:text-gray-400">Actual:</span>
+                  <span className="text-on-surface-variant">Actual:</span>
                   <CurrencyAmount
                     amount={totalMonthlyActual}
                     currency={currency}
-                    className="ml-1 font-medium text-blue-600 dark:text-blue-400"
+                    className="ml-1 font-medium text-primary"
                   />
                 </div>
               </div>
@@ -145,10 +145,10 @@ const FixedExpenseGroupCard = ({
               loading={isToggling}
               disabled={isToggling || subPockets.length === 0}
               className={`p-2 ${allEnabled
-                ? 'text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/30'
+                ? 'text-[#34d399] hover:bg-[#34d399]/10'
                 : someEnabled
-                  ? 'text-yellow-600 dark:text-yellow-400 hover:bg-yellow-50 dark:hover:bg-yellow-900/30'
-                  : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+                  ? 'text-[#ffb873] hover:bg-[#ffb873]/10'
+                  : 'text-on-surface-variant hover:bg-surface-container-highest'
                 }`}
               title={groupToggleLabel}
               aria-label={groupToggleLabel}
@@ -167,7 +167,7 @@ const FixedExpenseGroupCard = ({
                   variant="ghost"
                   size="sm"
                   onClick={() => onEditGroup(group)}
-                  className="p-2 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30"
+                  className="p-2 text-primary hover:bg-primary/10"
                   title="Edit group"
                   aria-label={`Edit group ${group.name}`}
                 >
@@ -179,7 +179,7 @@ const FixedExpenseGroupCard = ({
                   variant="ghost"
                   size="sm"
                   onClick={() => onDeleteGroup(group)}
-                  className="p-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30"
+                  className="p-2 text-[#ffb4ab] hover:bg-[#ffb4ab]/10"
                   title="Delete group"
                   aria-label={`Delete group ${group.name}`}
                 >
@@ -193,9 +193,9 @@ const FixedExpenseGroupCard = ({
 
       {/* Expenses List */}
       {!isCollapsed && (
-        <div className="divide-y dark:divide-gray-700">
+        <div className="divide-y divide-white/[0.06]">
           {subPockets.length === 0 ? (
-            <div className="p-8 text-center text-gray-500 dark:text-gray-400">
+            <div className="p-8 text-center text-on-surface-variant">
               No expenses in this group
             </div>
           ) : (
@@ -213,14 +213,14 @@ const FixedExpenseGroupCard = ({
               return (
                 <div
                   key={subPocket.id}
-                  className={`p-4 hover:bg-gradient-to-r hover:from-gray-50 hover:to-transparent dark:hover:from-gray-800/50 dark:hover:to-transparent transition-all duration-200 ${!subPocket.enabled ? 'opacity-50' : ''
+                  className={`p-4 hover:bg-surface-container-high/50 transition-all duration-200 ${!subPocket.enabled ? 'opacity-50' : ''
                     } last:rounded-b-xl`}
                 >
                   <div className="flex items-center justify-between gap-4">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-2 mb-2">
                         <div className="flex items-center gap-2">
-                          <h4 className={`font-medium text-gray-900 dark:text-gray-100 ${!subPocket.enabled ? 'line-through' : ''}`}>
+                          <h4 className={`font-medium text-on-surface ${!subPocket.enabled ? 'line-through' : ''}`}>
                             {subPocket.name}
                           </h4>
                           {account && (
@@ -236,7 +236,7 @@ const FixedExpenseGroupCard = ({
                             </span>
                           )}
                           {!subPocket.enabled && (
-                            <span className="px-2 py-0.5 text-xs font-medium bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded">
+                            <span className="px-2 py-0.5 text-xs font-medium bg-surface-container-highest text-on-surface-variant rounded">
                               Disabled
                             </span>
                           )}
@@ -246,7 +246,7 @@ const FixedExpenseGroupCard = ({
                         <select
                           value={subPocket.groupId || ''}
                           onChange={(e) => onMoveToGroup(subPocket.id, e.target.value)}
-                          className="text-xs px-2 py-1 border dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                          className="text-xs px-2 py-1 border border-outline-variant rounded bg-surface-container-highest text-on-surface"
                           title="Move to group"
                           aria-label={`Move ${subPocket.name} to a different group`}
                         >
@@ -260,40 +260,40 @@ const FixedExpenseGroupCard = ({
 
                       <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
                         <div>
-                          <span className="text-gray-500 dark:text-gray-400">Total:</span>
+                          <span className="text-on-surface-variant">Total:</span>
                           <CurrencyAmount
                             amount={subPocket.valueTotal}
                             currency={currency}
-                            className="ml-2 font-medium text-gray-900 dark:text-gray-100"
+                            className="ml-2 font-medium text-on-surface"
                           />
                         </div>
                         <div>
-                          <span className="text-gray-500 dark:text-gray-400">Expected:</span>
+                          <span className="text-on-surface-variant">Expected:</span>
                           <CurrencyAmount
                             amount={aporteMensualExpected}
                             currency={currency}
-                            className="ml-2 font-medium text-gray-900 dark:text-gray-100"
+                            className="ml-2 font-medium text-on-surface"
                           />
                         </div>
                         <div>
-                          <span className="text-gray-500 dark:text-gray-400">Actual:</span>
+                          <span className="text-on-surface-variant">Actual:</span>
                           <CurrencyAmount
                             amount={aporteMensualActual}
                             currency={currency}
-                            className="ml-2 font-medium text-blue-600 dark:text-blue-400"
+                            className="ml-2 font-medium text-primary"
                           />
                         </div>
                         <div>
-                          <span className="text-gray-500 dark:text-gray-400">Balance:</span>
+                          <span className="text-on-surface-variant">Balance:</span>
                           <CurrencyAmount
                             amount={subPocket.balance}
                             currency={currency}
-                            className="ml-2 font-medium text-gray-900 dark:text-gray-100"
+                            className="ml-2 font-medium text-on-surface"
                           />
                         </div>
                         <div>
-                          <span className="text-gray-500 dark:text-gray-400">Periodicity:</span>
-                          <span className="ml-2 font-medium text-gray-900 dark:text-gray-100">
+                          <span className="text-on-surface-variant">Periodicity:</span>
+                          <span className="ml-2 font-medium text-on-surface font-mono">
                             {subPocket.periodicityMonths} months
                           </span>
                         </div>
@@ -320,8 +320,8 @@ const FixedExpenseGroupCard = ({
                         loading={isTogglingExpense}
                         disabled={isTogglingExpense}
                         className={`p-2 ${subPocket.enabled
-                          ? 'text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/30'
-                          : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+                          ? 'text-[#34d399] hover:bg-[#34d399]/10'
+                          : 'text-on-surface-variant hover:bg-surface-container-highest'
                           }`}
                         title={expenseToggleLabel}
                         aria-label={expenseToggleLabel}
@@ -337,7 +337,7 @@ const FixedExpenseGroupCard = ({
                         variant="ghost"
                         size="sm"
                         onClick={() => onEditExpense(subPocket)}
-                        className="p-2 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30"
+                        className="p-2 text-primary hover:bg-primary/10"
                         title="Edit"
                         aria-label={`Edit fixed expense ${subPocket.name}`}
                       >
@@ -350,7 +350,7 @@ const FixedExpenseGroupCard = ({
                         onClick={() => onDeleteExpense(subPocket.id)}
                         loading={isDeleting}
                         disabled={isDeleting}
-                        className="p-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30"
+                        className="p-2 text-[#ffb4ab] hover:bg-[#ffb4ab]/10"
                         title="Delete"
                         aria-label={`Delete fixed expense ${subPocket.name}`}
                       >

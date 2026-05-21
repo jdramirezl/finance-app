@@ -18,12 +18,12 @@ const SettingsPage = () => {
   if (isLoading || !settings) {
     return (
       <div className="space-y-6">
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Settings</h1>
+        <h1 className="text-3xl font-bold text-on-surface">Settings</h1>
         <Card className="max-w-2xl">
           <div className="animate-pulse space-y-4">
-            <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/4" />
-            <div className="h-10 bg-gray-200 dark:bg-gray-700 rounded" />
-            <div className="h-10 bg-gray-200 dark:bg-gray-700 rounded" />
+            <div className="h-4 bg-surface-container-high rounded w-1/4" />
+            <div className="h-10 bg-surface-container-high rounded" />
+            <div className="h-10 bg-surface-container-high rounded" />
           </div>
         </Card>
       </div>
@@ -32,12 +32,12 @@ const SettingsPage = () => {
 
   return (
     <div className="max-w-7xl mx-auto space-y-12">
-      <div className="flex items-center justify-between pb-4 border-b border-gray-100 dark:border-gray-800">
+      <div className="flex items-center justify-between pb-4 border-b border-white/[0.06]">
         <div>
-          <h1 className="text-4xl font-bold text-gray-900 dark:text-gray-100 tracking-tight">
+          <h1 className="text-4xl font-bold text-on-surface tracking-tight">
             Settings
           </h1>
-          <p className="text-lg text-gray-500 dark:text-gray-400 mt-2">
+          <p className="text-lg text-on-surface-variant mt-2">
             Manage your application preferences and data.
           </p>
         </div>

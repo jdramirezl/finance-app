@@ -28,10 +28,10 @@ const FixedExpensesHeader = ({
     <>
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
+          <h1 className="text-3xl font-bold text-on-surface">
             Fixed Expenses
           </h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">
+          <p className="text-on-surface-variant mt-1">
             Managing {pocketCount} fixed expense{' '}
             {pocketCount === 1 ? 'pocket' : 'pockets'}
           </p>
@@ -54,18 +54,18 @@ const FixedExpensesHeader = ({
 
       <Card
         padding="md"
-        className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800"
+        className="bg-[rgba(27,33,34,0.8)] backdrop-blur-[12px] border border-white/[0.08]"
       >
-        <h2 className="text-lg font-semibold text-blue-900 dark:text-blue-200 mb-2">
+        <h2 className="text-lg font-semibold text-on-surface mb-2">
           Monthly Fixed Expenses Total
         </h2>
-        <p className="text-3xl font-bold text-blue-700 dark:text-blue-300">
+        <p className="text-3xl font-bold text-primary font-mono">
           {totalMonthly.toLocaleString(undefined, {
             style: 'currency',
             currency,
           })}
         </p>
-        <p className="text-sm text-blue-600 dark:text-blue-400 mt-1">
+        <p className="text-sm text-on-surface-variant mt-1">
           Sum of all enabled fixed expenses monthly contributions
         </p>
       </Card>

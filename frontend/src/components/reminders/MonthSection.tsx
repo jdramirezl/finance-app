@@ -11,11 +11,6 @@ interface MonthSectionProps {
     advanceDays?: number;
 }
 
-/**
- * Renders a single month group of reminder cards. Memoized so that
- * updating one month group does not re-render all the others. Parents
- * must pass stable callbacks via useCallback for the memo to be effective.
- */
 const MonthSection = ({ monthGroup, onPayNow, onEdit, onDelete, onMarkAsPaid, advanceDays }: MonthSectionProps) => {
     const { label, reminders, isCurrentMonth, isPastMonth } = monthGroup;
 
@@ -29,24 +24,24 @@ const MonthSection = ({ monthGroup, onPayNow, onEdit, onDelete, onMarkAsPaid, ad
             <div className={`
                 sticky top-0 z-10 py-2 px-3 mb-2 rounded-lg
                 ${isCurrentMonth
-                    ? 'bg-blue-100 dark:bg-blue-900/40 border border-blue-200 dark:border-blue-800'
+                    ? 'bg-primary/10 border border-primary/20'
                     : isPastMonth
-                        ? 'bg-gray-100 dark:bg-gray-800/60'
-                        : 'bg-gray-50 dark:bg-gray-800/40'
+                        ? 'bg-surface-container-high/60'
+                        : 'bg-surface-container/40'
                 }
             `}>
                 <h3 className={`
                     text-sm font-semibold uppercase tracking-wide
                     ${isCurrentMonth
-                        ? 'text-blue-700 dark:text-blue-300'
+                        ? 'text-primary'
                         : isPastMonth
-                            ? 'text-gray-500 dark:text-gray-400'
-                            : 'text-gray-600 dark:text-gray-400'
+                            ? 'text-on-surface-variant'
+                            : 'text-on-surface-variant'
                     }
                 `}>
                     {label}
                     {isCurrentMonth && (
-                        <span className="ml-2 text-xs font-normal normal-case text-blue-600 dark:text-blue-400">
+                        <span className="ml-2 text-xs font-normal normal-case text-primary/70">
                             (Current)
                         </span>
                     )}
@@ -57,9 +52,6 @@ const MonthSection = ({ monthGroup, onPayNow, onEdit, onDelete, onMarkAsPaid, ad
             <div className="space-y-2 px-1">
                 {reminders.map(reminder => (
                     <ReminderCard
-                        // Composite key: projected occurrences of recurring reminders
-                        // share the same `id` as the original, so we include
-                        // `dueDate` to keep keys unique within a month group.
                         key={`${reminder.id}-${reminder.dueDate}`}
                         reminder={reminder}
                         onPayNow={onPayNow}

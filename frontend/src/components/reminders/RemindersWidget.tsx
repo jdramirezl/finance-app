@@ -38,8 +38,6 @@ const RemindersWidget = () => {
         isSaving,
     } = useReminderActions({ reminders, mutations });
 
-    // Group reminders by month (1 month back, 2 months ahead). Memoized so we
-    // don't re-bucket the entire list on every keystroke in unrelated state.
     const [showPaid, setShowPaid] = useState(false);
     const monthGroups = useMemo(
         () => groupRemindersByMonth(reminders, 1, 2, showPaid),
@@ -50,7 +48,6 @@ const RemindersWidget = () => {
         [reminders]
     );
 
-    // Scroll to current month on initial load
     useEffect(() => {
         if (scrollContainerRef.current && monthGroups.length > 0) {
             const currentMonthElement = scrollContainerRef.current.querySelector('[data-current-month="true"]');
@@ -61,7 +58,7 @@ const RemindersWidget = () => {
     }, [monthGroups.length]);
 
     if (isLoading) {
-        return <div className="animate-pulse h-48 bg-gray-100 dark:bg-gray-800 rounded-lg"></div>;
+        return <div className="animate-pulse h-48 bg-surface-container rounded-lg"></div>;
     }
 
     const hasAnyReminders = monthGroups.some(group => group.reminders.length > 0);
@@ -70,8 +67,8 @@ const RemindersWidget = () => {
         <div className="h-full flex flex-col">
             <Card padding="none" className="flex-1 overflow-hidden flex flex-col">
                 {/* Header */}
-                <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-gray-800">
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+                <div className="flex items-center justify-between px-4 py-3 border-b border-white/[0.06]">
+                    <h3 className="text-lg font-semibold text-on-surface flex items-center gap-2">
                         <Calendar className="w-5 h-5" />
                         Upcoming Payments
                     </h3>
@@ -80,8 +77,8 @@ const RemindersWidget = () => {
                             onClick={() => setShowPaid(!showPaid)}
                             className={`text-xs px-2 py-1 rounded-md transition-colors ${
                                 showPaid
-                                    ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
-                                    : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
+                                    ? 'bg-primary/10 text-primary'
+                                    : 'text-on-surface-variant hover:text-on-surface'
                             }`}
                             title={showPaid ? 'Hide paid reminders' : 'Show paid reminders'}
                         >
@@ -102,9 +99,9 @@ const RemindersWidget = () => {
 
                 {/* Overdue Alert Banner */}
                 {overdueCount > 0 && (
-                    <div className="px-4 py-3 bg-red-50 dark:bg-red-900/30 border-b border-red-200 dark:border-red-800 flex items-center gap-2">
-                        <AlertTriangle className="w-5 h-5 text-red-500" aria-hidden="true" />
-                        <span className="text-sm font-medium text-red-700 dark:text-red-300">
+                    <div className="px-4 py-3 bg-[#93000a]/20 border-b border-[#ffb4ab]/20 flex items-center gap-2">
+                        <AlertTriangle className="w-5 h-5 text-[#ffb4ab]" aria-hidden="true" />
+                        <span className="text-sm font-medium text-[#ffb4ab]">
                             You have {overdueCount} overdue payment{overdueCount > 1 ? 's' : ''}
                         </span>
                     </div>
@@ -116,7 +113,7 @@ const RemindersWidget = () => {
                     className="overflow-y-auto flex-1 p-3"
                 >
                     {!hasAnyReminders ? (
-                        <div className="flex flex-col items-center justify-center h-full py-8 text-gray-500 dark:text-gray-400">
+                        <div className="flex flex-col items-center justify-center h-full py-8 text-on-surface-variant">
                             <Calendar className="w-10 h-10 mb-3 opacity-50" />
                             <p className="text-center">No reminders yet</p>
                             <p className="text-sm text-center mt-1 opacity-75">

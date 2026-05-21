@@ -195,7 +195,7 @@ const BudgetDistribution = ({
     return (
         <Card padding="md">
             <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Distribution</h2>
+                <h2 className="text-xl font-semibold text-on-surface">Distribution</h2>
                 <Button
                     variant="primary"
                     onClick={handleAddEntry}
@@ -231,7 +231,7 @@ const BudgetDistribution = ({
                                                 className="w-3 h-3 rounded-full flex-shrink-0"
                                                 style={{ backgroundColor: entry.color }}
                                             />
-                                            <span className="text-gray-700 dark:text-gray-300 truncate">
+                                            <span className="text-on-surface-variant truncate">
                                                 {entry.name} ({entry.percentage.toFixed(0)}%)
                                             </span>
                                         </div>
@@ -244,7 +244,7 @@ const BudgetDistribution = ({
                     <div className="space-y-3 overflow-x-auto pb-2">
                         <div className="min-w-[700px]">
                             {/* Header */}
-                            <div className={`grid ${showConversion ? 'grid-cols-[2fr_1fr_1.5fr_1.5fr_1fr]' : 'grid-cols-12'} gap-4 pb-2 border-b dark:border-gray-700 font-semibold text-sm text-gray-600 dark:text-gray-400`}>
+                            <div className={`grid ${showConversion ? 'grid-cols-[2fr_1fr_1.5fr_1.5fr_1fr]' : 'grid-cols-12'} gap-4 pb-2 border-b border-white/[0.06] font-semibold text-sm text-on-surface-variant`}>
                                 <div className={showConversion ? '' : 'col-span-4'}>Name</div>
                                 <div className={showConversion ? '' : 'col-span-3'}>Percentage</div>
                                 <div className={showConversion ? '' : 'col-span-3'}>Amount ({currency})</div>
@@ -291,8 +291,8 @@ const BudgetDistribution = ({
                         {totalPercentage !== 100 && entries.length > 0 && (
                             <div
                                 className={`mt-4 p-3 rounded-lg ${totalPercentage > 100
-                                    ? 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400'
-                                    : 'bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 text-yellow-700 dark:text-yellow-400'
+                                    ? 'bg-[#93000a]/10 border border-[#ffb4ab]/20 text-[#ffb4ab]'
+                                    : 'bg-[#e89337]/10 border border-[#ffb873]/20 text-[#ffb873]'
                                     }`}
                             >
                                 <p className="text-sm font-medium">

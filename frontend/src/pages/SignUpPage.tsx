@@ -44,18 +44,18 @@ const SignUpPage = () => {
 
   if (success) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 px-4">
-        <Card className="w-full max-w-md">
+      <div className="min-h-screen flex items-center justify-center bg-surface-base px-4">
+        <Card className="w-full max-w-md bg-[rgba(27,33,34,0.8)] backdrop-blur-[12px] border border-white/[0.08]">
           <div className="text-center">
-            <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
-              <svg className="w-8 h-8 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="w-16 h-16 bg-[#34d399]/10 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg className="w-8 h-8 text-[#34d399]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
               </svg>
             </div>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">
+            <h2 className="text-2xl font-bold text-on-surface mb-2">
               Check your email!
             </h2>
-            <p className="text-gray-600 dark:text-gray-400 mb-6">
+            <p className="text-on-surface-variant mb-6">
               We've sent you a confirmation link. Click it to verify your account and start using the app.
             </p>
             <Button
@@ -72,20 +72,20 @@ const SignUpPage = () => {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 px-4">
-      <Card className="w-full max-w-md">
+    <div className="min-h-screen flex items-center justify-center bg-surface-base px-4">
+      <Card className="w-full max-w-md bg-[rgba(27,33,34,0.8)] backdrop-blur-[12px] border border-white/[0.08]">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2">
+          <h1 className="text-3xl font-bold text-on-surface mb-2">
             Create Account
           </h1>
-          <p className="text-gray-600 dark:text-gray-400">
+          <p className="text-on-surface-variant">
             Start managing your finances today
           </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {error && (
-            <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 rounded-lg text-sm">
+            <div className="p-4 bg-[#93000a]/20 border border-[#ffb4ab]/20 text-[#ffb4ab] rounded-lg text-sm">
               {error}
             </div>
           )}
@@ -130,12 +130,12 @@ const SignUpPage = () => {
             Create Account
           </Button>
 
-          <div className="text-center text-sm text-gray-600 dark:text-gray-400">
+          <div className="text-center text-sm text-on-surface-variant">
             Already have an account?{' '}
             <button
               type="button"
               onClick={() => navigate('/login')}
-              className="text-blue-600 dark:text-blue-400 hover:underline font-medium"
+              className="text-primary hover:underline font-medium"
             >
               Sign in
             </button>
