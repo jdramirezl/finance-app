@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { accountService } from '../../services/accountService';
+import { broadcastInvalidation } from '../../lib/crossTabSync';
 import type { Account } from '../../types';
 import { useToast } from '../useToast';
 
@@ -15,6 +16,7 @@ export const useAccountMutations = () => {
             accountService.createAccount(data.name, data.color, data.currency, data.type, data.stockSymbol),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['accounts'] });
+            broadcastInvalidation([['accounts']]);
         },
         onError: (error) => {
             toast.error(errorMessage(error, 'Failed to create account'));
@@ -26,6 +28,7 @@ export const useAccountMutations = () => {
             accountService.updateAccount(data.id, data.updates),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['accounts'] });
+            broadcastInvalidation([['accounts']]);
         },
         onError: (error) => {
             toast.error(errorMessage(error, 'Failed to update account'));
@@ -37,6 +40,7 @@ export const useAccountMutations = () => {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['accounts'] });
             queryClient.invalidateQueries({ queryKey: ['pockets'] }); // Pockets are deleted too
+            broadcastInvalidation([['accounts'], ['pockets']]);
         },
         onError: (error) => {
             toast.error(errorMessage(error, 'Failed to delete account'));
@@ -51,6 +55,7 @@ export const useAccountMutations = () => {
             queryClient.invalidateQueries({ queryKey: ['pockets'] });
             queryClient.invalidateQueries({ queryKey: ['subPockets'] });
             queryClient.invalidateQueries({ queryKey: ['movements'] });
+            broadcastInvalidation([['accounts'], ['pockets'], ['subPockets'], ['movements']]);
         },
         onError: (error) => {
             toast.error(errorMessage(error, 'Failed to delete account'));
@@ -62,6 +67,7 @@ export const useAccountMutations = () => {
             accountService.reorderAccounts(accounts.map((a) => a.id)),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['accounts'] });
+            broadcastInvalidation([['accounts']]);
         },
         onError: (error) => {
             toast.error(errorMessage(error, 'Failed to reorder accounts'));

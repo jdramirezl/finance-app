@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { pocketService } from '../../services/pocketService';
+import { broadcastInvalidation } from '../../lib/crossTabSync';
 import type { Pocket } from '../../types';
 import { useToast } from '../useToast';
 
@@ -19,6 +20,7 @@ export const usePocketMutations = () => {
             // `['accounts']`. The pockets query gets the new entry on its next
             // fetch.
             queryClient.invalidateQueries({ queryKey: ['pockets'] });
+            broadcastInvalidation([['pockets']]);
         },
         onError: (error) => {
             toast.error(errorMessage(error, 'Failed to create pocket'));
@@ -30,6 +32,7 @@ export const usePocketMutations = () => {
             pocketService.updatePocket(data.id, data.updates),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['pockets'] });
+            broadcastInvalidation([['pockets']]);
         },
         onError: (error) => {
             toast.error(errorMessage(error, 'Failed to update pocket'));
@@ -43,6 +46,7 @@ export const usePocketMutations = () => {
             // (movements become orphans), so account totals shift.
             queryClient.invalidateQueries({ queryKey: ['pockets'] });
             queryClient.invalidateQueries({ queryKey: ['accounts'] });
+            broadcastInvalidation([['pockets'], ['accounts']]);
         },
         onError: (error) => {
             toast.error(errorMessage(error, 'Failed to delete pocket'));
@@ -59,6 +63,7 @@ export const usePocketMutations = () => {
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['pockets'] });
+            broadcastInvalidation([['pockets']]);
         },
         onError: (error) => {
             toast.error(errorMessage(error, 'Failed to reorder pockets'));
@@ -73,6 +78,7 @@ export const usePocketMutations = () => {
             queryClient.invalidateQueries({ queryKey: ['pockets'] });
             queryClient.invalidateQueries({ queryKey: ['accounts'] });
             queryClient.invalidateQueries({ queryKey: ['movements'] });
+            broadcastInvalidation([['pockets'], ['accounts'], ['movements']]);
         },
         onError: (error) => {
             toast.error(errorMessage(error, 'Failed to migrate pocket'));

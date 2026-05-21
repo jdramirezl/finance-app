@@ -6,6 +6,9 @@ import './index.css'
 import App from './App.tsx'
 import ThemeProvider from './components/ThemeProvider.tsx'
 import { queryClient } from './lib/queryClient'
+import { initCrossTabSync } from './lib/crossTabSync'
+
+initCrossTabSync();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
