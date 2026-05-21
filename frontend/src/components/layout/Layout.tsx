@@ -88,7 +88,7 @@ const Layout = ({ children }: LayoutProps) => {
       <Sidebar items={NAV_ITEMS} />
       <BottomNav items={NAV_ITEMS} bottomItems={BOTTOM_NAV_ITEMS} />
 
-      <main className="md:ml-60 p-4 md:p-8 pt-20 md:pt-8 min-h-screen">
+      <main className="lg:ml-[260px] p-4 md:p-8 pt-20 lg:pt-8 min-h-screen">
         <ErrorBoundary>{children}</ErrorBoundary>
       </main>
 

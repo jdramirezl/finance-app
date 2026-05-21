@@ -1,5 +1,5 @@
-import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { DollarSign, LogOut } from 'lucide-react';
+import { Link, useLocation } from 'react-router-dom';
+import { HelpCircle, Moon } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -15,74 +15,69 @@ interface SidebarProps {
 
 const Sidebar = ({ items }: SidebarProps) => {
   const location = useLocation();
-  const navigate = useNavigate();
-  const { signOut, user } = useAuth();
+  const { user } = useAuth();
 
-  const handleSignOut = async () => {
-    await signOut();
-    navigate('/login');
-  };
+  const initials = user?.email
+    ? user.email.slice(0, 2).toUpperCase()
+    : 'U';
 
   return (
-    <nav className="hidden md:flex fixed left-0 top-0 h-full w-60 bg-surface-container-low/90 backdrop-blur-xl border-r border-white/[0.06] z-50 flex-col">
-      {/* Logo */}
-      <div className="p-6 flex items-center gap-3">
-        <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary-container to-primary flex items-center justify-center">
-          <DollarSign className="w-5 h-5 text-on-primary" strokeWidth={2.5} aria-hidden="true" />
-        </div>
-        <h1 className="text-lg font-bold text-primary font-display">Finance App</h1>
-      </div>
-
-      {/* Navigation */}
-      <ul className="flex-1 mt-2 px-3 space-y-1">
-        {items.map((item) => {
-          const Icon = item.icon;
-          const isActive = location.pathname === item.path;
-          return (
-            <li key={item.path}>
-              <Link
-                to={item.path}
-                className={`
-                  relative flex items-center gap-3 px-4 py-2.5 rounded-lg transition-colors duration-200
-                  ${isActive
-                    ? 'bg-primary/10 text-primary'
-                    : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high/50'
-                  }
-                `}
-              >
-                {isActive && (
-                  <span
-                    className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 rounded-full bg-primary"
-                    aria-hidden="true"
-                  />
-                )}
-                <Icon className="w-5 h-5" aria-hidden="true" />
-                <span className={`font-medium ${isActive ? 'font-semibold' : ''}`}>
-                  {item.label}
-                </span>
-              </Link>
-            </li>
-          );
-        })}
-      </ul>
-
-      {/* Footer */}
-      <div className="p-4 border-t border-white/[0.06]">
-        <div className="flex items-center justify-between">
-          <p className="text-sm text-on-surface-variant truncate flex-1 min-w-0">
-            {user?.email}
+    <aside className="fixed left-0 top-0 h-screen w-[260px] hidden lg:flex flex-col bg-surface-container/80 backdrop-blur-xl border-r border-white/10 z-50">
+      <div className="flex flex-col h-full py-8">
+        {/* Logo */}
+        <div className="px-6 mb-10">
+          <h1 className="font-bold bg-gradient-to-r from-primary-container to-primary bg-clip-text text-transparent text-2xl">
+            Finance App
+          </h1>
+          <p className="text-[10px] uppercase tracking-widest text-on-surface-variant/60 font-bold mt-1">
+            Personal Finance
           </p>
-          <button
-            onClick={handleSignOut}
-            className="ml-2 p-2 rounded-lg text-on-surface-variant hover:text-error hover:bg-error/10 transition-colors"
-            aria-label="Sign out"
-            title="Sign out"
-          >
-            <LogOut className="w-5 h-5" aria-hidden="true" />
-          </button>
+        </div>
+
+        {/* Navigation */}
+        <nav className="flex-1 space-y-1">
+          {items.map((item) => {
+            const Icon = item.icon;
+            const isActive = location.pathname === item.path;
+            return (
+              <Link
+                key={item.path}
+                to={item.path}
+                className={`flex items-center gap-4 px-6 py-3 border-l-4 transition-colors duration-200 ${
+                  isActive
+                    ? 'border-primary bg-primary/10 text-primary font-bold'
+                    : 'border-transparent text-on-surface-variant hover:text-primary hover:bg-white/5'
+                }`}
+              >
+                <Icon className="w-5 h-5" aria-hidden="true" />
+                <span>{item.label}</span>
+              </Link>
+            );
+          })}
+        </nav>
+
+        {/* User profile + actions */}
+        <div className="mt-auto px-6 space-y-4">
+          <div className="flex items-center gap-3 p-3 rounded-xl bg-white/5">
+            <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary text-sm font-bold">
+              {initials}
+            </div>
+            <div className="min-w-0">
+              <p className="font-bold text-sm truncate">{user?.email ?? 'User'}</p>
+              <p className="text-[11px] text-on-surface-variant">Pro Account</p>
+            </div>
+          </div>
+          <div className="flex justify-between text-on-surface-variant">
+            <button className="hover:text-primary transition-colors" aria-label="Toggle theme">
+              <Moon className="w-5 h-5" aria-hidden="true" />
+            </button>
+            <button className="hover:text-primary transition-colors" aria-label="Help">
+              <HelpCircle className="w-5 h-5" aria-hidden="true" />
+            </button>
+          </div>
         </div>
       </div>
-    </nav>
+    </aside>
   );
 };
 
