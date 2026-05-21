@@ -27,6 +27,10 @@ dist-ssr
 # Environment variables
 .env
 backend/.env
+frontend/.env.test.e2e
+
+# Playwright
+frontend/e2e/.auth/
 
 # Vite cache
 .vite/
