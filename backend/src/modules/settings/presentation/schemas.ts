@@ -8,14 +8,14 @@ export const updateSettingsSchema = z.object({
 }).strict();
 
 export const convertCurrencySchema = z.object({
-  amount: z.number().positive(),
+  amount: z.number(),
   fromCurrency: currency,
   toCurrency: currency,
 }).strict();
 
 export const convertBatchSchema = z.object({
   conversions: z.array(z.object({
-    amount: z.number().positive(),
+    amount: z.number(),
     from: currency,
     to: currency,
   })).min(1),
