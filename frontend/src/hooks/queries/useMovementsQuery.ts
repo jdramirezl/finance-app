@@ -1,4 +1,8 @@
-import { useQuery, useInfiniteQuery } from '@tanstack/react-query';
+import {
+    useQuery,
+    useInfiniteQuery,
+    keepPreviousData,
+} from '@tanstack/react-query';
 import { movementService } from '../../services/movementService';
 
 /**
@@ -10,6 +14,7 @@ export const useMovementsQuery = () => {
         queryKey: ['movements'],
         queryFn: () => movementService.getActiveMovements(),
         staleTime: 1000 * 60 * 5, // 5 minutes
+        placeholderData: keepPreviousData, // Keep previous data visible during refetch for instant page transitions
     });
 };
 

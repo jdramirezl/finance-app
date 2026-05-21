@@ -8,6 +8,7 @@ export const useAccountsQuery = () => {
     return useQuery({
         queryKey: ['accounts'],
         queryFn: () => accountService.getAllAccounts(),
+        staleTime: 1000 * 60 * 10, // 10 minutes - accounts change infrequently
     });
 };
 
@@ -19,5 +20,6 @@ export const useAccountQuery = (accountId: string) => {
         queryKey: ['accounts', accountId],
         queryFn: () => accountService.getAccount(accountId),
         enabled: !!accountId, // Only run query if accountId is provided
+        staleTime: 1000 * 60 * 10, // 10 minutes - accounts change infrequently
     });
 };
