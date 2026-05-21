@@ -11,6 +11,8 @@ export const createMovementSchema = z.object({
   notes: z.string().optional(),
   subPocketId: z.string().uuid().optional(),
   isPending: z.boolean().optional(),
+  category: z.string().max(50).optional(),
+  tags: z.array(z.string().max(30)).max(10).optional(),
 }).strict();
 
 export const updateMovementSchema = z.object({
@@ -21,6 +23,8 @@ export const updateMovementSchema = z.object({
   subPocketId: z.string().uuid().nullable().optional(),
   accountId: z.string().uuid().optional(),
   pocketId: z.string().uuid().optional(),
+  category: z.string().max(50).nullable().optional(),
+  tags: z.array(z.string().max(30)).max(10).nullable().optional(),
 }).strict();
 
 export const createTransferSchema = z.object({
@@ -43,6 +47,8 @@ export const batchMovementSchema = z.object({
     notes: z.string().optional(),
     subPocketId: z.string().uuid().optional(),
     isPending: z.boolean().optional(),
+    category: z.string().max(50).optional(),
+    tags: z.array(z.string().max(30)).max(10).optional(),
   })).min(1),
 }).strict();
 

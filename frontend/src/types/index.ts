@@ -97,6 +97,8 @@ export interface Movement {
   orphanedAccountName?: string; // Original account name (for matching + display)
   orphanedAccountCurrency?: string; // Original account currency (for matching)
   orphanedPocketName?: string; // Original pocket name (for matching + display)
+  category?: string;
+  tags?: string[];
 }
 
 // Investment-specific properties (extends Account)

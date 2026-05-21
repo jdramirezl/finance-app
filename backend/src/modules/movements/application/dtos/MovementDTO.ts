@@ -18,6 +18,8 @@ export interface CreateMovementDTO {
   notes?: string;
   subPocketId?: string;
   isPending?: boolean;
+  category?: string;
+  tags?: string[];
 }
 
 /**
@@ -31,6 +33,8 @@ export interface UpdateMovementDTO {
   subPocketId?: string | null;
   accountId?: string;
   pocketId?: string;
+  category?: string | null;
+  tags?: string[] | null;
 }
 
 /**
@@ -50,6 +54,8 @@ export interface MovementResponseDTO {
   orphanedAccountName?: string;
   orphanedAccountCurrency?: Currency;
   orphanedPocketName?: string;
+  category?: string;
+  tags?: string[];
   createdAt?: string;
 }
 

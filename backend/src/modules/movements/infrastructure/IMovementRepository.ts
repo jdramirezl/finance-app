@@ -57,6 +57,8 @@ export interface BatchMovementParams {
   notes?: string;
   displayedDate: string;
   isPending?: boolean;
+  category?: string;
+  tags?: string[];
 }
 
 /**

@@ -25,6 +25,8 @@ interface MovementRow {
   orphaned_account_name?: string;
   orphaned_account_currency?: Currency;
   orphaned_pocket_name?: string;
+  category?: string;
+  tags?: string[];
   created_at?: string;
 }
 
@@ -48,6 +50,8 @@ export class MovementMapper {
       orphaned_account_name: movement.orphanedAccountName || null,
       orphaned_account_currency: movement.orphanedAccountCurrency || null,
       orphaned_pocket_name: movement.orphanedPocketName || null,
+      category: movement.category || null,
+      tags: movement.tags.length > 0 ? movement.tags : '{}',
     };
   }
 
@@ -73,7 +77,9 @@ export class MovementMapper {
       row.is_orphaned,
       row.orphaned_account_name,
       row.orphaned_account_currency,
-      row.orphaned_pocket_name
+      row.orphaned_pocket_name,
+      row.category,
+      row.tags ?? []
     );
   }
 
@@ -95,6 +101,8 @@ export class MovementMapper {
       orphanedAccountName: movement.orphanedAccountName,
       orphanedAccountCurrency: movement.orphanedAccountCurrency,
       orphanedPocketName: movement.orphanedPocketName,
+      category: movement.category,
+      tags: movement.tags.length > 0 ? movement.tags : undefined,
       createdAt: createdAt?.toISOString(),
     };
   }

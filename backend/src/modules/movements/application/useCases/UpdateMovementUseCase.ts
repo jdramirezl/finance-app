@@ -52,7 +52,9 @@ export class UpdateMovementUseCase {
       existingMovement.isOrphaned,
       existingMovement.orphanedAccountName,
       existingMovement.orphanedAccountCurrency,
-      existingMovement.orphanedPocketName
+      existingMovement.orphanedPocketName,
+      existingMovement.category,
+      existingMovement.tags
     );
 
     // Validate input if provided
@@ -86,7 +88,9 @@ export class UpdateMovementUseCase {
       dto.notes,
       dto.subPocketId,
       dto.accountId,
-      dto.pocketId
+      dto.pocketId,
+      dto.category,
+      dto.tags ?? undefined
     );
 
     // Persist changes

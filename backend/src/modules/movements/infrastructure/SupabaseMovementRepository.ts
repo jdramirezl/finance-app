@@ -75,6 +75,8 @@ export class SupabaseMovementRepository implements IMovementRepository {
       notes: m.notes || '',
       displayedDate: m.displayedDate,
       isPending: m.isPending ?? false,
+      category: m.category || null,
+      tags: m.tags ?? [],
     }));
 
     const { data, error } = await this.supabase.rpc('batch_create_movements', {

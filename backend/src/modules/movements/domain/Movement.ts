@@ -21,7 +21,9 @@ export class Movement {
     public isOrphaned: boolean = false,
     public orphanedAccountName?: string,
     public orphanedAccountCurrency?: Currency,
-    public orphanedPocketName?: string
+    public orphanedPocketName?: string,
+    public category?: string,
+    public tags: string[] = []
   ) {
     this.validate();
   }
@@ -105,7 +107,9 @@ export class Movement {
     notes?: string,
     subPocketId?: string | null,
     accountId?: string,
-    pocketId?: string
+    pocketId?: string,
+    category?: string | null,
+    tags?: string[]
   ): void {
     if (type !== undefined) this.type = type;
     if (amount !== undefined) this.amount = amount;
@@ -116,6 +120,10 @@ export class Movement {
     }
     if (accountId !== undefined) this.accountId = accountId;
     if (pocketId !== undefined) this.pocketId = pocketId;
+    if (category !== undefined) {
+      this.category = category === null ? undefined : category;
+    }
+    if (tags !== undefined) this.tags = tags;
     this.validate();
   }
 
@@ -185,6 +193,8 @@ export class Movement {
       orphanedAccountName: this.orphanedAccountName,
       orphanedAccountCurrency: this.orphanedAccountCurrency,
       orphanedPocketName: this.orphanedPocketName,
+      category: this.category,
+      tags: this.tags,
     };
   }
 }
