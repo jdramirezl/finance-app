@@ -1,26 +1,24 @@
 import { memo, useCallback, useMemo } from 'react';
-import { format, parseISO } from 'date-fns';
-import { ChevronDown, ChevronUp, Edit2, Trash2, Bell, Filter } from 'lucide-react';
-import Button from '../ui/Button';
+import { format, parseISO, formatDistanceToNow } from 'date-fns';
+import { ChevronDown, ChevronUp, ChevronLeft, ChevronRight, MoreVertical, Filter } from 'lucide-react';
 import Card from '../ui/Card';
-import { useAccountsQuery, usePocketsQuery, useRemindersQuery } from '../../hooks/queries';
+import { useAccountsQuery, usePocketsQuery } from '../../hooks/queries';
 import type { Account, Movement, MovementType, Pocket } from '../../types';
-import type { Reminder } from '../../services/reminderService';
 import type { SortField, SortOrder } from '../../hooks/useMovementsSort';
 import { getSmartIcon, getDefaultIcon } from '../../constants/smartIcons';
 import { getCategoryColor } from '../../constants/categories';
 import InlineEditableAmount from '../ui/InlineEditableAmount';
 
 interface MovementListProps {
-    movementsByMonth: [string, Movement[]][];
+    movements: Movement[];
+    totalCount: number;
+    page: number;
+    pageSize: number;
+    onPageChange: (page: number) => void;
     sortField: SortField;
     sortOrder: SortOrder;
     setSortField: (field: SortField) => void;
     setSortOrder: (order: SortOrder) => void;
-    expandedMonths: Set<string>;
-    toggleMonth: (month: string) => void;
-    selectedMovementIds: Set<string>;
-    toggleSelection: (id: string) => void;
     onEdit: (movement: Movement) => void;
     onDelete: (id: string) => void;
     onApplyPending: (id: string) => void;
@@ -29,212 +27,151 @@ interface MovementListProps {
     applyingId: string | null;
 }
 
-const getMovementTypeColor = (type: MovementType): string => {
+const getTypeIcon = (type: MovementType, isPending?: boolean) => {
+    if (isPending) return 'bolt';
+    switch (type) {
+        case 'IngresoNormal': return 'add_circle';
+        case 'IngresoFijo': return 'account_balance_wallet';
+        case 'EgresoNormal': return 'remove_circle';
+        case 'EgresoFijo': return 'receipt_long';
+        default: return 'swap_horiz';
+    }
+};
+
+const getTypeIconColor = (type: MovementType, isPending?: boolean) => {
+    if (isPending) return 'bg-primary/20 text-primary';
     switch (type) {
         case 'IngresoNormal':
-            return 'bg-success/10 text-success';
-        case 'EgresoNormal':
-            return 'bg-error/10 text-error';
         case 'IngresoFijo':
-            return 'bg-secondary/10 text-secondary';
+            return 'bg-primary-container/20 text-primary-container';
+        case 'EgresoNormal':
         case 'EgresoFijo':
-            return 'bg-tertiary/10 text-tertiary';
+            return 'bg-tertiary-container/20 text-tertiary';
         default:
-            return 'bg-on-surface-variant/10 text-on-surface-variant';
+            return 'bg-outline/20 text-outline';
     }
 };
 
-const getMovementTypeLabel = (type: MovementType): string => {
-    switch (type) {
-        case 'IngresoNormal': return 'Income';
-        case 'EgresoNormal': return 'Expense';
-        case 'IngresoFijo': return 'Fixed Income';
-        case 'EgresoFijo': return 'Fixed Expense';
-        default: return type;
-    }
-};
-
-interface MovementRowProps {
+interface MovementTableRowProps {
     movement: Movement;
     account: Account | undefined;
     pocket: Pocket | undefined;
-    linkedReminder: Reminder | undefined;
-    isSelected: boolean;
-    isDeleting: boolean;
-    isApplying: boolean;
-    onToggleSelection: (id: string) => void;
     onEdit: (movement: Movement) => void;
     onDelete: (id: string) => void;
     onApplyPending: (id: string) => void;
     onUpdateAmount: (id: string, amount: number) => Promise<void>;
 }
 
-/**
- * Renders a single movement row. Memoized so that updating one row (e.g.
- * marking it deleted) does not re-render every other row in the list.
- *
- * Account, pocket and linkedReminder are looked up once in the parent and
- * passed in directly, so per-row work stays O(1) even on large lists.
- */
-const MovementRow = memo(({
-    movement,
-    account,
-    pocket,
-    linkedReminder,
-    isSelected,
-    isDeleting,
-    isApplying,
-    onToggleSelection,
-    onEdit,
-    onDelete,
-    onApplyPending,
-    onUpdateAmount,
-}: MovementRowProps) => {
+const MovementTableRow = memo(({
+    movement, account, pocket, onEdit, onDelete, onApplyPending, onUpdateAmount,
+}: MovementTableRowProps) => {
     const isIncome = movement.type.includes('Ingreso');
+    const isPending = movement.isPending;
+    const date = parseISO(movement.displayedDate);
+    const relativeTime = formatDistanceToNow(date, { addSuffix: true });
+
     const smartIcon = getSmartIcon(movement.notes);
     const iconData = smartIcon || getDefaultIcon(isIncome);
     const IconComponent = iconData.icon;
+    const useLucideIcon = !!smartIcon || true; // We have lucide icons from smartIcons
 
     return (
-        <div
-            className={`
-                group relative flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-lg transition-all gap-4 sm:gap-0 border-b border-white/[0.06] last:border-b-0
-                ${isSelected
-                    ? 'bg-primary/10'
-                    : 'hover:bg-surface-container-high'
-                }
-                ${movement.isPending ? 'opacity-75 border-dashed border-outline-variant' : ''}
-            `}
-        >
-            <div className="flex items-start gap-4">
-                <div className="pt-1">
-                    <label className="flex items-center justify-center min-w-[44px] min-h-[44px] cursor-pointer">
-                        <input
-                            type="checkbox"
-                            checked={isSelected}
-                            onChange={() => onToggleSelection(movement.id)}
-                            className="w-5 h-5 text-primary rounded border-outline-variant focus:ring-primary"
-                            aria-label={`Select movement: ${movement.notes || 'Untitled Movement'}`}
-                        />
-                    </label>
-                </div>
+        <tr className={`group transition-colors ${
+            isPending
+                ? 'border border-dashed border-primary/30 bg-primary/5 hover:bg-primary/10'
+                : 'hover:bg-white/[0.02] border-b border-white/5'
+        }`}>
+            {/* Date */}
+            <td className="px-6 py-4">
+                <p className={`font-mono text-xs uppercase ${isPending ? 'text-primary' : 'text-on-surface'}`}>
+                    {format(date, 'MMM dd')}
+                </p>
+                <p className={`text-[10px] uppercase ${isPending ? 'text-primary/70' : 'text-on-surface-variant'}`}>
+                    {relativeTime}
+                </p>
+            </td>
 
-                <div className={`p-2.5 rounded-xl ${isIncome ? 'bg-success/10' : 'bg-error/10'}`}>
-                    <IconComponent className={`w-5 h-5 ${smartIcon ? iconData.color : (isIncome ? 'text-success' : 'text-error')}`} aria-hidden="true" />
-                </div>
-
-                <div>
-                    <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-medium text-on-surface">
+            {/* Movement (icon + title + notes) */}
+            <td className="px-6 py-4">
+                <div className="flex items-center gap-3">
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${getTypeIconColor(movement.type, isPending)}`}>
+                        <IconComponent className="w-4 h-4" />
+                    </div>
+                    <div>
+                        <p className="font-medium text-sm text-on-surface">
                             {movement.notes || 'Untitled Movement'}
-                        </span>
-                        <span className={`text-xs px-2 py-0.5 rounded-full ${getMovementTypeColor(movement.type)}`}>
-                            {getMovementTypeLabel(movement.type)}
-                        </span>
-                        {linkedReminder && (
-                            <span className="text-xs px-2 py-0.5 rounded-full bg-secondary/10 text-secondary flex items-center gap-1" title="Paid Reminder">
-                                <Bell className="w-3 h-3" aria-hidden="true" />
-                                {linkedReminder.title}
-                            </span>
-                        )}
-                        {movement.isPending && (
-                            <span className="text-xs px-2 py-0.5 rounded-full bg-tertiary/10 text-tertiary">
-                                Pending
-                            </span>
-                        )}
-                        {movement.category && (
-                            <span
-                                className="text-xs px-2 py-0.5 rounded-full"
-                                style={{ backgroundColor: `${getCategoryColor(movement.category)}1a`, color: getCategoryColor(movement.category) }}
-                            >
-                                {movement.category}
-                            </span>
-                        )}
+                        </p>
                         {movement.tags && movement.tags.length > 0 && (
-                            <>
-                                {movement.tags.slice(0, 3).map((tag) => (
-                                    <span key={tag} className="text-xs px-2 py-0.5 rounded-full border border-outline-variant text-on-surface-variant">
-                                        {tag}
-                                    </span>
-                                ))}
-                                {movement.tags.length > 3 && (
-                                    <span className="text-xs text-on-surface-variant">
-                                        +{movement.tags.length - 3} more
-                                    </span>
-                                )}
-                            </>
+                            <p className="text-[11px] text-on-surface-variant truncate max-w-[200px]">
+                                {movement.tags.join(', ')}
+                            </p>
                         )}
-                    </div>
-                    <div className="text-sm text-on-surface-variant mt-1 flex flex-wrap items-center gap-2">
-                        <span className="font-mono">{format(parseISO(movement.displayedDate), 'MMM d, yyyy')}</span>
-                        <span className="hidden sm:inline">•</span>
-                        <span>{account?.name || 'Unknown Account'}</span>
-                        <span className="hidden sm:inline">•</span>
-                        <span>{pocket?.name || 'Unknown Pocket'}</span>
                     </div>
                 </div>
-            </div>
+            </td>
 
-            <div className="flex items-center justify-between sm:justify-end gap-4 w-full sm:w-auto pl-12 sm:pl-0">
+            {/* Account -> Pocket */}
+            <td className="px-6 py-4">
+                <p className="text-xs font-medium text-on-surface">{account?.name || 'Unknown'}</p>
+                <p className="text-[11px] text-on-surface-variant">{pocket?.name || 'Unknown'}</p>
+            </td>
+
+            {/* Category */}
+            <td className="px-6 py-4">
+                {movement.category ? (
+                    <span
+                        className="px-2 py-1 rounded text-[10px] font-bold uppercase"
+                        style={{
+                            backgroundColor: `${getCategoryColor(movement.category)}1a`,
+                            color: getCategoryColor(movement.category),
+                        }}
+                    >
+                        {movement.category}
+                    </span>
+                ) : (
+                    <span className="px-2 py-1 bg-surface-container-highest text-[10px] rounded font-bold uppercase text-on-surface-variant">
+                        —
+                    </span>
+                )}
+            </td>
+
+            {/* Amount */}
+            <td className="px-6 py-4 text-right">
                 <InlineEditableAmount
                     amount={movement.amount}
                     isIncome={isIncome}
                     onSave={(newAmount) => onUpdateAmount(movement.id, newAmount)}
                 />
+            </td>
 
-                <div className="flex gap-2 opacity-60 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
-                    {movement.isPending && (
-                        <Button
-                            size="sm"
-                            variant="secondary"
-                            onClick={() => onApplyPending(movement.id)}
-                            loading={isApplying}
-                            className="text-success hover:text-success"
-                            title="Apply Pending Movement"
-                            aria-label={`Apply pending movement: ${movement.notes || 'Untitled Movement'}`}
-                        >
-                            Apply
-                        </Button>
-                    )}
-                    <Button
-                        size="sm"
-                        variant="ghost"
+            {/* Actions */}
+            <td className="px-6 py-4 text-right">
+                <div className="relative inline-block">
+                    <button
                         onClick={() => onEdit(movement)}
-                        className="text-on-surface-variant hover:text-primary p-2.5"
-                        title="Edit"
-                        aria-label={`Edit movement: ${movement.notes || 'Untitled Movement'}`}
+                        className="text-on-surface-variant hover:text-primary transition-colors p-1"
+                        aria-label={`Actions for ${movement.notes || 'movement'}`}
                     >
-                        <Edit2 className="w-5 h-5" aria-hidden="true" />
-                    </Button>
-                    <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => onDelete(movement.id)}
-                        loading={isDeleting}
-                        className="text-on-surface-variant hover:text-error p-2.5"
-                        title="Delete"
-                        aria-label={`Delete movement: ${movement.notes || 'Untitled Movement'}`}
-                    >
-                        <Trash2 className="w-5 h-5" aria-hidden="true" />
-                    </Button>
+                        <MoreVertical className="w-4 h-4" />
+                    </button>
                 </div>
-            </div>
-        </div>
+            </td>
+        </tr>
     );
 });
 
-MovementRow.displayName = 'MovementRow';
+MovementTableRow.displayName = 'MovementTableRow';
 
 const MovementList = ({
-    movementsByMonth,
+    movements,
+    totalCount,
+    page,
+    pageSize,
+    onPageChange,
     sortField,
     sortOrder,
     setSortField,
     setSortOrder,
-    expandedMonths,
-    toggleMonth,
-    selectedMovementIds,
-    toggleSelection,
     onEdit,
     onDelete,
     onApplyPending,
@@ -244,10 +181,7 @@ const MovementList = ({
 }: MovementListProps) => {
     const { data: accounts = [] } = useAccountsQuery();
     const { data: pockets = [] } = usePocketsQuery();
-    const { data: reminders = [] } = useRemindersQuery();
 
-    // Build O(1) lookup maps so each row's account/pocket/reminder lookup
-    // doesn't require a linear scan on every render.
     const accountById = useMemo(() => {
         const map = new Map<string, Account>();
         accounts.forEach((a) => map.set(a.id, a));
@@ -260,70 +194,43 @@ const MovementList = ({
         return map;
     }, [pockets]);
 
-    const reminderByMovementId = useMemo(() => {
-        const map = new Map<string, Reminder>();
-        reminders.forEach((r) => {
-            if (r.linkedMovementId) map.set(r.linkedMovementId, r);
-        });
-        return map;
-    }, [reminders]);
-
     const handleSort = useCallback((field: SortField) => {
         if (sortField === field) {
             setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
         } else {
             setSortField(field);
-            setSortOrder('asc');
+            setSortOrder('desc');
         }
     }, [sortField, sortOrder, setSortField, setSortOrder]);
 
-    const getSortIcon = (field: SortField) => {
+    const SortIcon = ({ field }: { field: SortField }) => {
         if (sortField !== field) return null;
         return sortOrder === 'asc'
-            ? <ChevronUp className="w-4 h-4" aria-hidden="true" />
-            : <ChevronDown className="w-4 h-4" aria-hidden="true" />;
+            ? <ChevronUp className="w-3 h-3 inline ml-1" />
+            : <ChevronDown className="w-3 h-3 inline ml-1" />;
     };
 
-    // Per-month income/expense totals — only recompute when the grouping
-    // itself changes, not when an unrelated piece of state (e.g. selection)
-    // changes.
-    const monthTotals = useMemo(() => {
-        const map = new Map<string, { income: number; expense: number }>();
-        movementsByMonth.forEach(([monthKey, monthMovements]) => {
-            let income = 0;
-            let expense = 0;
-            for (const m of monthMovements) {
-                if (m.type.includes('Ingreso')) income += m.amount;
-                else if (m.type.includes('Egreso')) expense += m.amount;
-            }
-            map.set(monthKey, { income, expense });
-        });
-        return map;
-    }, [movementsByMonth]);
+    const totalPages = Math.ceil(totalCount / pageSize);
+    const startItem = (page - 1) * pageSize + 1;
+    const endItem = Math.min(page * pageSize, totalCount);
 
-    // Selection stats for the floating bar — keyed off the selection set
-    // and the movements list.
-    const selectionStats = useMemo(() => {
-        if (selectedMovementIds.size === 0) {
-            return { sum: 0, average: 0 };
-        }
-        const selectedMovements = movementsByMonth
-            .flatMap(([, ms]) => ms)
-            .filter((m) => selectedMovementIds.has(m.id));
-        const sum = selectedMovements.reduce((acc, m) => {
-            const isIncome = m.type.includes('Ingreso');
-            return acc + (isIncome ? m.amount : -m.amount);
-        }, 0);
-        const average = selectedMovements.length > 0 ? sum / selectedMovements.length : 0;
-        return { sum, average };
-    }, [movementsByMonth, selectedMovementIds]);
+    // Generate page numbers to display
+    const pageNumbers = useMemo(() => {
+        const pages: number[] = [];
+        const maxVisible = 5;
+        let start = Math.max(1, page - Math.floor(maxVisible / 2));
+        const end = Math.min(totalPages, start + maxVisible - 1);
+        start = Math.max(1, end - maxVisible + 1);
+        for (let i = start; i <= end; i++) pages.push(i);
+        return pages;
+    }, [page, totalPages]);
 
-    if (movementsByMonth.length === 0) {
+    if (movements.length === 0) {
         return (
             <Card padding="lg">
                 <div className="text-center py-12">
                     <div className="bg-surface-container-high w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <Filter className="w-8 h-8 text-on-surface-variant" aria-hidden="true" />
+                        <Filter className="w-8 h-8 text-on-surface-variant" />
                     </div>
                     <h3 className="text-lg font-medium text-on-surface">No movements found</h3>
                     <p className="text-on-surface-variant mt-2">
@@ -335,130 +242,87 @@ const MovementList = ({
     }
 
     return (
-        <div className="space-y-6">
-            {/* Sort Controls */}
-            <div className="flex gap-2 overflow-x-auto pb-2">
-                <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleSort('displayedDate')}
-                    className={sortField === 'displayedDate' ? 'bg-primary/10 text-primary' : ''}
-                >
-                    Date {getSortIcon('displayedDate')}
-                </Button>
-                <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleSort('amount')}
-                    className={sortField === 'amount' ? 'bg-primary/10 text-primary' : ''}
-                >
-                    Amount {getSortIcon('amount')}
-                </Button>
-                <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleSort('type')}
-                    className={sortField === 'type' ? 'bg-primary/10 text-primary' : ''}
-                >
-                    Type {getSortIcon('type')}
-                </Button>
-                <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleSort('createdAt')}
-                    className={sortField === 'createdAt' ? 'bg-primary/10 text-primary' : ''}
-                >
-                    Created {getSortIcon('createdAt')}
-                </Button>
+        <div className="glass-card rounded-xl overflow-hidden">
+            <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse min-w-[900px]">
+                    <thead>
+                        <tr className="bg-surface-container-high/50 text-on-surface-variant">
+                            <th
+                                className="px-6 py-4 text-[11px] font-bold uppercase tracking-widest border-b border-white/5 cursor-pointer hover:text-primary transition-colors"
+                                onClick={() => handleSort('displayedDate')}
+                            >
+                                Date <SortIcon field="displayedDate" />
+                            </th>
+                            <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-widest border-b border-white/5">
+                                Movement
+                            </th>
+                            <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-widest border-b border-white/5">
+                                Account → Pocket
+                            </th>
+                            <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-widest border-b border-white/5">
+                                Category
+                            </th>
+                            <th
+                                className="px-6 py-4 text-[11px] font-bold uppercase tracking-widest border-b border-white/5 cursor-pointer hover:text-primary transition-colors text-right"
+                                onClick={() => handleSort('amount')}
+                            >
+                                Amount <SortIcon field="amount" />
+                            </th>
+                            <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-widest border-b border-white/5" />
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-white/5">
+                        {movements.map((movement) => (
+                            <MovementTableRow
+                                key={movement.id}
+                                movement={movement}
+                                account={accountById.get(movement.accountId)}
+                                pocket={pocketById.get(movement.pocketId)}
+                                onEdit={onEdit}
+                                onDelete={onDelete}
+                                onApplyPending={onApplyPending}
+                                onUpdateAmount={onUpdateAmount}
+                            />
+                        ))}
+                    </tbody>
+                </table>
             </div>
 
-            {movementsByMonth.map(([monthKey, monthMovements]) => {
-                const isExpanded = expandedMonths.has(monthKey);
-                const monthDate = parseISO(monthKey + '-01');
-                const totals = monthTotals.get(monthKey) ?? { income: 0, expense: 0 };
-
-                return (
-                    <div key={monthKey} className="space-y-2">
+            {/* Pagination */}
+            <div className="p-4 bg-surface-container-high/30 flex justify-between items-center border-t border-white/5">
+                <span className="text-xs text-on-surface-variant">
+                    Showing {startItem}-{endItem} of {totalCount.toLocaleString()} movements
+                </span>
+                <div className="flex gap-2">
+                    <button
+                        onClick={() => onPageChange(page - 1)}
+                        disabled={page <= 1}
+                        className="w-8 h-8 flex items-center justify-center rounded border border-white/5 hover:bg-white/5 disabled:opacity-30 disabled:cursor-not-allowed"
+                    >
+                        <ChevronLeft className="w-4 h-4" />
+                    </button>
+                    {pageNumbers.map((p) => (
                         <button
-                            onClick={() => toggleMonth(monthKey)}
-                            className="sticky top-0 z-10 w-full flex items-center justify-between p-4 bg-surface-container/80 backdrop-blur-lg rounded-xl border border-white/[0.08] transition-all hover:bg-surface-container-high/80"
-                            aria-expanded={isExpanded}
-                            aria-label={`${isExpanded ? 'Collapse' : 'Expand'} ${format(monthDate, 'MMMM yyyy')}`}
+                            key={p}
+                            onClick={() => onPageChange(p)}
+                            className={`w-8 h-8 flex items-center justify-center rounded text-xs font-bold ${
+                                p === page
+                                    ? 'bg-primary text-background'
+                                    : 'border border-white/5 hover:bg-white/5'
+                            }`}
                         >
-                            <div className="flex items-center gap-4">
-                                {isExpanded
-                                    ? <ChevronUp className="w-5 h-5 text-on-surface-variant" aria-hidden="true" />
-                                    : <ChevronDown className="w-5 h-5 text-on-surface-variant" aria-hidden="true" />}
-                                <h3 className="text-sm font-semibold text-on-surface-variant uppercase tracking-wider">
-                                    {format(monthDate, 'MMMM yyyy')}
-                                </h3>
-                                <span className="text-xs text-on-surface-variant bg-surface-container-high px-2 py-0.5 rounded-full font-mono">
-                                    {monthMovements.length}
-                                </span>
-                            </div>
-                            <div className="flex items-center gap-4 text-sm font-mono">
-                                <span className="text-success font-medium">
-                                    +${totals.income.toLocaleString()}
-                                </span>
-                                <span className="text-error font-medium">
-                                    -${totals.expense.toLocaleString()}
-                                </span>
-                            </div>
+                            {p}
                         </button>
-
-                        {isExpanded && (
-                            <div className="space-y-0 ml-4">
-                                {monthMovements.map((movement) => (
-                                    <MovementRow
-                                        key={movement.id}
-                                        movement={movement}
-                                        account={accountById.get(movement.accountId)}
-                                        pocket={pocketById.get(movement.pocketId)}
-                                        linkedReminder={reminderByMovementId.get(movement.id)}
-                                        isSelected={selectedMovementIds.has(movement.id)}
-                                        isDeleting={deletingId === movement.id}
-                                        isApplying={applyingId === movement.id}
-                                        onToggleSelection={toggleSelection}
-                                        onEdit={onEdit}
-                                        onDelete={onDelete}
-                                        onApplyPending={onApplyPending}
-                                        onUpdateAmount={onUpdateAmount}
-                                    />
-                                ))}
-                            </div>
-                        )}
-                    </div>
-                );
-            })}
-            {/* Floating Stats Bar */}
-            {selectedMovementIds.size > 0 && (
-                <div className="fixed bottom-24 md:bottom-6 left-1/2 transform -translate-x-1/2 bg-surface-container/90 text-on-surface backdrop-blur-xl px-6 py-3 rounded-full z-50 flex items-center gap-6 animate-in slide-in-from-bottom-4 fade-in duration-200 border border-white/[0.08]">
-                    <div className="flex flex-col">
-                        <span className="text-xs text-on-surface-variant font-medium uppercase tracking-wider">Selected</span>
-                        <span className="font-bold text-lg leading-none font-mono">{selectedMovementIds.size}</span>
-                    </div>
-                    <div className="w-px h-8 bg-outline-variant"></div>
-                    <div className="flex flex-col">
-                        <span className="text-xs text-on-surface-variant font-medium uppercase tracking-wider">Sum</span>
-                        <span className="font-bold text-lg leading-none font-mono">
-                            {(selectionStats.sum >= 0 ? '+' : '-') + Math.abs(selectionStats.sum).toLocaleString(undefined, {
-                                style: 'currency',
-                                currency: 'USD',
-                            })}
-                        </span>
-                    </div>
-                    <div className="w-px h-8 bg-outline-variant"></div>
-                    <div className="flex flex-col">
-                        <span className="text-xs text-on-surface-variant font-medium uppercase tracking-wider">Average</span>
-                        <span className="font-bold text-lg leading-none font-mono">
-                            {(selectionStats.average >= 0 ? '+' : '-') + Math.abs(selectionStats.average).toLocaleString(undefined, {
-                                style: 'currency',
-                                currency: 'USD',
-                            })}
-                        </span>
-                    </div>
+                    ))}
+                    <button
+                        onClick={() => onPageChange(page + 1)}
+                        disabled={page >= totalPages}
+                        className="w-8 h-8 flex items-center justify-center rounded border border-white/5 hover:bg-white/5 disabled:opacity-30 disabled:cursor-not-allowed"
+                    >
+                        <ChevronRight className="w-4 h-4" />
+                    </button>
                 </div>
-            )}
+            </div>
         </div>
     );
 };

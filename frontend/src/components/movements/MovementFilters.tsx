@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Filter, X } from 'lucide-react';
+import { Search, Calendar, Filter, X } from 'lucide-react';
 import Button from '../ui/Button';
 import Input from '../ui/Input';
 import Select from '../ui/Select';
@@ -43,11 +43,22 @@ interface MovementFiltersProps {
     };
 }
 
+const DATE_RANGE_LABELS: Record<DateRangeOption, string> = {
+    all: 'All Time',
+    '7days': 'Last 7 Days',
+    '30days': 'Last 30 Days',
+    '3months': 'Last 3 Months',
+    '6months': 'Last 6 Months',
+    year: 'Last Year',
+    custom: 'Custom',
+};
+
+const DATE_RANGE_CYCLE: DateRangeOption[] = ['all', '7days', '30days', '3months', '6months', 'year'];
+
 const MovementFilters = ({ showFilters, setShowFilters, movements, filters, setFilters }: MovementFiltersProps) => {
     const { data: accounts = [] } = useAccountsQuery();
     const { data: pockets = [] } = usePocketsQuery();
 
-    // Collect unique categories from current movements (includes custom ones not in predefined list)
     const categoryOptions = useMemo(() => {
         const custom = new Set<string>();
         for (const m of movements) {
@@ -62,13 +73,10 @@ const MovementFilters = ({ showFilters, setShowFilters, movements, filters, setF
         ];
     }, [movements]);
 
-    // Collect unique tags from current movements
     const availableTags = useMemo(() => {
         const tagSet = new Set<string>();
         for (const m of movements) {
-            if (m.tags) {
-                for (const t of m.tags) tagSet.add(t);
-            }
+            if (m.tags) for (const t of m.tags) tagSet.add(t);
         }
         return [...tagSet].sort();
     }, [movements]);
@@ -101,46 +109,95 @@ const MovementFilters = ({ showFilters, setShowFilters, movements, filters, setF
         filters.tags.length > 0,
     ].filter(Boolean).length;
 
+    const cycleDateRange = () => {
+        const currentIdx = DATE_RANGE_CYCLE.indexOf(filters.dateRange);
+        const nextIdx = (currentIdx + 1) % DATE_RANGE_CYCLE.length;
+        setFilters.setDateRange(DATE_RANGE_CYCLE[nextIdx]);
+    };
+
+    const togglePending = () => {
+        setFilters.setShowPending(filters.showPending === 'pending' ? 'all' : 'pending');
+    };
+
     return (
         <div className="space-y-4">
-            <div className="flex flex-col sm:flex-row gap-4">
-                <div className="flex-1">
-                    <Input
-                        placeholder="Search movements..."
+            {/* Compact filter row */}
+            <div className="flex flex-wrap items-center gap-3">
+                {/* Search input */}
+                <div className="flex-1 min-w-[240px] relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-on-surface-variant" />
+                    <input
+                        type="text"
+                        placeholder="Search transactions..."
                         value={filters.search}
                         onChange={(e) => setFilters.setSearch(e.target.value)}
                         aria-label="Search movements"
+                        className="w-full bg-surface-container-low border-none rounded-lg pl-10 pr-4 py-2 text-sm focus:ring-1 focus:ring-primary outline-none"
                     />
                 </div>
-                <div className="flex gap-2">
-                    <Button
-                        variant="secondary"
-                        onClick={() => setShowFilters(!showFilters)}
-                        className={showFilters || activeFiltersCount > 0 ? 'bg-primary/10 text-primary border-primary/30' : ''}
-                        aria-expanded={showFilters}
-                    >
-                        <Filter className="w-5 h-5" aria-hidden="true" />
-                        Filters
-                        {activeFiltersCount > 0 && (
-                            <span className="ml-2 bg-primary/20 text-primary text-xs px-2 py-0.5 rounded-full">
-                                {activeFiltersCount}
-                            </span>
-                        )}
-                    </Button>
+
+                {/* Date range button */}
+                <button
+                    type="button"
+                    onClick={cycleDateRange}
+                    className="flex items-center gap-2 px-3 py-2 bg-surface-container-low rounded-lg text-sm text-on-surface hover:bg-surface-variant transition-colors"
+                >
+                    <Calendar className="w-4 h-4" />
+                    {DATE_RANGE_LABELS[filters.dateRange]}
+                </button>
+
+                {/* More Filters button */}
+                <button
+                    type="button"
+                    onClick={() => setShowFilters(!showFilters)}
+                    aria-expanded={showFilters}
+                    className={`flex items-center gap-2 px-3 py-2 bg-surface-container-low rounded-lg text-sm text-on-surface hover:bg-surface-variant transition-colors ${
+                        showFilters || activeFiltersCount > 0 ? 'ring-1 ring-primary/30 text-primary' : ''
+                    }`}
+                >
+                    <Filter className="w-4 h-4" />
+                    More Filters
                     {activeFiltersCount > 0 && (
-                        <Button
-                            variant="ghost"
-                            onClick={clearFilters}
-                            className="text-on-surface-variant hover:text-on-surface"
-                            aria-label="Clear all filters"
-                            title="Clear all filters"
-                        >
-                            <X className="w-5 h-5" aria-hidden="true" />
-                        </Button>
+                        <span className="ml-1 bg-primary/20 text-primary text-xs px-1.5 py-0.5 rounded-full">
+                            {activeFiltersCount}
+                        </span>
                     )}
-                </div>
+                </button>
+
+                {/* Divider */}
+                <div className="h-6 w-px bg-white/10 mx-1" />
+
+                {/* Pending toggle */}
+                <label className="flex items-center gap-2 cursor-pointer group">
+                    <div
+                        className={`relative w-10 h-5 rounded-full transition-colors ${
+                            filters.showPending === 'pending' ? 'bg-primary' : 'bg-surface-container-highest group-hover:bg-outline-variant'
+                        }`}
+                        onClick={togglePending}
+                    >
+                        <div
+                            className={`absolute top-1 left-1 w-3 h-3 rounded-full transition-transform ${
+                                filters.showPending === 'pending' ? 'translate-x-5 bg-white' : 'bg-on-surface-variant'
+                            }`}
+                        />
+                    </div>
+                    <span className="text-xs font-medium text-on-surface-variant">Pending only</span>
+                </label>
+
+                {/* Clear filters */}
+                {activeFiltersCount > 0 && (
+                    <button
+                        type="button"
+                        onClick={clearFilters}
+                        className="p-2 text-on-surface-variant hover:text-on-surface rounded-lg hover:bg-surface-variant transition-colors"
+                        aria-label="Clear all filters"
+                    >
+                        <X className="w-4 h-4" />
+                    </button>
+                )}
             </div>
 
+            {/* Expanded filter panel */}
             {showFilters && (
                 <div className="p-4 bg-surface-container/80 backdrop-blur-xl rounded-xl border border-white/[0.08] grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     <Select
@@ -153,7 +210,6 @@ const MovementFilters = ({ showFilters, setShowFilters, movements, filters, setF
                             { value: 'pending', label: 'Pending Only' },
                         ]}
                     />
-
                     <Select
                         label="Account"
                         value={filters.account}
@@ -163,7 +219,6 @@ const MovementFilters = ({ showFilters, setShowFilters, movements, filters, setF
                             ...accounts.map(acc => ({ value: acc.id, label: acc.name }))
                         ]}
                     />
-
                     <Select
                         label="Pocket"
                         value={filters.pocket}
@@ -175,9 +230,7 @@ const MovementFilters = ({ showFilters, setShowFilters, movements, filters, setF
                                     (filters.account === 'all' || p.accountId === filters.account) &&
                                     p.accountId === acc.id
                                 );
-
                                 if (accountPockets.length === 0) return [];
-
                                 return [{
                                     label: acc.name,
                                     options: accountPockets.map(p => ({ value: p.id, label: p.name }))
@@ -185,14 +238,12 @@ const MovementFilters = ({ showFilters, setShowFilters, movements, filters, setF
                             })
                         ]}
                     />
-
                     <MovementTypeSelect
                         label="Type"
                         includeAll
                         value={filters.type}
                         onChange={setFilters.setType}
                     />
-
                     <Select
                         label="Date Range"
                         value={filters.dateRange}
@@ -207,7 +258,6 @@ const MovementFilters = ({ showFilters, setShowFilters, movements, filters, setF
                             { value: 'custom', label: 'Custom Range' },
                         ]}
                     />
-
                     {filters.dateRange === 'custom' && (
                         <>
                             <Input
@@ -238,7 +288,6 @@ const MovementFilters = ({ showFilters, setShowFilters, movements, filters, setF
                             />
                         </>
                     )}
-
                     <div className="flex gap-2">
                         <div className="flex-1">
                             <Input
@@ -259,19 +308,15 @@ const MovementFilters = ({ showFilters, setShowFilters, movements, filters, setF
                             />
                         </div>
                     </div>
-
                     <Select
                         label="Category"
                         value={filters.category}
                         onChange={(e) => setFilters.setCategory(e.target.value)}
                         options={categoryOptions}
                     />
-
                     {availableTags.length > 0 && (
                         <div className="space-y-1">
-                            <label className="block text-sm font-medium text-on-surface-variant">
-                                Tags
-                            </label>
+                            <label className="block text-sm font-medium text-on-surface-variant">Tags</label>
                             <div className="flex flex-wrap gap-1.5 p-2 border border-outline-variant rounded-xl bg-surface-container-highest min-h-[44px]">
                                 {availableTags.map(tag => {
                                     const selected = filters.tags.includes(tag);

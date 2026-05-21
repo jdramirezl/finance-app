@@ -1,12 +1,11 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
-import { Check, ChevronRight } from 'lucide-react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { Send } from 'lucide-react';
 import { useMovementMutations } from '../../hooks/queries/useMovementMutations';
-import { useAccountsQuery, usePocketsQuery, useSettingsQuery } from '../../hooks/queries';
-import { resolveLastUsedPocket, toSimpleType } from '../../store/useLastUsedPocket';
+import { useAccountsQuery, usePocketsQuery } from '../../hooks/queries';
 import { format } from 'date-fns';
 import type { MovementType } from '../../types';
 
-type SimpleType = 'expense' | 'income';
+type SimpleType = 'expense' | 'income' | 'transfer';
 
 export interface QuickAddMovementProps {
   variant: 'inline' | 'modal';
@@ -21,205 +20,175 @@ const toMovementType = (simple: SimpleType): MovementType =>
 const QuickAddMovement = ({ variant, onExpandToFull, onClose, onSuccess }: QuickAddMovementProps) => {
   const [type, setType] = useState<SimpleType>('expense');
   const [amount, setAmount] = useState('');
-  const [notes, setNotes] = useState('');
+  const [accountId, setAccountId] = useState('');
+  const [pocketId, setPocketId] = useState('');
   const [showSuccess, setShowSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const amountRef = useRef<HTMLInputElement>(null);
 
   const { data: accounts = [] } = useAccountsQuery();
   const { data: pockets = [] } = usePocketsQuery();
-  const { data: settings } = useSettingsQuery();
   const { createMovement } = useMovementMutations();
 
-  const resolved = resolveLastUsedPocket(type, accounts, pockets, settings);
-  const accountName = accounts.find((a) => a.id === resolved?.accountId)?.name;
-  const pocketName = pockets.find((p) => p.id === resolved?.pocketId)?.name;
+  // Auto-select first account/pocket
+  useEffect(() => {
+    if (!accountId && accounts.length > 0) setAccountId(accounts[0].id);
+  }, [accounts, accountId]);
+
+  const filteredPockets = useMemo(
+    () => pockets.filter((p) => p.accountId === accountId),
+    [pockets, accountId]
+  );
 
   useEffect(() => {
-    amountRef.current?.focus();
-  }, []);
+    if (accountId && filteredPockets.length > 0 && !filteredPockets.find((p) => p.id === pocketId)) {
+      setPocketId(filteredPockets[0].id);
+    }
+  }, [accountId, filteredPockets, pocketId]);
 
-  // Escape closes modal
+  useEffect(() => { amountRef.current?.focus(); }, []);
+
   useEffect(() => {
     if (variant !== 'modal') return;
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose?.();
-    };
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose?.(); };
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
   }, [variant, onClose]);
 
-  const isValid = parseFloat(amount) > 0;
+  const isValid = parseFloat(amount) > 0 && accountId && pocketId;
 
   const handleSubmit = useCallback(async () => {
-    if (!isValid || !resolved) return;
+    if (!isValid) return;
     setError(null);
     try {
       await createMovement.mutateAsync({
         type: toMovementType(type),
-        accountId: resolved.accountId,
-        pocketId: resolved.pocketId,
+        accountId,
+        pocketId,
         amount: parseFloat(amount),
-        notes: notes || undefined,
         displayedDate: format(new Date(), 'yyyy-MM-dd'),
       });
       setAmount('');
-      setNotes('');
       setShowSuccess(true);
       setTimeout(() => setShowSuccess(false), 1500);
       onSuccess?.();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create movement');
     }
-  }, [isValid, resolved, type, amount, notes, createMovement, onSuccess]);
+  }, [isValid, type, accountId, pocketId, amount, createMovement, onSuccess]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && isValid) {
-      e.preventDefault();
-      handleSubmit();
-    }
+    if (e.key === 'Enter' && isValid) { e.preventDefault(); handleSubmit(); }
   };
 
-  const handleExpand = () => {
-    onExpandToFull?.({
-      amount: parseFloat(amount) || undefined,
-      notes: notes || undefined,
-      type: toMovementType(type),
-    });
-    if (variant === 'modal') onClose?.();
-  };
+  const typeButtons: { value: SimpleType; label: string }[] = [
+    { value: 'expense', label: 'Expense' },
+    { value: 'income', label: 'Income' },
+    { value: 'transfer', label: 'Transfer' },
+  ];
 
   const form = (
     <div
       role="form"
       aria-label="Quick add movement"
-      className={
-        variant === 'inline'
-          ? 'flex items-center gap-2 p-3 bg-surface-container/80 backdrop-blur-xl border border-white/[0.08] rounded-xl'
-          : 'flex flex-col gap-3'
-      }
+      className="glass-card rounded-xl p-4 mb-6"
     >
-      {/* Type toggle */}
-      <div className="flex rounded-lg overflow-hidden border border-outline-variant shrink-0">
+      <div className="flex flex-wrap items-center gap-4">
+        {/* $ amount input */}
+        <div className="flex-1 min-w-[180px]">
+          <div className="relative">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant font-mono text-sm">$</span>
+            <input
+              ref={amountRef}
+              type="text"
+              inputMode="decimal"
+              placeholder="0.00"
+              aria-label="Amount"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              onKeyDown={handleKeyDown}
+              className="w-full bg-surface-container-lowest border border-outline-variant focus:border-primary rounded px-8 py-2 font-mono text-sm text-on-surface outline-none transition-all"
+            />
+          </div>
+        </div>
+
+        {/* 3-button type toggle */}
+        <div className="flex bg-surface-container-lowest p-1 rounded-lg border border-outline-variant">
+          {typeButtons.map((btn) => (
+            <button
+              key={btn.value}
+              type="button"
+              aria-pressed={type === btn.value}
+              onClick={() => setType(btn.value)}
+              className={`px-4 py-1.5 rounded text-xs font-bold transition-colors ${
+                type === btn.value
+                  ? btn.value === 'expense'
+                    ? 'bg-error-container text-white'
+                    : 'bg-primary/20 text-primary'
+                  : 'hover:bg-white/5 text-on-surface-variant'
+              }`}
+            >
+              {btn.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Account select */}
+        <select
+          value={accountId}
+          onChange={(e) => setAccountId(e.target.value)}
+          aria-label="Account"
+          className="bg-surface-container-lowest border border-outline-variant rounded px-4 py-2 text-sm text-on-surface outline-none"
+        >
+          {accounts.map((acc) => (
+            <option key={acc.id} value={acc.id}>{acc.name}</option>
+          ))}
+        </select>
+
+        {/* Pocket select */}
+        <select
+          value={pocketId}
+          onChange={(e) => setPocketId(e.target.value)}
+          aria-label="Pocket"
+          className="bg-surface-container-lowest border border-outline-variant rounded px-4 py-2 text-sm text-on-surface outline-none"
+        >
+          {filteredPockets.map((p) => (
+            <option key={p.id} value={p.id}>{p.name}</option>
+          ))}
+        </select>
+
+        {/* Send button */}
         <button
           type="button"
-          aria-pressed={type === 'expense'}
-          onClick={() => setType('expense')}
-          className={`px-3 py-1.5 text-sm font-medium transition-colors ${
-            type === 'expense'
-              ? 'bg-error/10 text-error'
-              : 'bg-surface-container-highest text-on-surface-variant'
-          }`}
+          disabled={!isValid || createMovement.isPending}
+          onClick={handleSubmit}
+          className="w-10 h-10 flex items-center justify-center rounded-lg bg-primary/20 text-primary hover:bg-primary/30 transition-all disabled:opacity-40"
+          aria-label="Submit quick add"
         >
-          Expense
-        </button>
-        <button
-          type="button"
-          aria-pressed={type === 'income'}
-          onClick={() => setType('income')}
-          className={`px-3 py-1.5 text-sm font-medium transition-colors ${
-            type === 'income'
-              ? 'bg-success/10 text-success'
-              : 'bg-surface-container-highest text-on-surface-variant'
-          }`}
-        >
-          Income
+          {showSuccess ? (
+            <span className="text-success font-bold">✓</span>
+          ) : (
+            <Send className="w-4 h-4" />
+          )}
         </button>
       </div>
-
-      {/* Amount */}
-      <input
-        ref={amountRef}
-        type="number"
-        inputMode="decimal"
-        step="0.01"
-        min="0"
-        placeholder="0.00"
-        aria-label="Quick add amount"
-        value={amount}
-        onChange={(e) => setAmount(e.target.value)}
-        onKeyDown={handleKeyDown}
-        className="w-28 px-3 py-1.5 text-sm font-mono border border-outline-variant rounded-lg bg-surface-container-highest text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary"
-      />
-
-      {/* Notes */}
-      <input
-        type="text"
-        placeholder="What for?"
-        value={notes}
-        onChange={(e) => setNotes(e.target.value)}
-        onKeyDown={handleKeyDown}
-        className="flex-1 min-w-0 px-3 py-1.5 text-sm border border-outline-variant rounded-lg bg-surface-container-highest text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary"
-      />
-
-      {/* Submit */}
-      <button
-        type="button"
-        disabled={!isValid || createMovement.isPending}
-        onClick={handleSubmit}
-        className="p-2 rounded-lg bg-primary text-on-primary disabled:opacity-40 hover:bg-primary-container transition-colors shrink-0"
-        aria-label="Submit quick add"
-      >
-        <Check className="w-4 h-4" />
-      </button>
-
-      {/* Success indicator */}
-      {showSuccess && (
-        <span className="text-success text-sm font-medium animate-pulse">
-          ✓
-        </span>
-      )}
-
-      {/* More options */}
-      {onExpandToFull && (
-        <button
-          type="button"
-          onClick={handleExpand}
-          className="flex items-center gap-0.5 text-xs text-primary hover:underline shrink-0"
-        >
-          More <ChevronRight className="w-3 h-3" />
-        </button>
-      )}
+      {error && <p className="text-xs text-error mt-2">{error}</p>}
     </div>
   );
-
-  // Destination label
-  const destination = resolved && accountName && pocketName ? (
-    <p className="text-xs text-on-surface-variant mt-1 ml-1">
-      → {accountName} / {pocketName}
-    </p>
-  ) : null;
-
-  // Error display
-  const errorEl = error ? (
-    <p className="text-xs text-error mt-1 ml-1">{error}</p>
-  ) : null;
 
   if (variant === 'modal') {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div
-          className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-          onClick={onClose}
-          aria-hidden="true"
-        />
-        <div className="relative w-full max-w-sm bg-surface-container-high/95 backdrop-blur-xl rounded-2xl border border-white/[0.08] p-5">
+        <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} aria-hidden="true" />
+        <div className="relative w-full max-w-lg bg-surface-container-high/95 backdrop-blur-xl rounded-2xl border border-white/[0.08] p-5">
           <h3 className="text-sm font-semibold text-on-surface-variant mb-3">Quick Add</h3>
           {form}
-          {destination}
-          {errorEl}
         </div>
       </div>
     );
   }
 
-  return (
-    <div>
-      {form}
-      {destination}
-      {errorEl}
-    </div>
-  );
+  return form;
 };
 
 export default QuickAddMovement;
