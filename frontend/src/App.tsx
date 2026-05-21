@@ -8,6 +8,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import ToastContainer from './components/ToastContainer';
 import { Skeleton } from './components/ui/Skeleton';
 import ErrorBoundary from './components/ErrorBoundary';
+import SessionExpiredModal from './components/feedback/SessionExpiredModal';
 
 // Lazy load page components for code splitting
 const LoginPage = lazy(() => import('./pages/LoginPage'));
@@ -95,6 +96,7 @@ function App() {
                 />
               </Routes>
               <ToastContainer />
+              <SessionExpiredModal />
             </Suspense>
           </ConfirmDialogProvider>
         </SelectionProvider>

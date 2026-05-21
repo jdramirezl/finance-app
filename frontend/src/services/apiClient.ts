@@ -83,8 +83,22 @@ class ApiClient {
   }
 
   /**
+   * Handle a successful (2xx) response by parsing the body.
+   */
+  private async parseSuccess<T>(response: Response): Promise<T> {
+    if (response.status === 204) return undefined as T;
+    return (await response.json()) as T;
+  }
+
+  /**
    * Issue a fetch request and unwrap the JSON body, raising AppError
    * for any non-2xx status or transport failure.
+   *
+   * On 401, attempts a single token refresh. If refresh succeeds the
+   * request is retried transparently. If refresh fails, a custom
+   * `auth:session-expired` event is dispatched and a never-resolving
+   * promise is returned to suppress downstream error toasts (the modal
+   * handles the UX).
    */
   private async request<T>(
     method: HttpMethod,
@@ -106,21 +120,40 @@ class ApiClient {
         body,
       });
 
-      if (!response.ok) {
-        const errorBody = (await response.json().catch(() => ({}))) as ErrorBody;
-        const serverMessage = errorBody.message ?? response.statusText;
-        throw new AppError(
-          response.status,
-          `${method} ${path} failed: ${serverMessage}`,
-        );
+      if (response.ok) return this.parseSuccess<T>(response);
+
+      // 401 — attempt one silent token refresh before failing.
+      if (response.status === 401) {
+        const { data: refreshData, error: refreshError } =
+          await supabase.auth.refreshSession();
+
+        if (!refreshError && refreshData.session) {
+          const retryHeaders: Record<string, string> = {
+            ...headers,
+            Authorization: `Bearer ${refreshData.session.access_token}`,
+          };
+          const retryResponse = await fetch(`${this.baseURL}${path}`, {
+            method,
+            headers: retryHeaders,
+            body,
+          });
+          if (retryResponse.ok) return this.parseSuccess<T>(retryResponse);
+        }
+
+        // Refresh failed or retry still 401 — session is dead.
+        window.dispatchEvent(new CustomEvent('auth:session-expired'));
+        // Return a never-resolving promise: the session-expired modal
+        // will redirect to /login, so there's no point in propagating
+        // the error to mutation onError handlers (which would show a toast).
+        return new Promise<T>(() => {});
       }
 
-      // 204 No Content responses have no body.
-      if (response.status === 204) {
-        return undefined as T;
-      }
-
-      return (await response.json()) as T;
+      const errorBody = (await response.json().catch(() => ({}))) as ErrorBody;
+      const serverMessage = errorBody.message ?? response.statusText;
+      throw new AppError(
+        response.status,
+        `${method} ${path} failed: ${serverMessage}`,
+      );
     } catch (error) {
       return this.handleError(error, context);
     }
