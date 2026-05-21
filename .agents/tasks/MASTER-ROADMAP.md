@@ -94,6 +94,7 @@ Organized by priority tier. Within each tier, items are roughly ordered by impac
 
 ## Notes
 
-- **UI Overhaul (2.1)**: Use Google Stitch or similar AI design tool to generate multiple complete proposals. Present 3-5 options covering: navigation layout, color palette, card/component style, mobile-first responsive design, dark/light mode. User picks one, then we implement it across the entire app.
+- **UI Overhaul (2.1)**: Use Google Stitch or similar AI design tool to generate multiple complete proposals. Present 3-5 options covering: navigation layout, color palette, card/component style, desktop-first responsive design, dark/light mode. User picks one, then we implement it across the entire app.
 - **Categories (1.2)**: This is the single most impactful feature for the app's core value proposition. Without categories, the app can't answer "how much did I spend on X?" — which is why people use finance apps.
-- **All new features must respect**: Vercel free tier limits, mobile-first design, existing Tailwind/dark-mode system, single-user architecture.
+- **All new features must respect**: Vercel free tier limits, desktop-first design (mobile-compatible but not primary), existing Tailwind/dark-mode system, single-user architecture.
+- **Design philosophy**: Desktop is the primary experience (data entry, analysis, multi-panel views, keyboard shortcuts). Mobile is a responsive adaptation for quick checks and simple entries on the go.
