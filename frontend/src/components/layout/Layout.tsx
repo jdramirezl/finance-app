@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
+  BarChart3,
   Calendar,
   FileText,
   Home,
@@ -33,6 +34,7 @@ const NAV_ITEMS: NavItem[] = [
   { path: '/budget-planning', label: 'Budget', icon: Calendar },
   { path: '/movements', label: 'Movements', icon: TrendingUp },
   { path: '/templates', label: 'Templates', icon: FileText },
+  { path: '/reports', label: 'Reports', icon: BarChart3 },
   { path: '/settings', label: 'Settings', icon: Settings },
 ];
 

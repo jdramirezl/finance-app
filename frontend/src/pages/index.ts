@@ -3,6 +3,7 @@ export { default as BudgetPlanningPage } from './BudgetPlanningPage';
 export { default as FixedExpensesPage } from './FixedExpensesPage';
 export { default as LoginPage } from './LoginPage';
 export { default as MovementsPage } from './MovementsPage';
+export { default as ReportsPage } from './ReportsPage';
 export { default as SettingsPage } from './SettingsPage';
 export { default as SignUpPage } from './SignUpPage';
 export { default as SummaryPage } from './SummaryPage';
