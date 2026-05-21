@@ -10,15 +10,19 @@ import {
 import { useAutoNetWorthSnapshot } from '../hooks/useAutoNetWorthSnapshot';
 import { useConsolidatedTotal } from '../hooks/useConsolidatedTotal';
 import { useInvestmentPrices } from '../hooks/useInvestmentPrices';
+import { useSlowQuery } from '../hooks/useSlowQuery';
 import { useToast } from '../hooks/useToast';
 import type { AccountCardDisplaySettings } from '../types';
 import EmptyState from '../components/ui/EmptyState';
+import SlowQueryIndicator from '../components/SlowQueryIndicator';
 import PageHeader from '../components/ui/PageHeader';
 import {
   SkeletonAccountCard,
   SkeletonList,
   SkeletonStats,
 } from '../components/ui/Skeleton';
+import ErrorBoundary from '../components/ErrorBoundary';
+import QueryErrorCard from '../components/QueryErrorCard';
 import FinancialCalendarWidget from '../components/calendar/FinancialCalendarWidget';
 import NetWorthTimelineWidget from '../components/net-worth/NetWorthTimelineWidget';
 import RemindersWidget from '../components/reminders/RemindersWidget';
@@ -43,29 +47,34 @@ const SummaryPage = () => {
     isLoading: accountsLoading,
     isError: accountsIsError,
     error: accountsError,
+    refetch: accountsRefetch,
   } = useAccountsQuery();
   const {
     data: pockets = [],
     isLoading: pocketsLoading,
     isError: pocketsIsError,
     error: pocketsError,
+    refetch: pocketsRefetch,
   } = usePocketsQuery();
   const {
     data: settings,
     isLoading: settingsLoading,
     isError: settingsIsError,
     error: settingsError,
+    refetch: settingsRefetch,
   } = useSettingsQuery();
   const {
     data: subPockets = [],
     isLoading: subPocketsLoading,
     isError: subPocketsIsError,
     error: subPocketsError,
+    refetch: subPocketsRefetch,
   } = useSubPocketsQuery();
   const {
     data: fixedExpenseGroups = [],
     isError: fixedExpenseGroupsIsError,
     error: fixedExpenseGroupsError,
+    refetch: fixedExpenseGroupsRefetch,
   } = useFixedExpenseGroupsQuery();
 
   const toast = useToast();
@@ -98,21 +107,10 @@ const SummaryPage = () => {
     return { fixedSubPockets: subs, totalFixedExpensesMoney: total };
   }, [pockets, subPockets]);
 
-  // Loading and error states
+  // Loading state
   const isLoading =
     accountsLoading || pocketsLoading || settingsLoading || subPocketsLoading;
-  const isError =
-    accountsIsError ||
-    pocketsIsError ||
-    settingsIsError ||
-    subPocketsIsError ||
-    fixedExpenseGroupsIsError;
-  const queryError =
-    accountsError ||
-    pocketsError ||
-    settingsError ||
-    subPocketsError ||
-    fixedExpenseGroupsError;
+  const isSlow = useSlowQuery(isLoading);
 
   if (isLoading) {
     return (
@@ -123,31 +121,7 @@ const SummaryPage = () => {
           <SkeletonAccountCard />
         </div>
         <SkeletonList items={4} />
-      </div>
-    );
-  }
-
-  if (isError) {
-    const errorMessage =
-      queryError instanceof Error
-        ? queryError.message
-        : 'An unexpected error occurred while loading your data.';
-
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-center">
-          <div className="text-red-600 dark:text-red-400 text-xl mb-4">⚠️</div>
-          <p className="text-gray-900 dark:text-gray-100 font-semibold mb-2">
-            Error Loading Data
-          </p>
-          <p className="text-gray-600 dark:text-gray-400 mb-4">{errorMessage}</p>
-          <button
-            onClick={() => window.location.reload()}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-          >
-            Refresh Page
-          </button>
-        </div>
+        {isSlow && <SlowQueryIndicator />}
       </div>
     );
   }
@@ -157,34 +131,76 @@ const SummaryPage = () => {
       <div className="space-y-6">
         <PageHeader title="Summary" />
 
-        <TotalsSummary
-          consolidatedTotal={consolidatedTotal}
-          primaryCurrency={primaryCurrency}
-          totalsByCurrency={totalsByCurrency}
-          isConsolidatedReady={isConsolidatedReady}
-        />
+        <ErrorBoundary>
+          {accountsIsError || settingsIsError ? (
+            <div className="space-y-2">
+              {accountsIsError && (
+                <QueryErrorCard title="accounts" error={accountsError} onRetry={() => accountsRefetch()} />
+              )}
+              {settingsIsError && (
+                <QueryErrorCard title="settings" error={settingsError} onRetry={() => settingsRefetch()} />
+              )}
+            </div>
+          ) : (
+            <TotalsSummary
+              consolidatedTotal={consolidatedTotal}
+              primaryCurrency={primaryCurrency}
+              totalsByCurrency={totalsByCurrency}
+              isConsolidatedReady={isConsolidatedReady}
+            />
+          )}
+        </ErrorBoundary>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <CurrencyBreakdownSection
-            sortedCurrencies={sortedCurrencies}
-            accountsByCurrency={accountsByCurrency}
-            pockets={pockets}
-            investmentData={investmentData}
-            refreshingPrices={refreshingPrices}
-            accountCardDisplay={accountCardDisplay}
-            onRefreshPrice={handleRefreshPrice}
-          />
+          <ErrorBoundary>
+            {accountsIsError || pocketsIsError ? (
+              <div className="space-y-2">
+                {accountsIsError && (
+                  <QueryErrorCard title="accounts" error={accountsError} onRetry={() => accountsRefetch()} />
+                )}
+                {pocketsIsError && (
+                  <QueryErrorCard title="pockets" error={pocketsError} onRetry={() => pocketsRefetch()} />
+                )}
+              </div>
+            ) : (
+              <CurrencyBreakdownSection
+                sortedCurrencies={sortedCurrencies}
+                accountsByCurrency={accountsByCurrency}
+                pockets={pockets}
+                investmentData={investmentData}
+                refreshingPrices={refreshingPrices}
+                accountCardDisplay={accountCardDisplay}
+                onRefreshPrice={handleRefreshPrice}
+              />
+            )}
+          </ErrorBoundary>
 
           <div className="space-y-6">
-            <FinancialCalendarWidget primaryCurrency={primaryCurrency} />
-            <NetWorthTimelineWidget />
+            <ErrorBoundary>
+              <FinancialCalendarWidget primaryCurrency={primaryCurrency} />
+            </ErrorBoundary>
 
-            <div className="space-y-4 h-[400px]">
-              <RemindersWidget />
-            </div>
+            <ErrorBoundary>
+              <NetWorthTimelineWidget />
+            </ErrorBoundary>
 
-            <div className="space-y-4">
-              {fixedSubPockets.length === 0 ? (
+            <ErrorBoundary>
+              <div className="space-y-4 h-[400px]">
+                <RemindersWidget />
+              </div>
+            </ErrorBoundary>
+
+            <ErrorBoundary>
+              {subPocketsIsError || fixedExpenseGroupsIsError ? (
+                <div className="space-y-2">
+                  {subPocketsIsError && (
+                    <QueryErrorCard title="sub-pockets" error={subPocketsError} onRetry={() => subPocketsRefetch()} />
+                  )}
+                  {fixedExpenseGroupsIsError && (
+                    <QueryErrorCard title="fixed expense groups" error={fixedExpenseGroupsError} onRetry={() => fixedExpenseGroupsRefetch()} />
+                  )}
+                </div>
+              ) : fixedSubPockets.length === 0 ? (
                 <EmptyState
                   icon={Wallet}
                   title="No fixed expenses yet"
@@ -200,7 +216,7 @@ const SummaryPage = () => {
                   primaryCurrency={primaryCurrency}
                 />
               )}
-            </div>
+            </ErrorBoundary>
           </div>
         </div>
 
