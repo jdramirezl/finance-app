@@ -24,6 +24,7 @@ import {
     formatCurrencyAmount,
     type FormatCurrencyAmountOptions,
 } from '../components/ui/CurrencyAmount';
+import { currencyService } from '../services/currencyService';
 import type { NetWorthSnapshot } from '../services/netWorthSnapshotService';
 
 export type NetWorthViewMode = 'total' | 'breakdown';
@@ -158,7 +159,10 @@ export const useNetWorthChartData = ({
 
                 if (snapshot.breakdown) {
                     Object.entries(snapshot.breakdown).forEach(([currency, value]) => {
-                        data[currency] = value; // Native amount — no conversion
+                        // Convert to primary currency for comparable Y-axis
+                        data[currency] = currencyService.convertAmount(value, currency, primaryCurrency);
+                        // Store native value for tooltip display
+                        data[`${currency}_native`] = value;
                     });
                 }
                 return data;
@@ -200,6 +204,8 @@ export const useNetWorthChartData = ({
                                   100
                                 : 0;
                         variationData[`${currency}_original`] = currentVal;
+                        variationData[`${currency}_native`] =
+                            (snapshot[`${currency}_native`] as number | undefined) ?? currentVal;
                     });
                 }
 
@@ -226,16 +232,13 @@ export const useNetWorthChartData = ({
                 typeof value === 'number' ? value : parseFloat(String(value));
             if (isNaN(numValue)) return ['N/A', displayName];
 
+            const payload = (entry as { payload?: NetWorthChartDatum })?.payload;
+
             if (showVariation) {
-                // In variation mode each series stores its absolute value
-                // on a parallel `<key>_original` field. Use that to render
-                // `XX% (formatted-original)`.
                 const originalKey =
                     displayName === NET_WORTH_TOTAL_LINE_NAME
                         ? 'total_original'
                         : `${displayName}_original`;
-                const payload = (entry as { payload?: NetWorthChartDatum })
-                    ?.payload;
                 const originalValue = payload
                     ? (payload[originalKey] as number | undefined)
                     : undefined;
@@ -243,23 +246,54 @@ export const useNetWorthChartData = ({
                     originalValue !== undefined
                         ? formatCurrencyAmount(
                               originalValue,
-                              currencies.includes(displayName) ? displayName : primaryCurrency,
+                              primaryCurrency,
                               CHART_CURRENCY_FORMAT_OPTIONS,
                           )
                         : 'N/A';
+
+                // Show native value for breakdown currencies
+                if (currencies.includes(displayName) && displayName !== primaryCurrency) {
+                    const nativeValue = payload
+                        ? (payload[`${displayName}_native`] as number | undefined)
+                        : undefined;
+                    const nativeFormatted = nativeValue !== undefined
+                        ? formatCurrencyAmount(nativeValue, displayName, CHART_CURRENCY_FORMAT_OPTIONS)
+                        : '';
+                    const suffix = nativeFormatted ? ` [${nativeFormatted}]` : '';
+                    return [
+                        `${numValue.toFixed(2)}% (${originalFormatted})${suffix}`,
+                        `${displayName} (converted)`,
+                    ];
+                }
+
                 return [
                     `${numValue.toFixed(2)}% (${originalFormatted})`,
                     displayName,
                 ];
             }
 
-            // In breakdown mode, displayName is the currency code (e.g. "MXN")
-            // Use it for formatting if it's a valid currency, otherwise fall back
-            const formatCurrency = currencies.includes(displayName) ? displayName : primaryCurrency;
+            // Non-variation breakdown mode: show converted value + native value
+            if (currencies.includes(displayName) && displayName !== primaryCurrency) {
+                const nativeValue = payload
+                    ? (payload[`${displayName}_native`] as number | undefined)
+                    : undefined;
+                const convertedFormatted = formatCurrencyAmount(
+                    numValue,
+                    primaryCurrency,
+                    CHART_CURRENCY_FORMAT_OPTIONS,
+                );
+                const nativeFormatted = nativeValue !== undefined
+                    ? formatCurrencyAmount(nativeValue, displayName, CHART_CURRENCY_FORMAT_OPTIONS)
+                    : '';
+                const suffix = nativeFormatted ? ` [${nativeFormatted}]` : '';
+                return [`${convertedFormatted}${suffix}`, `${displayName} (converted)`];
+            }
+
+            // Total mode or primary currency line
             return [
                 formatCurrencyAmount(
                     numValue,
-                    formatCurrency,
+                    primaryCurrency,
                     CHART_CURRENCY_FORMAT_OPTIONS,
                 ),
                 displayName,
