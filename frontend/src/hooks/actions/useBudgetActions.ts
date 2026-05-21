@@ -31,6 +31,8 @@ export interface UseBudgetActionsParams {
   primaryCurrency: Currency;
   movementMutations: MovementMutations;
   toast: ReturnType<typeof useToast.getState>;
+  defaultAccountId: string;
+  defaultPocketId: string;
 }
 
 export interface UseBudgetActionsResult {
@@ -66,6 +68,8 @@ export const useBudgetActions = ({
   primaryCurrency,
   movementMutations,
   toast,
+  defaultAccountId,
+  defaultPocketId,
 }: UseBudgetActionsParams): UseBudgetActionsResult => {
   const { createMovement } = movementMutations;
   const { confirm } = useConfirmDialog();
@@ -195,21 +199,19 @@ export const useBudgetActions = ({
       const amount = calculateEntryAmount(entry.percentage);
       if (amount <= 0) return;
 
-      // Match by pocketId first; fall back to case-insensitive name match for
-      // legacy entries that predate the pocketId/accountId fields.
+      // Use explicitly linked pocket; fall back to user-selected default.
       const matchedPocket =
-        (entry.pocketId && pockets.find((p) => p.id === entry.pocketId)) ||
-        pockets.find(
-          (p) => p.name.trim().toLowerCase() === entry.name.trim().toLowerCase()
-        );
-      const accountId = matchedPocket?.accountId ?? entry.accountId ?? '';
+        entry.pocketId ? pockets.find((p) => p.id === entry.pocketId) : undefined;
+      const accountId =
+        matchedPocket?.accountId ?? entry.accountId ?? defaultAccountId ?? '';
+      const pocketId = matchedPocket?.id ?? defaultPocketId ?? '';
       const account = accountId ? accounts.find((a) => a.id === accountId) : undefined;
 
       rows.push({
         id: crypto.randomUUID(),
         type: 'IngresoNormal',
         accountId: account?.id || '',
-        pocketId: matchedPocket?.id || '',
+        pocketId,
         amount: amount.toFixed(2),
         notes: `Budget Distribution: ${entry.name}`,
         displayedDate: format(new Date(), 'yyyy-MM-dd'),

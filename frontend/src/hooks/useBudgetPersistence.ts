@@ -9,12 +9,16 @@ export interface BudgetPlanningData {
   initialAmount: number;
   distributionEntries: DistributionEntry[];
   scenarios: PlanningScenario[];
+  defaultAccountId: string;
+  defaultPocketId: string;
 }
 
 const DEFAULT_DATA: BudgetPlanningData = {
   initialAmount: 0,
   distributionEntries: [],
   scenarios: [],
+  defaultAccountId: '',
+  defaultPocketId: '',
 };
 
 const loadBudgetPlanning = (): BudgetPlanningData => {
@@ -42,6 +46,10 @@ export interface UseBudgetPersistenceResult {
   setDistributionEntries: (entries: DistributionEntry[]) => void;
   scenarios: PlanningScenario[];
   setScenarios: React.Dispatch<React.SetStateAction<PlanningScenario[]>>;
+  defaultAccountId: string;
+  setDefaultAccountId: (value: string) => void;
+  defaultPocketId: string;
+  setDefaultPocketId: (value: string) => void;
 }
 
 /**
@@ -62,6 +70,12 @@ export const useBudgetPersistence = (): UseBudgetPersistenceResult => {
   const [scenarios, setScenarios] = useState<PlanningScenario[]>(
     initial.scenarios || []
   );
+  const [defaultAccountId, setDefaultAccountId] = useState<string>(
+    initial.defaultAccountId || ''
+  );
+  const [defaultPocketId, setDefaultPocketId] = useState<string>(
+    initial.defaultPocketId || ''
+  );
 
   // Skip the very first effect run on mount — there's nothing user-driven to
   // persist yet, and writing back what we just loaded is wasted work.
@@ -76,11 +90,17 @@ export const useBudgetPersistence = (): UseBudgetPersistenceResult => {
     }
 
     const timeoutId = setTimeout(() => {
-      saveBudgetPlanning({ initialAmount, distributionEntries, scenarios });
+      saveBudgetPlanning({
+        initialAmount,
+        distributionEntries,
+        scenarios,
+        defaultAccountId,
+        defaultPocketId,
+      });
     }, PERSIST_DELAY_MS);
 
     return () => clearTimeout(timeoutId);
-  }, [initialAmount, distributionEntries, scenarios]);
+  }, [initialAmount, distributionEntries, scenarios, defaultAccountId, defaultPocketId]);
 
   return {
     initialAmount,
@@ -89,5 +109,9 @@ export const useBudgetPersistence = (): UseBudgetPersistenceResult => {
     setDistributionEntries,
     scenarios,
     setScenarios,
+    defaultAccountId,
+    setDefaultAccountId,
+    defaultPocketId,
+    setDefaultPocketId,
   };
 };

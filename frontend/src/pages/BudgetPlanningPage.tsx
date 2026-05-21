@@ -13,6 +13,7 @@ import { useBudgetPersistence } from '../hooks/useBudgetPersistence';
 import { useToast } from '../hooks/useToast';
 import type { Currency } from '../types';
 import BatchMovementForm from '../components/movements/BatchMovementForm';
+import AccountPocketSelector from '../components/movements/AccountPocketSelector';
 import Button from '../components/ui/Button';
 import EmptyState from '../components/ui/EmptyState';
 import Modal from '../components/ui/Modal';
@@ -49,6 +50,10 @@ const BudgetPlanningPage = () => {
     setDistributionEntries,
     scenarios,
     setScenarios,
+    defaultAccountId,
+    setDefaultAccountId,
+    defaultPocketId,
+    setDefaultPocketId,
   } = useBudgetPersistence();
 
   // Modal state — page owns it.
@@ -80,6 +85,8 @@ const BudgetPlanningPage = () => {
     primaryCurrency,
     movementMutations,
     toast,
+    defaultAccountId,
+    defaultPocketId,
   });
 
   if (isLoading) {
@@ -109,14 +116,26 @@ const BudgetPlanningPage = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <PageHeader title="Budget Planning" />
-        <Button
-          variant="secondary"
-          onClick={actions.prepareBatchFromDistribution}
-          disabled={initialAmount <= 0}
-        >
-          <Receipt className="w-5 h-5" />
-          Create Movements
-        </Button>
+        <div className="flex items-center gap-4">
+          <div className="w-64">
+            <AccountPocketSelector
+              accountId={defaultAccountId}
+              pocketId={defaultPocketId}
+              onAccountChange={setDefaultAccountId}
+              onPocketChange={setDefaultPocketId}
+              accountLabel="Default Account"
+              pocketLabel="Default Pocket"
+            />
+          </div>
+          <Button
+            variant="secondary"
+            onClick={actions.prepareBatchFromDistribution}
+            disabled={initialAmount <= 0}
+          >
+            <Receipt className="w-5 h-5" />
+            Create Movements
+          </Button>
+        </div>
       </div>
 
       <BudgetIncomeSection initialAmount={initialAmount} onChange={setInitialAmount} />
