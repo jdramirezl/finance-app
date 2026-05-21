@@ -18,6 +18,9 @@ vi.mock('../../../hooks/queries', () => ({
   usePocketsQuery: () => ({
     data: [{ id: 'pkt1', name: 'General', accountId: 'acc1', balance: 1000, type: 'normal' }],
   }),
+  useSettingsQuery: () => ({
+    data: { primaryCurrency: 'USD', dateFormat: 'MMM d, yyyy', movementsPerPage: 50, reminderAdvanceDays: 7, defaultCurrencyForNewAccounts: 'USD' },
+  }),
 }));
 
 vi.mock('../../../store/useLastUsedPocket', () => ({

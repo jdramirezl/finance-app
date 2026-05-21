@@ -1,6 +1,7 @@
 import { useForm, Controller } from 'react-hook-form';
 import type { Account, Currency } from '../../types';
-import { CURRENCY_OPTIONS, DEFAULT_CURRENCY } from '../../constants';
+import { CURRENCY_OPTIONS } from '../../constants';
+import { useSettingsQuery } from '../../hooks/queries';
 import Button from '../ui/Button';
 import Input from '../ui/Input';
 import Select from '../ui/Select';
@@ -29,13 +30,15 @@ const AccountForm = ({
     isSaving,
 }: AccountFormProps) => {
     const isEditing = !!initialData;
+    const { data: settings } = useSettingsQuery();
+    const defaultCurrency = settings?.defaultCurrencyForNewAccounts ?? 'USD';
 
     const { register, handleSubmit, control, watch, formState: { errors, isDirty } } = useForm<AccountFormData>({
         mode: 'onBlur',
         defaultValues: {
             name: initialData?.name || '',
             color: initialData?.color || '#3B82F6',
-            currency: initialData?.currency || DEFAULT_CURRENCY,
+            currency: initialData?.currency || defaultCurrency,
             type: 'normal',
             stockSymbol: '',
         },

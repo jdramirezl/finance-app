@@ -11,6 +11,7 @@ interface ReminderCardProps {
     onEdit: (reminder: ReminderWithProjection) => void;
     onDelete: (reminder: ReminderWithProjection) => void;
     onMarkAsPaid: (reminder: ReminderWithProjection) => void;
+    advanceDays?: number;
 }
 
 const statusStyles: Record<ReminderStatus, {
@@ -62,8 +63,8 @@ const statusStyles: Record<ReminderStatus, {
  * the month section. Parents must pass stable callbacks via useCallback
  * for the memo to be effective.
  */
-const ReminderCard = ({ reminder, onPayNow, onEdit, onDelete, onMarkAsPaid }: ReminderCardProps) => {
-    const status = getReminderStatus(reminder);
+const ReminderCard = ({ reminder, onPayNow, onEdit, onDelete, onMarkAsPaid, advanceDays }: ReminderCardProps) => {
+    const status = getReminderStatus(reminder, advanceDays);
     const styles = statusStyles[status];
     const isPaid = status === 'paid';
     const isProjected = status === 'projected';

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { Plus, AlertTriangle, Calendar } from 'lucide-react';
-import { useRemindersQuery, useReminderMutations } from '../../hooks/queries';
+import { useRemindersQuery, useReminderMutations, useSettingsQuery } from '../../hooks/queries';
 import { useReminderActions } from '../../hooks/actions/useReminderActions';
 import Modal from '../ui/Modal';
 import ReminderForm from './ReminderForm';
@@ -13,6 +13,7 @@ import { groupRemindersByMonth, countOverdueReminders } from '../../utils/remind
 
 const RemindersWidget = () => {
     const { data: reminders = [], isLoading } = useRemindersQuery();
+    const { data: settings } = useSettingsQuery();
     const mutations = useReminderMutations();
     const scrollContainerRef = useRef<HTMLDivElement>(null);
 
@@ -120,6 +121,7 @@ const RemindersWidget = () => {
                                     onEdit={handleEdit}
                                     onDelete={handleDelete}
                                     onMarkAsPaid={handleMarkAsPaid}
+                                    advanceDays={settings?.reminderAdvanceDays}
                                 />
                             </div>
                         ))

@@ -254,7 +254,7 @@ export type ReminderStatus = 'overdue' | 'today' | 'this-week' | 'upcoming' | 'p
 /**
  * Determine the status of a reminder for styling purposes
  */
-export function getReminderStatus(reminder: ReminderWithProjection): ReminderStatus {
+export function getReminderStatus(reminder: ReminderWithProjection, advanceDays: number = 7): ReminderStatus {
     if (reminder.isPaid) return 'paid';
 
     const now = new Date();
@@ -276,9 +276,9 @@ export function getReminderStatus(reminder: ReminderWithProjection): ReminderSta
         return 'today';
     }
 
-    // Check if due within 7 days
-    const weekFromNow = addDays(now, 7);
-    if (isBefore(dueDate, weekFromNow)) {
+    // Check if due within configured advance days
+    const advanceWindow = addDays(now, advanceDays);
+    if (isBefore(dueDate, advanceWindow)) {
         return 'this-week';
     }
 

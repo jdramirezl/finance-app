@@ -8,6 +8,7 @@ interface MonthSectionProps {
     onEdit: (reminder: ReminderWithProjection) => void;
     onDelete: (reminder: ReminderWithProjection) => void;
     onMarkAsPaid: (reminder: ReminderWithProjection) => void;
+    advanceDays?: number;
 }
 
 /**
@@ -15,7 +16,7 @@ interface MonthSectionProps {
  * updating one month group does not re-render all the others. Parents
  * must pass stable callbacks via useCallback for the memo to be effective.
  */
-const MonthSection = ({ monthGroup, onPayNow, onEdit, onDelete, onMarkAsPaid }: MonthSectionProps) => {
+const MonthSection = ({ monthGroup, onPayNow, onEdit, onDelete, onMarkAsPaid, advanceDays }: MonthSectionProps) => {
     const { label, reminders, isCurrentMonth, isPastMonth } = monthGroup;
 
     if (reminders.length === 0) {
@@ -65,6 +66,7 @@ const MonthSection = ({ monthGroup, onPayNow, onEdit, onDelete, onMarkAsPaid }: 
                         onEdit={onEdit}
                         onDelete={onDelete}
                         onMarkAsPaid={onMarkAsPaid}
+                        advanceDays={advanceDays}
                     />
                 ))}
             </div>

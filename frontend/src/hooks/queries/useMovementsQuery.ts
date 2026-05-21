@@ -4,6 +4,7 @@ import {
     keepPreviousData,
 } from '@tanstack/react-query';
 import { movementService } from '../../services/movementService';
+import { useSettingsQuery } from './useSettingsQuery';
 
 /**
  * Default page size used by the paginated movements queries.
@@ -46,9 +47,12 @@ export const useMovementsQuery = () => {
  * where the total count is an exact multiple of the page size.
  */
 export const useInfiniteMovementsQuery = (
-    limit: number = DEFAULT_MOVEMENTS_PAGE_SIZE,
+    limitOverride?: number,
     filters?: { category?: string; tags?: string[] },
 ) => {
+    const { data: settings } = useSettingsQuery();
+    const limit = limitOverride ?? settings?.movementsPerPage ?? DEFAULT_MOVEMENTS_PAGE_SIZE;
+
     return useInfiniteQuery({
         queryKey: ['movements', 'infinite', limit, filters?.category, filters?.tags],
         queryFn: ({ pageParam }) =>
