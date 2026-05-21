@@ -494,6 +494,46 @@ export class SupabaseMovementRepository implements IMovementRepository {
   }
 
   /**
+   * Sum expenses by period, grouped by currency (derived from accounts table).
+   * Only counts EgresoNormal and EgresoFijo, excludes pending movements.
+   */
+  async sumExpensesByPeriod(
+    userId: string,
+    startDate: Date,
+    endDate: Date
+  ): Promise<{ currency: Currency; total: number }[]> {
+    const { data, error } = await this.supabase
+      .from('movements')
+      .select('amount, account_id, accounts!inner(currency)')
+      .eq('user_id', userId)
+      .in('type', ['EgresoNormal', 'EgresoFijo'])
+      .eq('is_pending', false)
+      .gte('displayed_date', startDate.toISOString())
+      .lte('displayed_date', endDate.toISOString());
+
+    if (error) {
+      throw new DatabaseError(`Failed to sum expenses by period: ${error.message}`);
+    }
+
+    if (!data || data.length === 0) {
+      return [];
+    }
+
+    // Group by currency and sum amounts
+    const totals = new Map<string, number>();
+    for (const row of data) {
+      const currency = (row as any).accounts?.currency as string;
+      if (!currency) continue;
+      totals.set(currency, (totals.get(currency) || 0) + row.amount);
+    }
+
+    return Array.from(totals.entries()).map(([currency, total]) => ({
+      currency: currency as Currency,
+      total,
+    }));
+  }
+
+  /**
    * Count movements by filters
    */
   async count(userId: string, filters?: MovementFilters): Promise<number> {

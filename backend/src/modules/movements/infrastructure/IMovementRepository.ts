@@ -216,4 +216,15 @@ export interface IMovementRepository {
    * Count movements by filters
    */
   count(userId: string, filters?: MovementFilters): Promise<number>;
+
+  /**
+   * Sum expenses by period, grouped by currency.
+   * Joins with accounts table to derive currency.
+   * Only counts expense types (EgresoNormal, EgresoFijo), excludes pending movements.
+   */
+  sumExpensesByPeriod(
+    userId: string,
+    startDate: Date,
+    endDate: Date
+  ): Promise<{ currency: Currency; total: number }[]>;
 }

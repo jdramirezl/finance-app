@@ -14,6 +14,7 @@ import { ApplyPendingMovementUseCase } from '../../modules/movements/application
 import { MarkAsPendingUseCase } from '../../modules/movements/application/useCases/MarkAsPendingUseCase';
 import { RestoreOrphanedMovementsUseCase } from '../../modules/movements/application/useCases/RestoreOrphanedMovementsUseCase';
 import { CreateTransferUseCase } from '../../modules/movements/application/useCases/CreateTransferUseCase';
+import { GetSpendingSummaryUseCase } from '../../modules/movements/application/useCases/GetSpendingSummaryUseCase';
 import { DeleteMovementsByAccountUseCase } from '../../modules/movements/application/useCases/DeleteMovementsByAccountUseCase';
 import { DeleteMovementsByPocketUseCase } from '../../modules/movements/application/useCases/DeleteMovementsByPocketUseCase';
 import { MarkMovementsAsOrphanedUseCase } from '../../modules/movements/application/useCases/MarkMovementsAsOrphanedUseCase';
@@ -45,6 +46,7 @@ export function registerMovementModule(): void {
   container.register(MarkAsPendingUseCase, { useClass: MarkAsPendingUseCase });
   container.register(RestoreOrphanedMovementsUseCase, { useClass: RestoreOrphanedMovementsUseCase });
   container.register(CreateTransferUseCase, { useClass: CreateTransferUseCase });
+  container.register(GetSpendingSummaryUseCase, { useClass: GetSpendingSummaryUseCase });
   container.register(DeleteMovementsByAccountUseCase, { useClass: DeleteMovementsByAccountUseCase });
   container.register(DeleteMovementsByPocketUseCase, { useClass: DeleteMovementsByPocketUseCase });
   container.register(MarkMovementsAsOrphanedUseCase, { useClass: MarkMovementsAsOrphanedUseCase });

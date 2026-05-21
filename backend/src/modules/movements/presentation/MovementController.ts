@@ -22,6 +22,7 @@ import { ApplyPendingMovementUseCase } from '../application/useCases/ApplyPendin
 import { MarkAsPendingUseCase } from '../application/useCases/MarkAsPendingUseCase';
 import { RestoreOrphanedMovementsUseCase } from '../application/useCases/RestoreOrphanedMovementsUseCase';
 import { CreateTransferUseCase } from '../application/useCases/CreateTransferUseCase';
+import { GetSpendingSummaryUseCase } from '../application/useCases/GetSpendingSummaryUseCase';
 import { DeleteMovementsByAccountUseCase } from '../application/useCases/DeleteMovementsByAccountUseCase';
 import { DeleteMovementsByPocketUseCase } from '../application/useCases/DeleteMovementsByPocketUseCase';
 import {
@@ -51,6 +52,7 @@ export class MovementController {
     @inject(MarkAsPendingUseCase) private markAsPendingUseCase: MarkAsPendingUseCase,
     @inject(RestoreOrphanedMovementsUseCase) private restoreOrphanedMovementsUseCase: RestoreOrphanedMovementsUseCase,
     @inject(CreateTransferUseCase) private createTransferUseCase: CreateTransferUseCase,
+    @inject(GetSpendingSummaryUseCase) private getSpendingSummaryUseCase: GetSpendingSummaryUseCase,
     @inject(DeleteMovementsByAccountUseCase) private deleteMovementsByAccountUseCase: DeleteMovementsByAccountUseCase,
     @inject(DeleteMovementsByPocketUseCase) private deleteMovementsByPocketUseCase: DeleteMovementsByPocketUseCase,
     @inject(MarkMovementsAsOrphanedUseCase) private markMovementsAsOrphanedUseCase: MarkMovementsAsOrphanedUseCase,
@@ -122,6 +124,25 @@ export class MovementController {
 
       const result = await this.movementRepo.batchCreate(movements, userId);
       res.status(201).json(result);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Get spending summary
+   * GET /api/movements/spending-summary
+   */
+  async getSpendingSummary(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        res.status(401).json({ error: 'Unauthorized' });
+        return;
+      }
+
+      const result = await this.getSpendingSummaryUseCase.execute(userId);
+      res.status(200).json(result);
     } catch (error) {
       next(error);
     }

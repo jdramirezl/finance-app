@@ -98,6 +98,14 @@ router.get('/pending', (req, res, next) => controller.getPending(req, res, next)
 router.get('/orphaned', (req, res, next) => controller.getOrphaned(req, res, next));
 
 /**
+ * GET /api/movements/spending-summary
+ * Get spending totals by period with per-currency breakdown
+ *
+ * Response: 200 + SpendingSummaryDTO
+ */
+router.get('/spending-summary', (req, res, next) => controller.getSpendingSummary(req, res, next));
+
+/**
  * POST /api/movements/restore-orphaned
  * Restore orphaned movements
  * 
