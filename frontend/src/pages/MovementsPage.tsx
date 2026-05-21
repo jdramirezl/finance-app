@@ -3,7 +3,7 @@ import { format } from 'date-fns';
 import { Plus, Trash2 } from 'lucide-react';
 import {
   usePocketsQuery,
-  useMovementsQuery,
+  useInfiniteMovementsQuery,
   useMovementTemplatesQuery,
   useOrphanedMovementsQuery,
   useSubPocketsQuery,
@@ -43,7 +43,36 @@ const MovementsPage = () => {
   // Data + mutations
   const { data: pockets = EMPTY_POCKETS } = usePocketsQuery();
   const { data: subPockets = EMPTY_SUBPOCKETS } = useSubPocketsQuery();
-  const { data: movements = EMPTY_MOVEMENTS, isLoading: movementsLoading } = useMovementsQuery();
+
+  // Movements are loaded incrementally via an infinite query. The first
+  // page is fetched on mount; further pages are pulled in by the user
+  // via the Load More button below the list.
+  const {
+    data: infiniteMovements,
+    isLoading: movementsLoading,
+    hasNextPage: hasMoreMovements,
+    fetchNextPage: fetchMoreMovements,
+    isFetchingNextPage: isLoadingMoreMovements,
+  } = useInfiniteMovementsQuery();
+
+  // Flatten the page list into a single Movement[] for the existing
+  // filter/sort hooks, dropping orphaned entries (which are surfaced
+  // separately by useOrphanedMovementsQuery / OrphanedMovementsPanel).
+  const movements = useMemo<Movement[]>(() => {
+    if (!infiniteMovements) return EMPTY_MOVEMENTS;
+    const flattened: Movement[] = [];
+    for (const page of infiniteMovements.pages) {
+      for (const m of page.data) {
+        if (!m.isOrphaned) flattened.push(m);
+      }
+    }
+    return flattened;
+  }, [infiniteMovements]);
+
+  // Total movement count (across all pages, server-reported). Falls
+  // back to what we've loaded so far if the first page hasn't returned.
+  const totalMovements = infiniteMovements?.pages[0]?.total ?? movements.length;
+
   const { data: movementTemplates = EMPTY_TEMPLATES, isLoading: templatesLoading } = useMovementTemplatesQuery();
   const { data: orphanedMovements = EMPTY_MOVEMENTS } = useOrphanedMovementsQuery();
   const movementMutations = useMovementMutations();
@@ -162,6 +191,13 @@ const MovementsPage = () => {
     setBatchActivePocketId(row.pocketId);
   };
 
+  // Stable handler for the Load More button. Wrapped so we can safely
+  // pass it to the Button without leaking the synthetic event into
+  // fetchNextPage (which expects no arguments).
+  const handleLoadMore = useCallback(() => {
+    fetchMoreMovements();
+  }, [fetchMoreMovements]);
+
   if (movementsLoading) {
     return (
       <div className="space-y-6">
@@ -175,6 +211,7 @@ const MovementsPage = () => {
   }
 
   const orphanedCount = orphanedMovements.length;
+  const loadedCount = movements.length;
 
   return (
     <div className="space-y-6">
@@ -247,6 +284,27 @@ const MovementsPage = () => {
         onApplyPending={handleApplyPending}
         deletingId={deletingId} applyingId={applyingId}
       />
+
+      {/*
+        Load More section: only rendered when the server has more pages.
+        Shows the loaded-vs-total count so users understand what's been
+        fetched, and disables itself while a page is in flight.
+      */}
+      {hasMoreMovements && (
+        <div className="flex flex-col items-center gap-2 py-4">
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            Showing {loadedCount} of {totalMovements} movements
+          </p>
+          <Button
+            variant="secondary"
+            onClick={handleLoadMore}
+            loading={isLoadingMoreMovements}
+            disabled={isLoadingMoreMovements}
+          >
+            {isLoadingMoreMovements ? 'Loading…' : 'Load More'}
+          </Button>
+        </div>
+      )}
 
       <MovementFormPanel
         formState={formState} isSaving={isSaving}

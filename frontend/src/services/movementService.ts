@@ -2,6 +2,21 @@ import type { Movement, MovementType } from '../types';
 import { apiClient } from './apiClient';
 import { parseDate } from '../utils/dateUtils';
 
+/**
+ * Generic paginated response shape returned by the backend's list endpoints.
+ *
+ * `hasMore` is the canonical signal for "another page exists" — callers
+ * should prefer it over comparing `data.length === limit`, which breaks
+ * when `total % limit === 0`.
+ */
+export interface PaginatedResponse<T> {
+  data: T[];
+  total: number;
+  page: number;
+  limit: number;
+  hasMore: boolean;
+}
+
 // Helper to map snake_case DB rows to camelCase Movement objects
 function mapMovementRow(row: Record<string, unknown>): Movement {
   return {
@@ -22,20 +37,67 @@ function mapMovementRow(row: Record<string, unknown>): Movement {
   };
 }
 
+// Default page size used when callers ask for "everything" without
+// specifying pagination. The backend now paginates the movements list,
+// so we send a high limit to preserve legacy callers (export, calendar
+// data, etc.) until they migrate to proper pagination.
+//
+// TODO: remove this once every caller of `getAllMovements()` either
+// supplies its own pagination or switches to an infinite query.
+const LEGACY_FULL_FETCH_LIMIT = 1000;
+
 class MovementService {
   // --- API-backed methods ---
 
+  /**
+   * Fetch movements as a flat array.
+   *
+   * The backend's `GET /api/movements` endpoint now returns a paginated
+   * envelope (`{ data, total, page, limit, hasMore }`). This method
+   * unwraps it and returns just `data` so existing callers that expect
+   * a `Movement[]` keep working.
+   *
+   * - With no arguments: fetches a single page using a high limit
+   *   (`LEGACY_FULL_FETCH_LIMIT`) so legacy "give me everything" callers
+   *   still get a representative result without changing their code.
+   * - With explicit `page`/`limit`: forwards those values verbatim.
+   *
+   * For new code that needs pagination metadata, prefer
+   * {@link MovementService.getAllMovementsPaginated}.
+   */
   async getAllMovements(page?: number, limit?: number): Promise<Movement[]> {
-    const params = new URLSearchParams();
-    if (page !== undefined) params.set('page', String(page));
-    if (limit !== undefined) params.set('limit', String(limit));
-    const query = params.toString() ? `?${params.toString()}` : '';
-    return await apiClient.get<Movement[]>(`/api/movements${query}`);
+    const effectivePage = page ?? 1;
+    const effectiveLimit = limit ?? LEGACY_FULL_FETCH_LIMIT;
+    const response = await this.getAllMovementsPaginated(effectivePage, effectiveLimit);
+    return response.data;
   }
 
+  /**
+   * Fetch a page of movements along with pagination metadata.
+   *
+   * Use this for infinite scroll, "Load More" buttons, or anything else
+   * that needs to know whether more pages exist (`hasMore`) or display
+   * a total count (`total`).
+   */
+  async getAllMovementsPaginated(page: number, limit: number): Promise<PaginatedResponse<Movement>> {
+    const params = new URLSearchParams();
+    params.set('page', String(page));
+    params.set('limit', String(limit));
+    return await apiClient.get<PaginatedResponse<Movement>>(`/api/movements?${params.toString()}`);
+  }
+
+  /**
+   * Fetch all non-orphaned movements.
+   *
+   * Used by hooks that need the full active-movements set (calendar
+   * widget, auto-snapshot, mark-as-paid modal). Internally this hits
+   * the paginated endpoint with `LEGACY_FULL_FETCH_LIMIT` — a temporary
+   * measure until those consumers migrate to proper pagination or
+   * server-side filtering.
+   */
   async getActiveMovements(): Promise<Movement[]> {
-    const movements = await this.getAllMovements();
-    return movements.filter(m => !m.isOrphaned);
+    const response = await this.getAllMovementsPaginated(1, LEGACY_FULL_FETCH_LIMIT);
+    return response.data.filter(m => !m.isOrphaned);
   }
 
   async getOrphanedMovements(): Promise<Movement[]> {
