@@ -239,9 +239,16 @@ export class MovementController {
       const pageNum = page !== undefined ? parseInt(page as string, 10) : undefined;
       const limitNum = limit !== undefined ? parseInt(limit as string, 10) : undefined;
 
+      const { category, tags } = req.query;
+      const tagsArray = tags
+        ? (tags as string).split(',').map(t => t.trim()).filter(Boolean)
+        : undefined;
+
       const result = await this.getAllMovementsUseCase.execute(userId, {
         page: pageNum,
         limit: limitNum,
+        category: category as string | undefined,
+        tags: tagsArray,
       });
       res.status(200).json(result);
     } catch (error) {

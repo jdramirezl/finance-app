@@ -14,7 +14,7 @@
  */
 
 import { injectable, inject } from 'tsyringe';
-import type { IMovementRepository } from '../../infrastructure/IMovementRepository';
+import type { IMovementRepository, MovementFilters } from '../../infrastructure/IMovementRepository';
 import type { PaginatedMovementsDTO } from '../dtos/MovementDTO';
 import { MovementMapper } from '../mappers/MovementMapper';
 import { ValidationError } from '../../../../shared/errors/AppError';
@@ -43,6 +43,10 @@ export interface GetAllMovementsOptions {
   page?: number;
   /** Maximum number of rows to return. Defaults to 50 when omitted. */
   limit?: number;
+  /** Filter by exact category match. */
+  category?: string;
+  /** Filter by tags (OR logic — movements containing ANY of the listed tags). */
+  tags?: string[];
 }
 
 @injectable()
@@ -63,11 +67,17 @@ export class GetAllMovementsUseCase {
     const limit = this.normaliseLimit(options?.limit);
     const offset = (page - 1) * limit;
 
+    // Build filters from options (only include defined values)
+    const filters: MovementFilters | undefined =
+      (options?.category || options?.tags?.length)
+        ? { category: options.category, tags: options.tags }
+        : undefined;
+
     // Fetch the page and the total count in parallel so the request only
     // pays for one round-trip's worth of latency.
     const [movements, total] = await Promise.all([
-      this.movementRepo.findAll(userId, undefined, { limit, offset }),
-      this.movementRepo.count(userId, undefined),
+      this.movementRepo.findAll(userId, filters, { limit, offset }),
+      this.movementRepo.count(userId, filters),
     ]);
 
     return {

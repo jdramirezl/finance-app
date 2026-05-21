@@ -21,6 +21,8 @@ export interface MovementFilters {
   endDate?: Date;
   year?: number;
   month?: number; // 1-12
+  category?: string;
+  tags?: string[];
 }
 
 /**

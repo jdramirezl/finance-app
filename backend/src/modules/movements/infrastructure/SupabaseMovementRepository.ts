@@ -600,6 +600,14 @@ export class SupabaseMovementRepository implements IMovementRepository {
         .lte('displayed_date', endDate.toISOString());
     }
 
+    if (filters.category) {
+      query = query.eq('category', filters.category);
+    }
+
+    if (filters.tags && filters.tags.length > 0) {
+      query = query.overlaps('tags', filters.tags);
+    }
+
     return query;
   }
 }

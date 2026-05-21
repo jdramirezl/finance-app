@@ -61,6 +61,8 @@ router.post('/transfer', validateBody(createTransferSchema), (req, res, next) =>
  *   - pocketId:  filter by pocket
  *   - year + month: return movements for that month
  *   - pending:   filter by pending status (true/false)
+ *   - category:  filter by exact category match (e.g. "Food")
+ *   - tags:      comma-separated tags, OR logic (e.g. "vacation,work")
  *   - page:      1-based page number (default 1, no-filter branch only)
  *   - limit:     page size (default 50, max 200, no-filter branch only)
  *
