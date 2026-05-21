@@ -84,11 +84,11 @@ const Layout = ({ children }: LayoutProps) => {
   );
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors pb-20 md:pb-0 overflow-x-hidden">
+    <div className="min-h-screen bg-surface-base pb-20 md:pb-0 overflow-x-hidden">
       <Sidebar items={NAV_ITEMS} />
       <BottomNav items={NAV_ITEMS} bottomItems={BOTTOM_NAV_ITEMS} />
 
-      <main className="md:ml-64 p-4 md:p-8 pt-20 md:pt-8 min-h-screen">
+      <main className="md:ml-60 p-4 md:p-8 pt-20 md:pt-8 min-h-screen">
         <ErrorBoundary>{children}</ErrorBoundary>
       </main>
 

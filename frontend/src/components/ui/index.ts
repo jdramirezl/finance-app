@@ -19,6 +19,7 @@ export { default as Modal } from './Modal';
 export { default as PageHeader } from './PageHeader';
 export { default as ProgressBar } from './ProgressBar';
 export { default as Select } from './Select';
+export { default as SidePanel } from './SidePanel';
 export { default as SelectableValue } from './SelectableValue';
 export {
   Skeleton,
