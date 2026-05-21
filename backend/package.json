@@ -8,6 +8,9 @@
     "build": "tsc",
     "start": "node dist/server.js",
     "test": "jest",
+    "test:unit": "jest --testPathIgnorePatterns='integration\\.test\\.ts$'",
+    "test:integration": "jest --testPathPattern='integration\\.test\\.ts$' --testPathIgnorePatterns='/node_modules/'",
+    "test:all": "jest --testPathIgnorePatterns='/node_modules/'",
     "test:watch": "jest --watch",
     "lint": "eslint src --ext .ts"
   },
