@@ -19,7 +19,6 @@
     "types": ["node", "jest"],
     "baseUrl": "./src",
     "paths": {
-      "@shared/*": ["../shared/*"],
       "@modules/*": ["modules/*"],
       "@shared-backend/*": ["shared/*"]
     }
