@@ -3,7 +3,7 @@ import type { Ref } from 'react';
 import BatchMovementForm, {
   type BatchMovementFormRef,
   type BatchMovementRow,
-} from '../BatchMovementForm';
+} from './BatchMovementForm';
 import MovementForm, { type MovementFormData, type MovementFormRef } from './MovementForm';
 import AccountContextPanel from './AccountContextPanel';
 import QuickCalculator from './QuickCalculator';

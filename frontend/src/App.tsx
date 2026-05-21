@@ -3,13 +3,9 @@ import { lazy, Suspense, type ReactNode } from 'react';
 import { AuthProvider } from './contexts/AuthContext';
 import { SelectionProvider } from './contexts/SelectionContext';
 import { ConfirmDialogProvider } from './contexts/ConfirmDialogContext';
-import Layout from './components/Layout';
-import ProtectedRoute from './components/ProtectedRoute';
-import ToastContainer from './components/ToastContainer';
+import { Layout, ProtectedRoute } from './components/layout';
+import { ToastContainer, ErrorBoundary, SessionExpiredModal, ConnectionBanner } from './components/feedback';
 import { Skeleton } from './components/ui/Skeleton';
-import ErrorBoundary from './components/ErrorBoundary';
-import SessionExpiredModal from './components/feedback/SessionExpiredModal';
-import ConnectionBanner from './components/feedback/ConnectionBanner';
 
 // Lazy load page components for code splitting
 const LoginPage = lazy(() => import('./pages/LoginPage'));

@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { useThemeStore } from '../store/useThemeStore';
+import { useThemeStore } from '../../store/useThemeStore';
 import type { ReactNode } from 'react';
 
 interface ThemeProviderProps {

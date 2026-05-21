@@ -2,7 +2,7 @@ import { Filter, X } from 'lucide-react';
 import Button from '../ui/Button';
 import Input from '../ui/Input';
 import Select from '../ui/Select';
-import MovementTypeSelect, { MOVEMENT_TYPE_FILTER_ALL } from '../selectors/MovementTypeSelect';
+import MovementTypeSelect, { MOVEMENT_TYPE_FILTER_ALL } from './MovementTypeSelect';
 import { useAccountsQuery, usePocketsQuery } from '../../hooks/queries';
 import type { DateRangeOption, FilterTypeOption, ShowPendingOption } from '../../hooks/useMovementsFilter';
 

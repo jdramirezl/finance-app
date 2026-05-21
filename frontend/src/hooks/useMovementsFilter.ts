@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import type { Movement } from '../types';
 import { parseDate, toDateOnly } from '../utils/dateUtils';
-import { MOVEMENT_TYPE_FILTER_ALL, type MovementTypeFilterValue } from '../components/selectors/MovementTypeSelect';
+import { MOVEMENT_TYPE_FILTER_ALL, type MovementTypeFilterValue } from '../components/movements/MovementTypeSelect';
 
 export type DateRangeOption = 'all' | '7days' | '30days' | '3months' | '6months' | 'year' | 'custom';
 /**

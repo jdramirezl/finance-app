@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { render, screen } from '../test/testUtils';
+import { render, screen } from '../../test/testUtils';
 import ThemeProvider from './ThemeProvider';
-import { useThemeStore } from '../store/useThemeStore';
+import { useThemeStore } from '../../store/useThemeStore';
 
 describe('ThemeProvider', () => {
     beforeEach(() => {

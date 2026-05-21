@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import Modal from '../ui/Modal';
 import Button from '../ui/Button';
-import AccountPocketSelector from '../selectors/AccountPocketSelector';
+import AccountPocketSelector from './AccountPocketSelector';
 
 interface RestoreOrphanedModalProps {
   isOpen: boolean;

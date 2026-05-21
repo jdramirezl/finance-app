@@ -9,10 +9,10 @@ import {
   Wallet,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import ErrorBoundary from './ErrorBoundary';
-import Sidebar from './layout/Sidebar';
-import BottomNav from './layout/BottomNav';
-import QuickActionsFAB from './layout/QuickActionsFAB';
+import ErrorBoundary from '../feedback/ErrorBoundary';
+import Sidebar from './Sidebar';
+import BottomNav from './BottomNav';
+import QuickActionsFAB from './QuickActionsFAB';
 
 interface NavItem {
   path: string;

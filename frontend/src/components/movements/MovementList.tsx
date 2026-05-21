@@ -7,7 +7,7 @@ import { useAccountsQuery, usePocketsQuery, useRemindersQuery } from '../../hook
 import type { Account, Movement, MovementType, Pocket } from '../../types';
 import type { Reminder } from '../../services/reminderService';
 import type { SortField, SortOrder } from '../../hooks/useMovementsSort';
-import { getSmartIcon, getDefaultIcon } from '../../utils/smartIcons';
+import { getSmartIcon, getDefaultIcon } from '../../constants/smartIcons';
 
 interface MovementListProps {
     movementsByMonth: [string, Movement[]][];

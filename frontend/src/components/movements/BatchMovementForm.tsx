@@ -8,18 +8,18 @@ import {
 import { useForm, useFieldArray } from 'react-hook-form';
 import { format } from 'date-fns';
 import { Plus, X } from 'lucide-react';
-import Button from './ui/Button';
-import BatchMovementRow from './movements/BatchMovementRow';
-import { usePocketsQuery } from '../hooks/queries';
-import { useUnsavedChanges } from '../hooks/useUnsavedChanges';
+import Button from '../ui/Button';
+import BatchMovementRow from './BatchMovementRow';
+import { usePocketsQuery } from '../../hooks/queries';
+import { useUnsavedChanges } from '../../hooks/useUnsavedChanges';
 
 // Re-export the row data type from its new home so existing consumers
 // (useBudgetActions, useFixedExpenseActions, useMovementSubmit,
 // useBalanceDeltas, MovementFormPanel, MovementsPage) keep working without
 // import-path churn. The single source of truth is now the row component.
-export type { BatchMovementRow } from './movements/BatchMovementRow';
-import type { BatchMovementRow as BatchMovementRowData } from './movements/BatchMovementRow';
-import type { BatchFormValues } from './movements/BatchMovementRow';
+export type { BatchMovementRow } from './BatchMovementRow';
+import type { BatchMovementRow as BatchMovementRowData } from './BatchMovementRow';
+import type { BatchFormValues } from './BatchMovementRow';
 
 interface BatchMovementFormProps {
   onSave: (rows: BatchMovementRowData[]) => Promise<void>;

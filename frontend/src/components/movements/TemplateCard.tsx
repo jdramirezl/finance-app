@@ -2,7 +2,7 @@ import { memo } from 'react';
 import { Edit2, Trash2 } from 'lucide-react';
 import Button from '../ui/Button';
 import Card from '../ui/Card';
-import { getMovementTypeColor, getMovementTypeLabel } from '../../utils/movementTypes';
+import { getMovementTypeColor, getMovementTypeLabel } from '../../constants/movementTypes';
 import type { Account, MovementTemplate, Pocket } from '../../types';
 
 interface TemplateCardProps {

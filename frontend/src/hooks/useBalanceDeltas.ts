@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import type { MovementType } from '../types';
-import type { BatchMovementRow } from '../components/BatchMovementForm';
+import type { BatchMovementRow } from '../components/movements/BatchMovementForm';
 import type { MovementFormStateResult } from './useMovementFormState';
 
 export interface BalanceDeltas {

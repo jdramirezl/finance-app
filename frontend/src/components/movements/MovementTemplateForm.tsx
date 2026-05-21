@@ -2,8 +2,8 @@ import { useState } from 'react';
 import Button from '../ui/Button';
 import Input from '../ui/Input';
 import Select from '../ui/Select';
-import AccountPocketSelector from '../selectors/AccountPocketSelector';
-import { MOVEMENT_TYPES } from '../../utils/movementTypes';
+import AccountPocketSelector from './AccountPocketSelector';
+import { MOVEMENT_TYPES } from '../../constants/movementTypes';
 import type { MovementTemplate, MovementType } from '../../types';
 
 interface MovementTemplateFormProps {

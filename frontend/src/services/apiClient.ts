@@ -8,7 +8,7 @@
  */
 
 import { supabase } from '../lib/supabase';
-import { AppError } from '../utils/AppError';
+import { AppError } from '../errors/AppError';
 
 type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE';
 

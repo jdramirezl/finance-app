@@ -6,3 +6,5 @@
  */
 
 export * from './currencies';
+export * from './movementTypes';
+export * from './smartIcons';

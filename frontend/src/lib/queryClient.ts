@@ -1,5 +1,5 @@
 import { QueryClient, onlineManager } from '@tanstack/react-query';
-import { AppError } from '../utils/AppError';
+import { AppError } from '../errors/AppError';
 
 /**
  * Configure TanStack Query's online manager to pause/resume

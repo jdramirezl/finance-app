@@ -3,8 +3,8 @@ import { Controller, type Control } from 'react-hook-form';
 import { Trash2 } from 'lucide-react';
 import Input from '../ui/Input';
 import Select from '../ui/Select';
-import AccountPocketSelector from '../selectors/AccountPocketSelector';
-import { MOVEMENT_TYPES } from '../../utils/movementTypes';
+import AccountPocketSelector from './AccountPocketSelector';
+import { MOVEMENT_TYPES } from '../../constants/movementTypes';
 import type { MovementType } from '../../types';
 
 /**

@@ -7,7 +7,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import ConfirmDialog from '../components/ConfirmDialog';
+import { ConfirmDialog } from '../components/feedback';
 
 interface ConfirmOptions {
   title: string;

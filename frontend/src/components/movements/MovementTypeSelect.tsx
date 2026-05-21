@@ -29,7 +29,7 @@
 
 import type { ChangeEvent } from 'react';
 import Select from '../ui/Select';
-import { MOVEMENT_TYPES, type MovementType } from '../../utils/movementTypes';
+import { MOVEMENT_TYPES, type MovementType } from '../../constants/movementTypes';
 
 /**
  * Sentinel string used by the filter variant to represent "no type

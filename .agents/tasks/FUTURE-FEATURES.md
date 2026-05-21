@@ -84,3 +84,31 @@ Remove from settings entirely: exchange rate debug, stock price debug, recalcula
 - Receipt photo → movement creation (OCR)
 - Quick inline edit for movement amounts (without opening modal)
 - Budget auto-generation should let user pick target account
+
+## 8. Investment Price Service Redesign
+
+Current problems:
+- Force refresh is per-account, not per-symbol (two accounts with VOO require two separate refreshes)
+- Rate limiting is overly conservative (unclear what the actual limit is)
+- No shared price cache across accounts with the same symbol
+- Refresh behavior is unintuitive
+
+Proposed approaches (pick one or combine):
+
+**Option A: Symbol-based caching with shared refresh**
+- Cache prices by symbol, not by account. All accounts with the same symbol share one cached price.
+- "Force refresh" refreshes the symbol, which updates ALL accounts using it instantly.
+- One API call per unique symbol, not per account.
+
+**Option B: Scheduled background refresh**
+- Prices auto-refresh on a schedule (e.g., every 15 minutes during market hours, once per hour otherwise).
+- No manual refresh needed for normal use. Force refresh only for "I need it NOW."
+- Could use a Vercel cron job or a Supabase Edge Function on a timer.
+
+**Option C: Event-driven with stale indicator**
+- Show "last updated: 5 min ago" next to each price.
+- Prices refresh automatically when the user opens the summary page (if stale > 5 min).
+- A single "Refresh All Prices" button refreshes all unique symbols in one batch.
+- Visual indicator (subtle pulse or color change) when a price is stale vs fresh.
+
+Recommendation: Combine A + C. Symbol-based caching eliminates redundant calls, stale indicators give the user confidence, and a single "Refresh All" button is intuitive.

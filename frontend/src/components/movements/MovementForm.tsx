@@ -6,9 +6,9 @@ import { useUnsavedChanges } from '../../hooks/useUnsavedChanges';
 import Button from '../ui/Button';
 import Input from '../ui/Input';
 import Select from '../ui/Select';
-import AccountPocketSelector from '../selectors/AccountPocketSelector';
+import AccountPocketSelector from './AccountPocketSelector';
 import { toDateOnly } from '../../utils/dateUtils';
-import { MOVEMENT_TYPES, isFixedMovement } from '../../utils/movementTypes';
+import { MOVEMENT_TYPES, isFixedMovement } from '../../constants/movementTypes';
 import type { Movement, MovementType } from '../../types';
 
 export interface MovementFormData {

@@ -14,16 +14,16 @@ import { useSlowQuery } from '../hooks/useSlowQuery';
 import { useToast } from '../hooks/useToast';
 import type { AccountCardDisplaySettings } from '../types';
 import EmptyState from '../components/ui/EmptyState';
-import SlowQueryIndicator from '../components/SlowQueryIndicator';
+import SlowQueryIndicator from '../components/feedback/SlowQueryIndicator';
 import PageHeader from '../components/ui/PageHeader';
 import {
   SkeletonAccountCard,
   SkeletonList,
   SkeletonStats,
 } from '../components/ui/Skeleton';
-import ErrorBoundary from '../components/ErrorBoundary';
-import QueryErrorCard from '../components/QueryErrorCard';
-import FinancialCalendarWidget from '../components/calendar/FinancialCalendarWidget';
+import { ErrorBoundary } from '../components/feedback';
+import QueryErrorCard from '../components/feedback/QueryErrorCard';
+import FinancialCalendarWidget from '../components/summary/FinancialCalendarWidget';
 import NetWorthTimelineWidget from '../components/net-worth/NetWorthTimelineWidget';
 import RemindersWidget from '../components/reminders/RemindersWidget';
 import {
