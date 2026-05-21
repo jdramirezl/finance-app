@@ -150,7 +150,8 @@ export interface MonthGroup {
 export function groupRemindersByMonth(
     reminders: Reminder[],
     monthsBack: number = 1,
-    monthsAhead: number = 2
+    monthsAhead: number = 2,
+    showPaid: boolean = false
 ): MonthGroup[] {
     const now = new Date();
     const currentYear = now.getFullYear();
@@ -211,13 +212,8 @@ export function groupRemindersByMonth(
     });
 
     // Filter out paid occurrences older than 1 month
-    const oneMonthAgo = addMonths(today, -1);
-    const filteredReminders = allReminders.filter(r => {
-        if (r.isPaid) {
-            return isAfter(parseISO(r.dueDate), oneMonthAgo);
-        }
-        return true;
-    });
+    // Hide paid reminders by default (user can toggle visibility)
+    const filteredReminders = showPaid ? allReminders : allReminders.filter(r => !r.isPaid);
 
     // Create month buckets
     const months: MonthGroup[] = [];

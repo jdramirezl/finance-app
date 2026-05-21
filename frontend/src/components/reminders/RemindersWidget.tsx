@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Plus, AlertTriangle, Calendar } from 'lucide-react';
 import { useRemindersQuery, useReminderMutations, useSettingsQuery } from '../../hooks/queries';
 import { useReminderActions } from '../../hooks/actions/useReminderActions';
@@ -40,9 +40,10 @@ const RemindersWidget = () => {
 
     // Group reminders by month (1 month back, 2 months ahead). Memoized so we
     // don't re-bucket the entire list on every keystroke in unrelated state.
+    const [showPaid, setShowPaid] = useState(false);
     const monthGroups = useMemo(
-        () => groupRemindersByMonth(reminders, 1, 2),
-        [reminders]
+        () => groupRemindersByMonth(reminders, 1, 2, showPaid),
+        [reminders, showPaid]
     );
     const overdueCount = useMemo(
         () => countOverdueReminders(reminders),
@@ -74,16 +75,29 @@ const RemindersWidget = () => {
                         <Calendar className="w-5 h-5" />
                         Upcoming Payments
                     </h3>
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={openCreateForm}
-                        className="!p-1.5"
-                        aria-label="Add new reminder"
-                        title="Add new reminder"
-                    >
-                        <Plus className="w-5 h-5" aria-hidden="true" />
-                    </Button>
+                    <div className="flex items-center gap-1">
+                        <button
+                            onClick={() => setShowPaid(!showPaid)}
+                            className={`text-xs px-2 py-1 rounded-md transition-colors ${
+                                showPaid
+                                    ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
+                                    : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
+                            }`}
+                            title={showPaid ? 'Hide paid reminders' : 'Show paid reminders'}
+                        >
+                            {showPaid ? 'Hide paid' : 'Show paid'}
+                        </button>
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={openCreateForm}
+                            className="!p-1.5"
+                            aria-label="Add new reminder"
+                            title="Add new reminder"
+                        >
+                            <Plus className="w-5 h-5" aria-hidden="true" />
+                        </Button>
+                    </div>
                 </div>
 
                 {/* Overdue Alert Banner */}
