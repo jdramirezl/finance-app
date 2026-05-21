@@ -23,6 +23,13 @@ export async function createTestAccount(overrides: Record<string, unknown> = {})
   });
 }
 
+export async function createTestPocket(accountId: string, overrides: Record<string, unknown> = {}) {
+  return authFetch('/api/pockets', {
+    method: 'POST',
+    body: JSON.stringify({ name: '[TEST] Pocket', accountId, type: 'normal', ...overrides }),
+  });
+}
+
 export async function createTestMovement(accountId: string, pocketId: string, overrides: Record<string, unknown> = {}) {
   return authFetch('/api/movements', {
     method: 'POST',
