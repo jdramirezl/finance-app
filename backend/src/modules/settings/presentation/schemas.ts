@@ -6,7 +6,6 @@ export const updateSettingsSchema = z.object({
   primaryCurrency: currency.optional(),
   alphaVantageApiKey: z.string().min(1).optional(),
   snapshotFrequency: z.enum(['daily', 'weekly', 'monthly', 'manual']).optional(),
-  accountCardDisplay: z.enum(['compact', 'detailed']).optional(),
 }).passthrough();
 
 export const convertCurrencySchema = z.object({
