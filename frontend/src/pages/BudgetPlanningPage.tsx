@@ -53,7 +53,7 @@ const BudgetPlanningPage = () => {
   // Modal state
   const [showScenarioForm, setShowScenarioForm] = useState(false);
   const [editingScenario, setEditingScenario] = useState<PlanningScenario | null>(null);
-  const [activeScenarioTab, setActiveScenarioTab] = useState<string | null>(null);
+  const [activeScenarioTabs, setActiveScenarioTabs] = useState<string[]>([]);
 
   // Derived data
   const fixedPockets = useMemo(
@@ -128,8 +128,10 @@ const BudgetPlanningPage = () => {
         </div>
         <BudgetScenarioTabs
           scenarios={scenarios}
-          activeId={activeScenarioTab}
-          onSelect={setActiveScenarioTab}
+          activeIds={activeScenarioTabs}
+          onToggle={(id) => setActiveScenarioTabs((prev) =>
+            prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+          )}
           onCreate={() => {
             setEditingScenario(null);
             setShowScenarioForm(true);

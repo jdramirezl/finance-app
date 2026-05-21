@@ -1,5 +1,5 @@
 import { memo, useMemo, useState, useRef, useEffect } from 'react';
-import { MoreVertical, Edit2, Trash2, ToggleLeft, ToggleRight } from 'lucide-react';
+import { MoreVertical, Edit2, Trash2, ToggleLeft, ToggleRight, ArrowRightLeft } from 'lucide-react';
 import type { FixedExpenseGroup, SubPocket } from '../../types';
 import CurrencyAmount from '../ui/CurrencyAmount';
 import {
@@ -46,6 +46,45 @@ function getStatusColor(status: ExpenseStatus): string {
     case 'OFF': return 'text-on-surface-variant';
   }
 }
+
+const MoveDropdown = ({ groups, onMove }: { groups: FixedExpenseGroup[]; onMove: (groupId: string) => void }) => {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        onClick={() => setOpen(!open)}
+        className="p-1 text-on-surface-variant hover:text-primary transition-colors rounded"
+        title="Move to group"
+      >
+        <ArrowRightLeft className="w-3.5 h-3.5" />
+      </button>
+      {open && (
+        <div className="absolute right-0 top-6 z-30 bg-surface-container-high border border-white/10 rounded-lg shadow-xl py-1 min-w-[120px]">
+          {groups.map((g) => (
+            <button
+              key={g.id}
+              onClick={() => { onMove(g.id); setOpen(false); }}
+              className="w-full text-left px-3 py-1.5 text-xs text-on-surface hover:bg-white/5"
+            >
+              {g.name}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
 
 const FixedExpenseGroupCard = ({
   group,
@@ -140,27 +179,51 @@ const FixedExpenseGroupCard = ({
             const monthlyContrib = calculateAporteMensual(sp.valueTotal, sp.periodicityMonths, sp.balance);
             const status = getExpenseStatus(sp);
             const statusColor = getStatusColor(status);
+            const otherGroups = allGroups.filter((g) => g.id !== group.id);
 
             return (
               <div
                 key={sp.id}
-                className={`space-y-2 ${!sp.enabled ? 'opacity-50' : ''}`}
+                className={`group/row relative space-y-2 ${!sp.enabled ? 'opacity-50' : ''}`}
               >
-                {/* Name + amounts */}
+                {/* Name + amounts + hover actions */}
                 <div className="flex justify-between items-center">
-                  <button
-                    onClick={() => onEditExpense(sp)}
-                    className="text-sm text-on-surface hover:text-primary transition-colors text-left"
-                  >
+                  <span className="text-sm text-on-surface text-left">
                     {sp.name}
-                  </button>
-                  <span className="text-sm font-mono font-medium text-on-surface">
-                    <CurrencyAmount amount={sp.balance} currency={currency} className="text-on-surface" />
-                    {' '}
-                    <span className="text-on-surface-variant">
-                      / <CurrencyAmount amount={sp.valueTotal} currency={currency} />
-                    </span>
                   </span>
+                  <div className="flex items-center gap-1">
+                    {/* Hover-reveal action buttons */}
+                    <div className="flex items-center gap-0.5 opacity-0 group-hover/row:opacity-100 transition-opacity">
+                      <button
+                        onClick={() => onEditExpense(sp)}
+                        className="p-1 text-on-surface-variant hover:text-primary transition-colors rounded"
+                        title="Edit expense"
+                      >
+                        <Edit2 className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => onDeleteExpense(sp.id)}
+                        disabled={deletingId === sp.id}
+                        className="p-1 text-on-surface-variant hover:text-error transition-colors rounded disabled:opacity-50"
+                        title="Delete expense"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                      {otherGroups.length > 0 && (
+                        <MoveDropdown
+                          groups={otherGroups}
+                          onMove={(groupId) => onMoveToGroup(sp.id, groupId)}
+                        />
+                      )}
+                    </div>
+                    <span className="text-sm font-mono font-medium text-on-surface ml-2">
+                      <CurrencyAmount amount={sp.balance} currency={currency} className="text-on-surface" />
+                      {' '}
+                      <span className="text-on-surface-variant">
+                        / <CurrencyAmount amount={sp.valueTotal} currency={currency} />
+                      </span>
+                    </span>
+                  </div>
                 </div>
 
                 {/* Progress bar */}

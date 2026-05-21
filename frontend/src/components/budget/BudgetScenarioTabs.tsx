@@ -3,8 +3,8 @@ import type { PlanningScenario } from './ScenarioForm';
 
 interface BudgetScenarioTabsProps {
   scenarios: PlanningScenario[];
-  activeId: string | null;
-  onSelect: (id: string | null) => void;
+  activeIds: string[];
+  onToggle: (id: string) => void;
   onCreate: () => void;
 }
 
@@ -14,7 +14,7 @@ const DEFAULT_TABS = [
   { id: '__crisis', label: 'Crisis Mode' },
 ];
 
-const BudgetScenarioTabs = ({ scenarios, activeId, onSelect, onCreate }: BudgetScenarioTabsProps) => {
+const BudgetScenarioTabs = ({ scenarios, activeIds, onToggle, onCreate }: BudgetScenarioTabsProps) => {
   const tabs = scenarios.length > 0
     ? scenarios.map((s) => ({ id: s.id, label: s.name }))
     : DEFAULT_TABS;
@@ -24,9 +24,9 @@ const BudgetScenarioTabs = ({ scenarios, activeId, onSelect, onCreate }: BudgetS
       {tabs.map((tab) => (
         <button
           key={tab.id}
-          onClick={() => onSelect(tab.id === activeId ? null : tab.id)}
+          onClick={() => onToggle(tab.id)}
           className={`px-4 py-2 rounded-lg text-sm transition-colors ${
-            tab.id === activeId
+            activeIds.includes(tab.id)
               ? 'bg-primary/10 text-primary font-bold'
               : 'text-on-surface-variant hover:bg-white/5'
           }`}
