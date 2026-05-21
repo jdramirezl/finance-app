@@ -30,7 +30,7 @@ import FinancialCalendarWidget from '../components/summary/FinancialCalendarWidg
 import NetWorthTimelineWidget from '../components/net-worth/NetWorthTimelineWidget';
 import RemindersWidget from '../components/reminders/RemindersWidget';
 import NetWorthHero from '../components/summary/NetWorthHero';
-import LiquidityConsumptionCard from '../components/summary/LiquidityConsumptionCard';
+import SpendingDensityCard from '../components/summary/SpendingDensityCard';
 import CapitalBreakdown from '../components/summary/CapitalBreakdown';
 import FixedObligationsWidget from '../components/summary/FixedObligationsWidget';
 import FloatingActionBar from '../components/summary/FloatingActionBar';
@@ -151,97 +151,102 @@ const SummaryPage = () => {
 
   return (
     <SelectionProvider>
-      <div className="space-y-8 pb-24">
-        {/* 1. Net Worth Hero */}
-        <ErrorBoundary>
-          {accountsIsError || settingsIsError ? (
-            <div className="space-y-2">
-              {accountsIsError && (
-                <QueryErrorCard title="accounts" error={accountsError} onRetry={() => accountsRefetch()} />
-              )}
-              {settingsIsError && (
-                <QueryErrorCard title="settings" error={settingsError} onRetry={() => settingsRefetch()} />
-              )}
-            </div>
-          ) : (
-            <NetWorthHero
-              consolidatedTotal={consolidatedTotal}
-              primaryCurrency={primaryCurrency}
-              totalsByCurrency={totalsByCurrency}
-              accountCount={accounts.length}
-              isConsolidatedReady={isConsolidatedReady}
-            />
-          )}
-        </ErrorBoundary>
+      <div className="grid grid-cols-12 gap-6 h-full max-w-[1600px] mx-auto w-full pb-24">
+        {/* LEFT COLUMN: Net Worth + Spending + Accounts */}
+        <section className="col-span-12 lg:col-span-7 flex flex-col gap-6 lg:h-full lg:overflow-hidden">
+          {/* Net Worth Hero */}
+          <ErrorBoundary>
+            {accountsIsError || settingsIsError ? (
+              <div className="space-y-2">
+                {accountsIsError && (
+                  <QueryErrorCard title="accounts" error={accountsError} onRetry={() => accountsRefetch()} />
+                )}
+                {settingsIsError && (
+                  <QueryErrorCard title="settings" error={settingsError} onRetry={() => settingsRefetch()} />
+                )}
+              </div>
+            ) : (
+              <NetWorthHero
+                consolidatedTotal={consolidatedTotal}
+                primaryCurrency={primaryCurrency}
+                totalsByCurrency={totalsByCurrency}
+                accountCount={accounts.length}
+                isConsolidatedReady={isConsolidatedReady}
+                accounts={accounts}
+                investmentData={investmentData}
+              />
+            )}
+          </ErrorBoundary>
 
-        {/* 2. Liquidity Consumption */}
-        <ErrorBoundary>
-          <LiquidityConsumptionCard primaryCurrency={primaryCurrency} />
-        </ErrorBoundary>
+          {/* Spending Density */}
+          <ErrorBoundary>
+            <SpendingDensityCard primaryCurrency={primaryCurrency} />
+          </ErrorBoundary>
 
-        {/* 3. Two-column grid: Capital Breakdown (7) + Widgets (5) */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-          {/* Left: Capital Breakdown */}
-          <div className="lg:col-span-7">
-            <ErrorBoundary>
-              {accountsIsError || pocketsIsError ? (
-                <div className="space-y-2">
-                  {accountsIsError && (
-                    <QueryErrorCard title="accounts" error={accountsError} onRetry={() => accountsRefetch()} />
-                  )}
-                  {pocketsIsError && (
-                    <QueryErrorCard title="pockets" error={pocketsError} onRetry={() => pocketsRefetch()} />
-                  )}
-                </div>
-              ) : (
-                <CapitalBreakdown
-                  accounts={accounts}
-                  pockets={pockets}
-                  investmentData={investmentData}
-                />
-              )}
-            </ErrorBoundary>
-          </div>
+          {/* Liquidity Pools (scrollable account list) */}
+          <ErrorBoundary>
+            {accountsIsError || pocketsIsError ? (
+              <div className="space-y-2">
+                {accountsIsError && (
+                  <QueryErrorCard title="accounts" error={accountsError} onRetry={() => accountsRefetch()} />
+                )}
+                {pocketsIsError && (
+                  <QueryErrorCard title="pockets" error={pocketsError} onRetry={() => pocketsRefetch()} />
+                )}
+              </div>
+            ) : (
+              <CapitalBreakdown
+                accounts={accounts}
+                pockets={pockets}
+                investmentData={investmentData}
+              />
+            )}
+          </ErrorBoundary>
+        </section>
 
-          {/* Right: Widget stack */}
-          <div className="lg:col-span-5 space-y-8">
-            <ErrorBoundary>
-              <FinancialCalendarWidget primaryCurrency={primaryCurrency} />
-            </ErrorBoundary>
+        {/* RIGHT COLUMN: Calendar + Growth Matrix + Reminders + Fixed Commitments */}
+        <section className="col-span-12 lg:col-span-5 flex flex-col gap-6 lg:h-full lg:overflow-hidden">
+          {/* Cashflow Forecast (Calendar) */}
+          <ErrorBoundary>
+            <FinancialCalendarWidget primaryCurrency={primaryCurrency} />
+          </ErrorBoundary>
 
-            <ErrorBoundary>
-              <NetWorthTimelineWidget />
-            </ErrorBoundary>
+          {/* Growth Matrix (Net Worth Timeline) */}
+          <ErrorBoundary>
+            <NetWorthTimelineWidget />
+          </ErrorBoundary>
 
-            <ErrorBoundary>
-              <RemindersWidget />
-            </ErrorBoundary>
+          {/* Pending Reminders */}
+          <ErrorBoundary>
+            <RemindersWidget />
+          </ErrorBoundary>
 
-            <ErrorBoundary>
-              {subPocketsIsError || fixedExpenseGroupsIsError ? (
-                <div className="space-y-2">
-                  {subPocketsIsError && (
-                    <QueryErrorCard title="sub-pockets" error={subPocketsError} onRetry={() => subPocketsRefetch()} />
-                  )}
-                  {fixedExpenseGroupsIsError && (
-                    <QueryErrorCard title="fixed expense groups" error={fixedExpenseGroupsError} onRetry={() => fixedExpenseGroupsRefetch()} />
-                  )}
-                </div>
-              ) : fixedSubPockets.length === 0 ? (
-                <EmptyState
-                  icon={Wallet}
-                  title="No fixed expenses yet"
-                  description="Create fixed expenses to track your recurring bills."
-                />
-              ) : (
-                <FixedObligationsWidget
-                  subPockets={fixedSubPockets}
-                  groups={fixedExpenseGroups}
-                />
-              )}
-            </ErrorBoundary>
-          </div>
-        </div>
+          {/* Fixed Commitments */}
+          <ErrorBoundary>
+            {subPocketsIsError || fixedExpenseGroupsIsError ? (
+              <div className="space-y-2">
+                {subPocketsIsError && (
+                  <QueryErrorCard title="sub-pockets" error={subPocketsError} onRetry={() => subPocketsRefetch()} />
+                )}
+                {fixedExpenseGroupsIsError && (
+                  <QueryErrorCard title="fixed expense groups" error={fixedExpenseGroupsError} onRetry={() => fixedExpenseGroupsRefetch()} />
+                )}
+              </div>
+            ) : fixedSubPockets.length === 0 ? (
+              <EmptyState
+                icon={Wallet}
+                title="No fixed expenses yet"
+                description="Create fixed expenses to track your recurring bills."
+              />
+            ) : (
+              <FixedObligationsWidget
+                subPockets={fixedSubPockets}
+                groups={fixedExpenseGroups}
+                primaryCurrency={primaryCurrency}
+              />
+            )}
+          </ErrorBoundary>
+        </section>
 
         {/* Floating Action Bar (always visible on desktop) */}
         <FloatingActionBar

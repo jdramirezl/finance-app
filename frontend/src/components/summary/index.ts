@@ -6,6 +6,7 @@ export { default as CurrencySection } from './CurrencySection';
 export { default as CurrencyBreakdownSection } from './CurrencyBreakdownSection';
 export { default as FixedExpensesSummary } from './FixedExpensesSummary';
 export { default as SpendingCard } from './SpendingCard';
+export { default as SpendingDensityCard } from './SpendingDensityCard';
 export { default as NetWorthHero } from './NetWorthHero';
 export { default as LiquidityConsumptionCard } from './LiquidityConsumptionCard';
 export { default as CapitalBreakdown } from './CapitalBreakdown';

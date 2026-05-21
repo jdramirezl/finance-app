@@ -2,7 +2,8 @@ import { useMemo } from 'react';
 import { TrendingUp, TrendingDown } from 'lucide-react';
 import { useNetWorthSnapshotsQuery } from '../../hooks/queries';
 import { currencyService } from '../../services/currencyService';
-import type { Currency } from '../../types';
+import type { Account, Currency } from '../../types';
+import type { InvestmentData } from './InvestmentCard';
 import { Skeleton } from '../ui/Skeleton';
 
 interface NetWorthHeroProps {
@@ -11,6 +12,8 @@ interface NetWorthHeroProps {
   totalsByCurrency: Record<Currency, number>;
   accountCount: number;
   isConsolidatedReady?: boolean;
+  accounts?: Account[];
+  investmentData?: Map<string, InvestmentData>;
 }
 
 const NetWorthHero = ({
@@ -19,10 +22,10 @@ const NetWorthHero = ({
   totalsByCurrency,
   accountCount,
   isConsolidatedReady = true,
+  accounts = [],
+  investmentData = new Map(),
 }: NetWorthHeroProps) => {
   const { data: snapshots = [] } = useNetWorthSnapshotsQuery();
-
-  const currencies = Object.keys(totalsByCurrency) as Currency[];
 
   // Compute % change from previous month's snapshot
   const percentChange = useMemo(() => {
@@ -35,6 +38,30 @@ const NetWorthHero = ({
     return ((consolidatedTotal - previous.totalNetWorth) / previous.totalNetWorth) * 100;
   }, [snapshots, consolidatedTotal, isConsolidatedReady]);
 
+  // Categorize totals into CASH / STOCKS / LIQUID
+  const categories = useMemo(() => {
+    let cash = 0;
+    let stocks = 0;
+    let liquid = 0;
+
+    for (const account of accounts) {
+      if (account.type === 'investment') {
+        const inv = investmentData.get(account.id);
+        stocks += inv ? inv.totalValue : account.balance;
+      } else if (account.type === 'cd') {
+        liquid += account.balance;
+      } else {
+        cash += account.balance;
+      }
+    }
+
+    return [
+      { label: 'CASH', amount: cash, currency: primaryCurrency },
+      { label: 'STOCKS', amount: stocks, currency: primaryCurrency, highlight: true },
+      { label: 'LIQUID', amount: liquid, currency: primaryCurrency },
+    ];
+  }, [accounts, investmentData, primaryCurrency]);
+
   // Split the formatted number into integer and decimal parts
   const formatted = currencyService.formatCurrency(consolidatedTotal, primaryCurrency);
   const dotIndex = formatted.lastIndexOf('.');
@@ -42,67 +69,52 @@ const NetWorthHero = ({
   const decimalPart = dotIndex >= 0 ? formatted.slice(dotIndex) : '';
 
   return (
-    <section className="relative overflow-hidden rounded-2xl glass-card p-8">
-      {/* Decorative blur orb */}
-      <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/2" />
-
-      <div className="relative z-10">
-        <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-primary mb-2">
-          Portfolio Total Net Worth
-        </p>
-
-        <div className="flex flex-col md:flex-row md:items-end gap-4 md:gap-8">
+    <section className="glass-card rounded-xl p-6">
+      <div className="flex justify-between items-start">
+        <div>
+          <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-on-surface-variant mb-1">
+            Global Net Worth
+          </p>
           {isConsolidatedReady ? (
-            <h2 className="font-mono text-[48px] leading-none font-bold text-on-surface tracking-tight">
+            <h2 className="font-mono text-4xl font-bold text-primary leading-tight">
               {integerPart}
-              <span className="opacity-50 font-normal">{decimalPart}</span>
+              <span className="opacity-50">{decimalPart}</span>
             </h2>
           ) : (
-            <Skeleton className="h-12 w-64" />
+            <Skeleton className="h-10 w-64" />
           )}
-
+        </div>
+        <div className="text-right">
           {percentChange !== null && (
-            <div className="flex items-center gap-2 mb-2">
-              <div
-                className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold ${
+            <>
+              <span
+                className={`font-mono text-sm px-2 py-1 rounded ${
                   percentChange >= 0
-                    ? 'text-emerald-400 bg-emerald-400/10'
-                    : 'text-red-400 bg-red-400/10'
+                    ? 'text-secondary bg-secondary/10'
+                    : 'text-error bg-error/10'
                 }`}
               >
-                {percentChange >= 0 ? (
-                  <TrendingUp className="w-3 h-3" />
-                ) : (
-                  <TrendingDown className="w-3 h-3" />
-                )}
-                {Math.abs(percentChange).toFixed(1)}%
-              </div>
-              <span className="text-on-surface-variant text-sm">since last month</span>
-            </div>
+                {percentChange >= 0 ? '+' : ''}{percentChange.toFixed(1)}%{' '}
+                {percentChange >= 0 ? <TrendingUp className="w-3 h-3 inline" /> : <TrendingDown className="w-3 h-3 inline" />}
+              </span>
+              <p className="text-xs text-on-surface-variant mt-2">vs last month</p>
+            </>
           )}
         </div>
+      </div>
 
-        <p className="text-on-surface-variant text-sm mt-4">
-          Across {accountCount} account{accountCount !== 1 ? 's' : ''} in{' '}
-          {currencies.length} {currencies.length === 1 ? 'currency' : 'currencies'}
-        </p>
-
-        {/* Currency breakdown pills */}
-        <div className="flex flex-wrap gap-3 mt-6">
-          {currencies.map((currency) => (
-            <div
-              key={currency}
-              className="flex items-center gap-2 bg-surface-container-highest px-3 py-1.5 rounded-lg border border-white/5"
-            >
-              <span className="text-[10px] font-bold text-on-surface-variant">
-                {currency}
-              </span>
-              <span className="font-mono text-sm text-on-surface">
-                {currencyService.formatCurrency(totalsByCurrency[currency], currency)}
-              </span>
-            </div>
-          ))}
-        </div>
+      {/* Category breakdown pills: CASH / STOCKS / LIQUID */}
+      <div className="grid grid-cols-3 gap-4 mt-6 border-t border-white/5 pt-4">
+        {categories.map((cat) => (
+          <div key={cat.label} className="text-center border-r border-white/5 last:border-r-0">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant mb-1">
+              {cat.label}
+            </p>
+            <p className={`font-mono text-sm font-bold ${cat.highlight ? 'text-primary' : 'text-on-surface'}`}>
+              {currencyService.formatCurrency(cat.amount, cat.currency)}
+            </p>
+          </div>
+        ))}
       </div>
     </section>
   );

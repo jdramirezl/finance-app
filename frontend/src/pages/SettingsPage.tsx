@@ -1,15 +1,29 @@
+import { useState } from 'react';
+import { Settings as SettingsIcon, Wallet, Palette, Database, Info } from 'lucide-react';
 import { useSettingsQuery, useUpdateSettings } from '../hooks/queries';
 import { useSettingsActions } from '../hooks/actions/useSettingsActions';
 import { useToast } from '../hooks/useToast';
 import Card from '../components/ui/Card';
 import {
-  DangerZoneSection,
   DefaultAccountsSection,
-  ExportImportSection,
   PreferencesSection,
+  DisplaySection,
+  DataPrivacySection,
+  AboutSection,
 } from '../components/settings';
 
+type SettingsSection = 'preferences' | 'default-accounts' | 'display' | 'data-privacy' | 'about';
+
+const NAV_ITEMS: { id: SettingsSection; label: string; icon: typeof SettingsIcon }[] = [
+  { id: 'preferences', label: 'Preferences', icon: SettingsIcon },
+  { id: 'default-accounts', label: 'Default Accounts', icon: Wallet },
+  { id: 'display', label: 'Display', icon: Palette },
+  { id: 'data-privacy', label: 'Data & Privacy', icon: Database },
+  { id: 'about', label: 'About', icon: Info },
+];
+
 const SettingsPage = () => {
+  const [activeSection, setActiveSection] = useState<SettingsSection>('preferences');
   const { data: settings, isLoading } = useSettingsQuery();
   const updateMutation = useUpdateSettings();
   const toast = useToast();
@@ -17,61 +31,90 @@ const SettingsPage = () => {
 
   if (isLoading || !settings) {
     return (
-      <div className="space-y-6">
-        <h1 className="text-3xl font-bold text-on-surface">Settings</h1>
-        <Card className="max-w-2xl">
+      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
+        <nav className="w-full lg:w-72 bg-surface-container-low/30 border-r border-white/5 p-8">
           <div className="animate-pulse space-y-4">
-            <div className="h-4 bg-surface-container-high rounded w-1/4" />
+            <div className="h-7 bg-surface-container-high rounded w-1/2" />
+            <div className="h-10 bg-surface-container-high rounded" />
             <div className="h-10 bg-surface-container-high rounded" />
             <div className="h-10 bg-surface-container-high rounded" />
           </div>
-        </Card>
+        </nav>
+        <section className="flex-1 p-8">
+          <Card>
+            <div className="animate-pulse space-y-4">
+              <div className="h-4 bg-surface-container-high rounded w-1/4" />
+              <div className="h-10 bg-surface-container-high rounded" />
+              <div className="h-10 bg-surface-container-high rounded" />
+            </div>
+          </Card>
+        </section>
       </div>
     );
   }
 
   return (
-    <div className="max-w-7xl mx-auto space-y-12">
-      <div className="flex items-center justify-between pb-4 border-b border-white/[0.06]">
-        <div>
-          <h1 className="text-4xl font-bold text-on-surface tracking-tight">
-            Settings
-          </h1>
-          <p className="text-lg text-on-surface-variant mt-2">
-            Manage your application preferences and data.
-          </p>
-        </div>
-      </div>
+    <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
+      {/* Left Navigation */}
+      <nav className="w-full lg:w-72 bg-surface-container-low/30 border-b lg:border-b-0 lg:border-r border-white/5 p-4 lg:p-8 flex lg:flex-col gap-2 overflow-x-auto lg:overflow-x-visible">
+        <h2 className="hidden lg:block text-xl font-semibold text-on-surface mb-6 px-2">
+          Settings
+        </h2>
+        {NAV_ITEMS.map(({ id, label, icon: Icon }) => (
+          <button
+            key={id}
+            onClick={() => setActiveSection(id)}
+            className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 text-left whitespace-nowrap ${
+              activeSection === id
+                ? 'bg-primary/10 text-primary'
+                : 'text-on-surface-variant hover:bg-surface-bright/30'
+            }`}
+          >
+            <Icon className="w-5 h-5 shrink-0" />
+            <span className="text-sm font-medium">{label}</span>
+          </button>
+        ))}
+      </nav>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16">
-        <div className="space-y-12">
-          <PreferencesSection
-            settings={settings}
-            isUpdating={updateMutation.isPending}
-            onCurrencyChange={actions.handleCurrencyChange}
-            onDisplayChange={actions.handleDisplayChange}
-            onSnapshotFrequencyChange={actions.handleSnapshotFrequencyChange}
-            onDateFormatChange={actions.handleDateFormatChange}
-            onMovementsPerPageChange={actions.handleMovementsPerPageChange}
-            onReminderAdvanceDaysChange={actions.handleReminderAdvanceDaysChange}
-            onDefaultCurrencyChange={actions.handleDefaultCurrencyChange}
-          />
-          <DefaultAccountsSection
-            settings={settings}
-            isUpdating={updateMutation.isPending}
-            onDefaultExpenseChange={actions.handleDefaultExpenseChange}
-            onDefaultIncomeChange={actions.handleDefaultIncomeChange}
-          />
+      {/* Right Content Area */}
+      <section className="flex-1 overflow-y-auto p-4 lg:p-8">
+        <div className="max-w-4xl mx-auto">
+          {activeSection === 'preferences' && (
+            <PreferencesSection
+              settings={settings}
+              isUpdating={updateMutation.isPending}
+              onCurrencyChange={actions.handleCurrencyChange}
+              onSnapshotFrequencyChange={actions.handleSnapshotFrequencyChange}
+              onDateFormatChange={actions.handleDateFormatChange}
+              onMovementsPerPageChange={actions.handleMovementsPerPageChange}
+              onReminderAdvanceDaysChange={actions.handleReminderAdvanceDaysChange}
+              onDefaultCurrencyChange={actions.handleDefaultCurrencyChange}
+            />
+          )}
+          {activeSection === 'default-accounts' && (
+            <DefaultAccountsSection
+              settings={settings}
+              isUpdating={updateMutation.isPending}
+              onDefaultExpenseChange={actions.handleDefaultExpenseChange}
+              onDefaultIncomeChange={actions.handleDefaultIncomeChange}
+            />
+          )}
+          {activeSection === 'display' && (
+            <DisplaySection
+              settings={settings}
+              isUpdating={updateMutation.isPending}
+              onDisplayChange={actions.handleDisplayChange}
+            />
+          )}
+          {activeSection === 'data-privacy' && (
+            <DataPrivacySection
+              isExporting={actions.isExporting}
+              onExport={actions.handleExport}
+            />
+          )}
+          {activeSection === 'about' && <AboutSection />}
         </div>
-
-        <div className="space-y-12">
-          <ExportImportSection
-            isExporting={actions.isExporting}
-            onExport={actions.handleExport}
-          />
-          <DangerZoneSection />
-        </div>
-      </div>
+      </section>
     </div>
   );
 };
