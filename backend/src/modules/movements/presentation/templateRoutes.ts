@@ -13,8 +13,9 @@
  */
 
 import { Router, Request, Response, NextFunction } from 'express';
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { SupabaseClient } from '@supabase/supabase-js';
 import { authMiddleware } from '../../../shared/middleware/authMiddleware';
+import { getSupabaseClient } from '../../../shared/infrastructure/supabaseClient';
 import {
     DatabaseError,
     NotFoundError,
@@ -26,26 +27,8 @@ import { generateId } from '../../../shared/utils/idGenerator';
 // ---------------------------------------------------------------------------
 // Supabase client
 // ---------------------------------------------------------------------------
-// Mirrors the lazy-init pattern used by authMiddleware and the Supabase
-// repositories: skip throwing during module load when running tests without
-// credentials, but fail loudly the first time a route actually tries to
-// query.
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_KEY;
-
-if ((!supabaseUrl || !supabaseKey) && process.env.NODE_ENV !== 'test') {
-    throw new Error('Supabase configuration missing: SUPABASE_URL and SUPABASE_SERVICE_KEY required');
-}
-
-const supabase: SupabaseClient | null = supabaseUrl && supabaseKey
-    ? createClient(supabaseUrl, supabaseKey)
-    : null;
-
 function ensureClient(): SupabaseClient {
-    if (!supabase) {
-        throw new DatabaseError('Supabase client not configured');
-    }
-    return supabase;
+    return getSupabaseClient();
 }
 
 // ---------------------------------------------------------------------------

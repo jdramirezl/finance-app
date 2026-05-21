@@ -4,8 +4,8 @@
  * Implements ISubPocketRepository using Supabase as the data store.
  */
 
-import { injectable } from 'tsyringe';
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { injectable, inject } from 'tsyringe';
+import { SupabaseClient } from '@supabase/supabase-js';
 import type { ISubPocketRepository } from './ISubPocketRepository';
 import { SubPocket } from '../domain/SubPocket';
 import { SubPocketMapper } from '../application/mappers/SubPocketMapper';
@@ -13,28 +13,10 @@ import { DatabaseError } from '../../../shared/errors/AppError';
 
 @injectable()
 export class SupabaseSubPocketRepository implements ISubPocketRepository {
-  private supabase: SupabaseClient | null;
+  private supabase: SupabaseClient;
 
-  constructor() {
-    const supabaseUrl = process.env.SUPABASE_URL;
-    const supabaseKey = process.env.SUPABASE_SERVICE_KEY;
-
-    // Only throw error in non-test environments
-    if ((!supabaseUrl || !supabaseKey) && process.env.NODE_ENV !== 'test') {
-      throw new Error('Supabase configuration missing: SUPABASE_URL and SUPABASE_SERVICE_KEY required');
-    }
-
-    // Create client only if credentials are available
-    this.supabase = supabaseUrl && supabaseKey 
-      ? createClient(supabaseUrl, supabaseKey)
-      : null;
-  }
-
-  private ensureClient(): SupabaseClient {
-    if (!this.supabase) {
-      throw new DatabaseError('Supabase client not configured');
-    }
-    return this.supabase;
+  constructor(@inject('SupabaseClient') supabase: SupabaseClient) {
+    this.supabase = supabase;
   }
 
   /**
@@ -43,7 +25,7 @@ export class SupabaseSubPocketRepository implements ISubPocketRepository {
   async save(subPocket: SubPocket, userId: string): Promise<void> {
     const data = SubPocketMapper.toPersistence(subPocket, userId);
     
-    const { error } = await this.ensureClient()
+    const { error } = await this.supabase
       .from('sub_pockets')
       .insert(data);
 
@@ -56,7 +38,7 @@ export class SupabaseSubPocketRepository implements ISubPocketRepository {
    * Find sub-pocket by ID
    */
   async findById(id: string, userId: string): Promise<SubPocket | null> {
-    const { data, error } = await this.ensureClient()
+    const { data, error } = await this.supabase
       .from('sub_pockets')
       .select('*')
       .eq('id', id)
@@ -82,7 +64,7 @@ export class SupabaseSubPocketRepository implements ISubPocketRepository {
    * Find all sub-pockets for a specific pocket, sorted by display order
    */
   async findByPocketId(pocketId: string, userId: string): Promise<SubPocket[]> {
-    const { data, error } = await this.ensureClient()
+    const { data, error } = await this.supabase
       .from('sub_pockets')
       .select('*')
       .eq('pocket_id', pocketId)
@@ -104,7 +86,7 @@ export class SupabaseSubPocketRepository implements ISubPocketRepository {
    * Find all sub-pockets for a specific group, sorted by display order
    */
   async findByGroupId(groupId: string, userId: string): Promise<SubPocket[]> {
-    const { data, error } = await this.ensureClient()
+    const { data, error } = await this.supabase
       .from('sub_pockets')
       .select('*')
       .eq('group_id', groupId)
@@ -126,7 +108,7 @@ export class SupabaseSubPocketRepository implements ISubPocketRepository {
    * Find all sub-pockets for a user, sorted by display order
    */
   async findAllByUserId(userId: string): Promise<SubPocket[]> {
-    const { data, error } = await this.ensureClient()
+    const { data, error } = await this.supabase
       .from('sub_pockets')
       .select('*')
       .eq('user_id', userId)
@@ -152,7 +134,7 @@ export class SupabaseSubPocketRepository implements ISubPocketRepository {
     // Remove id from update data (can't update primary key)
     const { id, ...updateData } = data;
 
-    const { error } = await this.ensureClient()
+    const { error } = await this.supabase
       .from('sub_pockets')
       .update(updateData)
       .eq('id', subPocket.id)
@@ -167,7 +149,7 @@ export class SupabaseSubPocketRepository implements ISubPocketRepository {
    * Delete a sub-pocket
    */
   async delete(id: string, userId: string): Promise<void> {
-    const { error } = await this.ensureClient()
+    const { error } = await this.supabase
       .from('sub_pockets')
       .delete()
       .eq('id', id)
@@ -184,7 +166,7 @@ export class SupabaseSubPocketRepository implements ISubPocketRepository {
   async updateDisplayOrders(subPocketIds: string[], userId: string): Promise<void> {
     // Update each sub-pocket's display order based on its position in the array
     for (let index = 0; index < subPocketIds.length; index++) {
-      const { error } = await this.ensureClient()
+      const { error } = await this.supabase
         .from('sub_pockets')
         .update({
           display_order: index,
@@ -204,7 +186,7 @@ export class SupabaseSubPocketRepository implements ISubPocketRepository {
    * Used to check if sub-pocket can be deleted
    */
   async countMovements(subPocketId: string, userId: string): Promise<number> {
-    const { count, error } = await this.ensureClient()
+    const { count, error } = await this.supabase
       .from('movements')
       .select('id', { count: 'exact', head: true })
       .eq('sub_pocket_id', subPocketId)

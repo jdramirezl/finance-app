@@ -7,8 +7,8 @@
  * Requirements: 13.1-13.4
  */
 
-import { injectable } from 'tsyringe';
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { injectable, inject } from 'tsyringe';
+import { SupabaseClient } from '@supabase/supabase-js';
 import type { IStockPriceRepository } from './IStockPriceRepository';
 import { StockPrice } from '../domain/StockPrice';
 import { DatabaseError } from '../../../shared/errors/AppError';
@@ -25,28 +25,10 @@ interface StockPriceRow {
 
 @injectable()
 export class SupabaseStockPriceRepository implements IStockPriceRepository {
-  private supabase: SupabaseClient | null;
+  private supabase: SupabaseClient;
 
-  constructor() {
-    const supabaseUrl = process.env.SUPABASE_URL;
-    const supabaseKey = process.env.SUPABASE_SERVICE_KEY;
-
-    // Only throw error in non-test environments
-    if ((!supabaseUrl || !supabaseKey) && process.env.NODE_ENV !== 'test') {
-      throw new Error('Supabase configuration missing: SUPABASE_URL and SUPABASE_SERVICE_KEY required');
-    }
-
-    // Create client only if credentials are available
-    this.supabase = supabaseUrl && supabaseKey 
-      ? createClient(supabaseUrl, supabaseKey)
-      : null;
-  }
-
-  private ensureClient(): SupabaseClient {
-    if (!this.supabase) {
-      throw new DatabaseError('Supabase client not configured');
-    }
-    return this.supabase;
+  constructor(@inject('SupabaseClient') supabase: SupabaseClient) {
+    this.supabase = supabase;
   }
 
   /**
@@ -56,7 +38,7 @@ export class SupabaseStockPriceRepository implements IStockPriceRepository {
    * @returns StockPrice if found, null otherwise
    */
   async findBySymbol(symbol: string): Promise<StockPrice | null> {
-    const { data, error } = await this.ensureClient()
+    const { data, error } = await this.supabase
       .from('stock_prices')
       .select('*')
       .eq('symbol', symbol.toUpperCase())
@@ -87,7 +69,7 @@ export class SupabaseStockPriceRepository implements IStockPriceRepository {
   async save(stockPrice: StockPrice): Promise<void> {
     const data = this.toPersistence(stockPrice);
 
-    const { error } = await this.ensureClient()
+    const { error } = await this.supabase
       .from('stock_prices')
       .upsert(data, {
         onConflict: 'symbol',
@@ -110,7 +92,7 @@ export class SupabaseStockPriceRepository implements IStockPriceRepository {
     const expirationDate = new Date();
     expirationDate.setHours(expirationDate.getHours() - 24);
 
-    const { data, error } = await this.ensureClient()
+    const { data, error } = await this.supabase
       .from('stock_prices')
       .delete()
       .lt('last_updated', expirationDate.toISOString())

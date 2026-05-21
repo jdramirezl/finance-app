@@ -2,38 +2,22 @@
  * Supabase NetWorthSnapshot Repository Implementation
  */
 
-import { injectable } from 'tsyringe';
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { injectable, inject } from 'tsyringe';
+import { SupabaseClient } from '@supabase/supabase-js';
 import type { NetWorthSnapshot, CreateSnapshotDTO } from '../domain/NetWorthSnapshot';
 import type { INetWorthSnapshotRepository } from '../interfaces/INetWorthSnapshotRepository';
 import { DatabaseError } from '../../../shared/errors/AppError';
 
 @injectable()
 export class SupabaseNetWorthSnapshotRepository implements INetWorthSnapshotRepository {
-    private supabase: SupabaseClient | null;
+    private supabase: SupabaseClient;
 
-    constructor() {
-        const supabaseUrl = process.env.SUPABASE_URL;
-        const supabaseKey = process.env.SUPABASE_SERVICE_KEY;
-
-        if ((!supabaseUrl || !supabaseKey) && process.env.NODE_ENV !== 'test') {
-            throw new Error('Supabase configuration missing');
-        }
-
-        this.supabase = supabaseUrl && supabaseKey
-            ? createClient(supabaseUrl, supabaseKey)
-            : null;
-    }
-
-    private ensureClient(): SupabaseClient {
-        if (!this.supabase) {
-            throw new DatabaseError('Supabase client not configured');
-        }
-        return this.supabase;
+    constructor(@inject('SupabaseClient') supabase: SupabaseClient) {
+        this.supabase = supabase;
     }
 
     async findAll(userId: string): Promise<NetWorthSnapshot[]> {
-        const { data, error } = await this.ensureClient()
+        const { data, error } = await this.supabase
             .from('net_worth_snapshots')
             .select('*')
             .eq('user_id', userId)
@@ -44,7 +28,7 @@ export class SupabaseNetWorthSnapshotRepository implements INetWorthSnapshotRepo
     }
 
     async findLatest(userId: string): Promise<NetWorthSnapshot | null> {
-        const { data, error } = await this.ensureClient()
+        const { data, error } = await this.supabase
             .from('net_worth_snapshots')
             .select('*')
             .eq('user_id', userId)
@@ -62,7 +46,7 @@ export class SupabaseNetWorthSnapshotRepository implements INetWorthSnapshotRepo
     async create(userId: string, dto: CreateSnapshotDTO): Promise<NetWorthSnapshot> {
         const today = new Date().toISOString().split('T')[0];
 
-        const { data, error } = await this.ensureClient()
+        const { data, error } = await this.supabase
             .from('net_worth_snapshots')
             .upsert({
                 user_id: userId,
@@ -86,7 +70,7 @@ export class SupabaseNetWorthSnapshotRepository implements INetWorthSnapshotRepo
         if (dto.baseCurrency !== undefined) updateData.base_currency = dto.baseCurrency;
         if (dto.breakdown !== undefined) updateData.breakdown = dto.breakdown;
 
-        const { data, error } = await this.ensureClient()
+        const { data, error } = await this.supabase
             .from('net_worth_snapshots')
             .update(updateData)
             .eq('id', id)
@@ -98,7 +82,7 @@ export class SupabaseNetWorthSnapshotRepository implements INetWorthSnapshotRepo
     }
 
     async delete(id: string): Promise<void> {
-        const { error } = await this.ensureClient()
+        const { error } = await this.supabase
             .from('net_worth_snapshots')
             .delete()
             .eq('id', id);

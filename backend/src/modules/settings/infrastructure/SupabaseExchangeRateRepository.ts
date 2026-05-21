@@ -4,8 +4,8 @@
  * Implements IExchangeRateRepository using Supabase as the cache store.
  */
 
-import { injectable } from 'tsyringe';
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { injectable, inject } from 'tsyringe';
+import { SupabaseClient } from '@supabase/supabase-js';
 import type { IExchangeRateRepository } from './IExchangeRateRepository';
 import { ExchangeRate } from '../domain/ExchangeRate';
 import { ExchangeRateMapper } from '../application/mappers/ExchangeRateMapper';
@@ -14,28 +14,10 @@ import type { Currency } from '@shared-backend/types';
 
 @injectable()
 export class SupabaseExchangeRateRepository implements IExchangeRateRepository {
-  private supabase: SupabaseClient | null;
+  private supabase: SupabaseClient;
 
-  constructor() {
-    const supabaseUrl = process.env.SUPABASE_URL;
-    const supabaseKey = process.env.SUPABASE_SERVICE_KEY;
-
-    // Only throw error in non-test environments
-    if ((!supabaseUrl || !supabaseKey) && process.env.NODE_ENV !== 'test') {
-      throw new Error('Supabase configuration missing: SUPABASE_URL and SUPABASE_SERVICE_KEY required');
-    }
-
-    // Create client only if credentials are available
-    this.supabase = supabaseUrl && supabaseKey 
-      ? createClient(supabaseUrl, supabaseKey)
-      : null;
-  }
-
-  private ensureClient(): SupabaseClient {
-    if (!this.supabase) {
-      throw new DatabaseError('Supabase client not configured');
-    }
-    return this.supabase;
+  constructor(@inject('SupabaseClient') supabase: SupabaseClient) {
+    this.supabase = supabase;
   }
 
   /**
@@ -46,7 +28,7 @@ export class SupabaseExchangeRateRepository implements IExchangeRateRepository {
     fromCurrency: Currency,
     toCurrency: Currency
   ): Promise<ExchangeRate | null> {
-    const { data, error } = await this.ensureClient()
+    const { data, error } = await this.supabase
       .from('exchange_rates')
       .select('*')
       .eq('base_currency', fromCurrency)
@@ -83,7 +65,7 @@ export class SupabaseExchangeRateRepository implements IExchangeRateRepository {
     const data = ExchangeRateMapper.toPersistence(exchangeRate);
     
     // Use upsert to handle both insert and update
-    const { error } = await this.ensureClient()
+    const { error } = await this.supabase
       .from('exchange_rates')
       .upsert(data, {
         onConflict: 'base_currency,target_currency',
@@ -103,7 +85,7 @@ export class SupabaseExchangeRateRepository implements IExchangeRateRepository {
     const expirationDate = new Date();
     expirationDate.setHours(expirationDate.getHours() - 24);
 
-    const { data, error } = await this.ensureClient()
+    const { data, error } = await this.supabase
       .from('exchange_rates')
       .delete()
       .lt('last_updated', expirationDate.toISOString())

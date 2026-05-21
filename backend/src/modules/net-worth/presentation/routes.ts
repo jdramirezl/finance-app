@@ -7,11 +7,12 @@ import { NetWorthSnapshotController } from '../interfaces/NetWorthSnapshotContro
 import { NetWorthSnapshotService } from '../application/NetWorthSnapshotService';
 import { SupabaseNetWorthSnapshotRepository } from '../infrastructure/SupabaseNetWorthSnapshotRepository';
 import { authMiddleware as requireAuth } from '../../../shared/middleware/authMiddleware';
+import { getSupabaseClient } from '../../../shared/infrastructure/supabaseClient';
 
 const router = Router();
 
 // Initialize dependencies
-const repository = new SupabaseNetWorthSnapshotRepository();
+const repository = new SupabaseNetWorthSnapshotRepository(getSupabaseClient());
 const service = new NetWorthSnapshotService(repository);
 const controller = new NetWorthSnapshotController(service);
 

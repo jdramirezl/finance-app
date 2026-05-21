@@ -9,7 +9,9 @@
 
 import { injectable, inject } from 'tsyringe';
 import { SubPocket } from '../../domain/SubPocket';
+import { FixedExpenseGroup } from '../../domain/FixedExpenseGroup';
 import type { ISubPocketRepository } from '../../infrastructure/ISubPocketRepository';
+import type { IFixedExpenseGroupRepository } from '../../infrastructure/IFixedExpenseGroupRepository';
 import type { IPocketRepository } from '../../../pockets/infrastructure/IPocketRepository';
 import type { CreateSubPocketDTO, SubPocketResponseDTO } from '../dtos/SubPocketDTO';
 import { generateId } from '../../../../shared/utils/idGenerator';
@@ -20,7 +22,8 @@ import { ValidationError, NotFoundError } from '../../../../shared/errors/AppErr
 export class CreateSubPocketUseCase {
   constructor(
     @inject('SubPocketRepository') private subPocketRepo: ISubPocketRepository,
-    @inject('PocketRepository') private pocketRepo: IPocketRepository
+    @inject('PocketRepository') private pocketRepo: IPocketRepository,
+    @inject('FixedExpenseGroupRepository') private groupRepo: IFixedExpenseGroupRepository
   ) { }
 
   async execute(dto: CreateSubPocketDTO, userId: string): Promise<SubPocketResponseDTO> {
@@ -69,21 +72,17 @@ export class CreateSubPocketUseCase {
 
     if (!finalGroupId) {
       // No group specified - find or create user's default group
-      const groupRepo = await import('../../infrastructure/SupabaseFixedExpenseGroupRepository')
-        .then(m => new m.SupabaseFixedExpenseGroupRepository());
-
-      const allGroups = await groupRepo.findAllByUserId(userId);
+      const allGroups = await this.groupRepo.findAllByUserId(userId);
       let defaultGroup = allGroups.find(g => g.name === 'Default');
 
       if (!defaultGroup) {
         // Create default group for this user
-        const { FixedExpenseGroup } = await import('../../domain/FixedExpenseGroup');
         defaultGroup = new FixedExpenseGroup(
           generateId(),
           'Default',
           '#6B7280'
         );
-        await groupRepo.save(defaultGroup, userId);
+        await this.groupRepo.save(defaultGroup, userId);
       }
 
       finalGroupId = defaultGroup.id;

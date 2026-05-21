@@ -4,8 +4,8 @@
  * Implements IMovementRepository using Supabase as the data store.
  */
 
-import { injectable } from 'tsyringe';
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { injectable, inject } from 'tsyringe';
+import { SupabaseClient } from '@supabase/supabase-js';
 import type { IMovementRepository, MovementFilters, PaginationOptions } from './IMovementRepository';
 import { Movement } from '../domain/Movement';
 import { MovementMapper } from '../application/mappers/MovementMapper';
@@ -14,28 +14,10 @@ import type { Currency } from '@shared-backend/types';
 
 @injectable()
 export class SupabaseMovementRepository implements IMovementRepository {
-  private supabase: SupabaseClient | null;
+  private supabase: SupabaseClient;
 
-  constructor() {
-    const supabaseUrl = process.env.SUPABASE_URL;
-    const supabaseKey = process.env.SUPABASE_SERVICE_KEY;
-
-    // Only throw error in non-test environments
-    if ((!supabaseUrl || !supabaseKey) && process.env.NODE_ENV !== 'test') {
-      throw new Error('Supabase configuration missing: SUPABASE_URL and SUPABASE_SERVICE_KEY required');
-    }
-
-    // Create client only if credentials are available
-    this.supabase = supabaseUrl && supabaseKey 
-      ? createClient(supabaseUrl, supabaseKey)
-      : null;
-  }
-
-  private ensureClient(): SupabaseClient {
-    if (!this.supabase) {
-      throw new DatabaseError('Supabase client not configured');
-    }
-    return this.supabase;
+  constructor(@inject('SupabaseClient') supabase: SupabaseClient) {
+    this.supabase = supabase;
   }
 
   /**
@@ -44,7 +26,7 @@ export class SupabaseMovementRepository implements IMovementRepository {
   async save(movement: Movement, userId: string): Promise<void> {
     const data = MovementMapper.toPersistence(movement, userId);
     
-    const { error } = await this.ensureClient()
+    const { error } = await this.supabase
       .from('movements')
       .insert(data);
 
@@ -57,7 +39,7 @@ export class SupabaseMovementRepository implements IMovementRepository {
    * Find movement by ID
    */
   async findById(id: string, userId: string): Promise<Movement | null> {
-    const { data, error } = await this.ensureClient()
+    const { data, error } = await this.supabase
       .from('movements')
       .select('*')
       .eq('id', id)
@@ -87,7 +69,7 @@ export class SupabaseMovementRepository implements IMovementRepository {
     filters?: MovementFilters,
     pagination?: PaginationOptions
   ): Promise<Movement[]> {
-    let query = this.ensureClient()
+    let query = this.supabase
       .from('movements')
       .select('*')
       .eq('user_id', userId);
@@ -196,7 +178,7 @@ export class SupabaseMovementRepository implements IMovementRepository {
     accountCurrency: Currency,
     userId: string
   ): Promise<Movement[]> {
-    const { data, error } = await this.ensureClient()
+    const { data, error } = await this.supabase
       .from('movements')
       .select('*')
       .eq('user_id', userId)
@@ -225,7 +207,7 @@ export class SupabaseMovementRepository implements IMovementRepository {
     pocketName: string,
     userId: string
   ): Promise<Movement[]> {
-    const { data, error } = await this.ensureClient()
+    const { data, error } = await this.supabase
       .from('movements')
       .select('*')
       .eq('user_id', userId)
@@ -255,7 +237,7 @@ export class SupabaseMovementRepository implements IMovementRepository {
     // Remove id from update data (can't update primary key)
     const { id, ...updateData } = data;
 
-    const { error } = await this.ensureClient()
+    const { error } = await this.supabase
       .from('movements')
       .update(updateData)
       .eq('id', movement.id)
@@ -270,7 +252,7 @@ export class SupabaseMovementRepository implements IMovementRepository {
    * Delete a movement
    */
   async delete(id: string, userId: string): Promise<void> {
-    const { error } = await this.ensureClient()
+    const { error } = await this.supabase
       .from('movements')
       .delete()
       .eq('id', id)
@@ -285,7 +267,7 @@ export class SupabaseMovementRepository implements IMovementRepository {
    * Delete all movements for an account (hard delete)
    */
   async deleteByAccountId(accountId: string, userId: string): Promise<number> {
-    const { data, error } = await this.ensureClient()
+    const { data, error } = await this.supabase
       .from('movements')
       .delete()
       .eq('account_id', accountId)
@@ -303,7 +285,7 @@ export class SupabaseMovementRepository implements IMovementRepository {
    * Delete all movements for a pocket (hard delete)
    */
   async deleteByPocketId(pocketId: string, userId: string): Promise<number> {
-    const { data, error } = await this.ensureClient()
+    const { data, error } = await this.supabase
       .from('movements')
       .delete()
       .eq('pocket_id', pocketId)
@@ -327,7 +309,7 @@ export class SupabaseMovementRepository implements IMovementRepository {
     userId: string
   ): Promise<number> {
     // First, get the account's pocket name for each movement
-    const { data: movements, error: fetchError } = await this.ensureClient()
+    const { data: movements, error: fetchError } = await this.supabase
       .from('movements')
       .select('id, pocket_id')
       .eq('account_id', accountId)
@@ -346,7 +328,7 @@ export class SupabaseMovementRepository implements IMovementRepository {
     
     let pockets: Array<{ id: string; name: string }> = [];
     if (pocketIds.length > 0) {
-      const { data, error: pocketError } = await this.ensureClient()
+      const { data, error: pocketError } = await this.supabase
         .from('pockets')
         .select('id, name')
         .in('id', pocketIds);
@@ -363,7 +345,7 @@ export class SupabaseMovementRepository implements IMovementRepository {
     // Update movements one by one with orphaned data
     // We use individual updates instead of bulk upsert to avoid not-null constraint violations
     for (const movement of movements) {
-      const { error: updateError } = await this.ensureClient()
+      const { error: updateError } = await this.supabase
         .from('movements')
         .update({
           is_orphaned: true,
@@ -391,7 +373,7 @@ export class SupabaseMovementRepository implements IMovementRepository {
     userId: string
   ): Promise<number> {
     // First, get the account info for the pocket
-    const { data: pocket, error: pocketError } = await this.ensureClient()
+    const { data: pocket, error: pocketError } = await this.supabase
       .from('pockets')
       .select('account_id')
       .eq('id', pocketId)
@@ -401,7 +383,7 @@ export class SupabaseMovementRepository implements IMovementRepository {
       throw new DatabaseError(`Failed to fetch pocket: ${pocketError.message}`);
     }
 
-    const { data: account, error: accountError } = await this.ensureClient()
+    const { data: account, error: accountError } = await this.supabase
       .from('accounts')
       .select('name, currency')
       .eq('id', pocket.account_id)
@@ -412,7 +394,7 @@ export class SupabaseMovementRepository implements IMovementRepository {
     }
 
     // Update movements
-    const { data, error } = await this.ensureClient()
+    const { data, error } = await this.supabase
       .from('movements')
       .update({
         is_orphaned: true,
@@ -439,7 +421,7 @@ export class SupabaseMovementRepository implements IMovementRepository {
     newAccountId: string,
     userId: string
   ): Promise<number> {
-    const { data, error } = await this.ensureClient()
+    const { data, error } = await this.supabase
       .from('movements')
       .update({ account_id: newAccountId })
       .eq('pocket_id', pocketId)
@@ -457,7 +439,7 @@ export class SupabaseMovementRepository implements IMovementRepository {
    * Count movements by filters
    */
   async count(userId: string, filters?: MovementFilters): Promise<number> {
-    let query = this.ensureClient()
+    let query = this.supabase
       .from('movements')
       .select('id', { count: 'exact', head: true })
       .eq('user_id', userId);

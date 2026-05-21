@@ -9,6 +9,7 @@
 
 import 'reflect-metadata';
 import { container } from 'tsyringe';
+import { getSupabaseClient } from '../infrastructure/supabaseClient';
 
 // Account Module
 import { IAccountRepository } from '../../modules/accounts/infrastructure/IAccountRepository';
@@ -290,6 +291,7 @@ function registerReminderModule(): void {
  * Initialize all module registrations
  */
 export function initializeContainer(): void {
+  container.registerInstance('SupabaseClient', getSupabaseClient());
   registerAccountModule();
   registerPocketModule();
   registerSubPocketModule();
