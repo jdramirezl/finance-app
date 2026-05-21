@@ -291,6 +291,7 @@ const MovementsPage = () => {
         onEdit={handleEditMovement}
         onDelete={handleDelete}
         onApplyPending={handleApplyPending}
+        onUpdateAmount={async (id, amount) => { await movementMutations.updateMovement.mutateAsync({ id, updates: { amount } }); }}
         deletingId={deletingId} applyingId={applyingId}
       />
 

@@ -8,6 +8,7 @@ import type { Account, Movement, MovementType, Pocket } from '../../types';
 import type { Reminder } from '../../services/reminderService';
 import type { SortField, SortOrder } from '../../hooks/useMovementsSort';
 import { getSmartIcon, getDefaultIcon } from '../../constants/smartIcons';
+import InlineEditableAmount from '../ui/InlineEditableAmount';
 
 interface MovementListProps {
     movementsByMonth: [string, Movement[]][];
@@ -22,6 +23,7 @@ interface MovementListProps {
     onEdit: (movement: Movement) => void;
     onDelete: (id: string) => void;
     onApplyPending: (id: string) => void;
+    onUpdateAmount: (id: string, amount: number) => Promise<void>;
     deletingId: string | null;
     applyingId: string | null;
 }
@@ -63,6 +65,7 @@ interface MovementRowProps {
     onEdit: (movement: Movement) => void;
     onDelete: (id: string) => void;
     onApplyPending: (id: string) => void;
+    onUpdateAmount: (id: string, amount: number) => Promise<void>;
 }
 
 /**
@@ -84,6 +87,7 @@ const MovementRow = memo(({
     onEdit,
     onDelete,
     onApplyPending,
+    onUpdateAmount,
 }: MovementRowProps) => {
     const isIncome = movement.type.includes('Ingreso');
     const smartIcon = getSmartIcon(movement.notes);
@@ -149,9 +153,11 @@ const MovementRow = memo(({
             </div>
 
             <div className="flex items-center justify-between sm:justify-end gap-4 w-full sm:w-auto pl-12 sm:pl-0">
-                <span className={`text-lg font-bold ${isIncome ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                    {isIncome ? '+' : '-'}${movement.amount.toLocaleString()}
-                </span>
+                <InlineEditableAmount
+                    amount={movement.amount}
+                    isIncome={isIncome}
+                    onSave={(newAmount) => onUpdateAmount(movement.id, newAmount)}
+                />
 
                 <div className="flex gap-2 opacity-60 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
                     {movement.isPending && (
@@ -209,6 +215,7 @@ const MovementList = ({
     onEdit,
     onDelete,
     onApplyPending,
+    onUpdateAmount,
     deletingId,
     applyingId,
 }: MovementListProps) => {
@@ -392,6 +399,7 @@ const MovementList = ({
                                         onEdit={onEdit}
                                         onDelete={onDelete}
                                         onApplyPending={onApplyPending}
+                                        onUpdateAmount={onUpdateAmount}
                                     />
                                 ))}
                             </div>
