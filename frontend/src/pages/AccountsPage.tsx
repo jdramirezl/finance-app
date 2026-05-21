@@ -22,6 +22,8 @@ import CDAccountForm, {
 } from '../components/accounts/CDAccountForm';
 import AccountForm from '../components/accounts/AccountForm';
 import CascadeDeleteDialog from '../components/accounts/CascadeDeleteDialog';
+import SidePanel from '../components/ui/SidePanel';
+import PocketManagementSection from '../components/accounts/PocketManagementSection';
 
 const isCDAccount = (account: Account): account is CDInvestmentAccount =>
   account.type === 'cd';
@@ -52,7 +54,6 @@ const AccountsPage = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState<AccountFilter>('all');
 
-  // Dummy selectedAccountId kept for action hooks compatibility
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
 
   const closeAccountForm = useCallback(() => {
@@ -259,6 +260,7 @@ const AccountsPage = () => {
                 onSelect={handleSelectAccount}
                 onEdit={handleEditAccount}
                 onDelete={handleDeleteAccount}
+                onAddPocket={() => setSelectedAccountId(account.id)}
                 isFixedExpensesAccount={fixedExpenseAccountIds.has(account.id)}
               />
             )
@@ -303,6 +305,24 @@ const AccountsPage = () => {
         onConfirm={() => accountActions.cascadeDelete.confirm()}
         onClose={accountActions.cascadeDelete.close}
       />
+
+      <SidePanel
+        isOpen={selectedAccountId !== null}
+        onClose={() => setSelectedAccountId(null)}
+        title={accounts.find((a) => a.id === selectedAccountId)?.name ?? 'Pockets'}
+      >
+        {selectedAccountId && (
+          <PocketManagementSection
+            accountId={selectedAccountId}
+            accounts={accounts}
+            pockets={pocketsByAccount.get(selectedAccountId) || []}
+            pocketMutations={pocketMutations}
+            toast={toast}
+            confirm={confirm}
+            setError={setError}
+          />
+        )}
+      </SidePanel>
     </div>
   );
 };
