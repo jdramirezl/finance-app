@@ -1,14 +1,23 @@
-import { useState } from 'react';
-import type { Account } from '../../types';
+import { useForm, Controller } from 'react-hook-form';
+import type { Account, Currency } from '../../types';
 import { CURRENCY_OPTIONS, DEFAULT_CURRENCY } from '../../constants';
 import Button from '../ui/Button';
 import Input from '../ui/Input';
 import Select from '../ui/Select';
 import ColorSelector from '../ui/ColorSelector';
+import { useUnsavedChanges } from '../../hooks/useUnsavedChanges';
+
+export interface AccountFormData {
+    name: string;
+    color: string;
+    currency: Currency;
+    type: string;
+    stockSymbol?: string;
+}
 
 interface AccountFormProps {
     initialData?: Account | null;
-    onSubmit: (e: React.FormEvent<HTMLFormElement>) => Promise<void>;
+    onSubmit: (data: AccountFormData) => Promise<void>;
     onCancel: () => void;
     isSaving: boolean;
 }
@@ -20,60 +29,74 @@ const AccountForm = ({
     isSaving,
 }: AccountFormProps) => {
     const isEditing = !!initialData;
-    const [type, setType] = useState('normal');
-    const [color, setColor] = useState(initialData?.color || '#3B82F6');
+
+    const { register, handleSubmit, control, watch, formState: { errors, isDirty } } = useForm<AccountFormData>({
+        mode: 'onBlur',
+        defaultValues: {
+            name: initialData?.name || '',
+            color: initialData?.color || '#3B82F6',
+            currency: initialData?.currency || DEFAULT_CURRENCY,
+            type: 'normal',
+            stockSymbol: '',
+        },
+    });
+
+    useUnsavedChanges(isDirty);
+
+    const type = watch('type');
 
     return (
-        <form onSubmit={onSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <Input
                 label="Account Name"
-                name="name"
-                defaultValue={initialData?.name}
-                required
                 placeholder="e.g., Checking Account"
+                required
+                error={errors.name?.message}
+                {...register('name', { required: 'Name is required' })}
             />
 
-            <ColorSelector
-                label="Color"
-                value={color}
-                onChange={setColor}
-                accountType={type as 'normal' | 'investment' | 'cd'}
-                className={type === 'cd' ? 'opacity-50 pointer-events-none' : ''}
+            <Controller
+                name="color"
+                control={control}
+                render={({ field }) => (
+                    <ColorSelector
+                        label="Color"
+                        value={field.value}
+                        onChange={field.onChange}
+                        accountType={type as 'normal' | 'investment' | 'cd'}
+                        className={type === 'cd' ? 'opacity-50 pointer-events-none' : ''}
+                    />
+                )}
             />
-            
-            {/* Hidden input for form submission */}
-            <input type="hidden" name="color" value={color} />
 
             <Select
                 label="Currency"
-                name="currency"
-                defaultValue={initialData?.currency || DEFAULT_CURRENCY}
                 required
                 disabled={type === 'cd'}
                 className={type === 'cd' ? 'opacity-50' : ''}
                 options={CURRENCY_OPTIONS}
+                error={errors.currency?.message}
+                {...register('currency', { required: 'Currency is required' })}
             />
 
             {!isEditing && (
                 <>
                     <Select
                         label="Account Type"
-                        name="type"
-                        value={type}
-                        onChange={(e) => setType(e.target.value)}
                         required
                         options={[
                             { value: 'normal', label: 'Normal' },
                             { value: 'investment', label: 'Investment' },
                             { value: 'cd', label: 'Certificate of Deposit (CD)' },
-                        ] as { value: string; label: string }[]}
+                        ]}
+                        {...register('type')}
                     />
 
                     {type === 'investment' && (
                         <Input
                             label="Stock Ticker"
-                            name="stockSymbol"
                             placeholder="e.g., VOO, AAPL"
+                            {...register('stockSymbol')}
                         />
                     )}
 

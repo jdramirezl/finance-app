@@ -146,8 +146,8 @@ const AccountsPage = () => {
   const detailsClasses = `space-y-4 ${selectedAccountId ? 'block' : 'hidden md:block'}`;
 
   const handleAccountFormSubmit = editingAccount
-    ? (e: React.FormEvent<HTMLFormElement>) =>
-        accountActions.handleUpdateAccount(editingAccount, e)
+    ? (data: Parameters<typeof accountActions.handleUpdateAccount>[1]) =>
+        accountActions.handleUpdateAccount(editingAccount, data)
     : accountActions.handleCreateAccount;
 
   const handleCDFormSubmit = editingCD

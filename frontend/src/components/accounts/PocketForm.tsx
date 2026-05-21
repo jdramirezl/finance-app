@@ -1,11 +1,18 @@
+import { useForm } from 'react-hook-form';
 import type { Pocket } from '../../types';
 import Button from '../ui/Button';
 import Input from '../ui/Input';
 import Select from '../ui/Select';
+import { useUnsavedChanges } from '../../hooks/useUnsavedChanges';
+
+export interface PocketFormData {
+    name: string;
+    type: Pocket['type'];
+}
 
 interface PocketFormProps {
     initialData?: Pocket | null;
-    onSubmit: (e: React.FormEvent<HTMLFormElement>) => Promise<void>;
+    onSubmit: (data: PocketFormData) => Promise<void>;
     onCancel: () => void;
     isSaving: boolean;
 }
@@ -18,28 +25,37 @@ const PocketForm = ({
 }: PocketFormProps) => {
     const isEditing = !!initialData;
 
+    const { register, handleSubmit, formState: { errors, isDirty } } = useForm<PocketFormData>({
+        mode: 'onBlur',
+        defaultValues: {
+            name: initialData?.name || '',
+            type: 'normal',
+        },
+    });
+
+    useUnsavedChanges(isDirty);
+
     const pocketTypes: Pocket['type'][] = ['normal', 'fixed'];
 
     return (
-        <form onSubmit={onSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <Input
                 label="Pocket Name"
-                name="name"
-                defaultValue={initialData?.name}
-                required
                 placeholder="e.g., Savings, Emergency Fund"
+                required
+                error={errors.name?.message}
+                {...register('name', { required: 'Name is required' })}
             />
 
             {!isEditing && (
                 <Select
                     label="Pocket Type"
-                    name="type"
-                    defaultValue="normal"
                     required
                     options={pocketTypes.map(t => ({
                         value: t,
                         label: t === 'fixed' ? 'Fixed Expenses' : 'Normal'
                     }))}
+                    {...register('type')}
                 />
             )}
 

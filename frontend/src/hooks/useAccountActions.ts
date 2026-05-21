@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { accountService } from '../services/accountService';
 import type { Account, CDInvestmentAccount, Currency } from '../types';
 import type { CDFormData } from '../components/accounts/CDAccountForm';
+import type { AccountFormData } from '../components/accounts/AccountForm';
 import type { useToast } from './useToast';
 import type { useConfirm } from './useConfirm';
 import type { useAccountMutations } from './queries/useAccountMutations';
@@ -34,10 +35,10 @@ export interface UseAccountActionsParams {
 }
 
 export interface UseAccountActionsResult {
-  handleCreateAccount: (e: React.FormEvent<HTMLFormElement>) => Promise<void>;
+  handleCreateAccount: (data: AccountFormData) => Promise<void>;
   handleUpdateAccount: (
     account: Account,
-    e: React.FormEvent<HTMLFormElement>
+    data: AccountFormData
   ) => Promise<void>;
   handleCreateCD: (data: CDFormData) => Promise<void>;
   handleUpdateCD: (
@@ -108,26 +109,22 @@ export const useAccountActions = ({
   const [isCascadeDeleting, setIsCascadeDeleting] = useState(false);
   const [cascadeDeleteMovements, setCascadeDeleteMovements] = useState(false);
 
-  const handleCreateAccount = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
+  const handleCreateAccount = async (data: AccountFormData) => {
     setError(null);
-    const formData = new FormData(e.currentTarget);
 
     try {
-      const accountType = formData.get('type') as string;
-
       // CD accounts have their own dedicated form; redirect immediately.
-      if (accountType === 'cd') {
+      if (data.type === 'cd') {
         switchToCDForm();
         return;
       }
 
       await createAccount.mutateAsync({
-        name: formData.get('name') as string,
-        color: formData.get('color') as string,
-        currency: formData.get('currency') as Currency,
-        type: (formData.get('type') as Account['type']) || 'normal',
-        stockSymbol: (formData.get('stockSymbol') as string) || undefined,
+        name: data.name,
+        color: data.color,
+        currency: data.currency as Currency,
+        type: (data.type as Account['type']) || 'normal',
+        stockSymbol: data.stockSymbol || undefined,
       });
       toast.success('Account created successfully!');
       closeAccountForm();
@@ -141,19 +138,17 @@ export const useAccountActions = ({
 
   const handleUpdateAccount = async (
     account: Account,
-    e: React.FormEvent<HTMLFormElement>
+    data: AccountFormData
   ) => {
-    e.preventDefault();
     setError(null);
-    const formData = new FormData(e.currentTarget);
 
     try {
       await updateAccount.mutateAsync({
         id: account.id,
         updates: {
-          name: formData.get('name') as string,
-          color: formData.get('color') as string,
-          currency: formData.get('currency') as Currency,
+          name: data.name,
+          color: data.color,
+          currency: data.currency as Currency,
         },
       });
       toast.success('Account updated successfully!');

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { Account, Pocket } from '../types';
+import type { PocketFormData } from '../components/accounts/PocketForm';
 import type { useToast } from './useToast';
 import type { useConfirm } from './useConfirm';
 import type { usePocketMutations } from './queries/usePocketMutations';
@@ -29,10 +30,10 @@ export interface UsePocketActionsParams {
 }
 
 export interface UsePocketActionsResult {
-  handleCreatePocket: (e: React.FormEvent<HTMLFormElement>) => Promise<void>;
+  handleCreatePocket: (data: PocketFormData) => Promise<void>;
   handleUpdatePocket: (
     pocket: Pocket,
-    e: React.FormEvent<HTMLFormElement>
+    data: PocketFormData
   ) => Promise<void>;
   handleDeletePocket: (id: string) => Promise<void>;
   isPocketFormSaving: boolean;
@@ -72,18 +73,15 @@ export const usePocketActions = ({
   const [isMigrationOpen, setIsMigrationOpen] = useState(false);
   const [isMigrating, setIsMigrating] = useState(false);
 
-  const handleCreatePocket = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
+  const handleCreatePocket = async (data: PocketFormData) => {
     setError(null);
     if (!selectedAccountId) return;
-
-    const formData = new FormData(e.currentTarget);
 
     try {
       await createPocket.mutateAsync({
         accountId: selectedAccountId,
-        name: formData.get('name') as string,
-        type: (formData.get('type') as Pocket['type']) || 'normal',
+        name: data.name,
+        type: data.type || 'normal',
       });
       toast.success('Pocket created successfully!');
       closePocketForm();
@@ -97,16 +95,14 @@ export const usePocketActions = ({
 
   const handleUpdatePocket = async (
     pocket: Pocket,
-    e: React.FormEvent<HTMLFormElement>
+    data: PocketFormData
   ) => {
-    e.preventDefault();
     setError(null);
-    const formData = new FormData(e.currentTarget);
 
     try {
       await updatePocket.mutateAsync({
         id: pocket.id,
-        updates: { name: formData.get('name') as string },
+        updates: { name: data.name },
       });
       toast.success('Pocket updated successfully!');
       closePocketForm();

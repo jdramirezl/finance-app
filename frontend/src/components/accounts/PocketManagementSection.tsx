@@ -95,8 +95,8 @@ const PocketManagementSection = ({
   );
 
   const handleSubmit = editingPocket
-    ? (e: React.FormEvent<HTMLFormElement>) =>
-        actions.handleUpdatePocket(editingPocket, e)
+    ? (data: Parameters<typeof actions.handleUpdatePocket>[1]) =>
+        actions.handleUpdatePocket(editingPocket, data)
     : actions.handleCreatePocket;
 
   return (
