@@ -2,6 +2,7 @@ import { useState } from 'react';
 import PageHeader from '../components/ui/PageHeader';
 import Card from '../components/ui/Card';
 import PeriodSelector, { computeRange } from '../components/reports/PeriodSelector';
+import { SpendingByCategory, MonthlyTrend } from '../components/reports';
 import type { DateRange } from '../components/reports/PeriodSelector';
 
 type TabKey = 'category' | 'monthly' | 'category-trend' | 'top-expenses';
@@ -46,18 +47,10 @@ const ReportsPage = () => {
       {/* Tab content — placeholders for Wave 2 */}
       <Card>
         {activeTab === 'category' && (
-          <div className="text-center py-12 text-gray-500 dark:text-gray-400">
-            <p className="text-lg font-medium">Spending by Category</p>
-            <p className="text-sm mt-1">
-              {dateRange.startDate} — {dateRange.endDate}
-            </p>
-          </div>
+          <SpendingByCategory startDate={dateRange.startDate} endDate={dateRange.endDate} />
         )}
         {activeTab === 'monthly' && (
-          <div className="text-center py-12 text-gray-500 dark:text-gray-400">
-            <p className="text-lg font-medium">Monthly Trend</p>
-            <p className="text-sm mt-1">Income vs Expenses over time</p>
-          </div>
+          <MonthlyTrend months={6} />
         )}
         {activeTab === 'category-trend' && (
           <div className="text-center py-12 text-gray-500 dark:text-gray-400">
