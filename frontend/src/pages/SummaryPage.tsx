@@ -172,8 +172,6 @@ const SummaryPage = () => {
                 totalsByCurrency={totalsByCurrency}
                 accountCount={accounts.length}
                 isConsolidatedReady={isConsolidatedReady}
-                accounts={accounts}
-                investmentData={investmentData}
               />
             )}
           </ErrorBoundary>
@@ -199,6 +197,7 @@ const SummaryPage = () => {
                 accounts={accounts}
                 pockets={pockets}
                 investmentData={investmentData}
+                primaryCurrency={primaryCurrency}
               />
             )}
           </ErrorBoundary>

@@ -2,8 +2,7 @@ import { useMemo } from 'react';
 import { TrendingUp, TrendingDown } from 'lucide-react';
 import { useNetWorthSnapshotsQuery } from '../../hooks/queries';
 import { currencyService } from '../../services/currencyService';
-import type { Account, Currency } from '../../types';
-import type { InvestmentData } from './InvestmentCard';
+import type { Currency } from '../../types';
 import { Skeleton } from '../ui/Skeleton';
 
 interface NetWorthHeroProps {
@@ -12,8 +11,6 @@ interface NetWorthHeroProps {
   totalsByCurrency: Record<Currency, number>;
   accountCount: number;
   isConsolidatedReady?: boolean;
-  accounts?: Account[];
-  investmentData?: Map<string, InvestmentData>;
 }
 
 const NetWorthHero = ({
@@ -22,8 +19,6 @@ const NetWorthHero = ({
   totalsByCurrency,
   accountCount,
   isConsolidatedReady = true,
-  accounts = [],
-  investmentData = new Map(),
 }: NetWorthHeroProps) => {
   const { data: snapshots = [] } = useNetWorthSnapshotsQuery();
 
@@ -38,29 +33,10 @@ const NetWorthHero = ({
     return ((consolidatedTotal - previous.totalNetWorth) / previous.totalNetWorth) * 100;
   }, [snapshots, consolidatedTotal, isConsolidatedReady]);
 
-  // Categorize totals into CASH / STOCKS / LIQUID
-  const categories = useMemo(() => {
-    let cash = 0;
-    let stocks = 0;
-    let liquid = 0;
-
-    for (const account of accounts) {
-      if (account.type === 'investment') {
-        const inv = investmentData.get(account.id);
-        stocks += inv ? inv.totalValue : account.balance;
-      } else if (account.type === 'cd') {
-        liquid += account.balance;
-      } else {
-        cash += account.balance;
-      }
-    }
-
-    return [
-      { label: 'CASH', amount: cash, currency: primaryCurrency },
-      { label: 'STOCKS', amount: stocks, currency: primaryCurrency, highlight: true },
-      { label: 'LIQUID', amount: liquid, currency: primaryCurrency },
-    ];
-  }, [accounts, investmentData, primaryCurrency]);
+  const currencyEntries = useMemo(
+    () => (Object.entries(totalsByCurrency) as [Currency, number][]).filter(([, amt]) => amt !== 0),
+    [totalsByCurrency]
+  );
 
   // Split the formatted number into integer and decimal parts
   const formatted = currencyService.formatCurrency(consolidatedTotal, primaryCurrency);
@@ -103,19 +79,21 @@ const NetWorthHero = ({
         </div>
       </div>
 
-      {/* Category breakdown pills: CASH / STOCKS / LIQUID */}
-      <div className="grid grid-cols-3 gap-4 mt-6 border-t border-white/5 pt-4">
-        {categories.map((cat) => (
-          <div key={cat.label} className="text-center border-r border-white/5 last:border-r-0">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant mb-1">
-              {cat.label}
-            </p>
-            <p className={`font-mono text-sm font-bold ${cat.highlight ? 'text-primary' : 'text-on-surface'}`}>
-              {currencyService.formatCurrency(cat.amount, cat.currency)}
-            </p>
-          </div>
-        ))}
-      </div>
+      {/* Per-currency breakdown pills */}
+      {currencyEntries.length > 1 && (
+        <div className={`grid grid-cols-${Math.min(currencyEntries.length, 4)} gap-4 mt-6 border-t border-white/5 pt-4`}>
+          {currencyEntries.map(([currency, amount]) => (
+            <div key={currency} className="text-center border-r border-white/5 last:border-r-0">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant mb-1">
+                {currency}
+              </p>
+              <p className={`font-mono text-sm font-bold ${currency === primaryCurrency ? 'text-primary' : 'text-on-surface'}`}>
+                {currencyService.formatCurrency(amount, currency)}
+              </p>
+            </div>
+          ))}
+        </div>
+      )}
     </section>
   );
 };
