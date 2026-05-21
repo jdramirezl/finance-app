@@ -13,3 +13,9 @@ export const categoryTrendQuerySchema = z.object({
   category: z.string().min(1, 'category is required'),
   months: z.coerce.number().int().min(1).max(24).default(6),
 });
+
+export const exchangeRateHistoryQuerySchema = z.object({
+  base: z.string().min(1, 'base is required'),
+  target: z.string().min(1, 'target is required'),
+  days: z.coerce.number().int().min(1).max(365).default(90),
+});

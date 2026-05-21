@@ -38,6 +38,15 @@ export interface CategoryTrendResponse {
   category: string;
 }
 
+export interface ExchangeRateHistoryEntry {
+  date: string;
+  rate: number;
+}
+
+export interface ExchangeRateHistoryResponse {
+  data: ExchangeRateHistoryEntry[];
+}
+
 export const reportService = {
   getSpendingByCategory(startDate: string, endDate: string): Promise<SpendingByCategoryResponse> {
     return apiClient.get(`/api/reports/spending-by-category?startDate=${startDate}&endDate=${endDate}`);
@@ -49,5 +58,9 @@ export const reportService = {
 
   getCategoryTrend(category: string, months: number = 6): Promise<CategoryTrendResponse> {
     return apiClient.get(`/api/reports/category-trend?category=${encodeURIComponent(category)}&months=${months}`);
+  },
+
+  getExchangeRateHistory(base: string, target: string, days: number = 90): Promise<ExchangeRateHistoryResponse> {
+    return apiClient.get(`/api/reports/exchange-rate-history?base=${base}&target=${target}&days=${days}`);
   },
 };

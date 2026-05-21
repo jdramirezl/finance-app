@@ -1,6 +1,6 @@
 import { injectable, inject } from 'tsyringe';
 import { SupabaseClient } from '@supabase/supabase-js';
-import type { IReportsRepository, SpendingByCategoryRow, MonthlyTrendRow, CategoryTrendRow, CurrencyAmount } from './IReportsRepository';
+import type { IReportsRepository, SpendingByCategoryRow, MonthlyTrendRow, CategoryTrendRow, CurrencyAmount, ExchangeRateHistoryRow } from './IReportsRepository';
 import { DatabaseError } from '../../../shared/errors/AppError';
 
 @injectable()
@@ -151,5 +151,39 @@ export class SupabaseReportsRepository implements IReportsRepository {
         count,
       }))
       .sort((a, b) => a.month.localeCompare(b.month));
+  }
+
+  async getExchangeRateHistory(
+    baseCurrency: string,
+    targetCurrency: string,
+    days: number
+  ): Promise<ExchangeRateHistoryRow[]> {
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - days);
+
+    const { data, error } = await this.supabase
+      .from('exchange_rate_history')
+      .select('rate, recorded_at')
+      .eq('base_currency', baseCurrency)
+      .eq('target_currency', targetCurrency)
+      .gte('recorded_at', startDate.toISOString())
+      .order('recorded_at', { ascending: true });
+
+    if (error) {
+      throw new DatabaseError(`Failed to get exchange rate history: ${error.message}`);
+    }
+
+    if (!data || data.length === 0) return [];
+
+    // Group by day, take the latest rate per day
+    const dayMap = new Map<string, number>();
+    for (const row of data) {
+      const date = new Date(row.recorded_at).toISOString().slice(0, 10);
+      dayMap.set(date, Number(row.rate));
+    }
+
+    return Array.from(dayMap.entries())
+      .map(([date, rate]) => ({ date, rate }))
+      .sort((a, b) => a.date.localeCompare(b.date));
   }
 }

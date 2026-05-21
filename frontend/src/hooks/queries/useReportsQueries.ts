@@ -26,3 +26,12 @@ export const useCategoryTrendQuery = (category: string, months: number = 6) => {
     enabled: !!category,
   });
 };
+
+export const useExchangeRateHistoryQuery = (base: string, target: string, days: number = 90) => {
+  return useQuery({
+    queryKey: ['reports', 'exchange-rate-history', base, target, days],
+    queryFn: () => reportService.getExchangeRateHistory(base, target, days),
+    staleTime: 1000 * 60 * 30, // 30 min — rates don't change fast
+    enabled: !!base && !!target && base !== target,
+  });
+};

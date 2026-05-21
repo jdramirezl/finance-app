@@ -4,6 +4,7 @@ import { SupabaseReportsRepository } from '../../modules/reports/infrastructure/
 import { GetSpendingByCategoryUseCase } from '../../modules/reports/application/useCases/GetSpendingByCategoryUseCase';
 import { GetMonthlyTrendUseCase } from '../../modules/reports/application/useCases/GetMonthlyTrendUseCase';
 import { GetCategoryTrendUseCase } from '../../modules/reports/application/useCases/GetCategoryTrendUseCase';
+import { GetExchangeRateHistoryUseCase } from '../../modules/reports/application/useCases/GetExchangeRateHistoryUseCase';
 import { ReportsController } from '../../modules/reports/presentation/ReportsController';
 
 export function registerReportsModule(): void {
@@ -13,5 +14,6 @@ export function registerReportsModule(): void {
   container.register(GetSpendingByCategoryUseCase, { useClass: GetSpendingByCategoryUseCase });
   container.register(GetMonthlyTrendUseCase, { useClass: GetMonthlyTrendUseCase });
   container.register(GetCategoryTrendUseCase, { useClass: GetCategoryTrendUseCase });
+  container.register(GetExchangeRateHistoryUseCase, { useClass: GetExchangeRateHistoryUseCase });
   container.register(ReportsController, { useClass: ReportsController });
 }

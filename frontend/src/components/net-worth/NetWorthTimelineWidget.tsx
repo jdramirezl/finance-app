@@ -28,12 +28,15 @@ import NetWorthChart from './NetWorthChart';
 import NetWorthEditModal, {
     type NetWorthEditModalHandle,
 } from './NetWorthEditModal';
+import ExchangeRateTrend from './ExchangeRateTrend';
+
+type WidgetTab = NetWorthViewMode | 'rates';
 
 const NetWorthTimelineWidget = () => {
     const { data: snapshots = [], isLoading } = useNetWorthSnapshotsQuery();
     const { data: settings } = useSettingsQuery();
 
-    const [viewMode, setViewMode] = useState<NetWorthViewMode>('total');
+    const [viewMode, setViewMode] = useState<WidgetTab>('total');
     const [dateRange, setDateRange] = useState<NetWorthDateRange>('6m');
     const [showVariation, setShowVariation] = useState(false);
 
@@ -45,7 +48,7 @@ const NetWorthTimelineWidget = () => {
         snapshots,
         primaryCurrency,
         dateRange,
-        viewMode,
+        viewMode: viewMode === 'rates' ? 'total' : viewMode,
         showVariation,
     });
 
@@ -120,11 +123,25 @@ const NetWorthTimelineWidget = () => {
                             >
                                 By Currency
                             </button>
+                            <button
+                                onClick={() => setViewMode('rates')}
+                                className={`px-3 py-1.5 text-sm font-medium transition-colors ${
+                                    viewMode === 'rates'
+                                        ? 'bg-blue-500 text-white'
+                                        : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
+                                }`}
+                            >
+                                Rates
+                            </button>
                         </div>
                     </div>
                 </div>
 
                 {/* Controls Row */}
+                {viewMode === 'rates' ? (
+                    <ExchangeRateTrend />
+                ) : (
+                <>
                 <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
                     <div className="flex gap-2">
                         {(['30d', '6m', '1y', 'all'] as NetWorthDateRange[]).map(
@@ -167,7 +184,7 @@ const NetWorthTimelineWidget = () => {
                 <NetWorthChart
                     chartData={chartData}
                     currencies={currencies}
-                    viewMode={viewMode}
+                    viewMode={viewMode as NetWorthViewMode}
                     showVariation={showVariation}
                     primaryCurrency={primaryCurrency}
                     tooltipFormatter={tooltipFormatter}
@@ -191,6 +208,8 @@ const NetWorthTimelineWidget = () => {
                             />
                         </div>
                     </div>
+                )}
+                </>
                 )}
             </Card>
 

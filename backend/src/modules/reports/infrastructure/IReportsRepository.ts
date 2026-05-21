@@ -21,6 +21,11 @@ export interface CategoryTrendRow {
   count: number;
 }
 
+export interface ExchangeRateHistoryRow {
+  date: string; // 'YYYY-MM-DD'
+  rate: number;
+}
+
 export interface IReportsRepository {
   /**
    * Aggregate expenses by category within a date range, grouped by currency.
@@ -50,4 +55,13 @@ export interface IReportsRepository {
     category: string,
     months: number
   ): Promise<CategoryTrendRow[]>;
+
+  /**
+   * Get historical exchange rates for a currency pair, grouped by day (latest per day).
+   */
+  getExchangeRateHistory(
+    baseCurrency: string,
+    targetCurrency: string,
+    days: number
+  ): Promise<ExchangeRateHistoryRow[]>;
 }

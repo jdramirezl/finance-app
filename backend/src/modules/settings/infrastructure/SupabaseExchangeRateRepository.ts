@@ -59,7 +59,8 @@ export class SupabaseExchangeRateRepository implements IExchangeRateRepository {
 
   /**
    * Save exchange rate to cache
-   * Uses upsert to handle both insert and update
+   * Uses upsert to handle both insert and update.
+   * Also records the rate in exchange_rate_history (with 1-hour dedup).
    */
   async saveRate(exchangeRate: ExchangeRate): Promise<void> {
     const data = ExchangeRateMapper.toPersistence(exchangeRate);
@@ -74,6 +75,47 @@ export class SupabaseExchangeRateRepository implements IExchangeRateRepository {
 
     if (error) {
       throw new DatabaseError(`Failed to save exchange rate: ${error.message}`);
+    }
+
+    // Record in history (fire-and-forget, dedup by 1 hour)
+    await this.recordHistory(
+      exchangeRate.fromCurrency,
+      exchangeRate.toCurrency,
+      exchangeRate.rate
+    );
+  }
+
+  /**
+   * Insert a row into exchange_rate_history if the last recorded rate
+   * for this pair is older than 1 hour.
+   */
+  private async recordHistory(
+    baseCurrency: string,
+    targetCurrency: string,
+    rate: number
+  ): Promise<void> {
+    try {
+      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+
+      // Check if a recent record exists
+      const { data: recent } = await this.supabase
+        .from('exchange_rate_history')
+        .select('id')
+        .eq('base_currency', baseCurrency)
+        .eq('target_currency', targetCurrency)
+        .gte('recorded_at', oneHourAgo)
+        .limit(1);
+
+      if (recent && recent.length > 0) return;
+
+      await this.supabase.from('exchange_rate_history').insert({
+        base_currency: baseCurrency,
+        target_currency: targetCurrency,
+        rate,
+      });
+    } catch {
+      // Non-critical — don't fail the main save operation
+      console.warn('Failed to record exchange rate history');
     }
   }
 

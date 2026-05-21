@@ -3,13 +3,15 @@ import { injectable, inject } from 'tsyringe';
 import { GetSpendingByCategoryUseCase } from '../application/useCases/GetSpendingByCategoryUseCase';
 import { GetMonthlyTrendUseCase } from '../application/useCases/GetMonthlyTrendUseCase';
 import { GetCategoryTrendUseCase } from '../application/useCases/GetCategoryTrendUseCase';
+import { GetExchangeRateHistoryUseCase } from '../application/useCases/GetExchangeRateHistoryUseCase';
 
 @injectable()
 export class ReportsController {
   constructor(
     @inject(GetSpendingByCategoryUseCase) private spendingByCategoryUseCase: GetSpendingByCategoryUseCase,
     @inject(GetMonthlyTrendUseCase) private monthlyTrendUseCase: GetMonthlyTrendUseCase,
-    @inject(GetCategoryTrendUseCase) private categoryTrendUseCase: GetCategoryTrendUseCase
+    @inject(GetCategoryTrendUseCase) private categoryTrendUseCase: GetCategoryTrendUseCase,
+    @inject(GetExchangeRateHistoryUseCase) private exchangeRateHistoryUseCase: GetExchangeRateHistoryUseCase
   ) {}
 
   async getSpendingByCategory(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -39,6 +41,16 @@ export class ReportsController {
       const userId = req.user!.id;
       const { category, months } = req.query as unknown as { category: string; months: number };
       const result = await this.categoryTrendUseCase.execute(userId, category, months);
+      res.json(result);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async getExchangeRateHistory(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { base, target, days } = req.query as unknown as { base: string; target: string; days: number };
+      const result = await this.exchangeRateHistoryUseCase.execute(base, target, days);
       res.json(result);
     } catch (error) {
       next(error);
