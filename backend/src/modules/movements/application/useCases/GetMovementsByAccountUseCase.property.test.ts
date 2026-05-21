@@ -92,6 +92,7 @@ describe('Movement Filtering Property-Based Tests', () => {
       markAsOrphanedByPocketId: jest.fn().mockResolvedValue(0),
       updateAccountIdByPocketId: jest.fn().mockResolvedValue(0),
       count: jest.fn().mockResolvedValue(0),
+        sumExpensesByPeriod: jest.fn().mockResolvedValue([]),
     };
 
     return mockRepo;

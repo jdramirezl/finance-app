@@ -49,6 +49,7 @@ describe('MarkAsPendingUseCase Property-Based Tests', () => {
       markAsOrphanedByPocketId: jest.fn().mockResolvedValue(0),
       updateAccountIdByPocketId: jest.fn().mockResolvedValue(0),
       count: jest.fn().mockResolvedValue(1),
+      sumExpensesByPeriod: jest.fn().mockResolvedValue([]),
     };
 
     const mockAccountRepo: jest.Mocked<IAccountRepository> = {

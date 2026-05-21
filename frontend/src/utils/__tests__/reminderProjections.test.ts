@@ -107,7 +107,7 @@ describe('groupRemindersByMonth — paid history filter', () => {
     expect(allReminders.find(r => r.id === 'rem-old')).toBeUndefined();
   });
 
-  it('keeps paid occurrences within 1 month', () => {
+  it('hides paid occurrences by default', () => {
     const recentPaid: Reminder = {
       id: 'rem-recent',
       userId: 'user-1',
@@ -120,9 +120,14 @@ describe('groupRemindersByMonth — paid history filter', () => {
       updatedAt: '2025-01-01T00:00:00Z',
     };
 
+    // Default: paid reminders are hidden
     const groups = groupRemindersByMonth([recentPaid], 1, 0);
     const allReminders = groups.flatMap(g => g.reminders);
+    expect(allReminders.find(r => r.id === 'rem-recent')).toBeUndefined();
 
-    expect(allReminders.find(r => r.id === 'rem-recent')).toBeDefined();
+    // With showPaid=true: paid reminders are visible
+    const groupsWithPaid = groupRemindersByMonth([recentPaid], 1, 0, true);
+    const allWithPaid = groupsWithPaid.flatMap(g => g.reminders);
+    expect(allWithPaid.find(r => r.id === 'rem-recent')).toBeDefined();
   });
 });
