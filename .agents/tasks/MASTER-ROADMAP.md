@@ -72,22 +72,52 @@ Organized by priority tier. Within each tier, items are roughly ordered by impac
 
 ## Execution Strategy
 
-**Tier 1** → Fix immediately (next sprint). These are bugs and daily-friction items.
+### RULE: Testing First
+
+**From this point forward, ALL work must include tests.** No untested features ship. Every coder task must:
+1. Write tests alongside implementation (or TDD where appropriate)
+2. Extend existing test suites when modifying existing code
+3. Maintain CI green at all times
+
+---
+
+### Priority 0: Testing Infrastructure (DO FIRST)
+
+Before any new features, establish comprehensive test coverage:
+
+| # | Task | Description | Effort |
+|---|------|-------------|--------|
+| 0.1 | **Fix CI reliability** | Backend integration tests need mock Supabase (not live DB). Add test env config. | Medium |
+| 0.2 | **E2E critical flows** | Playwright tests for: login, create account, create movement, transfer, delete account, budget generation | High |
+| 0.3 | **Component tests** | React Testing Library for: MovementForm, ReminderForm, BudgetDistribution, SpendingCard, QuickAddMovement | Medium |
+| 0.4 | **API contract tests** | Validate request/response shapes between frontend services and backend endpoints | Medium |
+| 0.5 | **Coverage gates in CI** | Enforce minimum coverage thresholds (80% backend, 60% frontend) | Low |
+
+### Priority 0.5: Bug Fixes (from research)
+
+| # | Task | Description |
+|---|------|-------------|
+| 0.6 | **Reminders: fix "Pay Now" for recurring** | Use `createException` instead of setting `is_paid` on the whole reminder |
+| 0.7 | **Reminders: enable projected occurrence interaction** | Remove `!isProjected` guard on Pay/Dismiss buttons |
+| 0.8 | **Project cleanup** | Delete dangling symlink, gitignore .backups/, fix README, delete dead files |
+| 0.9 | **Settings: add default account** | DB-backed "Default Account for Expenses/Income" setting, used as fallback in quick-add |
+| 0.10 | **Settings: centralize preferences** | Move theme, sort prefs to DB; add date format, movements per page, reminder advance warning |
+
+### Tier 1 (DONE)
+
+All 6 items completed: quick-add, categories/tags, remember last-used, spending card, budget fix, inline edit.
+
+### Tier 2: High-Impact Features
 
 **Tier 2** → Plan and design first. Item 2.1 (UI overhaul) should happen BEFORE implementing 2.2-2.8, since the visual redesign will affect how all new features look.
 
-**Tier 3** → Implement alongside or after Tier 2. These are polish items that improve existing features.
-
-**Tier 4** → Backlog. Only after Tiers 1-3 are solid.
-
 ### Recommended order within Tier 2:
 1. **2.1 UI overhaul** (design proposals) — sets the visual direction for everything else
-2. **1.2 Categories** (from Tier 1) — enables 2.3 Reports
-3. **2.3 Reports page** — highest user value after categories exist
-4. **2.2 Unified budget page** — complex but high-value redesign
-5. **2.4 Recurring movements** + **2.8 Fixed/Reminders integration** — do together
-6. **2.5 Savings goals** — builds on pocket system
-7. **2.6 Archive redesign** — removes technical debt
+2. **2.3 Reports page** — highest user value now that categories exist
+3. **2.2 Unified budget page** — complex but high-value redesign
+4. **2.4 Recurring movements** + **2.8 Fixed/Reminders integration** — do together
+5. **2.5 Savings goals** — builds on pocket system
+6. **2.6 Archive redesign** — removes technical debt
 8. **2.7 Global search** — power-user feature
 
 ---
