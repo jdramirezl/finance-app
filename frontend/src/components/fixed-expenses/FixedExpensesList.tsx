@@ -2,8 +2,6 @@ import { useMemo } from 'react';
 import { Receipt } from 'lucide-react';
 import type { Account, Currency, FixedExpenseGroup, SubPocket } from '../../types';
 import EmptyState from '../ui/EmptyState';
-import SortableList from '../ui/SortableList';
-import SortableItem from '../ui/SortableItem';
 import FixedExpenseGroupCard from './FixedExpenseGroupCard';
 
 export interface FixedExpensesListProps {
@@ -11,13 +9,8 @@ export interface FixedExpensesListProps {
   fixedSubPockets: SubPocket[];
   pocketAccountMap: Map<string, Account>;
   currency: Currency;
-  collapsedGroups: Set<string>;
-  togglingGroupId: string | null;
   deletingId: string | null;
   togglingId: string | null;
-  onReorderGroups: (groups: FixedExpenseGroup[]) => void;
-  onToggleCollapse: (groupId: string) => void;
-  onToggleGroup: (groupId: string, enabled: boolean) => void;
   onEditGroup: (group: FixedExpenseGroup) => void;
   onDeleteGroup: (group: FixedExpenseGroup) => void;
   onEditExpense: (subPocket: SubPocket) => void;
@@ -27,22 +20,15 @@ export interface FixedExpensesListProps {
 }
 
 /**
- * Renders the sortable list of fixed-expense groups, with each group card
- * showing its sub-pockets. The page owns all action handlers and threads
- * them through.
+ * Responsive grid of fixed-expense group cards.
+ * Layout: 1 col mobile, 2 cols tablet, 3 cols desktop.
  */
 const FixedExpensesList = ({
   groups,
   fixedSubPockets,
-  pocketAccountMap,
   currency,
-  collapsedGroups,
-  togglingGroupId,
   deletingId,
   togglingId,
-  onReorderGroups,
-  onToggleCollapse,
-  onToggleGroup,
   onEditGroup,
   onDeleteGroup,
   onEditExpense,
@@ -50,19 +36,13 @@ const FixedExpensesList = ({
   onToggleExpense,
   onMoveToGroup,
 }: FixedExpensesListProps) => {
-  // Bucket sub-pockets by group once so each group card receives a stable
-  // array reference. Without this, every group card would receive a fresh
-  // filter() result on every parent re-render and React.memo couldn't help.
   const subPocketsByGroup = useMemo(() => {
     const map = new Map<string, SubPocket[]>();
     for (const sp of fixedSubPockets) {
       const groupId = sp.groupId ?? '';
       const list = map.get(groupId);
-      if (list) {
-        list.push(sp);
-      } else {
-        map.set(groupId, [sp]);
-      }
+      if (list) list.push(sp);
+      else map.set(groupId, [sp]);
     }
     return map;
   }, [fixedSubPockets]);
@@ -78,41 +58,25 @@ const FixedExpensesList = ({
   }
 
   return (
-    <div className="space-y-4">
-      <SortableList
-        items={groups}
-        getId={(item) => item.id}
-        onReorder={onReorderGroups}
-        renderItem={(group) => {
-          const groupExpenses = subPocketsByGroup.get(group.id) ?? [];
-          const isDefault = group.name === 'Default';
-
-          return (
-            <SortableItem key={group.id} id={group.id}>
-              <FixedExpenseGroupCard
-                group={group}
-                subPockets={groupExpenses}
-                allGroups={groups}
-                currency={currency}
-                isDefaultGroup={isDefault}
-                isCollapsed={collapsedGroups.has(group.id)}
-                isToggling={togglingGroupId === group.id}
-                onToggleCollapse={onToggleCollapse}
-                onToggleGroup={onToggleGroup}
-                onEditGroup={onEditGroup}
-                onDeleteGroup={onDeleteGroup}
-                onEditExpense={onEditExpense}
-                onDeleteExpense={onDeleteExpense}
-                onToggleExpense={onToggleExpense}
-                onMoveToGroup={onMoveToGroup}
-                deletingId={deletingId}
-                togglingId={togglingId}
-                pocketAccountMap={pocketAccountMap}
-              />
-            </SortableItem>
-          );
-        }}
-      />
+    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+      {groups.map((group) => (
+        <FixedExpenseGroupCard
+          key={group.id}
+          group={group}
+          subPockets={subPocketsByGroup.get(group.id) ?? []}
+          allGroups={groups}
+          currency={currency}
+          isDefaultGroup={group.name === 'Default'}
+          onEditGroup={onEditGroup}
+          onDeleteGroup={onDeleteGroup}
+          onEditExpense={onEditExpense}
+          onDeleteExpense={onDeleteExpense}
+          onToggleExpense={onToggleExpense}
+          onMoveToGroup={onMoveToGroup}
+          deletingId={deletingId}
+          togglingId={togglingId}
+        />
+      ))}
     </div>
   );
 };
