@@ -8,6 +8,7 @@ import { registerMovementModule } from './movements.module';
 import { registerSettingsModule } from './settings.module';
 import { registerReminderModule } from './reminders.module';
 import { registerNetWorthModule } from './netWorth.module';
+import { registerReportsModule } from './reports.module';
 
 export function initializeContainer(): void {
   container.registerInstance('SupabaseClient', getSupabaseClient());
@@ -18,4 +19,5 @@ export function initializeContainer(): void {
   registerSettingsModule();
   registerReminderModule();
   registerNetWorthModule();
+  registerReportsModule();
 }
