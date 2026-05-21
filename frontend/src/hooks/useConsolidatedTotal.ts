@@ -129,17 +129,31 @@ export const useConsolidatedTotal = ({
 
     const calculate = async () => {
       let total = 0;
+      // Build a single batch of cross-currency conversions. Same-currency
+      // totals are added directly to avoid an unnecessary network round-trip
+      // for the trivial 1:1 case.
+      const conversions: Array<{ amount: number; from: string; to: string }> = [];
       for (const currency of sortedCurrencies) {
         const currencyTotal = totalsByCurrency[currency];
-        if (currencyTotal && currency) {
-          const converted = await currencyService.convert(
-            currencyTotal,
-            currency,
-            primaryCurrency
-          );
-          total += converted;
+        if (!currencyTotal || !currency) continue;
+        if (currency === primaryCurrency) {
+          total += currencyTotal;
+          continue;
+        }
+        conversions.push({
+          amount: currencyTotal,
+          from: currency,
+          to: primaryCurrency,
+        });
+      }
+
+      if (conversions.length > 0) {
+        const results = await currencyService.convertBatch(conversions);
+        for (const { convertedAmount } of results) {
+          total += convertedAmount;
         }
       }
+
       if (!ignore) {
         setConsolidatedTotal(total);
         setIsConsolidatedReady(true);

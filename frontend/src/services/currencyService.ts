@@ -31,6 +31,23 @@ interface CachedRate {
   timestamp: number;
 }
 
+export interface BatchConversionRequest {
+  amount: number;
+  from: string;
+  to: string;
+}
+
+export interface BatchConversionResult {
+  convertedAmount: number;
+  rate: number;
+}
+
+interface BatchConversionResponseItem extends BatchConversionResult {
+  amount: number;
+  from: string;
+  to: string;
+}
+
 class CurrencyService {
   private cache: Map<string, CachedRate> = new Map();
   private readonly CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours in ms
@@ -96,6 +113,34 @@ class CurrencyService {
       }
     );
     return response.convertedAmount;
+  }
+
+  // Convert many amounts in a single round-trip via the batch endpoint.
+  // Results are returned in the same order as the input `conversions`. The
+  // in-memory rate cache is also populated so subsequent synchronous lookups
+  // benefit from the freshly-fetched rates.
+  async convertBatch(
+    conversions: BatchConversionRequest[]
+  ): Promise<BatchConversionResult[]> {
+    if (conversions.length === 0) return [];
+
+    const response = await apiClient.post<{ results: BatchConversionResponseItem[] }>(
+      '/api/currency/convert-batch',
+      { conversions }
+    );
+
+    const results = response.results;
+    const now = Date.now();
+    for (const item of results) {
+      if (item.from && item.to && item.from !== item.to && Number.isFinite(item.rate)) {
+        this.cache.set(`${item.from}_${item.to}`, {
+          rate: item.rate,
+          timestamp: now,
+        });
+      }
+    }
+
+    return results.map(({ convertedAmount, rate }) => ({ convertedAmount, rate }));
   }
 
   // Debug: Get full rate details with source
