@@ -1,11 +1,19 @@
+import { useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { movementService } from '../services/movementService';
+import type { Movement } from '../types';
 import type { useToast } from './useToast';
 import type { useConfirm } from './useConfirm';
 import type { BulkSelectionResult } from './useBulkSelection';
 
 export interface UseMovementBulkActionsParams {
   bulk: BulkSelectionResult;
+  /**
+   * The movements currently visible to the user. Used to look up properties
+   * (e.g. `subPocketId`) of the selected ids so we can invalidate query
+   * caches conditionally instead of unconditionally fanning out.
+   */
+  movements: Movement[];
   confirm: ReturnType<typeof useConfirm>['confirm'];
   toast: ReturnType<typeof useToast.getState>;
   /**
@@ -35,14 +43,35 @@ export interface UseMovementBulkActionsResult {
  * (e.g. "2 applied, 3 failed") instead of one toast per failed item.
  * After the fan-out completes, the relevant query caches are invalidated
  * so the UI reflects whatever subset succeeded.
+ *
+ * Cache invalidation mirrors the targeted approach used in
+ * `useMovementMutations`:
+ *   - `['movements']`, `['accounts']`, `['pockets']` are always invalidated
+ *     because every bulk action shifts at least one movement into or out of
+ *     balance calculations.
+ *   - `['subPockets']` is only invalidated when at least one of the selected
+ *     movements references a sub-pocket.
+ *   - `['reminders']` is only invalidated for delete operations (a deleted
+ *     movement may restore a previously-completed reminder).
  */
 export const useMovementBulkActions = ({
   bulk,
+  movements,
   confirm,
   toast,
   operations,
 }: UseMovementBulkActionsParams): UseMovementBulkActionsResult => {
   const queryClient = useQueryClient();
+
+  // Build an id → movement lookup once per render so we don't pay O(n) per
+  // selected id when computing whether sub-pockets need invalidation.
+  const movementsById = useMemo(() => {
+    const map = new Map<string, Movement>();
+    for (const m of movements) {
+      map.set(m.id, m);
+    }
+    return map;
+  }, [movements]);
 
   const ops = {
     applyPending:
@@ -52,20 +81,34 @@ export const useMovementBulkActions = ({
     delete: operations?.delete ?? ((id: string) => movementService.deleteMovement(id)),
   };
 
-  const invalidateMovementCaches = () => {
+  const invalidateMovementCaches = (opts: {
+    includeSubPockets: boolean;
+    includeReminders: boolean;
+  }) => {
     queryClient.invalidateQueries({ queryKey: ['movements'] });
     queryClient.invalidateQueries({ queryKey: ['accounts'] });
     queryClient.invalidateQueries({ queryKey: ['pockets'] });
-    queryClient.invalidateQueries({ queryKey: ['subPockets'] });
-    queryClient.invalidateQueries({ queryKey: ['reminders'] });
+    if (opts.includeSubPockets) {
+      queryClient.invalidateQueries({ queryKey: ['subPockets'] });
+    }
+    if (opts.includeReminders) {
+      queryClient.invalidateQueries({ queryKey: ['reminders'] });
+    }
   };
 
   const runBulkAction = async (
     fn: (id: string) => Promise<unknown>,
     pastVerb: string,
     failureVerb: string,
+    opts: { isDelete: boolean },
   ) => {
     const ids = Array.from(bulk.selectedIds);
+    // Compute conditional invalidation flags before the fan-out so they're
+    // available even if the toolbar deselects everything afterward.
+    const includeSubPockets = ids.some((id) => {
+      const movement = movementsById.get(id);
+      return Boolean(movement?.subPocketId);
+    });
     try {
       const results = await Promise.allSettled(ids.map(fn));
       const succeeded = results.filter((r) => r.status === 'fulfilled').length;
@@ -86,7 +129,10 @@ export const useMovementBulkActions = ({
         err instanceof Error ? err.message : `Failed to ${failureVerb}`
       );
     } finally {
-      invalidateMovementCaches();
+      invalidateMovementCaches({
+        includeSubPockets,
+        includeReminders: opts.isDelete,
+      });
     }
   };
 
@@ -99,7 +145,9 @@ export const useMovementBulkActions = ({
       variant: 'info',
     });
     if (!ok) return;
-    await runBulkAction(ops.applyPending, 'Applied', 'apply movements');
+    await runBulkAction(ops.applyPending, 'Applied', 'apply movements', {
+      isDelete: false,
+    });
   };
 
   const handleBulkMarkAsPending = async () => {
@@ -111,7 +159,9 @@ export const useMovementBulkActions = ({
       variant: 'warning',
     });
     if (!ok) return;
-    await runBulkAction(ops.markAsPending, 'Marked', 'mark as pending');
+    await runBulkAction(ops.markAsPending, 'Marked', 'mark as pending', {
+      isDelete: false,
+    });
   };
 
   const handleBulkDelete = async () => {
@@ -123,7 +173,9 @@ export const useMovementBulkActions = ({
       variant: 'danger',
     });
     if (!ok) return;
-    await runBulkAction(ops.delete, 'Deleted', 'delete movements');
+    await runBulkAction(ops.delete, 'Deleted', 'delete movements', {
+      isDelete: true,
+    });
   };
 
   return { handleBulkApplyPending, handleBulkMarkAsPending, handleBulkDelete };

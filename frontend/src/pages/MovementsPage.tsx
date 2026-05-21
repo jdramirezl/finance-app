@@ -121,7 +121,7 @@ const MovementsPage = () => {
   });
   const { handleBulkApplyPending, handleBulkMarkAsPending, handleBulkDelete } =
     useMovementBulkActions({
-      bulk, confirm, toast,
+      bulk, movements, confirm, toast,
     });
   const restore = useOrphanedRestore({
     restoreMutation: movementMutations.restoreOrphanedMovements,

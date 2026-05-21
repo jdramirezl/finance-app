@@ -14,8 +14,11 @@ export const usePocketMutations = () => {
         mutationFn: (data: { accountId: string; name: string; type: Pocket['type'] }) =>
             pocketService.createPocket(data.accountId, data.name, data.type),
         onSuccess: () => {
+            // Creating a pocket adds an empty container to an existing account
+            // — the account's balance is unchanged, so we don't invalidate
+            // `['accounts']`. The pockets query gets the new entry on its next
+            // fetch.
             queryClient.invalidateQueries({ queryKey: ['pockets'] });
-            queryClient.invalidateQueries({ queryKey: ['accounts'] }); // Account balance might change? No, but good to refresh.
         },
         onError: (error) => {
             toast.error(errorMessage(error, 'Failed to create pocket'));
@@ -36,6 +39,8 @@ export const usePocketMutations = () => {
     const deletePocket = useMutation({
         mutationFn: (id: string) => pocketService.deletePocket(id),
         onSuccess: () => {
+            // Deleting a pocket removes its balance from the parent account
+            // (movements become orphans), so account totals shift.
             queryClient.invalidateQueries({ queryKey: ['pockets'] });
             queryClient.invalidateQueries({ queryKey: ['accounts'] });
         },
@@ -64,6 +69,7 @@ export const usePocketMutations = () => {
         mutationFn: (data: { pocketId: string; targetAccountId: string }) =>
             pocketService.migrateFixedPocketToAccount(data.pocketId, data.targetAccountId),
         onSuccess: () => {
+            // Migration moves balances and rewires movements between accounts.
             queryClient.invalidateQueries({ queryKey: ['pockets'] });
             queryClient.invalidateQueries({ queryKey: ['accounts'] });
             queryClient.invalidateQueries({ queryKey: ['movements'] });
