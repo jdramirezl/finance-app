@@ -9,7 +9,7 @@ import Card from '../ui/Card';
 import MonthSection from './MonthSection';
 import RecurrenceActionModal from './RecurrenceActionModal';
 import MarkAsPaidModal from './MarkAsPaidModal';
-import FinancialCalendarWidget from '../summary/FinancialCalendarWidget';
+import ReminderCalendarHeatmap from './ReminderCalendarHeatmap';
 import { groupRemindersByMonth, countOverdueReminders } from '../../utils/reminderProjections';
 
 type Tab = 'upcoming' | 'calendar';
@@ -51,8 +51,6 @@ const RemindersWidget = () => {
         () => countOverdueReminders(reminders),
         [reminders]
     );
-
-    const primaryCurrency = settings?.primaryCurrency || 'USD';
 
     useEffect(() => {
         if (scrollContainerRef.current && monthGroups.length > 0 && activeTab === 'upcoming') {
@@ -181,7 +179,7 @@ const RemindersWidget = () => {
                 ) : (
                     /* Calendar Tab */
                     <div className="max-h-[500px] overflow-y-auto">
-                        <FinancialCalendarWidget primaryCurrency={primaryCurrency} embedded />
+                        <ReminderCalendarHeatmap reminders={reminders} />
                     </div>
                 )}
             </Card>
