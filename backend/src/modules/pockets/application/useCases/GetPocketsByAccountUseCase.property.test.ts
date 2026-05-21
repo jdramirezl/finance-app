@@ -115,8 +115,10 @@ describe('GetPocketsByAccountUseCase Property-Based Tests', () => {
               existsByNameInAccountExcludingId: jest.fn().mockResolvedValue(false),
               existsFixedPocketForUser: jest.fn().mockResolvedValue(false),
               existsFixedPocketForUserExcludingId: jest.fn().mockResolvedValue(false),
+              existsFixedPocketInAccount: jest.fn().mockResolvedValue(false),
               update: jest.fn().mockResolvedValue(undefined),
               delete: jest.fn().mockResolvedValue(undefined),
+              deleteByAccountId: jest.fn().mockResolvedValue(0),
               updateDisplayOrders: jest.fn().mockResolvedValue(undefined),
             };
 
@@ -195,8 +197,10 @@ describe('GetPocketsByAccountUseCase Property-Based Tests', () => {
               existsByNameInAccountExcludingId: jest.fn().mockResolvedValue(false),
               existsFixedPocketForUser: jest.fn().mockResolvedValue(false),
               existsFixedPocketForUserExcludingId: jest.fn().mockResolvedValue(false),
+              existsFixedPocketInAccount: jest.fn().mockResolvedValue(false),
               update: jest.fn().mockResolvedValue(undefined),
               delete: jest.fn().mockResolvedValue(undefined),
+              deleteByAccountId: jest.fn().mockResolvedValue(0),
               updateDisplayOrders: jest.fn().mockResolvedValue(undefined),
             };
 
@@ -269,8 +273,10 @@ describe('GetPocketsByAccountUseCase Property-Based Tests', () => {
               existsByNameInAccountExcludingId: jest.fn().mockResolvedValue(false),
               existsFixedPocketForUser: jest.fn().mockResolvedValue(false),
               existsFixedPocketForUserExcludingId: jest.fn().mockResolvedValue(false),
+              existsFixedPocketInAccount: jest.fn().mockResolvedValue(false),
               update: jest.fn().mockResolvedValue(undefined),
               delete: jest.fn().mockResolvedValue(undefined),
+              deleteByAccountId: jest.fn().mockResolvedValue(0),
               updateDisplayOrders: jest.fn().mockResolvedValue(undefined),
             };
 
@@ -359,8 +365,10 @@ describe('GetPocketsByAccountUseCase Property-Based Tests', () => {
               existsByNameInAccountExcludingId: jest.fn().mockResolvedValue(false),
               existsFixedPocketForUser: jest.fn().mockResolvedValue(false),
               existsFixedPocketForUserExcludingId: jest.fn().mockResolvedValue(false),
+              existsFixedPocketInAccount: jest.fn().mockResolvedValue(false),
               update: jest.fn().mockResolvedValue(undefined),
               delete: jest.fn().mockResolvedValue(undefined),
+              deleteByAccountId: jest.fn().mockResolvedValue(0),
               updateDisplayOrders: jest.fn().mockResolvedValue(undefined),
             };
 
@@ -437,8 +445,10 @@ describe('GetPocketsByAccountUseCase Property-Based Tests', () => {
               existsByNameInAccountExcludingId: jest.fn().mockResolvedValue(false),
               existsFixedPocketForUser: jest.fn().mockResolvedValue(false),
               existsFixedPocketForUserExcludingId: jest.fn().mockResolvedValue(false),
+              existsFixedPocketInAccount: jest.fn().mockResolvedValue(false),
               update: jest.fn().mockResolvedValue(undefined),
               delete: jest.fn().mockResolvedValue(undefined),
+              deleteByAccountId: jest.fn().mockResolvedValue(0),
               updateDisplayOrders: jest.fn().mockResolvedValue(undefined),
             };
 

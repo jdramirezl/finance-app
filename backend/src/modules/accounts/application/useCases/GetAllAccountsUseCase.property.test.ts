@@ -83,11 +83,11 @@ describe('GetAllAccountsUseCase Property-Based Tests', () => {
             };
 
             const mockPocketRepo = {
-              findByAccountId: jest.fn().mockResolvedValue(pockets),
+              findAllByUserId: jest.fn().mockResolvedValue(pockets),
             };
 
             const mockStockPriceService = {
-              getCurrentPrice: jest.fn().mockResolvedValue(100),
+              execute: jest.fn().mockResolvedValue({ symbol: 'X', price: 100, lastUpdated: new Date() }),
             };
 
             const useCase = new GetAllAccountsUseCase(
@@ -103,8 +103,8 @@ describe('GetAllAccountsUseCase Property-Based Tests', () => {
             expect(result).toHaveLength(1);
             expect(result[0].balance).toBeCloseTo(expectedBalance, 5);
             
-            // Verify that pockets were fetched for the account
-            expect(mockPocketRepo.findByAccountId).toHaveBeenCalledWith(accountId, userId);
+            // Verify that pockets were fetched for the user
+            expect(mockPocketRepo.findAllByUserId).toHaveBeenCalledWith(userId);
           }
         ),
         { numRuns: 100 }
@@ -146,11 +146,11 @@ describe('GetAllAccountsUseCase Property-Based Tests', () => {
             };
 
             const mockPocketRepo = {
-              findByAccountId: jest.fn().mockResolvedValue(pockets),
+              findAllByUserId: jest.fn().mockResolvedValue(pockets),
             };
 
             const mockStockPriceService = {
-              getCurrentPrice: jest.fn().mockResolvedValue(100),
+              execute: jest.fn().mockResolvedValue({ symbol: 'X', price: 100, lastUpdated: new Date() }),
             };
 
             const useCase = new GetAllAccountsUseCase(
@@ -236,13 +236,16 @@ describe('GetAllAccountsUseCase Property-Based Tests', () => {
             };
 
             const mockPocketRepo = {
-              findByAccountId: jest.fn().mockImplementation(async (accountId: string) => {
-                return pocketsByAccount.get(accountId) || [];
+              findAllByUserId: jest.fn().mockImplementation(async () => {
+                // Return all pockets for all accounts
+                const allPockets: any[] = [];
+                pocketsByAccount.forEach(pockets => allPockets.push(...pockets));
+                return allPockets;
               }),
             };
 
             const mockStockPriceService = {
-              getCurrentPrice: jest.fn().mockResolvedValue(100),
+              execute: jest.fn().mockResolvedValue({ symbol: 'X', price: 100, lastUpdated: new Date() }),
             };
 
             const useCase = new GetAllAccountsUseCase(
@@ -326,11 +329,11 @@ describe('GetAllAccountsUseCase Property-Based Tests', () => {
             };
 
             const mockPocketRepo = {
-              findByAccountId: jest.fn().mockResolvedValue(pockets),
+              findAllByUserId: jest.fn().mockResolvedValue(pockets),
             };
 
             const mockStockPriceService = {
-              getCurrentPrice: jest.fn().mockResolvedValue(100),
+              execute: jest.fn().mockResolvedValue({ symbol: 'X', price: 100, lastUpdated: new Date() }),
             };
 
             const useCase = new GetAllAccountsUseCase(

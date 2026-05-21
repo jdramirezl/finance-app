@@ -27,7 +27,6 @@ describeIntegration('SupabasePocketRepository Integration Tests', () => {
   let supabase: any;
 
   beforeAll(async () => {
-    repository = new SupabasePocketRepository();
     testUserId = randomUUID();
     testAccountId = randomUUID();
     
@@ -35,6 +34,7 @@ describeIntegration('SupabasePocketRepository Integration Tests', () => {
       process.env.SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_KEY!
     );
+    repository = new SupabasePocketRepository(supabase);
 
     // Create a test user in auth.users table (required for foreign key constraints)
     // Insert directly using SQL since we have service key

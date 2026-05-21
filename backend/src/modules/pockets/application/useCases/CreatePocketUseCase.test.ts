@@ -24,10 +24,13 @@ describe('CreatePocketUseCase', () => {
       findByAccountId: jest.fn(),
       findAllByUserId: jest.fn(),
       existsByNameInAccount: jest.fn(),
+      existsByNameInAccountExcludingId: jest.fn(),
+      existsFixedPocketInAccount: jest.fn(),
       existsFixedPocketForUser: jest.fn(),
       existsFixedPocketForUserExcludingId: jest.fn(),
       update: jest.fn(),
       delete: jest.fn(),
+      deleteByAccountId: jest.fn(),
       updateDisplayOrders: jest.fn(),
     } as any;
 
@@ -104,15 +107,17 @@ describe('CreatePocketUseCase', () => {
       await expect(useCase.execute(dto, 'user-1')).rejects.toThrow('Pocket type must be either "normal" or "fixed"');
     });
 
-    it('should throw ValidationError if currency is missing', async () => {
+    it('should throw NotFoundError if account does not exist when currency is missing', async () => {
       const dto: any = {
         accountId: 'account-1',
         name: 'Test Pocket',
         type: 'normal',
       };
 
-      await expect(useCase.execute(dto, 'user-1')).rejects.toThrow(ValidationError);
-      await expect(useCase.execute(dto, 'user-1')).rejects.toThrow('Currency is required');
+      mockAccountRepo.findById.mockResolvedValue(null);
+
+      await expect(useCase.execute(dto, 'user-1')).rejects.toThrow(NotFoundError);
+      await expect(useCase.execute(dto, 'user-1')).rejects.toThrow('Account not found');
     });
   });
 
@@ -182,9 +187,9 @@ describe('CreatePocketUseCase', () => {
       await expect(useCase.execute(dto, 'user-1')).rejects.toThrow('A pocket with name "Existing Pocket" already exists in this account');
     });
 
-    it('should throw ConflictError if fixed pocket already exists for user', async () => {
+    it('should throw ConflictError if fixed pocket already exists in account', async () => {
       mockPocketRepo.existsByNameInAccount.mockResolvedValue(false);
-      mockPocketRepo.existsFixedPocketForUser.mockResolvedValue(true);
+      mockPocketRepo.existsFixedPocketInAccount.mockResolvedValue(true);
 
       const dto: CreatePocketDTO = {
         accountId: 'account-1',
@@ -194,7 +199,7 @@ describe('CreatePocketUseCase', () => {
       };
 
       await expect(useCase.execute(dto, 'user-1')).rejects.toThrow(ConflictError);
-      await expect(useCase.execute(dto, 'user-1')).rejects.toThrow('Only one fixed pocket is allowed per user');
+      await expect(useCase.execute(dto, 'user-1')).rejects.toThrow('Only one fixed pocket is allowed per account');
     });
   });
 
@@ -210,7 +215,7 @@ describe('CreatePocketUseCase', () => {
       );
       mockAccountRepo.findById.mockResolvedValue(normalAccount);
       mockPocketRepo.existsByNameInAccount.mockResolvedValue(false);
-      mockPocketRepo.existsFixedPocketForUser.mockResolvedValue(false);
+      mockPocketRepo.existsFixedPocketInAccount.mockResolvedValue(false);
     });
 
     it('should create normal pocket successfully', async () => {
@@ -302,7 +307,7 @@ describe('CreatePocketUseCase', () => {
       expect(mockPocketRepo.existsByNameInAccount).toHaveBeenCalledWith('Savings', 'account-1', 'user-1');
     });
 
-    it('should check fixed pocket uniqueness for user', async () => {
+    it('should check fixed pocket uniqueness for account', async () => {
       const dto: CreatePocketDTO = {
         accountId: 'account-1',
         name: 'Fixed Expenses',
@@ -312,7 +317,7 @@ describe('CreatePocketUseCase', () => {
 
       await useCase.execute(dto, 'user-1');
 
-      expect(mockPocketRepo.existsFixedPocketForUser).toHaveBeenCalledWith('user-1');
+      expect(mockPocketRepo.existsFixedPocketInAccount).toHaveBeenCalledWith('account-1', 'user-1');
     });
 
     it('should not check fixed pocket uniqueness for normal pockets', async () => {
@@ -325,7 +330,7 @@ describe('CreatePocketUseCase', () => {
 
       await useCase.execute(dto, 'user-1');
 
-      expect(mockPocketRepo.existsFixedPocketForUser).not.toHaveBeenCalled();
+      expect(mockPocketRepo.existsFixedPocketInAccount).not.toHaveBeenCalled();
     });
   });
 });

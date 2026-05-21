@@ -10,14 +10,11 @@ import 'reflect-metadata';
 import { GetAllAccountsUseCase } from './GetAllAccountsUseCase';
 import { Account } from '../../domain/Account';
 import type { IAccountRepository } from '../../infrastructure/IAccountRepository';
-
-// Mock interfaces for dependencies that will be implemented in later phases
-interface IPocketRepository {
-  findByAccountId(accountId: string, userId: string): Promise<Array<{ id: string; accountId: string; balance: number }>>;
-}
+import type { IPocketRepository } from '../../../pockets/infrastructure/IPocketRepository';
+import { Pocket } from '../../../pockets/domain/Pocket';
 
 interface IStockPriceService {
-  getCurrentPrice(symbol: string): Promise<number>;
+  execute(symbol: string): Promise<{ symbol: string; price: number; lastUpdated: Date }>;
 }
 
 describe('GetAllAccountsUseCase', () => {
@@ -27,7 +24,6 @@ describe('GetAllAccountsUseCase', () => {
   let mockStockPriceService: jest.Mocked<IStockPriceService>;
 
   beforeEach(() => {
-    // Create mock repositories
     mockAccountRepo = {
       save: jest.fn(),
       findById: jest.fn(),
@@ -40,11 +36,23 @@ describe('GetAllAccountsUseCase', () => {
     } as jest.Mocked<IAccountRepository>;
 
     mockPocketRepo = {
+      save: jest.fn(),
+      findById: jest.fn(),
       findByAccountId: jest.fn(),
+      findAllByUserId: jest.fn(),
+      existsByNameInAccount: jest.fn(),
+      existsByNameInAccountExcludingId: jest.fn(),
+      existsFixedPocketInAccount: jest.fn(),
+      existsFixedPocketForUser: jest.fn(),
+      existsFixedPocketForUserExcludingId: jest.fn(),
+      update: jest.fn(),
+      delete: jest.fn(),
+      deleteByAccountId: jest.fn(),
+      updateDisplayOrders: jest.fn(),
     } as jest.Mocked<IPocketRepository>;
 
     mockStockPriceService = {
-      getCurrentPrice: jest.fn(),
+      execute: jest.fn(),
     } as jest.Mocked<IStockPriceService>;
 
     useCase = new GetAllAccountsUseCase(
@@ -58,27 +66,17 @@ describe('GetAllAccountsUseCase', () => {
     it('should fetch all accounts and calculate balances from pockets', async () => {
       const userId = 'user-123';
       
-      // Create test accounts
       const account1 = new Account('acc-1', 'Checking', '#3b82f6', 'USD', 0, 'normal');
       const account2 = new Account('acc-2', 'Savings', '#10b981', 'USD', 0, 'normal');
 
       mockAccountRepo.findAllByUserId.mockResolvedValue([account1, account2]);
 
-      // Mock pockets for each account
-      mockPocketRepo.findByAccountId.mockImplementation(async (accountId: string) => {
-        if (accountId === 'acc-1') {
-          return [
-            { id: 'pocket-1', accountId: 'acc-1', balance: 1000 },
-            { id: 'pocket-2', accountId: 'acc-1', balance: 500 },
-          ];
-        }
-        if (accountId === 'acc-2') {
-          return [
-            { id: 'pocket-3', accountId: 'acc-2', balance: 2000 },
-          ];
-        }
-        return [];
-      });
+      // findAllByUserId returns all pockets for the user in one batch
+      mockPocketRepo.findAllByUserId.mockResolvedValue([
+        new Pocket('pocket-1', 'acc-1', 'P1', 'normal', 1000, 'USD'),
+        new Pocket('pocket-2', 'acc-1', 'P2', 'normal', 500, 'USD'),
+        new Pocket('pocket-3', 'acc-2', 'P3', 'normal', 2000, 'USD'),
+      ]);
 
       const result = await useCase.execute(userId);
 
@@ -89,7 +87,7 @@ describe('GetAllAccountsUseCase', () => {
       expect(result[1].balance).toBe(2000);
       
       expect(mockAccountRepo.findAllByUserId).toHaveBeenCalledWith(userId);
-      expect(mockPocketRepo.findByAccountId).toHaveBeenCalledTimes(2);
+      expect(mockPocketRepo.findAllByUserId).toHaveBeenCalledWith(userId);
     });
 
     it('should handle accounts with no pockets (zero balance)', async () => {
@@ -97,7 +95,7 @@ describe('GetAllAccountsUseCase', () => {
       const account = new Account('acc-1', 'Empty Account', '#3b82f6', 'USD', 0, 'normal');
 
       mockAccountRepo.findAllByUserId.mockResolvedValue([account]);
-      mockPocketRepo.findByAccountId.mockResolvedValue([]);
+      mockPocketRepo.findAllByUserId.mockResolvedValue([]);
 
       const result = await useCase.execute(userId);
 
@@ -121,13 +119,16 @@ describe('GetAllAccountsUseCase', () => {
       account.shares = 10;
 
       mockAccountRepo.findAllByUserId.mockResolvedValue([account]);
-      mockStockPriceService.getCurrentPrice.mockResolvedValue(400); // $400 per share
+      mockPocketRepo.findAllByUserId.mockResolvedValue([]);
+      mockStockPriceService.execute.mockResolvedValue({
+        symbol: 'VOO', price: 400, lastUpdated: new Date()
+      });
 
       const result = await useCase.execute(userId);
 
       expect(result).toHaveLength(1);
       expect(result[0].balance).toBe(4000); // 10 shares * $400
-      expect(mockStockPriceService.getCurrentPrice).toHaveBeenCalledWith('VOO');
+      expect(mockStockPriceService.execute).toHaveBeenCalledWith('VOO');
     });
 
     it('should skip fetching prices when skipInvestmentPrices is true', async () => {
@@ -137,19 +138,20 @@ describe('GetAllAccountsUseCase', () => {
         'VOO Investment',
         '#3b82f6',
         'USD',
-        1000, // Existing balance
+        1000,
         'investment',
         'VOO'
       );
       account.shares = 10;
 
       mockAccountRepo.findAllByUserId.mockResolvedValue([account]);
+      mockPocketRepo.findAllByUserId.mockResolvedValue([]);
 
       const result = await useCase.execute(userId, true);
 
       expect(result).toHaveLength(1);
       expect(result[0].balance).toBe(1000); // Keeps existing balance
-      expect(mockStockPriceService.getCurrentPrice).not.toHaveBeenCalled();
+      expect(mockStockPriceService.execute).not.toHaveBeenCalled();
     });
 
     it('should handle stock price fetch failures gracefully', async () => {
@@ -159,14 +161,15 @@ describe('GetAllAccountsUseCase', () => {
         'VOO Investment',
         '#3b82f6',
         'USD',
-        1000, // Existing balance
+        1000,
         'investment',
         'VOO'
       );
       account.shares = 10;
 
       mockAccountRepo.findAllByUserId.mockResolvedValue([account]);
-      mockStockPriceService.getCurrentPrice.mockRejectedValue(new Error('API error'));
+      mockPocketRepo.findAllByUserId.mockResolvedValue([]);
+      mockStockPriceService.execute.mockRejectedValue(new Error('API error'));
 
       const result = await useCase.execute(userId);
 
@@ -188,13 +191,16 @@ describe('GetAllAccountsUseCase', () => {
       // No shares set (undefined)
 
       mockAccountRepo.findAllByUserId.mockResolvedValue([account]);
-      mockStockPriceService.getCurrentPrice.mockResolvedValue(400);
+      mockPocketRepo.findAllByUserId.mockResolvedValue([]);
+      mockStockPriceService.execute.mockResolvedValue({
+        symbol: 'VOO', price: 400, lastUpdated: new Date()
+      });
 
       const result = await useCase.execute(userId);
 
       expect(result).toHaveLength(1);
       expect(result[0].balance).toBe(0); // 0 shares = 0 balance
-      expect(mockStockPriceService.getCurrentPrice).toHaveBeenCalledWith('VOO');
+      expect(mockStockPriceService.execute).toHaveBeenCalledWith('VOO');
     });
   });
 
@@ -212,7 +218,7 @@ describe('GetAllAccountsUseCase', () => {
       account3.displayOrder = 1;
 
       mockAccountRepo.findAllByUserId.mockResolvedValue([account1, account2, account3]);
-      mockPocketRepo.findByAccountId.mockResolvedValue([]);
+      mockPocketRepo.findAllByUserId.mockResolvedValue([]);
 
       const result = await useCase.execute(userId);
 
@@ -232,7 +238,7 @@ describe('GetAllAccountsUseCase', () => {
       // No display order set
 
       mockAccountRepo.findAllByUserId.mockResolvedValue([account2, account1]);
-      mockPocketRepo.findByAccountId.mockResolvedValue([]);
+      mockPocketRepo.findAllByUserId.mockResolvedValue([]);
 
       const result = await useCase.execute(userId);
 
@@ -263,11 +269,13 @@ describe('GetAllAccountsUseCase', () => {
 
       mockAccountRepo.findAllByUserId.mockResolvedValue([normalAccount, investmentAccount]);
       
-      mockPocketRepo.findByAccountId.mockResolvedValue([
-        { id: 'pocket-1', accountId: 'acc-1', balance: 1000 },
+      mockPocketRepo.findAllByUserId.mockResolvedValue([
+        new Pocket('pocket-1', 'acc-1', 'P1', 'normal', 1000, 'USD'),
       ]);
       
-      mockStockPriceService.getCurrentPrice.mockResolvedValue(400);
+      mockStockPriceService.execute.mockResolvedValue({
+        symbol: 'VOO', price: 400, lastUpdated: new Date()
+      });
 
       const result = await useCase.execute(userId);
 
@@ -283,12 +291,12 @@ describe('GetAllAccountsUseCase', () => {
     it('should return empty array when user has no accounts', async () => {
       const userId = 'user-123';
       mockAccountRepo.findAllByUserId.mockResolvedValue([]);
+      mockPocketRepo.findAllByUserId.mockResolvedValue([]);
 
       const result = await useCase.execute(userId);
 
       expect(result).toEqual([]);
-      expect(mockPocketRepo.findByAccountId).not.toHaveBeenCalled();
-      expect(mockStockPriceService.getCurrentPrice).not.toHaveBeenCalled();
+      expect(mockStockPriceService.execute).not.toHaveBeenCalled();
     });
   });
 });

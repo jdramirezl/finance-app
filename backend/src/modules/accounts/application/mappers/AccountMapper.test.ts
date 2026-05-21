@@ -40,6 +40,15 @@ describe('AccountMapper', () => {
         monto_invertido: null,
         shares: null,
         display_order: 0,
+        investment_type: null,
+        principal: null,
+        interest_rate: null,
+        term_months: null,
+        maturity_date: null,
+        compounding_frequency: null,
+        early_withdrawal_penalty: null,
+        withholding_tax_rate: null,
+        cd_created_at: null,
       });
     });
 
@@ -71,6 +80,15 @@ describe('AccountMapper', () => {
         monto_invertido: 4500.00,
         shares: 10.5,
         display_order: 1,
+        investment_type: null,
+        principal: null,
+        interest_rate: null,
+        term_months: null,
+        maturity_date: null,
+        compounding_frequency: null,
+        early_withdrawal_penalty: null,
+        withholding_tax_rate: null,
+        cd_created_at: null,
       });
     });
 
@@ -89,6 +107,15 @@ describe('AccountMapper', () => {
       expect(persistence.monto_invertido).toBeNull();
       expect(persistence.shares).toBeNull();
       expect(persistence.display_order).toBeNull();
+      expect(persistence.investment_type).toBeNull();
+      expect(persistence.principal).toBeNull();
+      expect(persistence.interest_rate).toBeNull();
+      expect(persistence.term_months).toBeNull();
+      expect(persistence.maturity_date).toBeNull();
+      expect(persistence.compounding_frequency).toBeNull();
+      expect(persistence.early_withdrawal_penalty).toBeNull();
+      expect(persistence.withholding_tax_rate).toBeNull();
+      expect(persistence.cd_created_at).toBeNull();
     });
 
     it('should handle all supported currencies', () => {
@@ -123,6 +150,15 @@ describe('AccountMapper', () => {
         monto_invertido: null,
         shares: null,
         display_order: 2,
+        investment_type: null,
+        principal: null,
+        interest_rate: null,
+        term_months: null,
+        maturity_date: null,
+        compounding_frequency: null,
+        early_withdrawal_penalty: null,
+        withholding_tax_rate: null,
+        cd_created_at: null,
         created_at: '2024-01-01T00:00:00Z',
         updated_at: '2024-01-02T00:00:00Z',
       };
@@ -155,6 +191,15 @@ describe('AccountMapper', () => {
         monto_invertido: 9500.00,
         shares: 25.5,
         display_order: 0,
+        investment_type: null,
+        principal: null,
+        interest_rate: null,
+        term_months: null,
+        maturity_date: null,
+        compounding_frequency: null,
+        early_withdrawal_penalty: null,
+        withholding_tax_rate: null,
+        cd_created_at: null,
         created_at: '2024-01-01T00:00:00Z',
         updated_at: '2024-01-02T00:00:00Z',
       };
@@ -181,6 +226,15 @@ describe('AccountMapper', () => {
         monto_invertido: null,
         shares: null,
         display_order: null,
+        investment_type: null,
+        principal: null,
+        interest_rate: null,
+        term_months: null,
+        maturity_date: null,
+        compounding_frequency: null,
+        early_withdrawal_penalty: null,
+        withholding_tax_rate: null,
+        cd_created_at: null,
       };
 
       const account = AccountMapper.toDomain(row);
@@ -204,6 +258,15 @@ describe('AccountMapper', () => {
         monto_invertido: null,
         shares: null,
         display_order: 5,
+        investment_type: null,
+        principal: null,
+        interest_rate: null,
+        term_months: null,
+        maturity_date: null,
+        compounding_frequency: null,
+        early_withdrawal_penalty: null,
+        withholding_tax_rate: null,
+        cd_created_at: null,
       };
 
       // Should not throw validation error
@@ -239,6 +302,15 @@ describe('AccountMapper', () => {
         montoInvertido: undefined,
         shares: undefined,
         displayOrder: 3,
+        investmentType: undefined,
+        principal: undefined,
+        interestRate: undefined,
+        termMonths: undefined,
+        maturityDate: undefined,
+        compoundingFrequency: undefined,
+        earlyWithdrawalPenalty: undefined,
+        withholdingTaxRate: undefined,
+        cdCreatedAt: undefined,
       });
     });
 
@@ -269,6 +341,15 @@ describe('AccountMapper', () => {
         montoInvertido: 14000.00,
         shares: 50.25,
         displayOrder: 0,
+        investmentType: undefined,
+        principal: undefined,
+        interestRate: undefined,
+        termMonths: undefined,
+        maturityDate: undefined,
+        compoundingFrequency: undefined,
+        earlyWithdrawalPenalty: undefined,
+        withholdingTaxRate: undefined,
+        cdCreatedAt: undefined,
       });
     });
 
@@ -299,6 +380,15 @@ describe('AccountMapper', () => {
       expect(dto).toHaveProperty('montoInvertido');
       expect(dto).toHaveProperty('shares');
       expect(dto).toHaveProperty('displayOrder');
+      expect(dto).toHaveProperty('investmentType');
+      expect(dto).toHaveProperty('principal');
+      expect(dto).toHaveProperty('interestRate');
+      expect(dto).toHaveProperty('termMonths');
+      expect(dto).toHaveProperty('maturityDate');
+      expect(dto).toHaveProperty('compoundingFrequency');
+      expect(dto).toHaveProperty('earlyWithdrawalPenalty');
+      expect(dto).toHaveProperty('withholdingTaxRate');
+      expect(dto).toHaveProperty('cdCreatedAt');
     });
   });
 
@@ -339,6 +429,15 @@ describe('AccountMapper', () => {
           monto_invertido: null,
           shares: null,
           display_order: 0,
+          investment_type: null,
+          principal: null,
+          interest_rate: null,
+          term_months: null,
+          maturity_date: null,
+          compounding_frequency: null,
+          early_withdrawal_penalty: null,
+          withholding_tax_rate: null,
+          cd_created_at: null,
         },
         {
           id: 'acc-2',
@@ -352,6 +451,15 @@ describe('AccountMapper', () => {
           monto_invertido: null,
           shares: null,
           display_order: 1,
+          investment_type: null,
+          principal: null,
+          interest_rate: null,
+          term_months: null,
+          maturity_date: null,
+          compounding_frequency: null,
+          early_withdrawal_penalty: null,
+          withholding_tax_rate: null,
+          cd_created_at: null,
         },
       ];
 
