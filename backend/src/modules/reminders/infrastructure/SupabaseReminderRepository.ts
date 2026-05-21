@@ -3,7 +3,7 @@ import { SupabaseClient } from '@supabase/supabase-js';
 import { Reminder } from '../domain/Reminder';
 import { CreateReminderDTO, UpdateReminderDTO } from '../application/dtos/ReminderDTO';
 import { CreateExceptionDTO, ReminderException } from '../domain/ReminderException';
-import { IReminderRepository } from '../interfaces/IReminderRepository';
+import { IReminderRepository } from './IReminderRepository';
 import { DatabaseError } from '../../../shared/errors/AppError';
 
 @injectable()
@@ -119,10 +119,7 @@ export class SupabaseReminderRepository implements IReminderRepository {
             .select()
             .single();
 
-        if (error) {
-            console.error('❌ Supabase error in createException:', error);
-            throw new Error(error.message);
-        }
+        if (error) throw new Error(error.message);
         
         if (!created) {
             throw new Error('Failed to create reminder exception: No data returned');

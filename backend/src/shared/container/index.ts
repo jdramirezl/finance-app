@@ -88,6 +88,16 @@ import { MarkMovementsAsOrphanedUseCase } from '../../modules/movements/applicat
 import { UpdateMovementsAccountForPocketUseCase } from '../../modules/movements/application/useCases/UpdateMovementsAccountForPocketUseCase';
 import { MovementController } from '../../modules/movements/presentation/MovementController';
 
+// Movement Template Module
+import { IMovementTemplateRepository } from '../../modules/movements/infrastructure/IMovementTemplateRepository';
+import { SupabaseMovementTemplateRepository } from '../../modules/movements/infrastructure/SupabaseMovementTemplateRepository';
+import { GetAllTemplatesUseCase } from '../../modules/movements/application/useCases/GetAllTemplatesUseCase';
+import { GetTemplateByIdUseCase } from '../../modules/movements/application/useCases/GetTemplateByIdUseCase';
+import { CreateTemplateUseCase } from '../../modules/movements/application/useCases/CreateTemplateUseCase';
+import { UpdateTemplateUseCase } from '../../modules/movements/application/useCases/UpdateTemplateUseCase';
+import { DeleteTemplateUseCase } from '../../modules/movements/application/useCases/DeleteTemplateUseCase';
+import { TemplateController } from '../../modules/movements/presentation/TemplateController';
+
 // Settings Module
 import { ISettingsRepository } from '../../modules/settings/infrastructure/ISettingsRepository';
 import { SupabaseSettingsRepository } from '../../modules/settings/infrastructure/SupabaseSettingsRepository';
@@ -102,10 +112,16 @@ import { ConvertCurrencyUseCase } from '../../modules/settings/application/useCa
 import { SettingsController } from '../../modules/settings/presentation/SettingsController';
 import { CurrencyController } from '../../modules/settings/presentation/CurrencyController';
 // Reminders Module
-import { IReminderRepository } from '../../modules/reminders/interfaces/IReminderRepository';
+import { IReminderRepository } from '../../modules/reminders/infrastructure/IReminderRepository';
 import { SupabaseReminderRepository } from '../../modules/reminders/infrastructure/SupabaseReminderRepository';
-import { ReminderService } from '../../modules/reminders/application/ReminderService';
-import { ReminderController } from '../../modules/reminders/interfaces/ReminderController';
+import { GetAllRemindersUseCase } from '../../modules/reminders/application/useCases/GetAllRemindersUseCase';
+import { CreateReminderUseCase } from '../../modules/reminders/application/useCases/CreateReminderUseCase';
+import { UpdateReminderUseCase } from '../../modules/reminders/application/useCases/UpdateReminderUseCase';
+import { DeleteReminderUseCase } from '../../modules/reminders/application/useCases/DeleteReminderUseCase';
+import { MarkReminderAsPaidUseCase } from '../../modules/reminders/application/useCases/MarkReminderAsPaidUseCase';
+import { CreateReminderExceptionUseCase } from '../../modules/reminders/application/useCases/CreateReminderExceptionUseCase';
+import { SplitReminderSeriesUseCase } from '../../modules/reminders/application/useCases/SplitReminderSeriesUseCase';
+import { ReminderController } from '../../modules/reminders/presentation/ReminderController';
 
 // Net-Worth Module
 import { INetWorthSnapshotRepository } from '../../modules/net-worth/infrastructure/INetWorthSnapshotRepository';
@@ -247,6 +263,17 @@ function registerMovementModule(): void {
 
   // Register controller
   container.register(MovementController, { useClass: MovementController });
+
+  // Template sub-module
+  container.register<IMovementTemplateRepository>('MovementTemplateRepository', {
+    useClass: SupabaseMovementTemplateRepository,
+  });
+  container.register(GetAllTemplatesUseCase, { useClass: GetAllTemplatesUseCase });
+  container.register(GetTemplateByIdUseCase, { useClass: GetTemplateByIdUseCase });
+  container.register(CreateTemplateUseCase, { useClass: CreateTemplateUseCase });
+  container.register(UpdateTemplateUseCase, { useClass: UpdateTemplateUseCase });
+  container.register(DeleteTemplateUseCase, { useClass: DeleteTemplateUseCase });
+  container.register(TemplateController, { useClass: TemplateController });
 }
 
 /**
@@ -287,10 +314,14 @@ function registerReminderModule(): void {
     useClass: SupabaseReminderRepository,
   });
 
-  // Register service
-  container.register(ReminderService, {
-    useFactory: (c) => new ReminderService(c.resolve('ReminderRepository'))
-  });
+  // Register use cases
+  container.register(GetAllRemindersUseCase, { useClass: GetAllRemindersUseCase });
+  container.register(CreateReminderUseCase, { useClass: CreateReminderUseCase });
+  container.register(UpdateReminderUseCase, { useClass: UpdateReminderUseCase });
+  container.register(DeleteReminderUseCase, { useClass: DeleteReminderUseCase });
+  container.register(MarkReminderAsPaidUseCase, { useClass: MarkReminderAsPaidUseCase });
+  container.register(CreateReminderExceptionUseCase, { useClass: CreateReminderExceptionUseCase });
+  container.register(SplitReminderSeriesUseCase, { useClass: SplitReminderSeriesUseCase });
 
   // Register controller
   container.register(ReminderController, { useClass: ReminderController });
