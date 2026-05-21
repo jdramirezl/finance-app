@@ -29,6 +29,7 @@ export interface ISettingsRepository {
    * @param settings - Settings entity
    */
   update(settings: Settings): Promise<void>;
+  updateFields(userId: string, fields: Record<string, unknown>): Promise<void>;
 
   /**
    * Create default settings for a new user

@@ -54,10 +54,20 @@ export class UpdateSettingsUseCase {
       settings.updateAlphaVantageApiKey(dto.alphaVantageApiKey);
     }
 
-    // Save updated settings
+    // Save core settings via domain entity
     await this.settingsRepository.update(settings);
 
-    // Convert to DTO and return
-    return SettingsMapper.toDTO(settings);
+    // Save additional fields directly (accountCardDisplay, snapshotFrequency, etc.)
+    // These bypass the domain entity since they're simple preferences without business rules
+    const extraFields: Record<string, unknown> = {};
+    if ('accountCardDisplay' in dto) extraFields.account_card_display = dto.accountCardDisplay;
+    if ('snapshotFrequency' in dto) extraFields.snapshot_frequency = dto.snapshotFrequency;
+    if (Object.keys(extraFields).length > 0) {
+      await this.settingsRepository.updateFields(userId, extraFields);
+    }
+
+    // Re-fetch to return the full updated state
+    const updated = await this.settingsRepository.findByUserId(userId);
+    return SettingsMapper.toDTO(updated!);
   }
 }
