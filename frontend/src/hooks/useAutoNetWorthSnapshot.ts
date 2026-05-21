@@ -4,6 +4,11 @@
  * Automatically takes a net worth snapshot on app load if:
  * 1. User has not set frequency to 'manual'
  * 2. Enough time has passed since the last snapshot
+ *
+ * Multi-tab race condition: If multiple tabs open simultaneously, each may
+ * attempt to create a snapshot. This is safe because the backend uses upsert
+ * with a unique constraint on (user_id, snapshot_date) — concurrent writes
+ * for the same day resolve to a single row.
  */
 
 import { useEffect, useRef } from 'react';
