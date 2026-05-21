@@ -13,18 +13,12 @@ import { useBudgetPersistence } from '../hooks/useBudgetPersistence';
 import { useToast } from '../hooks/useToast';
 import type { Currency } from '../types';
 import BatchMovementForm from '../components/movements/BatchMovementForm';
-import AccountPocketSelector from '../components/movements/AccountPocketSelector';
-import Button from '../components/ui/Button';
-import EmptyState from '../components/ui/EmptyState';
 import Modal from '../components/ui/Modal';
-import PageHeader from '../components/ui/PageHeader';
-import { Skeleton, SkeletonCard, SkeletonList } from '../components/ui/Skeleton';
-import {
-  BudgetDistribution,
-  BudgetIncomeSection,
-  BudgetSummaryCard,
-  ScenarioSection,
-} from '../components/budget';
+import { Skeleton, SkeletonCard } from '../components/ui/Skeleton';
+import BudgetScenarioTabs from '../components/budget/BudgetScenarioTabs';
+import BudgetIncomeCard from '../components/budget/BudgetIncomeCard';
+import AllocationStrategy from '../components/budget/AllocationStrategy';
+import BudgetSidebar from '../components/budget/BudgetSidebar';
 import ScenarioForm, {
   type PlanningScenario,
 } from '../components/budget/ScenarioForm';
@@ -56,9 +50,10 @@ const BudgetPlanningPage = () => {
     setDefaultPocketId,
   } = useBudgetPersistence();
 
-  // Modal state — page owns it.
+  // Modal state
   const [showScenarioForm, setShowScenarioForm] = useState(false);
   const [editingScenario, setEditingScenario] = useState<PlanningScenario | null>(null);
+  const [activeScenarioTab, setActiveScenarioTab] = useState<string | null>(null);
 
   // Derived data
   const fixedPockets = useMemo(
@@ -89,15 +84,24 @@ const BudgetPlanningPage = () => {
     defaultPocketId,
   });
 
+  const totalPercentage = useMemo(
+    () => distributionEntries.reduce((sum, e) => sum + e.percentage, 0),
+    [distributionEntries]
+  );
+
   if (isLoading) {
     return (
       <div className="space-y-6">
-        <Skeleton className="h-8 w-64 mb-6" />
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <SkeletonCard />
-          <SkeletonCard />
+        <Skeleton className="h-10 w-64" />
+        <div className="grid grid-cols-12 gap-4">
+          <div className="col-span-12 lg:col-span-8 space-y-4">
+            <SkeletonCard />
+            <SkeletonCard />
+          </div>
+          <div className="col-span-12 lg:col-span-4">
+            <SkeletonCard />
+          </div>
         </div>
-        <SkeletonList items={5} />
       </div>
     );
   }
@@ -113,81 +117,61 @@ const BudgetPlanningPage = () => {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between flex-wrap gap-4">
-        <PageHeader title="Budget Planning" />
-        <div className="flex items-center gap-4">
-          <div className="w-64">
-            <AccountPocketSelector
-              accountId={defaultAccountId}
-              pocketId={defaultPocketId}
-              onAccountChange={setDefaultAccountId}
-              onPocketChange={setDefaultPocketId}
-              accountLabel="Default Account"
-              pocketLabel="Default Pocket"
-            />
-          </div>
-          <Button
-            variant="secondary"
-            onClick={actions.prepareBatchFromDistribution}
-            disabled={initialAmount <= 0}
-          >
-            <Receipt className="w-5 h-5" />
-            Create Movements
-          </Button>
+    <div className="space-y-8">
+      {/* Header: Title + Scenario Tabs */}
+      <section className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+        <div>
+          <h1 className="text-4xl font-bold text-on-surface">Budget Planning</h1>
+          <p className="text-on-surface-variant mt-1 text-sm">
+            Strategic allocation and scenario modeling
+          </p>
+        </div>
+        <BudgetScenarioTabs
+          scenarios={scenarios}
+          activeId={activeScenarioTab}
+          onSelect={setActiveScenarioTab}
+          onCreate={() => {
+            setEditingScenario(null);
+            setShowScenarioForm(true);
+          }}
+        />
+      </section>
+
+      {/* Two-column grid */}
+      <div className="grid grid-cols-12 gap-4">
+        {/* Main content */}
+        <div className="col-span-12 lg:col-span-8 flex flex-col gap-4">
+          <BudgetIncomeCard
+            initialAmount={initialAmount}
+            onAmountChange={setInitialAmount}
+            totalFixedExpenses={actions.totalFijosMes}
+            distributable={actions.remaining}
+            currency={budgetCurrency}
+          />
+          <AllocationStrategy
+            entries={distributionEntries}
+            distributable={actions.remaining}
+            currency={budgetCurrency}
+            totalPercentage={totalPercentage}
+            onEntriesChange={setDistributionEntries}
+            onGenerateMovements={actions.prepareBatchFromDistribution}
+            generateDisabled={initialAmount <= 0 || distributionEntries.length === 0}
+          />
+        </div>
+
+        {/* Sidebar */}
+        <div className="col-span-12 lg:col-span-4">
+          <BudgetSidebar
+            entries={distributionEntries}
+            distributable={actions.remaining}
+            totalIncome={initialAmount}
+            totalFixedExpenses={actions.totalFijosMes}
+            currency={budgetCurrency}
+          />
         </div>
       </div>
 
-      <BudgetIncomeSection initialAmount={initialAmount} onChange={setInitialAmount} />
-
-      <ScenarioSection
-        scenarios={scenarios}
-        activeScenarioIds={actions.activeScenarioIds}
-        fixedSubPockets={fixedSubPockets}
-        currency={budgetCurrency}
-        onCreate={() => {
-          setEditingScenario(null);
-          setShowScenarioForm(true);
-        }}
-        onEdit={(scenario) => {
-          setEditingScenario(scenario);
-          setShowScenarioForm(true);
-        }}
-        onDelete={actions.deleteScenario}
-        onToggle={actions.toggleScenario}
-      />
-
-      {initialAmount > 0 && (
-        <BudgetSummaryCard
-          initialAmount={initialAmount}
-          totalFixedExpenses={actions.totalFijosMes}
-          remaining={actions.remaining}
-          currency={budgetCurrency}
-        />
-      )}
-
-      {actions.remaining > 0 && (
-        <BudgetDistribution
-          entries={distributionEntries}
-          remaining={actions.remaining}
-          currency={budgetCurrency}
-          primaryCurrency={primaryCurrency}
-          showConversion={actions.showConversion}
-          convertedAmounts={actions.convertedAmounts}
-          onEntriesChange={setDistributionEntries}
-          pockets={pockets}
-          accounts={accounts}
-        />
-      )}
-
-      {fixedPockets.length === 0 && (
-        <EmptyState
-          icon={Receipt}
-          title="No fixed expenses pocket found"
-          description="Create one in the Accounts page to see fixed expenses deductions here."
-        />
-      )}
-
+      {/* Modals */}
       <Modal
         isOpen={showScenarioForm}
         onClose={closeScenarioForm}

@@ -193,3 +193,33 @@ body {
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: rgba(61, 73, 76, 0.7);
 }
+
+/* Range slider */
+.range-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  background: rgba(255, 255, 255, 0.1);
+  height: 4px;
+  border-radius: 2px;
+  cursor: pointer;
+}
+
+.range-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  height: 16px;
+  width: 16px;
+  border-radius: 50%;
+  background: #4cd7f6;
+  cursor: pointer;
+  box-shadow: 0 0 10px rgba(76, 215, 246, 0.5);
+}
+
+.range-slider::-moz-range-thumb {
+  height: 16px;
+  width: 16px;
+  border-radius: 50%;
+  background: #4cd7f6;
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 0 10px rgba(76, 215, 246, 0.5);
+}
