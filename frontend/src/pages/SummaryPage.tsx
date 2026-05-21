@@ -111,12 +111,15 @@ const SummaryPage = () => {
   useAutoNetWorthSnapshot({ consolidatedTotal, totalsByCurrency, isConsolidatedReady });
 
   // Fixed expenses derived data
+  const fixedPockets = useMemo(() => pockets.filter((p) => p.type === 'fixed'), [pockets]);
+
   const fixedSubPockets = useMemo(() => {
-    const fixedPockets = pockets.filter((p) => p.type === 'fixed');
     return subPockets.filter((sp) =>
       fixedPockets.some((fp) => fp.id === sp.pocketId)
     );
-  }, [pockets, subPockets]);
+  }, [fixedPockets, subPockets]);
+
+  const fixedExpensesCurrency = fixedPockets[0]?.currency || primaryCurrency;
 
   // Today's spending for the floating bar
   const [todaySpending, setTodaySpending] = useState(0);
@@ -235,7 +238,7 @@ const SummaryPage = () => {
               <FixedObligationsWidget
                 subPockets={fixedSubPockets}
                 groups={fixedExpenseGroups}
-                primaryCurrency={primaryCurrency}
+                primaryCurrency={fixedExpensesCurrency}
               />
             )}
           </ErrorBoundary>

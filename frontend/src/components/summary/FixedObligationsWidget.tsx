@@ -75,7 +75,7 @@ const FixedObligationsWidget = ({ subPockets, groups, primaryCurrency = 'USD' }:
       <div className="flex items-center justify-between px-4 py-3 border-b border-white/[0.06]">
         <h3 className="text-lg font-semibold text-on-surface flex items-center gap-2">
           <Wallet className="w-5 h-5" />
-          Fixed Commitments
+          Fixed Expenses
         </h3>
         <button
           onClick={() => navigate('/fixed-expenses')}
