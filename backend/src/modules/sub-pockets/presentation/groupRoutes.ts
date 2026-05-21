@@ -11,6 +11,8 @@ import { Router } from 'express';
 import { container } from 'tsyringe';
 import { FixedExpenseGroupController } from './FixedExpenseGroupController';
 import { authMiddleware } from '../../../shared/middleware/authMiddleware';
+import { validateBody } from '../../../shared/middleware/validate';
+import { createGroupSchema, updateGroupSchema, reorderGroupsSchema } from './schemas';
 
 const router = Router();
 
@@ -30,7 +32,7 @@ router.use(authMiddleware);
  * 
  * Requirements: 9.1
  */
-router.post('/', (req, res, next) => controller.create(req, res, next));
+router.post('/', validateBody(createGroupSchema), (req, res, next) => controller.create(req, res, next));
 
 /**
  * GET /api/fixed-expense-groups
@@ -52,7 +54,7 @@ router.get('/', (req, res, next) => controller.getAll(req, res, next));
  * 
  * Requirements: 9.1
  */
-router.put('/:id', (req, res, next) => controller.update(req, res, next));
+router.put('/:id', validateBody(updateGroupSchema), (req, res, next) => controller.update(req, res, next));
 
 /**
  * DELETE /api/fixed-expense-groups/:id
@@ -74,7 +76,7 @@ router.delete('/:id', (req, res, next) => controller.delete(req, res, next));
  * 
  * Requirements: 9.1
  */
-router.post('/reorder', (req, res, next) => controller.reorder(req, res, next));
+router.post('/reorder', validateBody(reorderGroupsSchema), (req, res, next) => controller.reorder(req, res, next));
 
 /**
  * POST /api/fixed-expense-groups/:id/toggle

@@ -11,6 +11,8 @@ import { Router } from 'express';
 import { container } from 'tsyringe';
 import { SubPocketController } from './SubPocketController';
 import { authMiddleware } from '../../../shared/middleware/authMiddleware';
+import { validateBody } from '../../../shared/middleware/validate';
+import { createSubPocketSchema, updateSubPocketSchema, moveToGroupSchema, reorderSubPocketsSchema } from './schemas';
 
 const router = Router();
 
@@ -30,7 +32,7 @@ router.use(authMiddleware);
  * 
  * Requirements: 8.1, 8.2
  */
-router.post('/', (req, res, next) => controller.create(req, res, next));
+router.post('/', validateBody(createSubPocketSchema), (req, res, next) => controller.create(req, res, next));
 
 /**
  * GET /api/sub-pockets
@@ -54,7 +56,7 @@ router.get('/', (req, res, next) => controller.getByFilter(req, res, next));
  * 
  * Requirements: 8.3
  */
-router.put('/:id', (req, res, next) => controller.update(req, res, next));
+router.put('/:id', validateBody(updateSubPocketSchema), (req, res, next) => controller.update(req, res, next));
 
 /**
  * DELETE /api/sub-pockets/:id
@@ -88,7 +90,7 @@ router.post('/:id/toggle', (req, res, next) => controller.toggle(req, res, next)
  * 
  * Requirements: 9.2
  */
-router.post('/:id/move-to-group', (req, res, next) => controller.moveToGroup(req, res, next));
+router.post('/:id/move-to-group', validateBody(moveToGroupSchema), (req, res, next) => controller.moveToGroup(req, res, next));
 
 /**
  * POST /api/sub-pockets/reorder
@@ -100,6 +102,6 @@ router.post('/:id/move-to-group', (req, res, next) => controller.moveToGroup(req
  * 
  * Requirements: 8.6
  */
-router.post('/reorder', (req, res, next) => controller.reorder(req, res, next));
+router.post('/reorder', validateBody(reorderSubPocketsSchema), (req, res, next) => controller.reorder(req, res, next));
 
 export default router;

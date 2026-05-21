@@ -11,6 +11,8 @@ import { Router } from 'express';
 import { container } from 'tsyringe';
 import { AccountController } from './AccountController';
 import { authMiddleware } from '../../../shared/middleware/authMiddleware';
+import { validateBody } from '../../../shared/middleware/validate';
+import { createAccountSchema, updateAccountSchema, cascadeDeleteSchema, reorderAccountsSchema } from './schemas';
 
 const router = Router();
 
@@ -30,7 +32,7 @@ router.use(authMiddleware);
  * 
  * Requirements: 4.1, 4.2, 4.3
  */
-router.post('/', (req, res, next) => controller.create(req, res, next));
+router.post('/', validateBody(createAccountSchema), (req, res, next) => controller.create(req, res, next));
 
 /**
  * GET /api/accounts
@@ -64,7 +66,7 @@ router.get('/:id', (req, res, next) => controller.getById(req, res, next));
  * 
  * Requirements: 4.5
  */
-router.put('/:id', (req, res, next) => controller.update(req, res, next));
+router.put('/:id', validateBody(updateAccountSchema), (req, res, next) => controller.update(req, res, next));
 
 /**
  * DELETE /api/accounts/:id
@@ -87,7 +89,7 @@ router.delete('/:id', (req, res, next) => controller.delete(req, res, next));
  * 
  * Requirements: 5.1, 5.2, 5.3, 5.4, 5.5
  */
-router.post('/:id/cascade', (req, res, next) => controller.deleteCascade(req, res, next));
+router.post('/:id/cascade', validateBody(cascadeDeleteSchema), (req, res, next) => controller.deleteCascade(req, res, next));
 
 /**
  * POST /api/accounts/reorder
@@ -99,6 +101,6 @@ router.post('/:id/cascade', (req, res, next) => controller.deleteCascade(req, re
  * 
  * Requirements: 4.7
  */
-router.post('/reorder', (req, res, next) => controller.reorder(req, res, next));
+router.post('/reorder', validateBody(reorderAccountsSchema), (req, res, next) => controller.reorder(req, res, next));
 
 export default router;

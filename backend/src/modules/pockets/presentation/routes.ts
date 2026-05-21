@@ -11,6 +11,8 @@ import { Router } from 'express';
 import { container } from 'tsyringe';
 import { PocketController } from './PocketController';
 import { authMiddleware } from '../../../shared/middleware/authMiddleware';
+import { validateBody } from '../../../shared/middleware/validate';
+import { createPocketSchema, updatePocketSchema, migratePocketSchema, reorderPocketsSchema } from './schemas';
 
 const router = Router();
 
@@ -30,7 +32,7 @@ router.use(authMiddleware);
  * 
  * Requirements: 6.1, 6.2, 6.3
  */
-router.post('/', (req, res, next) => controller.create(req, res, next));
+router.post('/', validateBody(createPocketSchema), (req, res, next) => controller.create(req, res, next));
 
 /**
  * GET /api/pockets
@@ -65,7 +67,7 @@ router.get('/:id', (req, res, next) => controller.getById(req, res, next));
  * 
  * Requirements: 6.1
  */
-router.put('/:id', (req, res, next) => controller.update(req, res, next));
+router.put('/:id', validateBody(updatePocketSchema), (req, res, next) => controller.update(req, res, next));
 
 /**
  * DELETE /api/pockets/:id
@@ -88,7 +90,7 @@ router.delete('/:id', (req, res, next) => controller.delete(req, res, next));
  * 
  * Requirements: 7.1, 7.2, 7.3, 7.4
  */
-router.post('/:id/migrate', (req, res, next) => controller.migrate(req, res, next));
+router.post('/:id/migrate', validateBody(migratePocketSchema), (req, res, next) => controller.migrate(req, res, next));
 
 /**
  * POST /api/pockets/reorder
@@ -100,6 +102,6 @@ router.post('/:id/migrate', (req, res, next) => controller.migrate(req, res, nex
  * 
  * Requirements: 6.6
  */
-router.post('/reorder', (req, res, next) => controller.reorder(req, res, next));
+router.post('/reorder', validateBody(reorderPocketsSchema), (req, res, next) => controller.reorder(req, res, next));
 
 export default router;

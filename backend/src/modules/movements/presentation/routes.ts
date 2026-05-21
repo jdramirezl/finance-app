@@ -11,6 +11,8 @@ import { Router } from 'express';
 import { container } from 'tsyringe';
 import { MovementController } from './MovementController';
 import { authMiddleware } from '../../../shared/middleware/authMiddleware';
+import { validateBody } from '../../../shared/middleware/validate';
+import { createMovementSchema, updateMovementSchema, createTransferSchema, batchMovementSchema, markOrphanedSchema, updateAccountForPocketSchema } from './schemas';
 
 const router = Router();
 
@@ -30,7 +32,7 @@ router.use(authMiddleware);
  * 
  * Requirements: 10.1, 10.2, 10.3, 10.4
  */
-router.post('/', (req, res, next) => controller.create(req, res, next));
+router.post('/', validateBody(createMovementSchema), (req, res, next) => controller.create(req, res, next));
 
 /**
  * POST /api/movements/batch
@@ -39,7 +41,7 @@ router.post('/', (req, res, next) => controller.create(req, res, next));
  * Body: { movements: BatchMovementParams[] }
  * Response: 201 + MovementResponseDTO[]
  */
-router.post('/batch', (req, res, next) => controller.batchCreate(req, res, next));
+router.post('/batch', validateBody(batchMovementSchema), (req, res, next) => controller.batchCreate(req, res, next));
 
 /**
  * POST /api/movements/transfer
@@ -48,7 +50,7 @@ router.post('/batch', (req, res, next) => controller.batchCreate(req, res, next)
  * Body: CreateTransferDTO
  * Response: 201 + { expense: Movement, income: Movement }
  */
-router.post('/transfer', (req, res, next) => controller.createTransfer(req, res, next));
+router.post('/transfer', validateBody(createTransferSchema), (req, res, next) => controller.createTransfer(req, res, next));
 
 /**
  * GET /api/movements
@@ -128,7 +130,7 @@ router.delete('/by-pocket/:pocketId', (req, res, next) => controller.deleteByPoc
  * Body: { entityId: string, entityType: 'account' | 'pocket' }
  * Response: 200 + { count: number }
  */
-router.post('/mark-orphaned', (req, res, next) => controller.markOrphaned(req, res, next));
+router.post('/mark-orphaned', validateBody(markOrphanedSchema), (req, res, next) => controller.markOrphaned(req, res, next));
 
 /**
  * POST /api/movements/update-account
@@ -137,7 +139,7 @@ router.post('/mark-orphaned', (req, res, next) => controller.markOrphaned(req, r
  * Body: { pocketId: string, newAccountId: string }
  * Response: 200 + { count: number }
  */
-router.post('/update-account', (req, res, next) => controller.updateAccountForPocket(req, res, next));
+router.post('/update-account', validateBody(updateAccountForPocketSchema), (req, res, next) => controller.updateAccountForPocket(req, res, next));
 
 /**
  * PUT /api/movements/:id
@@ -149,7 +151,7 @@ router.post('/update-account', (req, res, next) => controller.updateAccountForPo
  * 
  * Requirements: 10.6
  */
-router.put('/:id', (req, res, next) => controller.update(req, res, next));
+router.put('/:id', validateBody(updateMovementSchema), (req, res, next) => controller.update(req, res, next));
 
 /**
  * DELETE /api/movements/:id
