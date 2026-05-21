@@ -77,7 +77,7 @@ export class CreateAccountUseCase {
       dto.stockSymbol?.trim(),
       undefined, // montoInvertido
       undefined, // shares
-      undefined, // displayOrder
+      0, // displayOrder — NOT NULL constraint requires a value
       // CD-specific fields
       dto.investmentType,
       dto.principal,

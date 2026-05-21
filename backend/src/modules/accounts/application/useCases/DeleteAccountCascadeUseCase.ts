@@ -82,13 +82,7 @@ export class DeleteAccountCascadeUseCase {
     const pockets = await this.pocketRepo.findByAccountId(accountId, userId);
     const pocketIds = pockets.map(p => p.id);
 
-    // 2. Bulk delete all sub-pockets for those pocket IDs (1 query)
-    const subPocketsDeleted = await this.subPocketRepo.deleteByPocketIds(pocketIds, userId);
-
-    // 3. Bulk delete all pockets for the account (1 query)
-    const pocketsDeleted = await this.pocketRepo.deleteByAccountId(accountId, userId);
-
-    // 4. Handle movements (1 query)
+    // 2. Handle movements FIRST (before deleting pockets, due to CHECK constraint)
     let movementsAffected = 0;
     if (dto.deleteMovements) {
       movementsAffected = await this.movementRepo.deleteByAccountId(accountId, userId);
@@ -100,6 +94,12 @@ export class DeleteAccountCascadeUseCase {
         userId
       );
     }
+
+    // 3. Bulk delete all sub-pockets for those pocket IDs (1 query)
+    const subPocketsDeleted = await this.subPocketRepo.deleteByPocketIds(pocketIds, userId);
+
+    // 4. Bulk delete all pockets for the account (1 query)
+    const pocketsDeleted = await this.pocketRepo.deleteByAccountId(accountId, userId);
 
     // 5. Delete the account (1 query)
     await this.accountRepo.delete(accountId, userId);
