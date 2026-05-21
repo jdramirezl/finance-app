@@ -34,3 +34,6 @@ frontend/e2e/.auth/
 
 # Vite cache
 .vite/
+
+# Database backups
+.backups/

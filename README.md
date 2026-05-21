@@ -23,19 +23,17 @@ A modern web application for managing personal finances with multi-user support,
 
 ## 🚀 Quick Start
 
-### For Development
-
 ```bash
 # Install dependencies
 npm install
 
-# Start dev server
-npm run dev
+# Start both frontend and backend
+npm run dev:all
+
+# Or start individually
+npm run dev          # Frontend only (http://localhost:5173)
+npm run dev:backend  # Backend only (http://localhost:3001)
 ```
-
-### For Deployment
-
-See [QUICK_START.md](./QUICK_START.md) for 25-minute deployment guide!
 
 ## 🛠️ Tech Stack
 
@@ -51,7 +49,10 @@ See [QUICK_START.md](./QUICK_START.md) for 25-minute deployment guide!
 - **Recharts** - Data visualization
 
 **Backend:**
+- **Express** + **TypeScript** - API server with clean architecture
 - **Supabase** - PostgreSQL database + Authentication
+- **tsyringe** - Dependency injection
+- **Zod** - Runtime validation
 - **Row Level Security** - Data isolation per user
 
 **Hosting:**
@@ -61,14 +62,23 @@ See [QUICK_START.md](./QUICK_START.md) for 25-minute deployment guide!
 ## Project Structure
 
 ```
-src/
-├── components/     # Reusable UI components
-├── pages/          # Page components (routes)
-├── services/       # Business logic and API services
-├── store/          # Zustand stores (UI state)
-├── hooks/          # React hooks & TanStack Query hooks
-├── types/          # TypeScript type definitions
-└── utils/          # Utility functions
+finance-app/
+├── frontend/           # React 19 + Vite SPA
+│   ├── src/
+│   │   ├── components/ # Feature-based UI components
+│   │   ├── pages/      # Route pages
+│   │   ├── services/   # API service layer
+│   │   ├── hooks/      # TanStack Query & action hooks
+│   │   ├── store/      # Zustand stores
+│   │   ├── types/      # TypeScript types
+│   │   └── utils/      # Utilities
+│   └── api/            # Vercel serverless functions
+├── backend/            # Express API server
+│   ├── src/
+│   │   ├── modules/    # Domain modules (clean architecture)
+│   │   └── shared/     # DI container, middleware, types
+│   └── migrations/     # Supabase SQL migrations
+└── supabase/           # Supabase CLI config
 ```
 
 ## Getting Started
@@ -101,11 +111,10 @@ npm run preview
 
 ## 📖 Documentation
 
-- **[QUICK_START.md](./QUICK_START.md)** - Deploy in 25 minutes
-- **[DEPLOYMENT_GUIDE.md](./DEPLOYMENT_GUIDE.md)** - Detailed deployment instructions
-- **[DEPLOYMENT_SUMMARY.md](./DEPLOYMENT_SUMMARY.md)** - What was implemented
-- **[PROJECT_SPEC.md](./docs/PROJECT_SPEC.md)** - Complete specifications
-- **[PENDING_MOVEMENTS.md](./docs/PENDING_MOVEMENTS.md)** - Pending movements feature
+- **[docs/PROJECT_SPEC.md](./docs/PROJECT_SPEC.md)** - Complete technical specifications
+- **[docs/FEATURE_ROADMAP.md](./docs/FEATURE_ROADMAP.md)** - Feature roadmap
+- **[docs/qol.md](./docs/qol.md)** - Quality of life improvements
+- **[AGENTS.md](./AGENTS.md)** - AI assistant guide for this codebase
 
 ## 🎯 Development Status
 
