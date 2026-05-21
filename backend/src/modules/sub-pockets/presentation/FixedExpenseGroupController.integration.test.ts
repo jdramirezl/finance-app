@@ -17,6 +17,7 @@ import { GetAllGroupsUseCase } from '../application/useCases/GetAllGroupsUseCase
 import { UpdateGroupUseCase } from '../application/useCases/UpdateGroupUseCase';
 import { DeleteGroupUseCase } from '../application/useCases/DeleteGroupUseCase';
 import { ToggleGroupUseCase } from '../application/useCases/ToggleGroupUseCase';
+import { ReorderFixedExpenseGroupsUseCase } from '../application/useCases/ReorderFixedExpenseGroupsUseCase';
 import { ValidationError, NotFoundError } from '../../../shared/errors/AppError';
 import { errorHandler } from '../../../shared/middleware/errorHandler';
 
@@ -27,6 +28,7 @@ describe('FixedExpenseGroupController Integration Tests', () => {
   let mockUpdateGroupUseCase: jest.Mocked<UpdateGroupUseCase>;
   let mockDeleteGroupUseCase: jest.Mocked<DeleteGroupUseCase>;
   let mockToggleGroupUseCase: jest.Mocked<ToggleGroupUseCase>;
+  let mockReorderGroupsUseCase: jest.Mocked<ReorderFixedExpenseGroupsUseCase>;
   
   const testUserId = 'test-user-123';
   const mockAuthMiddleware = (req: any, _res: any, next: any) => {
@@ -41,6 +43,7 @@ describe('FixedExpenseGroupController Integration Tests', () => {
     mockUpdateGroupUseCase = { execute: jest.fn() } as any;
     mockDeleteGroupUseCase = { execute: jest.fn() } as any;
     mockToggleGroupUseCase = { execute: jest.fn() } as any;
+    mockReorderGroupsUseCase = { execute: jest.fn() } as any;
 
     // Create controller with mocked use cases
     const controller = new FixedExpenseGroupController(
@@ -48,7 +51,8 @@ describe('FixedExpenseGroupController Integration Tests', () => {
       mockGetAllGroupsUseCase,
       mockUpdateGroupUseCase,
       mockDeleteGroupUseCase,
-      mockToggleGroupUseCase
+      mockToggleGroupUseCase,
+      mockReorderGroupsUseCase
     );
 
     // Setup Express app with routes
@@ -62,6 +66,7 @@ describe('FixedExpenseGroupController Integration Tests', () => {
     router.put('/:id', (req, res, next) => controller.update(req, res, next));
     router.delete('/:id', (req, res, next) => controller.delete(req, res, next));
     router.post('/:id/toggle', (req, res, next) => controller.toggle(req, res, next));
+    router.post('/reorder', (req, res, next) => controller.reorder(req, res, next));
     
     app.use('/api/fixed-expense-groups', router);
     app.use(errorHandler);
@@ -268,6 +273,32 @@ describe('FixedExpenseGroupController Integration Tests', () => {
         .post('/api/fixed-expense-groups/nonexistent/toggle');
 
       expect(response.status).toBe(404);
+    });
+  });
+
+  describe('POST /api/fixed-expense-groups/reorder - Reorder Groups', () => {
+    it('should reorder groups successfully', async () => {
+      mockReorderGroupsUseCase.execute.mockResolvedValue(undefined);
+
+      const response = await request(app)
+        .post('/api/fixed-expense-groups/reorder')
+        .send({ ids: ['group-2', 'group-1', 'group-3'] });
+
+      expect(response.status).toBe(200);
+      expect(response.body).toEqual({ success: true });
+      expect(mockReorderGroupsUseCase.execute).toHaveBeenCalledWith(
+        ['group-2', 'group-1', 'group-3'],
+        testUserId
+      );
+    });
+
+    it('should return 400 when ids not provided', async () => {
+      const response = await request(app)
+        .post('/api/fixed-expense-groups/reorder')
+        .send({});
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toContain('required');
     });
   });
 });

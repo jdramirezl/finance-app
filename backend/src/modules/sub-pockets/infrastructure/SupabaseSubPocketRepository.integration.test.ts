@@ -30,13 +30,12 @@ describeIntegration('SupabaseSubPocketRepository Integration Tests', () => {
   let supabase: any;
 
   beforeAll(() => {
-    repository = new SupabaseSubPocketRepository();
-    testUserId = `test-user-${Date.now()}-${Math.random().toString(36).substring(7)}`;
-    
     supabase = createClient(
       process.env.SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_KEY!
     );
+    repository = new SupabaseSubPocketRepository(supabase);
+    testUserId = `test-user-${Date.now()}-${Math.random().toString(36).substring(7)}`;
   });
 
   afterEach(async () => {

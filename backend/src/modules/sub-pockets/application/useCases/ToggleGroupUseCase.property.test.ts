@@ -28,6 +28,7 @@ describe('ToggleGroupUseCase - Property Tests', () => {
       findAllByUserId: jest.fn(),
       update: jest.fn(),
       delete: jest.fn(),
+      updateDisplayOrders: jest.fn(),
     };
     mockSubPocketRepository = {
       save: jest.fn(),
@@ -37,9 +38,10 @@ describe('ToggleGroupUseCase - Property Tests', () => {
       findAllByUserId: jest.fn(),
       update: jest.fn(),
       delete: jest.fn(),
+      deleteByPocketIds: jest.fn(),
       updateDisplayOrders: jest.fn(),
-      hasMovements: jest.fn(),
       countMovements: jest.fn(),
+      hasMovements: jest.fn(),
     };
     useCase = new ToggleGroupUseCase(mockGroupRepository, mockSubPocketRepository);
   });
