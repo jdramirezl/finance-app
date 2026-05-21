@@ -40,13 +40,6 @@ export class GetSubPocketsByPocketUseCase {
     // Fetch sub-pockets
     const subPockets = await this.subPocketRepo.findByPocketId(pocketId, userId);
 
-    // TODO: In Phase 4, fetch movements and calculate balances
-    // For now, balances are already stored in the database
-    // When movements are implemented, we'll:
-    // 1. Fetch movements for each sub-pocket
-    // 2. Use domainService.updateSubPocketBalance() to calculate
-    // 3. Update the sub-pocket entities with calculated balances
-
     // Sort by display order
     const sortedSubPockets = subPockets.sort((a, b) => {
       const orderA = a.displayOrder ?? Number.MAX_SAFE_INTEGER;

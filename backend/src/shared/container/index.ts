@@ -107,6 +107,16 @@ import { SupabaseReminderRepository } from '../../modules/reminders/infrastructu
 import { ReminderService } from '../../modules/reminders/application/ReminderService';
 import { ReminderController } from '../../modules/reminders/interfaces/ReminderController';
 
+// Net-Worth Module
+import { INetWorthSnapshotRepository } from '../../modules/net-worth/infrastructure/INetWorthSnapshotRepository';
+import { SupabaseNetWorthSnapshotRepository } from '../../modules/net-worth/infrastructure/SupabaseNetWorthSnapshotRepository';
+import { GetAllSnapshotsUseCase } from '../../modules/net-worth/application/useCases/GetAllSnapshotsUseCase';
+import { GetLatestSnapshotUseCase } from '../../modules/net-worth/application/useCases/GetLatestSnapshotUseCase';
+import { CreateSnapshotUseCase } from '../../modules/net-worth/application/useCases/CreateSnapshotUseCase';
+import { UpdateSnapshotUseCase } from '../../modules/net-worth/application/useCases/UpdateSnapshotUseCase';
+import { DeleteSnapshotUseCase } from '../../modules/net-worth/application/useCases/DeleteSnapshotUseCase';
+import { NetWorthController } from '../../modules/net-worth/presentation/NetWorthController';
+
 
 /**
  * Initialize all module registrations
@@ -199,7 +209,6 @@ function registerFixedExpenseGroupModule(): void {
   container.register(CreateFixedExpenseGroupUseCase, { useClass: CreateFixedExpenseGroupUseCase });
   container.register(GetAllGroupsUseCase, { useClass: GetAllGroupsUseCase });
   container.register(UpdateGroupUseCase, { useClass: UpdateGroupUseCase });
-  container.register(DeleteGroupUseCase, { useClass: DeleteGroupUseCase });
   container.register(DeleteGroupUseCase, { useClass: DeleteGroupUseCase });
   container.register(ToggleGroupUseCase, { useClass: ToggleGroupUseCase });
   container.register(ReorderFixedExpenseGroupsUseCase, { useClass: ReorderFixedExpenseGroupsUseCase });

@@ -36,13 +36,6 @@ export class GetPocketsByAccountUseCase {
     // Fetch pockets for the account
     const pockets = await this.pocketRepo.findByAccountId(accountId, userId);
 
-    // TODO: Calculate balances when Movement and SubPocket modules are implemented
-    // For now, pockets will have their stored balance values
-    // In Phase 3 & 4, we'll:
-    // 1. Fetch movements for normal pockets
-    // 2. Fetch sub-pockets for fixed pockets
-    // 3. Use PocketDomainService to calculate balances
-
     // Sort by display order (nulls last)
     const sortedPockets = pockets.sort((a, b) => {
       if (a.displayOrder === undefined && b.displayOrder === undefined) return 0;

@@ -93,9 +93,6 @@ export class CreateAccountUseCase {
     // Persist account
     await this.accountRepo.save(account, userId);
 
-    // TODO: For investment accounts, create default pockets (will be implemented in Phase 2)
-    // Investment accounts should have default pockets created automatically
-
     // Return DTO
     return AccountMapper.toDTO(account);
   }

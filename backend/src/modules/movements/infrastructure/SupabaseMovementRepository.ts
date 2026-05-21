@@ -10,6 +10,7 @@ import type { IMovementRepository, MovementFilters, PaginationOptions, CreateTra
 import { Movement } from '../domain/Movement';
 import { MovementMapper } from '../application/mappers/MovementMapper';
 import { DatabaseError } from '../../../shared/errors/AppError';
+import { generateId } from '../../../shared/utils/idGenerator';
 import type { Currency } from '@shared-backend/types';
 
 @injectable()
@@ -65,7 +66,7 @@ export class SupabaseMovementRepository implements IMovementRepository {
    */
   async batchCreate(movements: BatchMovementParams[], userId: string): Promise<Movement[]> {
     const payload = movements.map(m => ({
-      id: crypto.randomUUID(),
+      id: generateId(),
       type: m.type,
       accountId: m.accountId,
       pocketId: m.pocketId,
