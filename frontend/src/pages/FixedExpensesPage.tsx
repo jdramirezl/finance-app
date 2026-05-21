@@ -11,10 +11,10 @@ import {
 } from '../hooks/queries';
 import { useToast } from '../hooks/useToast';
 import { useConfirmDialog } from '../contexts/ConfirmDialogContext';
-import { useFixedExpenseActions } from '../hooks/useFixedExpenseActions';
+import { useFixedExpenseActions } from '../hooks/actions/useFixedExpenseActions';
 import type { Account, FixedExpenseGroup, SubPocket } from '../types';
 import { calculateAporteMensual } from '../utils/fixedExpenseUtils';
-import BatchMovementForm from '../components/BatchMovementForm';
+import BatchMovementForm from '../components/movements/BatchMovementForm';
 import Button from '../components/ui/Button';
 import Card from '../components/ui/Card';
 import EmptyState from '../components/ui/EmptyState';

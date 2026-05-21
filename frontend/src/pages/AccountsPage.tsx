@@ -9,7 +9,7 @@ import {
 } from '../hooks/queries';
 import { useToast } from '../hooks/useToast';
 import { useConfirmDialog } from '../contexts/ConfirmDialogContext';
-import { useAccountActions } from '../hooks/useAccountActions';
+import { useAccountActions } from '../hooks/actions/useAccountActions';
 import type { Account, CDInvestmentAccount } from '../types';
 import Modal from '../components/ui/Modal';
 import Button from '../components/ui/Button';

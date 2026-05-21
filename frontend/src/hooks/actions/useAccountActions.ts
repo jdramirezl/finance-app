@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { accountService } from '../services/accountService';
-import type { Account, CDInvestmentAccount, Currency } from '../types';
-import type { CDFormData } from '../components/accounts/CDAccountForm';
-import type { AccountFormData } from '../components/accounts/AccountForm';
-import type { useToast } from './useToast';
-import type { useConfirm } from './useConfirm';
-import type { useAccountMutations } from './queries/useAccountMutations';
+import { accountService } from '../../services/accountService';
+import type { Account, CDInvestmentAccount, Currency } from '../../types';
+import type { CDFormData } from '../../components/accounts/CDAccountForm';
+import type { AccountFormData } from '../../components/accounts/AccountForm';
+import type { useToast } from '../useToast';
+import type { useConfirm } from '../useConfirm';
+import type { useAccountMutations } from '../queries/useAccountMutations';
 
 type AccountMutations = ReturnType<typeof useAccountMutations>;
 

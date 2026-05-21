@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { format } from 'date-fns';
-import { currencyService } from '../services/currencyService';
-import type { Account, Currency, Pocket, SubPocket } from '../types';
-import type { BatchMovementRow } from '../components/BatchMovementForm';
-import type { DistributionEntry } from '../components/budget';
-import type { PlanningScenario } from '../components/budget/ScenarioForm';
-import { calculateAporteMensual } from '../utils/fixedExpenseUtils';
-import { useConfirmDialog } from '../contexts/ConfirmDialogContext';
-import type { useToast } from './useToast';
-import type { useMovementMutations } from './queries/useMovementMutations';
+import { currencyService } from '../../services/currencyService';
+import type { Account, Currency, Pocket, SubPocket } from '../../types';
+import type { BatchMovementRow } from '../../components/movements/BatchMovementForm';
+import type { DistributionEntry } from '../../components/budget';
+import type { PlanningScenario } from '../../components/budget/ScenarioForm';
+import { calculateAporteMensual } from '../../utils/fixedExpenseUtils';
+import { useConfirmDialog } from '../../contexts/ConfirmDialogContext';
+import type { useToast } from '../useToast';
+import type { useMovementMutations } from '../queries/useMovementMutations';
 
 type MovementMutations = ReturnType<typeof useMovementMutations>;
 

@@ -1,13 +1,13 @@
 import { useCallback, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useConfirmDialog } from '../contexts/ConfirmDialogContext';
-import { toDateOnly } from '../utils/dateUtils';
-import type { ReminderWithProjection } from '../utils/reminderProjections';
+import { useConfirmDialog } from '../../contexts/ConfirmDialogContext';
+import { toDateOnly } from '../../utils/dateUtils';
+import type { ReminderWithProjection } from '../../utils/reminderProjections';
 import type {
   CreateReminderDTO,
   UpdateReminderDTO,
-} from '../services/reminderService';
-import type { useReminderMutations } from './queries/useReminderQueries';
+} from '../../services/reminderService';
+import type { useReminderMutations } from '../queries/useReminderQueries';
 
 type ReminderMutations = ReturnType<typeof useReminderMutations>;
 

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { Plus, AlertTriangle, Calendar } from 'lucide-react';
 import { useRemindersQuery, useReminderMutations } from '../../hooks/queries';
-import { useReminderActions } from '../../hooks/useReminderActions';
+import { useReminderActions } from '../../hooks/actions/useReminderActions';
 import Modal from '../ui/Modal';
 import ReminderForm from './ReminderForm';
 import Button from '../ui/Button';

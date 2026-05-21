@@ -11,7 +11,7 @@ import PocketForm from './PocketForm';
 import {
   usePocketActions,
   type MigrationController,
-} from '../../hooks/usePocketActions';
+} from '../../hooks/actions/usePocketActions';
 import type { useToast } from '../../hooks/useToast';
 import type { useConfirm } from '../../hooks/useConfirm';
 import type { usePocketMutations } from '../../hooks/queries/usePocketMutations';

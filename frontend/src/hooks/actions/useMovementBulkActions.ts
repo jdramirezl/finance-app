@@ -1,10 +1,10 @@
 import { useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { movementService } from '../services/movementService';
-import type { Movement } from '../types';
-import type { useToast } from './useToast';
-import type { useConfirm } from './useConfirm';
-import type { BulkSelectionResult } from './useBulkSelection';
+import { movementService } from '../../services/movementService';
+import type { Movement } from '../../types';
+import type { useToast } from '../useToast';
+import type { useConfirm } from '../useConfirm';
+import type { BulkSelectionResult } from '../useBulkSelection';
 
 export interface UseMovementBulkActionsParams {
   bulk: BulkSelectionResult;
