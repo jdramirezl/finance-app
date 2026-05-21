@@ -5,6 +5,7 @@
  */
 
 import type { Currency } from '@shared-backend/types';
+import type { AccountCardDisplaySettings, SnapshotFrequency } from '../../domain/Settings';
 
 /**
  * Response DTO for Settings
@@ -14,6 +15,8 @@ export interface SettingsResponseDTO {
   userId: string;
   primaryCurrency: Currency;
   alphaVantageApiKey?: string;
+  accountCardDisplay?: AccountCardDisplaySettings;
+  snapshotFrequency?: SnapshotFrequency;
 }
 
 /**
@@ -22,4 +25,6 @@ export interface SettingsResponseDTO {
 export interface UpdateSettingsDTO {
   primaryCurrency?: Currency;
   alphaVantageApiKey?: string;
+  accountCardDisplay?: AccountCardDisplaySettings;
+  snapshotFrequency?: SnapshotFrequency;
 }

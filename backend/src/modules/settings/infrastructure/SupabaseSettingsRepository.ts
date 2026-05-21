@@ -72,17 +72,6 @@ export class SupabaseSettingsRepository implements ISettingsRepository {
     await this.save(settings);
   }
 
-  async updateFields(userId: string, fields: Record<string, unknown>): Promise<void> {
-    const { error } = await this.supabase
-      .from('settings')
-      .update(fields)
-      .eq('user_id', userId);
-
-    if (error) {
-      throw new DatabaseError(`Failed to update settings fields: ${error.message}`);
-    }
-  }
-
   /**
    * Create default settings for a new user
    */

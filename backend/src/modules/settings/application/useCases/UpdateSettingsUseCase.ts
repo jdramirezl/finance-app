@@ -31,14 +31,12 @@ export class UpdateSettingsUseCase {
    * @throws ValidationError if currency is invalid
    */
   async execute(userId: string, dto: UpdateSettingsDTO): Promise<SettingsResponseDTO> {
-    // Fetch existing settings
     const settings = await this.settingsRepository.findByUserId(userId);
 
     if (!settings) {
       throw new NotFoundError('Settings not found for user');
     }
 
-    // Validate and update primary currency if provided
     if (dto.primaryCurrency !== undefined) {
       const validCurrencies: Currency[] = ['USD', 'MXN', 'COP', 'EUR', 'GBP'];
       if (!validCurrencies.includes(dto.primaryCurrency)) {
@@ -49,24 +47,20 @@ export class UpdateSettingsUseCase {
       settings.updatePrimaryCurrency(dto.primaryCurrency);
     }
 
-    // Update Alpha Vantage API key if provided (including explicit undefined to clear)
     if ('alphaVantageApiKey' in dto) {
       settings.updateAlphaVantageApiKey(dto.alphaVantageApiKey);
     }
 
-    // Save core settings via domain entity
-    await this.settingsRepository.update(settings);
-
-    // Save additional fields directly (accountCardDisplay, snapshotFrequency, etc.)
-    // These bypass the domain entity since they're simple preferences without business rules
-    const extraFields: Record<string, unknown> = {};
-    if ('accountCardDisplay' in dto) extraFields.account_card_display = dto.accountCardDisplay;
-    if ('snapshotFrequency' in dto) extraFields.snapshot_frequency = dto.snapshotFrequency;
-    if (Object.keys(extraFields).length > 0) {
-      await this.settingsRepository.updateFields(userId, extraFields);
+    if (dto.accountCardDisplay !== undefined) {
+      settings.updateAccountCardDisplay(dto.accountCardDisplay);
     }
 
-    // Re-fetch to return the full updated state
+    if (dto.snapshotFrequency !== undefined) {
+      settings.updateSnapshotFrequency(dto.snapshotFrequency);
+    }
+
+    await this.settingsRepository.update(settings);
+
     const updated = await this.settingsRepository.findByUserId(userId);
     return SettingsMapper.toDTO(updated!);
   }
