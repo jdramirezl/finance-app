@@ -99,6 +99,7 @@ const AllocationStrategy = ({
               entry={entry}
               color={ALLOCATION_COLORS[i % ALLOCATION_COLORS.length]}
               amount={calcAmount(entry.percentage)}
+              distributable={distributable}
               currency={currency}
               onPercentageChange={handlePercentageChange}
               onDelete={handleDelete}
