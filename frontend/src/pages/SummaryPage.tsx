@@ -68,9 +68,6 @@ const SummaryPage = () => {
     error: fixedExpenseGroupsError,
   } = useFixedExpenseGroupsQuery();
 
-  // Auto-snapshot on load
-  useAutoNetWorthSnapshot();
-
   const toast = useToast();
   const primaryCurrency = settings?.primaryCurrency || 'USD';
   const accountCardDisplay = settings?.accountCardDisplay || DEFAULT_DISPLAY;
@@ -87,6 +84,9 @@ const SummaryPage = () => {
     consolidatedTotal,
     isConsolidatedReady,
   } = useConsolidatedTotal({ accounts, primaryCurrency, investmentData });
+
+  // Auto-snapshot on load (consumes consolidated total to avoid race condition)
+  useAutoNetWorthSnapshot({ consolidatedTotal, totalsByCurrency, isConsolidatedReady });
 
   // Fixed expenses derived data
   const { fixedSubPockets, totalFixedExpensesMoney } = useMemo(() => {
