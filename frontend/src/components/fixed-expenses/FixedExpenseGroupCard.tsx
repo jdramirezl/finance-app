@@ -1,10 +1,10 @@
 import { memo, useMemo } from 'react';
-import type { FixedExpenseGroup, SubPocket, Account } from '../types';
+import type { FixedExpenseGroup, SubPocket, Account } from '../../types';
 import { ChevronDown, ChevronRight, Edit2, Trash2, ToggleLeft, ToggleRight } from 'lucide-react';
-import Button from './Button';
-import AnimatedProgressBar from './AnimatedProgressBar';
-import CurrencyAmount from './CurrencyAmount';
-import { calculateAporteMensual, calculateSimpleMonthlyContribution, calculateProgress } from '../utils/fixedExpenseUtils';
+import Button from '../Button';
+import AnimatedProgressBar from '../AnimatedProgressBar';
+import CurrencyAmount from '../CurrencyAmount';
+import { calculateAporteMensual, calculateSimpleMonthlyContribution, calculateProgress } from '../../utils/fixedExpenseUtils';
 
 interface FixedExpenseGroupCardProps {
   group: FixedExpenseGroup;

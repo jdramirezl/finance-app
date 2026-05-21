@@ -4,7 +4,7 @@ import type { Account, Currency, FixedExpenseGroup, SubPocket } from '../../type
 import EmptyState from '../EmptyState';
 import SortableList from '../SortableList';
 import SortableItem from '../SortableItem';
-import FixedExpenseGroupCard from '../FixedExpenseGroupCard';
+import FixedExpenseGroupCard from './FixedExpenseGroupCard';
 
 export interface FixedExpensesListProps {
   groups: FixedExpenseGroup[];
