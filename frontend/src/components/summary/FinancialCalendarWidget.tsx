@@ -19,11 +19,14 @@ interface DayData {
 interface FinancialCalendarWidgetProps {
   primaryCurrency?: Currency;
   className?: string;
+  /** When true, renders without Card wrapper (for embedding in another card) */
+  embedded?: boolean;
 }
 
 const FinancialCalendarWidget = ({ 
   primaryCurrency = 'USD',
-  className = '' 
+  className = '',
+  embedded = false,
 }: FinancialCalendarWidgetProps) => {
   const navigate = useNavigate();
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -167,8 +170,11 @@ const FinancialCalendarWidget = ({
   const firstDayOfMonth = startOfMonth(currentDate);
   const startingDayOfWeek = firstDayOfMonth.getDay();
 
+  const Wrapper = embedded ? 'div' : Card;
+  const wrapperProps = embedded ? { className: `p-4 ${className}` } : { className: `p-4 ${className}` };
+
   return (
-    <Card className={`p-4 ${className}`}>
+    <Wrapper {...wrapperProps}>
       <div className="space-y-4">
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -362,7 +368,7 @@ const FinancialCalendarWidget = ({
           </div>
         </div>
       </div>
-    </Card>
+    </Wrapper>
   );
 };
 

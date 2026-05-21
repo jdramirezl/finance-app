@@ -26,7 +26,6 @@ import {
 } from '../components/ui/Skeleton';
 import { ErrorBoundary } from '../components/feedback';
 import QueryErrorCard from '../components/feedback/QueryErrorCard';
-import FinancialCalendarWidget from '../components/summary/FinancialCalendarWidget';
 import NetWorthTimelineWidget from '../components/net-worth/NetWorthTimelineWidget';
 import RemindersWidget from '../components/reminders/RemindersWidget';
 import NetWorthHero from '../components/summary/NetWorthHero';
@@ -203,13 +202,8 @@ const SummaryPage = () => {
           </ErrorBoundary>
         </section>
 
-        {/* RIGHT COLUMN: Calendar + Growth Matrix + Reminders + Fixed Commitments */}
+        {/* RIGHT COLUMN: Growth Matrix + Reminders + Fixed Commitments */}
         <section className="col-span-12 lg:col-span-5 flex flex-col gap-6 lg:h-full lg:overflow-hidden">
-          {/* Cashflow Forecast (Calendar) */}
-          <ErrorBoundary>
-            <FinancialCalendarWidget primaryCurrency={primaryCurrency} />
-          </ErrorBoundary>
-
           {/* Growth Matrix (Net Worth Timeline) */}
           <ErrorBoundary>
             <NetWorthTimelineWidget />
