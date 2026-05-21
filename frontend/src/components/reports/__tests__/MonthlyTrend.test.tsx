@@ -1,9 +1,21 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '../../../test/testUtils';
+import { render, screen, waitFor } from '../../../test/testUtils';
 import MonthlyTrend from '../MonthlyTrend';
 
 vi.mock('../../../hooks/queries/useReportsQueries', () => ({
   useMonthlyTrendQuery: vi.fn(),
+}));
+
+vi.mock('../../../hooks/queries/useSettingsQuery', () => ({
+  useSettingsQuery: vi.fn(() => ({ data: { primaryCurrency: 'USD' } })),
+}));
+
+vi.mock('../../../services/currencyService', () => ({
+  currencyService: {
+    convertBatch: vi.fn((requests: any[]) =>
+      Promise.resolve(requests.map(r => ({ convertedAmount: r.amount * 0.05, rate: 0.05 })))
+    ),
+  },
 }));
 
 vi.mock('recharts', () => ({
@@ -24,11 +36,9 @@ const mockQuery = vi.mocked(useMonthlyTrendQuery);
 
 const mockData = {
   data: [
-    { month: '2024-01', income: 5000, expenses: 3000, net: 2000 },
-    { month: '2024-02', income: 4500, expenses: 3500, net: 1000 },
-    { month: '2024-03', income: 5200, expenses: 2800, net: 2400 },
+    { month: '2024-01', income: [{ currency: 'USD', amount: 5000 }], expenses: [{ currency: 'USD', amount: 3000 }] },
+    { month: '2024-02', income: [{ currency: 'USD', amount: 4500 }], expenses: [{ currency: 'USD', amount: 3500 }] },
   ],
-  currency: 'USD',
 };
 
 describe('MonthlyTrend', () => {
@@ -45,23 +55,27 @@ describe('MonthlyTrend', () => {
     expect(skeletons.length).toBeGreaterThan(0);
   });
 
-  it('renders empty state when no data', () => {
-    mockQuery.mockReturnValue({ data: { data: [], currency: 'USD' }, isLoading: false } as any);
+  it('renders empty state when no data', async () => {
+    mockQuery.mockReturnValue({ data: { data: [] }, isLoading: false } as any);
 
     render(<MonthlyTrend months={6} />);
 
-    expect(screen.getByText('No data available')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText('No data available')).toBeInTheDocument();
+    });
   });
 
-  it('renders chart with income bar, expenses bar, and net line', () => {
+  it('renders chart with income bar, expenses bar, and net line', async () => {
     mockQuery.mockReturnValue({ data: mockData, isLoading: false } as any);
 
     render(<MonthlyTrend months={6} />);
 
-    expect(screen.getByTestId('composed-chart')).toBeInTheDocument();
-    expect(screen.getByTestId('bar-income')).toBeInTheDocument();
-    expect(screen.getByTestId('bar-expenses')).toBeInTheDocument();
-    expect(screen.getByTestId('line-net')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByTestId('composed-chart')).toBeInTheDocument();
+      expect(screen.getByTestId('bar-income')).toBeInTheDocument();
+      expect(screen.getByTestId('bar-expenses')).toBeInTheDocument();
+      expect(screen.getByTestId('line-net')).toBeInTheDocument();
+    });
   });
 
   it('passes months to query hook', () => {

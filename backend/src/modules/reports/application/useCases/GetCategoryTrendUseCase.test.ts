@@ -15,18 +15,28 @@ describe('GetCategoryTrendUseCase', () => {
     useCase = new GetCategoryTrendUseCase(mockRepo);
   });
 
-  it('should return category trend data', async () => {
+  it('should return category trend data with per-currency totals', async () => {
     mockRepo.aggregateByCategoryMonthly.mockResolvedValue([
-      { month: '2024-01', total: 450, count: 15 },
-      { month: '2024-02', total: 380, count: 12 },
+      { month: '2024-01', totals: [{ currency: 'MXN', amount: 450 }], count: 15 },
+      { month: '2024-02', totals: [{ currency: 'MXN', amount: 380 }], count: 12 },
     ]);
 
     const result = await useCase.execute('user-1', 'Food', 6);
 
     expect(result.category).toBe('Food');
     expect(result.data).toHaveLength(2);
-    expect(result.data[0]).toEqual({ month: '2024-01', total: 450, count: 15 });
+    expect(result.data[0]).toEqual({ month: '2024-01', totals: [{ currency: 'MXN', amount: 450 }], count: 15 });
     expect(mockRepo.aggregateByCategoryMonthly).toHaveBeenCalledWith('user-1', 'Food', 6);
+  });
+
+  it('should handle multi-currency category data', async () => {
+    mockRepo.aggregateByCategoryMonthly.mockResolvedValue([
+      { month: '2024-01', totals: [{ currency: 'MXN', amount: 300 }, { currency: 'USD', amount: 50 }], count: 10 },
+    ]);
+
+    const result = await useCase.execute('user-1', 'Food', 6);
+
+    expect(result.data[0].totals).toHaveLength(2);
   });
 
   it('should return empty data when no movements for category', async () => {

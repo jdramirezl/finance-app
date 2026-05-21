@@ -1,5 +1,5 @@
 import { injectable, inject } from 'tsyringe';
-import type { IReportsRepository } from '../../infrastructure/IReportsRepository';
+import type { IReportsRepository, CurrencyAmount } from '../../infrastructure/IReportsRepository';
 import type { SpendingByCategoryDTO } from '../dtos/ReportsDTO';
 import { ValidationError } from '../../../../shared/errors/AppError';
 
@@ -22,17 +22,35 @@ export class GetSpendingByCategoryUseCase {
 
     const rows = await this.reportsRepo.aggregateByCategory(userId, start, end);
 
-    const totalExpenses = rows.reduce((sum, r) => sum + r.total, 0);
+    // Compute total expenses per currency across all categories
+    const totalMap = new Map<string, number>();
+    for (const row of rows) {
+      for (const { currency, amount } of row.totals) {
+        totalMap.set(currency, (totalMap.get(currency) || 0) + amount);
+      }
+    }
+    const totalExpenses: CurrencyAmount[] = Array.from(totalMap.entries())
+      .map(([currency, amount]) => ({ currency, amount }));
+
+    // Sum all amounts (raw) for percentage calculation
+    const grandTotal = totalExpenses.reduce((sum, t) => sum + t.amount, 0);
 
     const data = rows
-      .map(r => ({
-        category: r.category,
-        total: r.total,
-        count: r.count,
-        percentage: totalExpenses > 0 ? Math.round((r.total / totalExpenses) * 10000) / 100 : 0,
-      }))
-      .sort((a, b) => b.total - a.total);
+      .map(r => {
+        const catTotal = r.totals.reduce((sum, t) => sum + t.amount, 0);
+        return {
+          category: r.category,
+          totals: r.totals,
+          count: r.count,
+          percentage: grandTotal > 0 ? Math.round((catTotal / grandTotal) * 10000) / 100 : 0,
+        };
+      })
+      .sort((a, b) => {
+        const aTotal = a.totals.reduce((s, t) => s + t.amount, 0);
+        const bTotal = b.totals.reduce((s, t) => s + t.amount, 0);
+        return bTotal - aTotal;
+      });
 
-    return { data, totalExpenses, currency: 'MXN' };
+    return { data, totalExpenses };
   }
 }

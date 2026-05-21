@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import {
   Bar,
   CartesianGrid,
@@ -10,7 +11,12 @@ import {
   YAxis,
 } from 'recharts';
 import { useMonthlyTrendQuery } from '../../hooks/queries/useReportsQueries';
+import { useSettingsQuery } from '../../hooks/queries/useSettingsQuery';
+import { currencyService, type BatchConversionRequest } from '../../services/currencyService';
+import type { CurrencyAmount } from '../../services/reportService';
 import { formatCurrencyAmount } from '../ui/CurrencyAmount';
+import { Skeleton } from '../ui/Skeleton';
+import type { Currency } from '../../types';
 
 interface MonthlyTrendProps {
   months: number;
@@ -22,19 +28,70 @@ function formatMonth(yyyyMm: string): string {
   return date.toLocaleString('default', { month: 'short' });
 }
 
+async function convertTotals(totals: CurrencyAmount[], primaryCurrency: Currency): Promise<number> {
+  if (totals.length === 0) return 0;
+  const same = totals.filter(t => t.currency === primaryCurrency);
+  const other = totals.filter(t => t.currency !== primaryCurrency);
+  const baseTotal = same.reduce((sum, t) => sum + t.amount, 0);
+  if (other.length === 0) return baseTotal;
+  const conversions: BatchConversionRequest[] = other.map(t => ({
+    amount: t.amount, from: t.currency, to: primaryCurrency,
+  }));
+  const results = await currencyService.convertBatch(conversions);
+  return baseTotal + results.reduce((sum, r) => sum + r.convertedAmount, 0);
+}
+
+interface ConvertedMonthly {
+  month: string;
+  label: string;
+  income: number;
+  expenses: number;
+  net: number;
+}
+
 const MonthlyTrend = ({ months }: MonthlyTrendProps) => {
   const { data: response, isLoading } = useMonthlyTrendQuery(months);
+  const { data: settings } = useSettingsQuery();
+  const [chartData, setChartData] = useState<ConvertedMonthly[] | null>(null);
+  const [converting, setConverting] = useState(false);
 
-  if (isLoading) {
+  const primaryCurrency = (settings?.primaryCurrency || 'USD') as Currency;
+
+  useEffect(() => {
+    if (!response?.data?.length) { setChartData(null); return; }
+    let cancelled = false;
+    setConverting(true);
+
+    const conversions = response.data.map(entry =>
+      Promise.all([
+        convertTotals(entry.income, primaryCurrency),
+        convertTotals(entry.expenses, primaryCurrency),
+      ]).then(([income, expenses]) => ({
+        month: entry.month,
+        label: formatMonth(entry.month),
+        income,
+        expenses,
+        net: income - expenses,
+      }))
+    );
+
+    Promise.all(conversions).then(results => {
+      if (!cancelled) { setChartData(results); setConverting(false); }
+    });
+
+    return () => { cancelled = true; };
+  }, [response, primaryCurrency]);
+
+  if (isLoading || converting) {
     return (
       <div className="animate-pulse space-y-4 py-8">
-        <div className="h-4 w-32 bg-gray-200 dark:bg-gray-700 rounded" />
-        <div className="h-64 bg-gray-200 dark:bg-gray-700 rounded" />
+        <Skeleton className="h-4 w-32" />
+        <Skeleton className="h-64 w-full" />
       </div>
     );
   }
 
-  if (!response?.data?.length) {
+  if (!chartData?.length) {
     return (
       <div className="text-center py-12 text-gray-500 dark:text-gray-400">
         <p className="text-lg font-medium">No data available</p>
@@ -43,17 +100,11 @@ const MonthlyTrend = ({ months }: MonthlyTrendProps) => {
     );
   }
 
-  const currency = response.currency;
-  const chartData = response.data.map((entry) => ({
-    ...entry,
-    label: formatMonth(entry.month),
-  }));
-
   const tickFormatter = (value: number) =>
-    formatCurrencyAmount(value, currency, { maximumFractionDigits: 0 });
+    formatCurrencyAmount(value, primaryCurrency, { maximumFractionDigits: 0 });
 
   const tooltipFormatter = (value: number, name: string) => [
-    formatCurrencyAmount(value, currency),
+    formatCurrencyAmount(value, primaryCurrency),
     name,
   ];
 

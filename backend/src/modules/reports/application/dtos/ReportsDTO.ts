@@ -1,36 +1,34 @@
+import type { CurrencyAmount } from '../../infrastructure/IReportsRepository';
+
 export interface CategorySpending {
   category: string;
-  total: number;
+  totals: CurrencyAmount[];
   count: number;
   percentage: number;
 }
 
 export interface SpendingByCategoryDTO {
   data: CategorySpending[];
-  totalExpenses: number;
-  currency: string;
+  totalExpenses: CurrencyAmount[];
 }
 
 export interface MonthlyTrendItem {
   month: string; // 'YYYY-MM'
-  income: number;
-  expenses: number;
-  net: number;
+  income: CurrencyAmount[];
+  expenses: CurrencyAmount[];
 }
 
 export interface MonthlyTrendDTO {
   data: MonthlyTrendItem[];
-  currency: string;
 }
 
 export interface CategoryTrendItem {
   month: string; // 'YYYY-MM'
-  total: number;
+  totals: CurrencyAmount[];
   count: number;
 }
 
 export interface CategoryTrendDTO {
   data: CategoryTrendItem[];
   category: string;
-  currency: string;
 }

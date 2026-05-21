@@ -1,24 +1,29 @@
+export interface CurrencyAmount {
+  currency: string;
+  amount: number;
+}
+
 export interface SpendingByCategoryRow {
   category: string;
-  total: number;
+  totals: CurrencyAmount[];
   count: number;
 }
 
 export interface MonthlyTrendRow {
   month: string; // 'YYYY-MM'
-  income: number;
-  expenses: number;
+  income: CurrencyAmount[];
+  expenses: CurrencyAmount[];
 }
 
 export interface CategoryTrendRow {
   month: string; // 'YYYY-MM'
-  total: number;
+  totals: CurrencyAmount[];
   count: number;
 }
 
 export interface IReportsRepository {
   /**
-   * Aggregate expenses by category within a date range.
+   * Aggregate expenses by category within a date range, grouped by currency.
    * Only counts expense types, excludes pending/orphaned.
    */
   aggregateByCategory(
@@ -28,7 +33,7 @@ export interface IReportsRepository {
   ): Promise<SpendingByCategoryRow[]>;
 
   /**
-   * Aggregate income and expenses by month for the last N months.
+   * Aggregate income and expenses by month for the last N months, grouped by currency.
    * Excludes pending/orphaned.
    */
   aggregateMonthly(
@@ -37,7 +42,7 @@ export interface IReportsRepository {
   ): Promise<MonthlyTrendRow[]>;
 
   /**
-   * Aggregate expenses for a specific category by month for the last N months.
+   * Aggregate expenses for a specific category by month for the last N months, grouped by currency.
    * Excludes pending/orphaned.
    */
   aggregateByCategoryMonthly(

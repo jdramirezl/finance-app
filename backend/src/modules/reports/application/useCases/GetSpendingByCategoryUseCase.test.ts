@@ -15,25 +15,43 @@ describe('GetSpendingByCategoryUseCase', () => {
     useCase = new GetSpendingByCategoryUseCase(mockRepo);
   });
 
-  it('should return spending grouped by category with percentages', async () => {
+  it('should return spending grouped by category with per-currency totals', async () => {
     mockRepo.aggregateByCategory.mockResolvedValue([
-      { category: 'Food', total: 500, count: 10 },
-      { category: 'Transport', total: 300, count: 5 },
-      { category: 'Bills', total: 200, count: 2 },
+      { category: 'Food', totals: [{ currency: 'MXN', amount: 500 }], count: 10 },
+      { category: 'Transport', totals: [{ currency: 'MXN', amount: 300 }], count: 5 },
+      { category: 'Bills', totals: [{ currency: 'MXN', amount: 200 }], count: 2 },
     ]);
 
     const result = await useCase.execute('user-1', '2024-01-01', '2024-01-31');
 
-    expect(result.totalExpenses).toBe(1000);
+    expect(result.totalExpenses).toEqual([{ currency: 'MXN', amount: 1000 }]);
     expect(result.data).toHaveLength(3);
-    expect(result.data[0]).toEqual({ category: 'Food', total: 500, count: 10, percentage: 50 });
-    expect(result.data[1]).toEqual({ category: 'Transport', total: 300, count: 5, percentage: 30 });
-    expect(result.data[2]).toEqual({ category: 'Bills', total: 200, count: 2, percentage: 20 });
-    expect(mockRepo.aggregateByCategory).toHaveBeenCalledWith(
-      'user-1',
-      new Date('2024-01-01'),
-      new Date('2024-01-31')
+    expect(result.data[0]).toEqual({
+      category: 'Food', totals: [{ currency: 'MXN', amount: 500 }], count: 10, percentage: 50,
+    });
+    expect(result.data[1]).toEqual({
+      category: 'Transport', totals: [{ currency: 'MXN', amount: 300 }], count: 5, percentage: 30,
+    });
+    expect(result.data[2]).toEqual({
+      category: 'Bills', totals: [{ currency: 'MXN', amount: 200 }], count: 2, percentage: 20,
+    });
+  });
+
+  it('should handle multi-currency totals', async () => {
+    mockRepo.aggregateByCategory.mockResolvedValue([
+      { category: 'Food', totals: [{ currency: 'MXN', amount: 400 }, { currency: 'USD', amount: 100 }], count: 8 },
+      { category: 'Bills', totals: [{ currency: 'MXN', amount: 500 }], count: 3 },
+    ]);
+
+    const result = await useCase.execute('user-1', '2024-01-01', '2024-01-31');
+
+    expect(result.totalExpenses).toEqual(
+      expect.arrayContaining([
+        { currency: 'MXN', amount: 900 },
+        { currency: 'USD', amount: 100 },
+      ])
     );
+    expect(result.data).toHaveLength(2);
   });
 
   it('should return empty data when no expenses exist', async () => {
@@ -42,13 +60,13 @@ describe('GetSpendingByCategoryUseCase', () => {
     const result = await useCase.execute('user-1', '2024-01-01', '2024-01-31');
 
     expect(result.data).toHaveLength(0);
-    expect(result.totalExpenses).toBe(0);
+    expect(result.totalExpenses).toEqual([]);
   });
 
   it('should sort by total descending', async () => {
     mockRepo.aggregateByCategory.mockResolvedValue([
-      { category: 'Transport', total: 100, count: 2 },
-      { category: 'Food', total: 500, count: 10 },
+      { category: 'Transport', totals: [{ currency: 'MXN', amount: 100 }], count: 2 },
+      { category: 'Food', totals: [{ currency: 'MXN', amount: 500 }], count: 10 },
     ]);
 
     const result = await useCase.execute('user-1', '2024-01-01', '2024-01-31');

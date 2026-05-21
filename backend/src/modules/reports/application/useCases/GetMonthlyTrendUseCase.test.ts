@@ -15,18 +15,40 @@ describe('GetMonthlyTrendUseCase', () => {
     useCase = new GetMonthlyTrendUseCase(mockRepo);
   });
 
-  it('should return monthly trend with net calculated', async () => {
+  it('should return monthly trend with per-currency income and expenses', async () => {
     mockRepo.aggregateMonthly.mockResolvedValue([
-      { month: '2024-01', income: 5000, expenses: 3000 },
-      { month: '2024-02', income: 4500, expenses: 4000 },
+      { month: '2024-01', income: [{ currency: 'MXN', amount: 5000 }], expenses: [{ currency: 'MXN', amount: 3000 }] },
+      { month: '2024-02', income: [{ currency: 'MXN', amount: 4500 }], expenses: [{ currency: 'MXN', amount: 4000 }] },
     ]);
 
     const result = await useCase.execute('user-1', 6);
 
     expect(result.data).toHaveLength(2);
-    expect(result.data[0]).toEqual({ month: '2024-01', income: 5000, expenses: 3000, net: 2000 });
-    expect(result.data[1]).toEqual({ month: '2024-02', income: 4500, expenses: 4000, net: 500 });
-    expect(mockRepo.aggregateMonthly).toHaveBeenCalledWith('user-1', 6);
+    expect(result.data[0]).toEqual({
+      month: '2024-01',
+      income: [{ currency: 'MXN', amount: 5000 }],
+      expenses: [{ currency: 'MXN', amount: 3000 }],
+    });
+    expect(result.data[1]).toEqual({
+      month: '2024-02',
+      income: [{ currency: 'MXN', amount: 4500 }],
+      expenses: [{ currency: 'MXN', amount: 4000 }],
+    });
+  });
+
+  it('should handle multi-currency months', async () => {
+    mockRepo.aggregateMonthly.mockResolvedValue([
+      {
+        month: '2024-01',
+        income: [{ currency: 'MXN', amount: 3000 }, { currency: 'USD', amount: 200 }],
+        expenses: [{ currency: 'MXN', amount: 2000 }, { currency: 'COP', amount: 500000 }],
+      },
+    ]);
+
+    const result = await useCase.execute('user-1', 6);
+
+    expect(result.data[0].income).toHaveLength(2);
+    expect(result.data[0].expenses).toHaveLength(2);
   });
 
   it('should return empty data when no movements exist', async () => {

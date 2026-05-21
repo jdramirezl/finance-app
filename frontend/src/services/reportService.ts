@@ -1,40 +1,41 @@
 import { apiClient } from './apiClient';
 
+export interface CurrencyAmount {
+  currency: string;
+  amount: number;
+}
+
 export interface CategorySpending {
   category: string;
-  total: number;
+  totals: CurrencyAmount[];
   count: number;
   percentage: number;
 }
 
 export interface SpendingByCategoryResponse {
   data: CategorySpending[];
-  totalExpenses: number;
-  currency: string;
+  totalExpenses: CurrencyAmount[];
 }
 
 export interface MonthlyTrendEntry {
   month: string;
-  income: number;
-  expenses: number;
-  net: number;
+  income: CurrencyAmount[];
+  expenses: CurrencyAmount[];
 }
 
 export interface MonthlyTrendResponse {
   data: MonthlyTrendEntry[];
-  currency: string;
 }
 
 export interface CategoryTrendEntry {
   month: string;
-  total: number;
+  totals: CurrencyAmount[];
   count: number;
 }
 
 export interface CategoryTrendResponse {
   data: CategoryTrendEntry[];
   category: string;
-  currency: string;
 }
 
 export const reportService = {

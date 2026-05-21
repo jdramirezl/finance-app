@@ -19,9 +19,8 @@ export class GetMonthlyTrendUseCase {
       month: r.month,
       income: r.income,
       expenses: r.expenses,
-      net: r.income - r.expenses,
     }));
 
-    return { data, currency: 'MXN' };
+    return { data };
   }
 }

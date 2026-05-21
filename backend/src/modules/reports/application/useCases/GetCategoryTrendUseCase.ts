@@ -16,6 +16,6 @@ export class GetCategoryTrendUseCase {
 
     const rows = await this.reportsRepo.aggregateByCategoryMonthly(userId, category, months);
 
-    return { data: rows, category, currency: 'MXN' };
+    return { data: rows, category };
   }
 }

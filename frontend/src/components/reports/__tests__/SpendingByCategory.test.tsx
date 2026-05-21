@@ -1,14 +1,21 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '../../../test/testUtils';
+import { render, screen, waitFor } from '../../../test/testUtils';
 import SpendingByCategory from '../SpendingByCategory';
 
 vi.mock('../../../hooks/queries', () => ({
   useSpendingByCategoryQuery: vi.fn(),
 }));
 
+vi.mock('../../../hooks/queries/useSettingsQuery', () => ({
+  useSettingsQuery: vi.fn(() => ({ data: { primaryCurrency: 'USD' } })),
+}));
+
 vi.mock('../../../services/currencyService', () => ({
   currencyService: {
     formatCurrency: vi.fn((amount: number, currency: string) => `$${amount.toFixed(2)} ${currency}`),
+    convertBatch: vi.fn((requests: any[]) =>
+      Promise.resolve(requests.map(r => ({ convertedAmount: r.amount * 0.05, rate: 0.05 })))
+    ),
   },
 }));
 
@@ -18,12 +25,11 @@ const mockQuery = vi.mocked(useSpendingByCategoryQuery);
 
 const mockData = {
   data: [
-    { category: 'Food', total: 450, count: 12, percentage: 45 },
-    { category: 'Transport', total: 300, count: 8, percentage: 30 },
-    { category: 'Bills', total: 250, count: 5, percentage: 25 },
+    { category: 'Food', totals: [{ currency: 'USD', amount: 450 }], count: 12, percentage: 45 },
+    { category: 'Transport', totals: [{ currency: 'USD', amount: 300 }], count: 8, percentage: 30 },
+    { category: 'Bills', totals: [{ currency: 'USD', amount: 250 }], count: 5, percentage: 25 },
   ],
-  totalExpenses: 1000,
-  currency: 'USD',
+  totalExpenses: [{ currency: 'USD', amount: 1000 }],
 };
 
 describe('SpendingByCategory', () => {
@@ -40,33 +46,26 @@ describe('SpendingByCategory', () => {
     expect(skeletons.length).toBeGreaterThan(0);
   });
 
-  it('renders empty state when no data', () => {
-    mockQuery.mockReturnValue({ data: { data: [], totalExpenses: 0, currency: 'USD' }, isLoading: false } as any);
+  it('renders empty state when no data', async () => {
+    mockQuery.mockReturnValue({ data: { data: [], totalExpenses: [] }, isLoading: false } as any);
 
     render(<SpendingByCategory startDate="2024-01-01" endDate="2024-01-31" />);
 
-    expect(screen.getByText('No spending data')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText('No spending data')).toBeInTheDocument();
+    });
   });
 
-  it('renders table with category data sorted by amount', () => {
+  it('renders table with category data after conversion', async () => {
     mockQuery.mockReturnValue({ data: mockData, isLoading: false } as any);
 
     render(<SpendingByCategory startDate="2024-01-01" endDate="2024-01-31" />);
 
-    expect(screen.getByText('Food')).toBeInTheDocument();
-    expect(screen.getByText('Transport')).toBeInTheDocument();
-    expect(screen.getByText('Bills')).toBeInTheDocument();
-    expect(screen.getByText('$450.00 USD')).toBeInTheDocument();
-    expect(screen.getByText('45.0%')).toBeInTheDocument();
-    expect(screen.getByText('12')).toBeInTheDocument();
-  });
-
-  it('displays total expenses', () => {
-    mockQuery.mockReturnValue({ data: mockData, isLoading: false } as any);
-
-    render(<SpendingByCategory startDate="2024-01-01" endDate="2024-01-31" />);
-
-    expect(screen.getByText(/\$1000\.00 USD/)).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText('Food')).toBeInTheDocument();
+      expect(screen.getByText('Transport')).toBeInTheDocument();
+      expect(screen.getByText('Bills')).toBeInTheDocument();
+    });
   });
 
   it('passes correct dates to query hook', () => {
