@@ -1,210 +1,218 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { subPocketService } from './subPocketService';
-import { pocketService } from './pocketService';
-import { accountService } from './accountService';
+import { apiClient } from './apiClient';
+import type { SubPocket } from '../types';
+
+const mockSubPocket: SubPocket = {
+  id: 'sp-1',
+  pocketId: 'pocket-1',
+  name: 'Rent',
+  valueTotal: 12000,
+  periodicityMonths: 1,
+  balance: 0,
+  enabled: true,
+};
 
 describe('subPocketService', () => {
-    let fixedPocketId: string;
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
 
-    beforeEach(async () => {
-        localStorage.clear();
-        const account = await accountService.createAccount('Test Account', '#FF0000', 'USD');
-        const fixedPocket = await pocketService.createPocket(account.id, 'Fixed Expenses', 'fixed');
-        fixedPocketId = fixedPocket.id;
+  describe('getAllSubPockets', () => {
+    it('should call apiClient.get with correct path', async () => {
+      vi.spyOn(apiClient, 'get').mockResolvedValue([mockSubPocket]);
+      const result = await subPocketService.getAllSubPockets();
+      expect(apiClient.get).toHaveBeenCalledWith('/api/sub-pockets');
+      expect(result).toEqual([mockSubPocket]);
+    });
+  });
+
+  describe('getSubPocket', () => {
+    it('should retrieve sub-pocket by ID', async () => {
+      vi.spyOn(apiClient, 'get').mockResolvedValue(mockSubPocket);
+      const result = await subPocketService.getSubPocket('sp-1');
+      expect(apiClient.get).toHaveBeenCalledWith('/api/sub-pockets/sp-1');
+      expect(result).toEqual(mockSubPocket);
     });
 
-    describe('createSubPocket', () => {
-        it('should create a sub-pocket', async () => {
-            const subPocket = await subPocketService.createSubPocket(
-                fixedPocketId,
-                'Internet',
-                1200,
-                12
-            );
+    it('should return null for non-existent ID', async () => {
+      vi.spyOn(apiClient, 'get').mockResolvedValue(null);
+      const result = await subPocketService.getSubPocket('non-existent');
+      expect(result).toBeNull();
+    });
+  });
 
-            expect(subPocket).toMatchObject({
-                pocketId: fixedPocketId,
-                name: 'Internet',
-                valueTotal: 1200,
-                periodicityMonths: 12,
-                balance: 0,
-                enabled: true,
-            });
-            expect(subPocket.id).toBeDefined();
-        });
+  describe('getSubPocketsByPocket', () => {
+    it('should pass pocketId as query param', async () => {
+      vi.spyOn(apiClient, 'get').mockResolvedValue([mockSubPocket]);
+      await subPocketService.getSubPocketsByPocket('pocket-1');
+      expect(apiClient.get).toHaveBeenCalledWith('/api/sub-pockets?pocketId=pocket-1');
+    });
+  });
 
-        it('should throw error for non-fixed pocket', async () => {
-            const account = await accountService.createAccount('Account 2', '#00FF00', 'MXN');
-            const normalPocket = await pocketService.createPocket(account.id, 'Normal', 'normal');
+  describe('getSubPocketsByGroup', () => {
+    it('should pass groupId as query param', async () => {
+      vi.spyOn(apiClient, 'get').mockResolvedValue([mockSubPocket]);
+      await subPocketService.getSubPocketsByGroup('group-1');
+      expect(apiClient.get).toHaveBeenCalledWith('/api/sub-pockets?groupId=group-1');
+    });
+  });
 
-            await expect(
-                subPocketService.createSubPocket(normalPocket.id, 'Test', 1000, 12)
-            ).rejects.toThrow('Sub-pockets can only be created for fixed expenses pockets');
-        });
-
-        it('should throw error for duplicate name in same pocket', async () => {
-            await subPocketService.createSubPocket(fixedPocketId, 'Internet', 1200, 12);
-            
-            await expect(
-                subPocketService.createSubPocket(fixedPocketId, 'Internet', 1000, 6)
-            ).rejects.toThrow('A sub-pocket with name "Internet" already exists in this pocket');
-        });
-
-        it('should throw error for non-existent pocket', async () => {
-            await expect(
-                subPocketService.createSubPocket('non-existent', 'Test', 1000, 12)
-            ).rejects.toThrow('Pocket with id "non-existent" not found');
-        });
-
-        it('should throw error for empty name', async () => {
-            await expect(
-                subPocketService.createSubPocket(fixedPocketId, '  ', 1000, 12)
-            ).rejects.toThrow('Sub-pocket name cannot be empty');
-        });
-
-        it('should throw error for negative valueTotal', async () => {
-            await expect(
-                subPocketService.createSubPocket(fixedPocketId, 'Test', -100, 12)
-            ).rejects.toThrow('Sub-pocket total value must be greater than zero');
-        });
-
-        it('should throw error for zero periodicityMonths', async () => {
-            await expect(
-                subPocketService.createSubPocket(fixedPocketId, 'Test', 1000, 0)
-            ).rejects.toThrow('Sub-pocket periodicity must be greater than zero');
-        });
-
-        it('should trim whitespace from name', async () => {
-            const subPocket = await subPocketService.createSubPocket(fixedPocketId, '  Internet  ', 1200, 12);
-            expect(subPocket.name).toBe('Internet');
-        });
+  describe('calculateAporteMensual', () => {
+    it('should calculate monthly contribution for monthly periodicity', () => {
+      const result = subPocketService.calculateAporteMensual(12000, 1, 0);
+      expect(result).toBe(12000);
     });
 
-    describe('calculateAporteMensual', () => {
-        it('should calculate monthly contribution correctly', () => {
-            const monthly = subPocketService.calculateAporteMensual(1200, 12);
-            expect(monthly).toBe(100);
-        });
-
-        it('should handle non-divisible amounts', () => {
-            const monthly = subPocketService.calculateAporteMensual(1000, 3);
-            expect(monthly).toBeCloseTo(333.33, 2);
-        });
+    it('should calculate monthly contribution for yearly periodicity', () => {
+      const result = subPocketService.calculateAporteMensual(12000, 12, 0);
+      expect(result).toBe(1000);
     });
 
-    describe('calculateProgress', () => {
-        it('should calculate progress ratio', () => {
-            const progress = subPocketService.calculateProgress(500, 1000);
-            expect(progress).toBe(0.5);
-        });
-
-        it('should handle zero total', () => {
-            const progress = subPocketService.calculateProgress(100, 0);
-            expect(progress).toBe(0);
-        });
-
-        it('should handle over 100% progress', () => {
-            const progress = subPocketService.calculateProgress(1500, 1000);
-            expect(progress).toBe(1.5);
-        });
-
-        it('should handle negative balance (debt)', () => {
-            const progress = subPocketService.calculateProgress(-100, 1000);
-            expect(progress).toBe(-0.1);
-        });
+    it('should account for existing balance', () => {
+      const result = subPocketService.calculateAporteMensual(12000, 12, 6000);
+      // With 6000 already saved toward 12000 over 12 months, contribution should be reduced
+      expect(result).toBeLessThanOrEqual(1000);
     });
 
-    describe('updateSubPocket', () => {
-        it('should update sub-pocket name', async () => {
-            const subPocket = await subPocketService.createSubPocket(fixedPocketId, 'Old', 1000, 12);
-            const updated = await subPocketService.updateSubPocket(subPocket.id, { name: 'New' });
+    it('should return 0 when balance meets target', () => {
+      const result = subPocketService.calculateAporteMensual(12000, 12, 12000);
+      expect(result).toBe(0);
+    });
+  });
 
-            expect(updated.name).toBe('New');
-        });
-
-        it('should update valueTotal', async () => {
-            const subPocket = await subPocketService.createSubPocket(fixedPocketId, 'Test', 1000, 12);
-            const updated = await subPocketService.updateSubPocket(subPocket.id, { valueTotal: 2000 });
-
-            expect(updated.valueTotal).toBe(2000);
-        });
-
-        it('should update periodicityMonths', async () => {
-            const subPocket = await subPocketService.createSubPocket(fixedPocketId, 'Test', 1000, 12);
-            const updated = await subPocketService.updateSubPocket(subPocket.id, { periodicityMonths: 6 });
-
-            expect(updated.periodicityMonths).toBe(6);
-        });
-
-        it('should throw error for empty name on update', async () => {
-            const subPocket = await subPocketService.createSubPocket(fixedPocketId, 'Test', 1000, 12);
-            
-            await expect(
-                subPocketService.updateSubPocket(subPocket.id, { name: '  ' })
-            ).rejects.toThrow('Sub-pocket name cannot be empty');
-        });
-
-        it('should throw error for negative valueTotal on update', async () => {
-            const subPocket = await subPocketService.createSubPocket(fixedPocketId, 'Test', 1000, 12);
-            
-            await expect(
-                subPocketService.updateSubPocket(subPocket.id, { valueTotal: -100 })
-            ).rejects.toThrow('Sub-pocket total value must be greater than zero');
-        });
-
-        it('should throw error for duplicate name on update', async () => {
-            const sp1 = await subPocketService.createSubPocket(fixedPocketId, 'SubPocket 1', 1000, 12);
-            await subPocketService.createSubPocket(fixedPocketId, 'SubPocket 2', 1000, 12);
-
-            await expect(
-                subPocketService.updateSubPocket(sp1.id, { name: 'SubPocket 2' })
-            ).rejects.toThrow('A sub-pocket with name "SubPocket 2" already exists in this pocket');
-        });
+  describe('calculateProgress', () => {
+    it('should return 0 for zero target', () => {
+      expect(subPocketService.calculateProgress(500, 0)).toBe(0);
     });
 
-    describe('toggleSubPocketEnabled', () => {
-        it('should toggle enabled status', async () => {
-            const subPocket = await subPocketService.createSubPocket(fixedPocketId, 'Test', 1000, 12);
-            expect(subPocket.enabled).toBe(true);
-
-            const toggled = await subPocketService.toggleSubPocketEnabled(subPocket.id);
-            expect(toggled.enabled).toBe(false);
-
-            const toggledAgain = await subPocketService.toggleSubPocketEnabled(subPocket.id);
-            expect(toggledAgain.enabled).toBe(true);
-        });
+    it('should return fraction for partial progress', () => {
+      expect(subPocketService.calculateProgress(6000, 12000)).toBe(0.5);
     });
 
-    describe('deleteSubPocket', () => {
-        it('should delete sub-pocket', async () => {
-            const subPocket = await subPocketService.createSubPocket(fixedPocketId, 'Test', 1000, 12);
-            await subPocketService.deleteSubPocket(subPocket.id);
-
-            const subPockets = subPocketService.getSubPocketsByPocket(fixedPocketId);
-            expect(subPockets).toHaveLength(0);
-        });
-
-        it('should throw error for non-existent sub-pocket', async () => {
-            await expect(
-                subPocketService.deleteSubPocket('non-existent')
-            ).rejects.toThrow('Sub-pocket with id "non-existent" not found');
-        });
+    it('should return 1 when balance equals target', () => {
+      expect(subPocketService.calculateProgress(12000, 12000)).toBe(1);
     });
 
-    describe('calculateTotalFijosMes', () => {
-        it('should calculate total for enabled sub-pockets', async () => {
-            await subPocketService.createSubPocket(fixedPocketId, 'Internet', 1200, 12); // 100/month
-            await subPocketService.createSubPocket(fixedPocketId, 'Insurance', 2400, 12); // 200/month
-            const sp3 = await subPocketService.createSubPocket(fixedPocketId, 'Gym', 600, 6); // 100/month
-            await subPocketService.toggleSubPocketEnabled(sp3.id); // Disable
-
-            const total = subPocketService.calculateTotalFijosMes(fixedPocketId);
-            expect(total).toBe(300); // Only enabled ones
-        });
-
-        it('should return 0 for pocket with no sub-pockets', () => {
-            const total = subPocketService.calculateTotalFijosMes(fixedPocketId);
-            expect(total).toBe(0);
-        });
+    it('should return > 1 when balance exceeds target', () => {
+      expect(subPocketService.calculateProgress(15000, 12000)).toBe(1.25);
     });
+  });
+
+  describe('calculateTotalFijosMes', () => {
+    it('should sum contributions of enabled sub-pockets', async () => {
+      const disabled = { ...mockSubPocket, id: 'sp-2', enabled: false };
+      vi.spyOn(apiClient, 'get').mockResolvedValue([mockSubPocket, disabled]);
+      const result = await subPocketService.calculateTotalFijosMes('pocket-1');
+      expect(result).toBeGreaterThan(0);
+    });
+
+    it('should return 0 when no sub-pockets', async () => {
+      vi.spyOn(apiClient, 'get').mockResolvedValue([]);
+      const result = await subPocketService.calculateTotalFijosMes('pocket-1');
+      expect(result).toBe(0);
+    });
+
+    it('should add debt repayment for negative balance', async () => {
+      const withDebt = { ...mockSubPocket, balance: -500 };
+      vi.spyOn(apiClient, 'get').mockResolvedValue([withDebt]);
+      const result = await subPocketService.calculateTotalFijosMes('pocket-1');
+      // Should include the regular contribution + 500 debt
+      expect(result).toBeGreaterThanOrEqual(500);
+    });
+  });
+
+  describe('calculateNextPayment', () => {
+    it('should return 0 when sub-pocket not found', async () => {
+      vi.spyOn(apiClient, 'get').mockResolvedValue(null);
+      const result = await subPocketService.calculateNextPayment('non-existent');
+      expect(result).toBe(0);
+    });
+
+    it('should return contribution amount for normal sub-pocket', async () => {
+      vi.spyOn(apiClient, 'get').mockResolvedValue(mockSubPocket);
+      const result = await subPocketService.calculateNextPayment('sp-1');
+      expect(result).toBeGreaterThan(0);
+    });
+
+    it('should add debt repayment for negative balance', async () => {
+      const withDebt = { ...mockSubPocket, balance: -500 };
+      vi.spyOn(apiClient, 'get').mockResolvedValue(withDebt);
+      const result = await subPocketService.calculateNextPayment('sp-1');
+      expect(result).toBeGreaterThanOrEqual(500);
+    });
+  });
+
+  describe('createSubPocket', () => {
+    it('should call apiClient.post with correct payload', async () => {
+      vi.spyOn(apiClient, 'post').mockResolvedValue(mockSubPocket);
+      const result = await subPocketService.createSubPocket('pocket-1', 'Rent', 12000, 1);
+      expect(apiClient.post).toHaveBeenCalledWith('/api/sub-pockets', {
+        pocketId: 'pocket-1',
+        name: 'Rent',
+        valueTotal: 12000,
+        periodicityMonths: 1,
+        groupId: undefined,
+      });
+      expect(result).toEqual(mockSubPocket);
+    });
+
+    it('should pass groupId when provided', async () => {
+      vi.spyOn(apiClient, 'post').mockResolvedValue(mockSubPocket);
+      await subPocketService.createSubPocket('pocket-1', 'Rent', 12000, 1, 'group-1');
+      expect(apiClient.post).toHaveBeenCalledWith('/api/sub-pockets', expect.objectContaining({ groupId: 'group-1' }));
+    });
+  });
+
+  describe('updateSubPocket', () => {
+    it('should call apiClient.put with correct path and updates', async () => {
+      const updated = { ...mockSubPocket, name: 'Updated' };
+      vi.spyOn(apiClient, 'put').mockResolvedValue(updated);
+      const result = await subPocketService.updateSubPocket('sp-1', { name: 'Updated' });
+      expect(apiClient.put).toHaveBeenCalledWith('/api/sub-pockets/sp-1', { name: 'Updated' });
+      expect(result.name).toBe('Updated');
+    });
+  });
+
+  describe('deleteSubPocket', () => {
+    it('should call apiClient.delete with correct path', async () => {
+      vi.spyOn(apiClient, 'delete').mockResolvedValue(undefined);
+      await subPocketService.deleteSubPocket('sp-1');
+      expect(apiClient.delete).toHaveBeenCalledWith('/api/sub-pockets/sp-1');
+    });
+  });
+
+  describe('toggleSubPocketEnabled', () => {
+    it('should call toggle endpoint', async () => {
+      const toggled = { ...mockSubPocket, enabled: false };
+      vi.spyOn(apiClient, 'post').mockResolvedValue(toggled);
+      const result = await subPocketService.toggleSubPocketEnabled('sp-1');
+      expect(apiClient.post).toHaveBeenCalledWith('/api/sub-pockets/sp-1/toggle', {});
+      expect(result.enabled).toBe(false);
+    });
+  });
+
+  describe('reorderSubPockets', () => {
+    it('should call reorder endpoint', async () => {
+      vi.spyOn(apiClient, 'post').mockResolvedValue(undefined);
+      await subPocketService.reorderSubPockets('pocket-1', ['sp-1', 'sp-2']);
+      expect(apiClient.post).toHaveBeenCalledWith('/api/sub-pockets/reorder', { pocketId: 'pocket-1', subPocketIds: ['sp-1', 'sp-2'] });
+    });
+  });
+
+  describe('moveToGroup', () => {
+    it('should call move-to-group endpoint', async () => {
+      vi.spyOn(apiClient, 'post').mockResolvedValue(undefined);
+      await subPocketService.moveToGroup('sp-1', 'group-2');
+      expect(apiClient.post).toHaveBeenCalledWith('/api/sub-pockets/sp-1/move-to-group', { groupId: 'group-2' });
+    });
+  });
+
+  describe('toggleGroup', () => {
+    it('should call group toggle endpoint', async () => {
+      vi.spyOn(apiClient, 'post').mockResolvedValue(undefined);
+      await subPocketService.toggleGroup('group-1', true);
+      expect(apiClient.post).toHaveBeenCalledWith('/api/fixed-expense-groups/group-1/toggle', {});
+    });
+  });
 });

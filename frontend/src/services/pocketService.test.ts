@@ -1,151 +1,135 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { pocketService } from './pocketService';
-import { accountService } from './accountService';
+import { apiClient } from './apiClient';
+import type { Pocket } from '../types';
+
+const mockPocket: Pocket = {
+  id: 'pocket-1',
+  accountId: 'acc-1',
+  name: 'Savings',
+  type: 'normal',
+  balance: 0,
+  currency: 'USD',
+};
 
 describe('pocketService', () => {
-    let accountId: string;
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
 
-    beforeEach(async () => {
-        localStorage.clear();
-        const account = await accountService.createAccount('Test Account', '#FF0000', 'USD');
-        accountId = account.id;
+  describe('getAllPockets', () => {
+    it('should call apiClient.get with correct path', async () => {
+      vi.spyOn(apiClient, 'get').mockResolvedValue([mockPocket]);
+      const result = await pocketService.getAllPockets();
+      expect(apiClient.get).toHaveBeenCalledWith('/api/pockets');
+      expect(result).toEqual([mockPocket]);
     });
 
-    describe('createPocket', () => {
-        it('should create a normal pocket', async () => {
-            const pocket = await pocketService.createPocket(accountId, 'Savings', 'normal');
+    it('should return empty array when no pockets', async () => {
+      vi.spyOn(apiClient, 'get').mockResolvedValue([]);
+      const result = await pocketService.getAllPockets();
+      expect(result).toEqual([]);
+    });
+  });
 
-            expect(pocket).toMatchObject({
-                accountId,
-                name: 'Savings',
-                type: 'normal',
-                balance: 0,
-                currency: 'USD',
-            });
-            expect(pocket.id).toBeDefined();
-        });
-
-        it('should trim whitespace from name', async () => {
-            const pocket = await pocketService.createPocket(accountId, '  Savings  ', 'normal');
-            expect(pocket.name).toBe('Savings');
-        });
-
-        it('should throw error for empty name', async () => {
-            await expect(
-                pocketService.createPocket(accountId, '  ', 'normal')
-            ).rejects.toThrow('Pocket name cannot be empty');
-        });
-
-        it('should create a fixed pocket', async () => {
-            const pocket = await pocketService.createPocket(accountId, 'Fixed Expenses', 'fixed');
-
-            expect(pocket.type).toBe('fixed');
-        });
-
-        it('should throw error for duplicate pocket name in same account', async () => {
-            await pocketService.createPocket(accountId, 'Savings', 'normal');
-
-            await expect(
-                pocketService.createPocket(accountId, 'Savings', 'normal')
-            ).rejects.toThrow('A pocket with name "Savings" already exists in this account');
-        });
-
-        it('should allow same pocket name in different accounts', async () => {
-            const account2 = await accountService.createAccount('Account 2', '#00FF00', 'MXN');
-
-            await pocketService.createPocket(accountId, 'Savings', 'normal');
-            const pocket2 = await pocketService.createPocket(account2.id, 'Savings', 'normal');
-
-            expect(pocket2.name).toBe('Savings');
-            expect(pocket2.accountId).toBe(account2.id);
-        });
-
-        it('should throw error when creating second fixed pocket', async () => {
-            await pocketService.createPocket(accountId, 'Fixed 1', 'fixed');
-
-            const account2 = await accountService.createAccount('Account 2', '#00FF00', 'MXN');
-            await expect(
-                pocketService.createPocket(account2.id, 'Fixed 2', 'fixed')
-            ).rejects.toThrow('A fixed expenses pocket already exists');
-        });
-
-        it('should throw error for non-existent account', async () => {
-            await expect(
-                pocketService.createPocket('non-existent', 'Test', 'normal')
-            ).rejects.toThrow('Account with id "non-existent" not found');
-        });
+  describe('getPocket', () => {
+    it('should retrieve pocket by ID', async () => {
+      vi.spyOn(apiClient, 'get').mockResolvedValue(mockPocket);
+      const result = await pocketService.getPocket('pocket-1');
+      expect(apiClient.get).toHaveBeenCalledWith('/api/pockets/pocket-1');
+      expect(result).toEqual(mockPocket);
     });
 
-    describe('getPocketsByAccount', () => {
-        it('should return pockets for specific account', async () => {
-            await pocketService.createPocket(accountId, 'Pocket 1', 'normal');
-            await pocketService.createPocket(accountId, 'Pocket 2', 'normal');
+    it('should return null for non-existent ID', async () => {
+      vi.spyOn(apiClient, 'get').mockResolvedValue(null);
+      const result = await pocketService.getPocket('non-existent');
+      expect(result).toBeNull();
+    });
+  });
 
-            const account2 = await accountService.createAccount('Account 2', '#00FF00', 'MXN');
-            await pocketService.createPocket(account2.id, 'Pocket 3', 'normal');
+  describe('getPocketsByAccount', () => {
+    it('should filter pockets by account ID', async () => {
+      vi.spyOn(apiClient, 'get').mockResolvedValue([mockPocket]);
+      const result = await pocketService.getPocketsByAccount('acc-1');
+      expect(apiClient.get).toHaveBeenCalledWith('/api/pockets?accountId=acc-1');
+      expect(result).toEqual([mockPocket]);
+    });
+  });
 
-            const pockets = await pocketService.getPocketsByAccount(accountId);
-            expect(pockets).toHaveLength(2);
-            expect(pockets.every(p => p.accountId === accountId)).toBe(true);
-        });
-
-        it('should return empty array for account with no pockets', async () => {
-            const pockets = await pocketService.getPocketsByAccount(accountId);
-            expect(pockets).toEqual([]);
-        });
+  describe('createPocket', () => {
+    it('should create a normal pocket', async () => {
+      vi.spyOn(apiClient, 'post').mockResolvedValue(mockPocket);
+      const result = await pocketService.createPocket('acc-1', 'Savings', 'normal');
+      expect(apiClient.post).toHaveBeenCalledWith('/api/pockets', {
+        accountId: 'acc-1',
+        name: 'Savings',
+        type: 'normal',
+      });
+      expect(result).toEqual(mockPocket);
     });
 
-    describe('updatePocket', () => {
-        it('should update pocket name', async () => {
-            const pocket = await pocketService.createPocket(accountId, 'Old Name', 'normal');
-            const updated = await pocketService.updatePocket(pocket.id, { name: 'New Name' });
+    it('should create a fixed pocket', async () => {
+      const fixedPocket = { ...mockPocket, type: 'fixed' as const };
+      vi.spyOn(apiClient, 'post').mockResolvedValue(fixedPocket);
+      const result = await pocketService.createPocket('acc-1', 'Fixed Expenses', 'fixed');
+      expect(apiClient.post).toHaveBeenCalledWith('/api/pockets', {
+        accountId: 'acc-1',
+        name: 'Fixed Expenses',
+        type: 'fixed',
+      });
+      expect(result.type).toBe('fixed');
+    });
+  });
 
-            expect(updated.name).toBe('New Name');
-        });
+  describe('updatePocket', () => {
+    it('should call apiClient.put with correct path and data', async () => {
+      const updated = { ...mockPocket, name: 'Updated' };
+      vi.spyOn(apiClient, 'put').mockResolvedValue(updated);
+      const result = await pocketService.updatePocket('pocket-1', { name: 'Updated' });
+      expect(apiClient.put).toHaveBeenCalledWith('/api/pockets/pocket-1', { name: 'Updated' });
+      expect(result.name).toBe('Updated');
+    });
+  });
 
-        it('should throw error for duplicate name in same account', async () => {
-            const pocket1 = await pocketService.createPocket(accountId, 'Pocket 1', 'normal');
-            await pocketService.createPocket(accountId, 'Pocket 2', 'normal');
+  describe('deletePocket', () => {
+    it('should call apiClient.delete with correct path', async () => {
+      vi.spyOn(apiClient, 'delete').mockResolvedValue(undefined);
+      await pocketService.deletePocket('pocket-1');
+      expect(apiClient.delete).toHaveBeenCalledWith('/api/pockets/pocket-1');
+    });
+  });
 
-            await expect(
-                pocketService.updatePocket(pocket1.id, { name: 'Pocket 2' })
-            ).rejects.toThrow('A pocket with name "Pocket 2" already exists in this account');
-        });
-
-        it('should throw error for non-existent pocket', async () => {
-            await expect(
-                pocketService.updatePocket('non-existent', { name: 'Test' })
-            ).rejects.toThrow('Pocket with id "non-existent" not found');
-        });
+  describe('getFixedExpensesPocket', () => {
+    it('should return the fixed pocket when it exists', async () => {
+      const fixedPocket = { ...mockPocket, id: 'fixed-1', type: 'fixed' as const };
+      vi.spyOn(apiClient, 'get').mockResolvedValue([mockPocket, fixedPocket]);
+      const result = await pocketService.getFixedExpensesPocket();
+      expect(result).toEqual(fixedPocket);
     });
 
-    describe('deletePocket', () => {
-        it('should delete pocket without sub-pockets', async () => {
-            const pocket = await pocketService.createPocket(accountId, 'Test', 'normal');
-            await pocketService.deletePocket(pocket.id);
-
-            const pockets = await pocketService.getPocketsByAccount(accountId);
-            expect(pockets).toHaveLength(0);
-        });
-
-        it('should throw error for non-existent pocket', async () => {
-            await expect(
-                pocketService.deletePocket('non-existent')
-            ).rejects.toThrow('Pocket with id "non-existent" not found');
-        });
+    it('should return null when no fixed pocket exists', async () => {
+      vi.spyOn(apiClient, 'get').mockResolvedValue([mockPocket]);
+      const result = await pocketService.getFixedExpensesPocket();
+      expect(result).toBeNull();
     });
+  });
 
-    describe('getFixedExpensesPocket', () => {
-        it('should return fixed pocket if exists', async () => {
-            const fixedPocket = await pocketService.createPocket(accountId, 'Fixed', 'fixed');
-            const retrieved = pocketService.getFixedExpensesPocket();
-
-            expect(retrieved).toEqual(fixedPocket);
-        });
-
-        it('should return null if no fixed pocket exists', () => {
-            const pocket = pocketService.getFixedExpensesPocket();
-            expect(pocket).toBeNull();
-        });
+  describe('migrateFixedPocketToAccount', () => {
+    it('should call apiClient.post with migrate endpoint', async () => {
+      const migrated = { ...mockPocket, accountId: 'acc-2' };
+      vi.spyOn(apiClient, 'post').mockResolvedValue(migrated);
+      const result = await pocketService.migrateFixedPocketToAccount('pocket-1', 'acc-2');
+      expect(apiClient.post).toHaveBeenCalledWith('/api/pockets/pocket-1/migrate', { targetAccountId: 'acc-2' });
+      expect(result.accountId).toBe('acc-2');
     });
+  });
+
+  describe('reorderPockets', () => {
+    it('should call apiClient.post with reorder endpoint', async () => {
+      vi.spyOn(apiClient, 'post').mockResolvedValue(undefined);
+      const ids = ['p1', 'p2', 'p3'];
+      await pocketService.reorderPockets('acc-1', ids);
+      expect(apiClient.post).toHaveBeenCalledWith('/api/pockets/reorder', { accountId: 'acc-1', pocketIds: ids });
+    });
+  });
 });

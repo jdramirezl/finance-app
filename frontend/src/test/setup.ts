@@ -2,6 +2,12 @@ import { afterEach, vi } from 'vitest';
 import { cleanup } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 
+// Global mock for supabase — prevents env var throw on import
+vi.mock('../lib/supabase', () => import('./__mocks__/supabase'));
+
+// Global mock for apiClient — prevents supabase import chain
+vi.mock('../services/apiClient', () => import('./__mocks__/apiClient'));
+
 // Cleanup after each test
 afterEach(() => {
   cleanup();
