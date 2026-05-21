@@ -167,6 +167,7 @@ export const useMovementSubmit = ({
         notes: row.notes || undefined,
         displayedDate: row.displayedDate,
         isPending: row.isPending || false,
+        category: row.category || undefined,
       }))
     );
     setShowBatchForm(false);

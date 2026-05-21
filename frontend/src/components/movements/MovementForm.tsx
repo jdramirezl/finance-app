@@ -7,6 +7,7 @@ import Button from '../ui/Button';
 import Input from '../ui/Input';
 import Select from '../ui/Select';
 import AccountPocketSelector from './AccountPocketSelector';
+import CategorySelector from './CategorySelector';
 import { toDateOnly } from '../../utils/dateUtils';
 import { MOVEMENT_TYPES, isFixedMovement } from '../../constants/movementTypes';
 import type { Movement, MovementType } from '../../types';
@@ -19,6 +20,7 @@ export interface MovementFormData {
   subPocketId: string;
   amount: string;
   notes: string;
+  category: string;
   isPending: boolean;
   isTransfer: boolean;
   targetAccountId: string;
@@ -77,6 +79,7 @@ const MovementForm = forwardRef<MovementFormRef, MovementFormProps>(
         subPocketId: initialData?.subPocketId ?? '',
         amount: initialData ? initialData.amount.toString() : (prefillValues?.amount ? prefillValues.amount.toString() : ''),
         notes: initialData?.notes ?? prefillValues?.notes ?? '',
+        category: initialData?.category ?? '',
         isPending: initialData?.isPending ?? false,
         isTransfer: false,
         targetAccountId: '',
@@ -144,6 +147,7 @@ const MovementForm = forwardRef<MovementFormRef, MovementFormProps>(
         setValue('subPocketId', '');
         setValue('amount', '');
         setValue('notes', '');
+        setValue('category', '');
         setValue('type', 'EgresoNormal');
         return;
       }
@@ -275,6 +279,11 @@ const MovementForm = forwardRef<MovementFormRef, MovementFormProps>(
             />
           </div>
         )}
+
+        <CategorySelector
+          value={watch('category')}
+          onChange={(val) => setValue('category', val)}
+        />
 
         <Input
           type="number"

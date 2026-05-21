@@ -41,6 +41,7 @@ function createDefaultRow(): BatchMovementRowData {
     pocketId: '',
     amount: '',
     notes: '',
+    category: '',
     displayedDate: format(new Date(), 'yyyy-MM-dd'),
   };
 }
