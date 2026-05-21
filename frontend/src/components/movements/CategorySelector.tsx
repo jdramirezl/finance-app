@@ -1,30 +1,10 @@
 import { useState, useRef, useEffect } from 'react';
-import { PREDEFINED_CATEGORIES } from '../../constants/categories';
+import { PREDEFINED_CATEGORIES, getCategoryColor } from '../../constants/categories';
 
 interface CategorySelectorProps {
   value: string;
   onChange: (value: string) => void;
   label?: string;
-}
-
-const CATEGORY_COLORS: Record<string, string> = {
-  Food: '#ef4444',
-  Transport: '#3b82f6',
-  Bills: '#f59e0b',
-  Entertainment: '#8b5cf6',
-  Shopping: '#ec4899',
-  Health: '#10b981',
-  Education: '#06b6d4',
-  Salary: '#22c55e',
-  Investment: '#6366f1',
-  Gifts: '#f97316',
-  Subscriptions: '#a855f7',
-  Transfer: '#64748b',
-  Other: '#9ca3af',
-};
-
-function getCategoryColor(category: string): string {
-  return CATEGORY_COLORS[category] ?? '#6b7280';
 }
 
 export default function CategorySelector({ value, onChange, label = 'Category' }: CategorySelectorProps) {

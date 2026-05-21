@@ -8,6 +8,7 @@ import type { Account, Movement, MovementType, Pocket } from '../../types';
 import type { Reminder } from '../../services/reminderService';
 import type { SortField, SortOrder } from '../../hooks/useMovementsSort';
 import { getSmartIcon, getDefaultIcon } from '../../constants/smartIcons';
+import { getCategoryColor } from '../../constants/categories';
 import InlineEditableAmount from '../ui/InlineEditableAmount';
 
 interface MovementListProps {
@@ -140,6 +141,28 @@ const MovementRow = memo(({
                             <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-800 border border-yellow-200">
                                 Pending
                             </span>
+                        )}
+                        {movement.category && (
+                            <span
+                                className="text-xs px-2 py-0.5 rounded-full text-white flex items-center gap-1"
+                                style={{ backgroundColor: getCategoryColor(movement.category) }}
+                            >
+                                {movement.category}
+                            </span>
+                        )}
+                        {movement.tags && movement.tags.length > 0 && (
+                            <>
+                                {movement.tags.slice(0, 3).map((tag) => (
+                                    <span key={tag} className="text-xs px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-600">
+                                        {tag}
+                                    </span>
+                                ))}
+                                {movement.tags.length > 3 && (
+                                    <span className="text-xs text-gray-500 dark:text-gray-400">
+                                        +{movement.tags.length - 3} more
+                                    </span>
+                                )}
+                            </>
                         )}
                     </div>
                     <div className="text-sm text-gray-500 dark:text-gray-400 mt-1 flex flex-wrap items-center gap-2">
