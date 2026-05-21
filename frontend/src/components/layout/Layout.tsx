@@ -1,4 +1,6 @@
+import { useCallback, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Calendar,
   FileText,
@@ -13,6 +15,9 @@ import ErrorBoundary from '../feedback/ErrorBoundary';
 import Sidebar from './Sidebar';
 import BottomNav from './BottomNav';
 import QuickActionsFAB from './QuickActionsFAB';
+import QuickAddMovement from '../movements/QuickAddMovement';
+import { useGlobalKeyboardShortcuts } from '../../hooks/useGlobalKeyboardShortcuts';
+import type { ShortcutDef } from '../../hooks/useGlobalKeyboardShortcuts';
 
 interface NavItem {
   path: string;
@@ -51,6 +56,31 @@ interface LayoutProps {
  * interactive state lives inside the child components.
  */
 const Layout = ({ children }: LayoutProps) => {
+  const navigate = useNavigate();
+  const [showQuickAdd, setShowQuickAdd] = useState(false);
+
+  const toggleQuickAdd = useCallback(() => setShowQuickAdd((v) => !v), []);
+
+  const shortcuts: ShortcutDef[] = useMemo(
+    () => [{ key: 'm', ctrl: true, shift: true, handler: toggleQuickAdd }],
+    [toggleQuickAdd]
+  );
+  useGlobalKeyboardShortcuts(shortcuts);
+
+  const handleClose = useCallback(() => setShowQuickAdd(false), []);
+
+  const handleExpandToFull = useCallback(
+    (prefill: { amount?: number; notes?: string; type?: string }) => {
+      const params = new URLSearchParams();
+      if (prefill.amount) params.set('amount', String(prefill.amount));
+      if (prefill.notes) params.set('notes', prefill.notes);
+      if (prefill.type) params.set('type', prefill.type);
+      setShowQuickAdd(false);
+      navigate(`/movements?action=new&${params.toString()}`);
+    },
+    [navigate]
+  );
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors pb-20 md:pb-0 overflow-x-hidden">
       <Sidebar items={NAV_ITEMS} />
@@ -61,6 +91,15 @@ const Layout = ({ children }: LayoutProps) => {
       </main>
 
       <QuickActionsFAB />
+
+      {showQuickAdd && (
+        <QuickAddMovement
+          variant="modal"
+          onClose={handleClose}
+          onSuccess={handleClose}
+          onExpandToFull={handleExpandToFull}
+        />
+      )}
     </div>
   );
 };

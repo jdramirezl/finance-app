@@ -1,22 +1,38 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Plus, TrendingUp, Wallet } from 'lucide-react';
+import { Plus, TrendingUp, Wallet, Zap } from 'lucide-react';
+import QuickAddMovement from '../movements/QuickAddMovement';
 
 /**
  * Mobile-only floating action button (hidden on md+). Tapping it
  * expands a small menu of quick navigation shortcuts (new movement,
- * new transfer). The menu collapses automatically when the route
- * changes so it never lingers across navigations.
+ * new transfer, quick add). The menu collapses automatically when the
+ * route changes so it never lingers across navigations.
  */
 const QuickActionsFAB = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const [showQuickActions, setShowQuickActions] = useState(false);
+  const [showQuickAdd, setShowQuickAdd] = useState(false);
 
   // Collapse the action menu when navigating away.
   useEffect(() => {
     setShowQuickActions(false);
   }, [location.pathname]);
+
+  const handleQuickAddClick = () => {
+    setShowQuickActions(false);
+    setShowQuickAdd(true);
+  };
+
+  const handleExpandToFull = (prefill: { amount?: number; notes?: string; type?: string }) => {
+    const params = new URLSearchParams();
+    if (prefill.amount) params.set('amount', String(prefill.amount));
+    if (prefill.notes) params.set('notes', prefill.notes);
+    if (prefill.type) params.set('type', prefill.type);
+    setShowQuickAdd(false);
+    navigate(`/movements?action=new&${params.toString()}`);
+  };
 
   return (
     <div className="md:hidden">
@@ -27,6 +43,15 @@ const QuickActionsFAB = () => {
             : 'opacity-0 translate-y-4 pointer-events-none'
         }`}
       >
+        <button
+          onClick={handleQuickAddClick}
+          className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-full shadow-lg border border-gray-100 dark:border-gray-700"
+        >
+          <span className="font-medium text-sm">Quick Add</span>
+          <div className="w-8 h-8 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center text-amber-600 dark:text-amber-400">
+            <Zap className="w-4 h-4" aria-hidden="true" />
+          </div>
+        </button>
         <button
           onClick={() => navigate('/movements?action=new')}
           className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-full shadow-lg border border-gray-100 dark:border-gray-700"
@@ -61,6 +86,15 @@ const QuickActionsFAB = () => {
       >
         <Plus className="w-8 h-8" aria-hidden="true" />
       </button>
+
+      {showQuickAdd && (
+        <QuickAddMovement
+          variant="modal"
+          onClose={() => setShowQuickAdd(false)}
+          onSuccess={() => setShowQuickAdd(false)}
+          onExpandToFull={handleExpandToFull}
+        />
+      )}
     </div>
   );
 };

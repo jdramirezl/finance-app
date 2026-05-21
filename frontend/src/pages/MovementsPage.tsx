@@ -23,7 +23,7 @@ import { useMovementRowActions } from '../hooks/actions/useMovementRowActions';
 import { useMovementBulkActions } from '../hooks/actions/useMovementBulkActions';
 import { useBalanceDeltas } from '../hooks/useBalanceDeltas';
 import { useOrphanedRestore } from '../hooks/useOrphanedRestore';
-import type { Movement, MovementTemplate, Pocket, SubPocket } from '../types';
+import type { Movement, MovementTemplate, MovementType, Pocket, SubPocket } from '../types';
 import Button from '../components/ui/Button';
 import { Skeleton, SkeletonTable } from '../components/ui/Skeleton';
 import type { BatchMovementFormRef, BatchMovementRow } from '../components/movements/BatchMovementForm';
@@ -34,6 +34,7 @@ import OrphanedMovementsPanel from '../components/movements/OrphanedMovementsPan
 import BulkActionsToolbar from '../components/movements/BulkActionsToolbar';
 import MovementFormPanel from '../components/movements/MovementFormPanel';
 import RestoreOrphanedModal from '../components/movements/RestoreOrphanedModal';
+import QuickAddMovement from '../components/movements/QuickAddMovement';
 
 const EMPTY_POCKETS: Pocket[] = [];
 const EMPTY_SUBPOCKETS: SubPocket[] = [];
@@ -207,6 +208,14 @@ const MovementsPage = () => {
     fetchMoreMovements();
   }, [fetchMoreMovements]);
 
+  const handleQuickAddExpand = useCallback(
+    (prefill: { amount?: number; notes?: string; type?: MovementType }) => {
+      formState.setDefaultValues(prefill);
+      formState.openNewForm();
+    },
+    [formState]
+  );
+
   if (movementsLoading) {
     return (
       <div className="space-y-6">
@@ -254,6 +263,8 @@ const MovementsPage = () => {
           </Button>
         </div>
       </div>
+
+      <QuickAddMovement variant="inline" onExpandToFull={handleQuickAddExpand} />
 
       {error && (
         <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 rounded-lg">

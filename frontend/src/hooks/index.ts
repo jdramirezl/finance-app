@@ -6,6 +6,7 @@ export * from './useBudgetPersistence';
 export * from './useBulkSelection';
 export * from './useConfirm';
 export * from './useConsolidatedTotal';
+export * from './useGlobalKeyboardShortcuts';
 export * from './useInvestmentPrices';
 export * from './useMovementFormState';
 export * from './useMovementsFilter';
