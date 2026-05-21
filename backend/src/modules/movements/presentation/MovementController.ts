@@ -10,6 +10,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { injectable, inject } from 'tsyringe';
 import { CreateMovementUseCase } from '../application/useCases/CreateMovementUseCase';
+import { GetAllMovementsUseCase } from '../application/useCases/GetAllMovementsUseCase';
 import { GetMovementsByAccountUseCase } from '../application/useCases/GetMovementsByAccountUseCase';
 import { GetMovementsByPocketUseCase } from '../application/useCases/GetMovementsByPocketUseCase';
 import { GetMovementsByMonthUseCase } from '../application/useCases/GetMovementsByMonthUseCase';
@@ -37,6 +38,7 @@ import type { CreateMovementDTO, UpdateMovementDTO } from '../application/dtos/M
 export class MovementController {
   constructor(
     @inject(CreateMovementUseCase) private createMovementUseCase: CreateMovementUseCase,
+    @inject(GetAllMovementsUseCase) private getAllMovementsUseCase: GetAllMovementsUseCase,
     @inject(GetMovementsByAccountUseCase) private getMovementsByAccountUseCase: GetMovementsByAccountUseCase,
     @inject(GetMovementsByPocketUseCase) private getMovementsByPocketUseCase: GetMovementsByPocketUseCase,
     @inject(GetMovementsByMonthUseCase) private getMovementsByMonthUseCase: GetMovementsByMonthUseCase,
@@ -99,9 +101,23 @@ export class MovementController {
   }
 
   /**
-   * Get movements with filters
-   * GET /api/movements?accountId=xxx&pocketId=xxx&month=2024-11&pending=true
-   * 
+   * Get movements with optional filters and pagination
+   * GET /api/movements
+   *
+   * Query params (all optional):
+   *   - accountId: filter by account
+   *   - pocketId:  filter by pocket
+   *   - year + month: return movements for that month (year+month grouped result)
+   *   - pending:   filter by pending status (true/false)
+   *   - page:      1-based page number (default 1)
+   *   - limit:     page size (default 50, max 200)
+   *
+   * Routing:
+   *   - accountId provided  -> GetMovementsByAccountUseCase, returns Movement[]
+   *   - pocketId provided   -> GetMovementsByPocketUseCase, returns Movement[]
+   *   - year+month provided -> GetMovementsByMonthUseCase, returns { year, month, movements }
+   *   - no filter           -> GetAllMovementsUseCase, returns { data, total, page, limit, hasMore }
+   *
    * Requirements: 10.5
    */
   async getAll(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -114,17 +130,23 @@ export class MovementController {
 
       const { accountId, pocketId, month, pending, year, page, limit } = req.query;
 
+      // Build pagination options for the filtered branches. The filtered
+      // branches preserve their existing array response shape and only
+      // honor pagination when both page and limit are provided so callers
+      // that already work today are not surprised.
       const pagination = {
-        limit: limit ? parseInt(limit as string) : undefined,
-        offset: (page && limit) ? (parseInt(page as string) - 1) * parseInt(limit as string) : undefined
+        limit: limit ? parseInt(limit as string, 10) : undefined,
+        offset: (page && limit)
+          ? (parseInt(page as string, 10) - 1) * parseInt(limit as string, 10)
+          : undefined,
       };
 
-      // Route to appropriate use case based on query parameters
+      // Route to the appropriate use case based on which filters were supplied.
       if (accountId) {
         const filters = {
           isPending: pending === 'true' ? true : pending === 'false' ? false : undefined,
-          year: year ? parseInt(year as string) : undefined,
-          month: month ? parseInt(month as string) : undefined,
+          year: year ? parseInt(year as string, 10) : undefined,
+          month: month ? parseInt(month as string, 10) : undefined,
         };
         const movements = await this.getMovementsByAccountUseCase.execute(
           accountId as string,
@@ -133,11 +155,14 @@ export class MovementController {
           pagination
         );
         res.status(200).json(movements);
-      } else if (pocketId) {
+        return;
+      }
+
+      if (pocketId) {
         const filters = {
           isPending: pending === 'true' ? true : pending === 'false' ? false : undefined,
-          year: year ? parseInt(year as string) : undefined,
-          month: month ? parseInt(month as string) : undefined,
+          year: year ? parseInt(year as string, 10) : undefined,
+          month: month ? parseInt(month as string, 10) : undefined,
         };
         const movements = await this.getMovementsByPocketUseCase.execute(
           pocketId as string,
@@ -146,18 +171,31 @@ export class MovementController {
           pagination
         );
         res.status(200).json(movements);
-      } else if (year && month) {
-        const yearNum = parseInt(year as string);
-        const monthNum = parseInt(month as string);
+        return;
+      }
+
+      if (year && month) {
+        const yearNum = parseInt(year as string, 10);
+        const monthNum = parseInt(month as string, 10);
         const result = await this.getMovementsByMonthUseCase.execute(
           yearNum,
           monthNum,
           userId
         );
         res.status(200).json(result);
-      } else {
-        res.status(400).json({ error: 'At least one filter parameter is required (accountId, pocketId, or year+month)' });
+        return;
       }
+
+      // No filter provided -> return a paginated list of every movement
+      // for the authenticated user.
+      const pageNum = page !== undefined ? parseInt(page as string, 10) : undefined;
+      const limitNum = limit !== undefined ? parseInt(limit as string, 10) : undefined;
+
+      const result = await this.getAllMovementsUseCase.execute(userId, {
+        page: pageNum,
+        limit: limitNum,
+      });
+      res.status(200).json(result);
     } catch (error) {
       next(error);
     }

@@ -60,3 +60,21 @@ export interface RestoreOrphanedResultDTO {
   restored: number;
   failed: number;
 }
+
+/**
+ * DTO for paginated movement list responses (e.g. GET /api/movements
+ * without filters). The total count and hasMore flag let the frontend
+ * render pagination controls without an extra round-trip.
+ */
+export interface PaginatedMovementsDTO {
+  /** The page of movements, ordered by displayed date descending. */
+  data: MovementResponseDTO[];
+  /** Total number of movements matching the query, across all pages. */
+  total: number;
+  /** 1-based page number that was returned. */
+  page: number;
+  /** Page size that was applied. */
+  limit: number;
+  /** True when at least one more page exists after this one. */
+  hasMore: boolean;
+}

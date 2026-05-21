@@ -69,6 +69,7 @@ import { FixedExpenseGroupController } from '../../modules/sub-pockets/presentat
 import { IMovementRepository } from '../../modules/movements/infrastructure/IMovementRepository';
 import { SupabaseMovementRepository } from '../../modules/movements/infrastructure/SupabaseMovementRepository';
 import { CreateMovementUseCase } from '../../modules/movements/application/useCases/CreateMovementUseCase';
+import { GetAllMovementsUseCase } from '../../modules/movements/application/useCases/GetAllMovementsUseCase';
 import { GetMovementsByAccountUseCase } from '../../modules/movements/application/useCases/GetMovementsByAccountUseCase';
 import { GetMovementsByPocketUseCase } from '../../modules/movements/application/useCases/GetMovementsByPocketUseCase';
 import { GetMovementsByMonthUseCase } from '../../modules/movements/application/useCases/GetMovementsByMonthUseCase';
@@ -217,6 +218,7 @@ function registerMovementModule(): void {
 
   // Register use cases (automatically resolved by tsyringe)
   container.register(CreateMovementUseCase, { useClass: CreateMovementUseCase });
+  container.register(GetAllMovementsUseCase, { useClass: GetAllMovementsUseCase });
   container.register(GetMovementsByAccountUseCase, { useClass: GetMovementsByAccountUseCase });
   container.register(GetMovementsByPocketUseCase, { useClass: GetMovementsByPocketUseCase });
   container.register(GetMovementsByMonthUseCase, { useClass: GetMovementsByMonthUseCase });
