@@ -6,6 +6,7 @@ import type { useMovementTemplateMutations } from './queries/useMovementTemplate
 import type { useReminderMutations } from './queries/useReminderQueries';
 import type { MovementFormStateResult } from './useMovementFormState';
 import { parseDate } from '../utils/dateUtils';
+import { movementService } from '../services/movementService';
 
 type MovementMutations = Pick<
   ReturnType<typeof useMovementMutations>,
@@ -156,24 +157,23 @@ export const useMovementSubmit = ({
   };
 
   const handleBatchSave = async (rows: BatchMovementRow[]) => {
-    for (const row of rows) {
-      await createMovement.mutateAsync({
+    await movementService.batchCreateMovements(
+      rows.map(row => ({
         type: row.type,
         accountId: row.accountId,
         pocketId: row.pocketId,
+        subPocketId: row.subPocketId,
         amount: parseFloat(row.amount),
         notes: row.notes || undefined,
         displayedDate: row.displayedDate,
-        subPocketId: row.subPocketId,
         isPending: row.isPending || false,
-      });
-    }
+      }))
+    );
     setShowBatchForm(false);
     const pendingText = rows[0]?.isPending ? ' as pending' : '';
     toast.success(
       `Successfully created ${rows.length} movement${rows.length > 1 ? 's' : ''}${pendingText}!`
     );
-    // Errors propagate to callers; mutation onError shows the toast.
   };
 
   const isSaving = createMovement.isPending || updateMovement.isPending;

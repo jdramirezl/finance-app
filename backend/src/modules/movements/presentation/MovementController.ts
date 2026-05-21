@@ -33,6 +33,7 @@ import {
   type UpdateMovementsAccountForPocketDTO,
 } from '../application/useCases/UpdateMovementsAccountForPocketUseCase';
 import type { CreateMovementDTO, UpdateMovementDTO } from '../application/dtos/MovementDTO';
+import type { IMovementRepository } from '../infrastructure/IMovementRepository';
 
 @injectable()
 export class MovementController {
@@ -53,7 +54,8 @@ export class MovementController {
     @inject(DeleteMovementsByAccountUseCase) private deleteMovementsByAccountUseCase: DeleteMovementsByAccountUseCase,
     @inject(DeleteMovementsByPocketUseCase) private deleteMovementsByPocketUseCase: DeleteMovementsByPocketUseCase,
     @inject(MarkMovementsAsOrphanedUseCase) private markMovementsAsOrphanedUseCase: MarkMovementsAsOrphanedUseCase,
-    @inject(UpdateMovementsAccountForPocketUseCase) private updateMovementsAccountForPocketUseCase: UpdateMovementsAccountForPocketUseCase
+    @inject(UpdateMovementsAccountForPocketUseCase) private updateMovementsAccountForPocketUseCase: UpdateMovementsAccountForPocketUseCase,
+    @inject('MovementRepository') private movementRepo: IMovementRepository
   ) { }
 
   /**
@@ -94,6 +96,31 @@ export class MovementController {
       const dto = req.body;
       const result = await this.createTransferUseCase.execute(dto, userId);
 
+      res.status(201).json(result);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Batch create movements atomically
+   * POST /api/movements/batch
+   */
+  async batchCreate(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        res.status(401).json({ error: 'Unauthorized' });
+        return;
+      }
+
+      const { movements } = req.body;
+      if (!Array.isArray(movements) || movements.length === 0) {
+        res.status(400).json({ error: 'movements must be a non-empty array' });
+        return;
+      }
+
+      const result = await this.movementRepo.batchCreate(movements, userId);
       res.status(201).json(result);
     } catch (error) {
       next(error);

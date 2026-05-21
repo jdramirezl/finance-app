@@ -6,7 +6,7 @@
 
 import { injectable, inject } from 'tsyringe';
 import { SupabaseClient } from '@supabase/supabase-js';
-import type { IMovementRepository, MovementFilters, PaginationOptions } from './IMovementRepository';
+import type { IMovementRepository, MovementFilters, PaginationOptions, CreateTransferAtomicParams, BatchMovementParams } from './IMovementRepository';
 import { Movement } from '../domain/Movement';
 import { MovementMapper } from '../application/mappers/MovementMapper';
 import { DatabaseError } from '../../../shared/errors/AppError';
@@ -33,6 +33,63 @@ export class SupabaseMovementRepository implements IMovementRepository {
     if (error) {
       throw new DatabaseError(`Failed to save movement: ${error.message}`);
     }
+  }
+
+  /**
+   * Atomically create a transfer (expense + income) via the create_transfer RPC
+   */
+  async createTransferAtomic(params: CreateTransferAtomicParams): Promise<{ expense: Movement; income: Movement }> {
+    const { data, error } = await this.supabase.rpc('create_transfer', {
+      p_user_id: params.userId,
+      p_source_account_id: params.sourceAccountId,
+      p_source_pocket_id: params.sourcePocketId,
+      p_target_account_id: params.targetAccountId,
+      p_target_pocket_id: params.targetPocketId,
+      p_amount: params.amount,
+      p_displayed_date: params.displayedDate,
+      p_notes: params.notes ?? null,
+    });
+
+    if (error) {
+      throw new DatabaseError(`Atomic transfer failed: ${error.message}`);
+    }
+
+    return {
+      expense: MovementMapper.toDomain(data.expense),
+      income: MovementMapper.toDomain(data.income),
+    };
+  }
+
+  /**
+   * Atomically create multiple movements via the batch_create_movements RPC
+   */
+  async batchCreate(movements: BatchMovementParams[], userId: string): Promise<Movement[]> {
+    const payload = movements.map(m => ({
+      id: crypto.randomUUID(),
+      type: m.type,
+      accountId: m.accountId,
+      pocketId: m.pocketId,
+      subPocketId: m.subPocketId || '',
+      amount: m.amount,
+      notes: m.notes || '',
+      displayedDate: m.displayedDate,
+      isPending: m.isPending ?? false,
+    }));
+
+    const { data, error } = await this.supabase.rpc('batch_create_movements', {
+      p_user_id: userId,
+      p_movements: payload,
+    });
+
+    if (error) {
+      throw new DatabaseError(`Batch create movements failed: ${error.message}`);
+    }
+
+    if (!data || !Array.isArray(data)) {
+      return [];
+    }
+
+    return data.map((row: any) => MovementMapper.toDomain(row));
   }
 
   /**

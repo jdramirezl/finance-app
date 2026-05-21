@@ -2,7 +2,8 @@
  * Create Transfer Use Case
  * 
  * Business logic for creating a transfer between two pockets.
- * Creates an expense in the source pocket and an income in the target pocket.
+ * Uses the atomic create_transfer RPC to ensure both movements
+ * are created in a single transaction.
  */
 
 import { injectable, inject } from 'tsyringe';
@@ -50,7 +51,6 @@ export class CreateTransferUseCase {
             throw new NotFoundError(`Target pocket not found: ${dto.targetPocketId}`);
         }
 
-        // Verify accounts match (optional, but good practice)
         if (sourcePocket.accountId !== dto.sourceAccountId) {
             throw new ValidationError('Source pocket does not belong to source account');
         }
@@ -58,37 +58,16 @@ export class CreateTransferUseCase {
             throw new ValidationError('Target pocket does not belong to target account');
         }
 
-        // 3. Create Expense Movement (Source)
-        const expense = new Movement(
-            crypto.randomUUID(),
-            'EgresoNormal',
-            dto.sourceAccountId,
-            dto.sourcePocketId,
-            dto.amount,
-            new Date(dto.displayedDate),
-            dto.notes ? `Transfer to ${targetPocket.name}: ${dto.notes}` : `Transfer to ${targetPocket.name}`,
-            undefined, // subPocketId
-            false // isPending
-        );
-
-        // 4. Create Income Movement (Target)
-        const income = new Movement(
-            crypto.randomUUID(),
-            'IngresoNormal',
-            dto.targetAccountId,
-            dto.targetPocketId,
-            dto.amount,
-            new Date(dto.displayedDate),
-            dto.notes ? `Transfer from ${sourcePocket.name}: ${dto.notes}` : `Transfer from ${sourcePocket.name}`,
-            undefined, // subPocketId
-            false // isPending
-        );
-
-        // 5. Save both movements
-        // TODO: Wrap in transaction if supported by repository/infrastructure
-        await this.movementRepo.save(expense, userId);
-        await this.movementRepo.save(income, userId);
-
-        return { expense, income };
+        // 3. Create transfer atomically via RPC
+        return this.movementRepo.createTransferAtomic({
+            userId,
+            sourceAccountId: dto.sourceAccountId,
+            sourcePocketId: dto.sourcePocketId,
+            targetAccountId: dto.targetAccountId,
+            targetPocketId: dto.targetPocketId,
+            amount: dto.amount,
+            displayedDate: dto.displayedDate,
+            notes: dto.notes,
+        });
     }
 }

@@ -210,6 +210,19 @@ class MovementService {
 
   // --- Bulk operations (delegated to backend) ---
 
+  async batchCreateMovements(movements: Array<{
+    type: MovementType;
+    accountId: string;
+    pocketId: string;
+    subPocketId?: string;
+    amount: number;
+    notes?: string;
+    displayedDate: string;
+    isPending?: boolean;
+  }>): Promise<Movement[]> {
+    return await apiClient.post<Movement[]>('/api/movements/batch', { movements });
+  }
+
   async deleteMovementsByAccount(accountId: string): Promise<number> {
     const result = await apiClient.delete<{ count: number }>(
       `/api/movements/by-account/${accountId}`

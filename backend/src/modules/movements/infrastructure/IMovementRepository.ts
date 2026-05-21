@@ -32,6 +32,34 @@ export interface PaginationOptions {
 }
 
 /**
+ * Parameters for atomic transfer via RPC
+ */
+export interface CreateTransferAtomicParams {
+  userId: string;
+  sourceAccountId: string;
+  sourcePocketId: string;
+  targetAccountId: string;
+  targetPocketId: string;
+  amount: number;
+  displayedDate: string;
+  notes?: string;
+}
+
+/**
+ * Parameters for a single movement in a batch create
+ */
+export interface BatchMovementParams {
+  type: string;
+  accountId: string;
+  pocketId: string;
+  subPocketId?: string;
+  amount: number;
+  notes?: string;
+  displayedDate: string;
+  isPending?: boolean;
+}
+
+/**
  * Repository interface for Movement entity
  */
 export interface IMovementRepository {
@@ -39,6 +67,16 @@ export interface IMovementRepository {
    * Save a new movement to the database
    */
   save(movement: Movement, userId: string): Promise<void>;
+
+  /**
+   * Atomically create a transfer (expense + income) via RPC
+   */
+  createTransferAtomic(params: CreateTransferAtomicParams): Promise<{ expense: Movement; income: Movement }>;
+
+  /**
+   * Atomically create multiple movements via RPC
+   */
+  batchCreate(movements: BatchMovementParams[], userId: string): Promise<Movement[]>;
 
   /**
    * Find movement by ID

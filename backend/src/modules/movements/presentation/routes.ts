@@ -33,6 +33,15 @@ router.use(authMiddleware);
 router.post('/', (req, res, next) => controller.create(req, res, next));
 
 /**
+ * POST /api/movements/batch
+ * Atomically create multiple movements
+ * 
+ * Body: { movements: BatchMovementParams[] }
+ * Response: 201 + MovementResponseDTO[]
+ */
+router.post('/batch', (req, res, next) => controller.batchCreate(req, res, next));
+
+/**
  * POST /api/movements/transfer
  * Create transfer (two movements)
  * 
