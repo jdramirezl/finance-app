@@ -1,7 +1,7 @@
 import type { Pocket } from '../../types';
-import Button from '../Button';
-import Input from '../Input';
-import Select from '../Select';
+import Button from '../ui/Button';
+import Input from '../ui/Input';
+import Select from '../ui/Select';
 
 interface PocketFormProps {
     initialData?: Pocket | null;

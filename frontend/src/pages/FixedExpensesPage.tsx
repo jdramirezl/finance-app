@@ -15,12 +15,12 @@ import { useFixedExpenseActions } from '../hooks/useFixedExpenseActions';
 import type { Account, FixedExpenseGroup, SubPocket } from '../types';
 import { calculateAporteMensual } from '../utils/fixedExpenseUtils';
 import BatchMovementForm from '../components/BatchMovementForm';
-import Button from '../components/Button';
-import Card from '../components/Card';
-import EmptyState from '../components/EmptyState';
-import Modal from '../components/Modal';
-import PageHeader from '../components/PageHeader';
-import { Skeleton } from '../components/Skeleton';
+import Button from '../components/ui/Button';
+import Card from '../components/ui/Card';
+import EmptyState from '../components/ui/EmptyState';
+import Modal from '../components/ui/Modal';
+import PageHeader from '../components/ui/PageHeader';
+import { Skeleton } from '../components/ui/Skeleton';
 import {
   FixedExpenseForm,
   FixedExpenseGroupForm,

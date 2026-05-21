@@ -1,7 +1,7 @@
 import { ArrowLeft } from 'lucide-react';
 import type { Account, CDInvestmentAccount, Pocket } from '../../types';
-import Button from '../Button';
-import Card from '../Card';
+import Button from '../ui/Button';
+import Card from '../ui/Card';
 import CDDetailsPanel from './CDDetailsPanel';
 import PocketManagementSection from './PocketManagementSection';
 import type { useToast } from '../../hooks/useToast';

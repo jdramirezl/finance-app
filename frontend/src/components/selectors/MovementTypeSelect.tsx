@@ -28,7 +28,7 @@
  */
 
 import type { ChangeEvent } from 'react';
-import Select from '../Select';
+import Select from '../ui/Select';
 import { MOVEMENT_TYPES, type MovementType } from '../../utils/movementTypes';
 
 /**

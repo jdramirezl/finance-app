@@ -4,7 +4,7 @@ import { AlertTriangle, Landmark, Calendar, DollarSign } from 'lucide-react';
 import { currencyService } from '../../services/currencyService';
 import { cdCalculationService } from '../../services/cdCalculationService';
 import { parseDate, formatDisplayDate } from '../../utils/dateUtils';
-import SelectableValue from '../SelectableValue';
+import SelectableValue from '../ui/SelectableValue';
 import type { CDInvestmentAccount, CDCalculationResult } from '../../types';
 
 // `generateCDSummary` returns a richer ad-hoc shape on top of the

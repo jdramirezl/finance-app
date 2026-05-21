@@ -1,8 +1,8 @@
 import { memo, useCallback, useMemo } from 'react';
 import { format, parseISO } from 'date-fns';
 import { ChevronDown, ChevronUp, Edit2, Trash2, Bell, Filter } from 'lucide-react';
-import Button from '../Button';
-import Card from '../Card';
+import Button from '../ui/Button';
+import Card from '../ui/Card';
 import { useAccountsQuery, usePocketsQuery, useRemindersQuery } from '../../hooks/queries';
 import type { Account, Movement, MovementType, Pocket } from '../../types';
 import type { Reminder } from '../../services/reminderService';

@@ -1,8 +1,8 @@
 import { memo } from 'react';
 import type { Account } from '../../types';
-import { EditDeleteActions } from '../ActionButtons';
+import { EditDeleteActions } from '../ui/ActionButtons';
 import { TrendingUp, Wallet } from 'lucide-react';
-import SelectableValue from '../SelectableValue';
+import SelectableValue from '../ui/SelectableValue';
 
 interface AccountCardProps {
     account: Account;

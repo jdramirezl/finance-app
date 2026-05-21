@@ -3,7 +3,7 @@ import { AlertTriangle, Landmark } from 'lucide-react';
 import { currencyService } from '../../services/currencyService';
 import { cdCalculationService } from '../../services/cdCalculationService';
 import { formatDisplayDate } from '../../utils/dateUtils';
-import SelectableValue from '../SelectableValue';
+import SelectableValue from '../ui/SelectableValue';
 import type { CDInvestmentAccount, CDCalculationResult } from '../../types';
 
 type CDSummary = ReturnType<typeof cdCalculationService.generateCDSummary>;

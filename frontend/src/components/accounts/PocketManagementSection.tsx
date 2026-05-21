@@ -1,11 +1,11 @@
 import { useCallback, useMemo, useState } from 'react';
 import { Plus, Wallet } from 'lucide-react';
 import type { Account, Pocket } from '../../types';
-import Button from '../Button';
-import EmptyState from '../EmptyState';
-import Modal from '../Modal';
-import SortableList from '../SortableList';
-import SortableItem from '../SortableItem';
+import Button from '../ui/Button';
+import EmptyState from '../ui/EmptyState';
+import Modal from '../ui/Modal';
+import SortableList from '../ui/SortableList';
+import SortableItem from '../ui/SortableItem';
 import PocketCard from './PocketCard';
 import PocketForm from './PocketForm';
 import {

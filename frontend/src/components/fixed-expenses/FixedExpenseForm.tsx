@@ -2,8 +2,8 @@ import { useState } from 'react';
 import type { SubPocket, Account, Pocket } from '../../types';
 import { useSubPocketMutations } from '../../hooks/queries';
 import { useToast } from '../../hooks/useToast';
-import Button from '../Button';
-import Input from '../Input';
+import Button from '../ui/Button';
+import Input from '../ui/Input';
 import { calculateAporteMensual } from '../../utils/fixedExpenseUtils';
 
 interface FixedExpenseFormProps {

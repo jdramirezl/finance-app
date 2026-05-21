@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import Modal from '../Modal';
-import Button from '../Button';
+import Modal from '../ui/Modal';
+import Button from '../ui/Button';
 import AccountPocketSelector from '../selectors/AccountPocketSelector';
 
 interface RestoreOrphanedModalProps {

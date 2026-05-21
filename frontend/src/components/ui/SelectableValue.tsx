@@ -1,7 +1,7 @@
 import React from 'react';
-import { useSelection } from '../contexts/SelectionContext';
-import { currencyService } from '../services/currencyService';
-import type { Currency } from '../types';
+import { useSelection } from '../../contexts/SelectionContext';
+import { currencyService } from '../../services/currencyService';
+import type { Currency } from '../../types';
 
 interface SelectableValueProps {
     id: string; // Unique ID for this value

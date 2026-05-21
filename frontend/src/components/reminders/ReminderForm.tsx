@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { useFixedExpenseGroupsQuery, useMovementTemplatesQuery, useSubPocketsQuery } from '../../hooks/queries';
-import Button from '../Button';
-import Input from '../Input';
-import Select from '../Select';
+import Button from '../ui/Button';
+import Input from '../ui/Input';
+import Select from '../ui/Select';
 import { parseDate, toDateOnly } from '../../utils/dateUtils';
 import type { CreateReminderDTO, UpdateReminderDTO, Reminder, RecurrenceType, RecurrenceEndType, RecurrencePeriod } from '../../services/reminderService';
 

@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import { Edit2, Trash2, X, Save, Link2 } from 'lucide-react';
-import Button from '../Button';
+import Button from '../ui/Button';
 import type { Account, Pocket } from '../../types';
 
 export interface DistributionEntry {

@@ -1,7 +1,7 @@
 import { Plus, Receipt } from 'lucide-react';
 import type { Currency } from '../../types';
-import Button from '../Button';
-import Card from '../Card';
+import Button from '../ui/Button';
+import Card from '../ui/Card';
 
 export interface FixedExpensesHeaderProps {
   pocketCount: number;

@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import Button from '../Button';
-import Input from '../Input';
-import Select from '../Select';
+import Button from '../ui/Button';
+import Input from '../ui/Input';
+import Select from '../ui/Select';
 import AccountPocketSelector from '../selectors/AccountPocketSelector';
 import { MOVEMENT_TYPES } from '../../utils/movementTypes';
 import type { MovementTemplate, MovementType } from '../../types';

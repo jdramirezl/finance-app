@@ -1,7 +1,7 @@
 import { memo } from 'react';
 import { Edit2, Trash2 } from 'lucide-react';
-import Button from '../Button';
-import Card from '../Card';
+import Button from '../ui/Button';
+import Card from '../ui/Card';
 import { getMovementTypeColor, getMovementTypeLabel } from '../../utils/movementTypes';
 import type { Account, MovementTemplate, Pocket } from '../../types';
 

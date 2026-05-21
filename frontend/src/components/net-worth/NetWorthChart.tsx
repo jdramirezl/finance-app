@@ -20,7 +20,7 @@ import {
     YAxis,
 } from 'recharts';
 
-import { formatCurrencyAmount } from '../CurrencyAmount';
+import { formatCurrencyAmount } from '../ui/CurrencyAmount';
 import {
     CHART_CURRENCY_FORMAT_OPTIONS,
     CURRENCY_LINE_COLORS,

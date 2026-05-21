@@ -3,9 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import type { Account } from '../../types';
 import { currencyService } from '../../services/currencyService';
 import { TrendingUp, RefreshCw, BarChart3, DollarSign, Percent, Clock } from 'lucide-react';
-import Button from '../Button';
+import Button from '../ui/Button';
 import { formatDistanceToNow } from 'date-fns';
-import SelectableValue from '../SelectableValue';
+import SelectableValue from '../ui/SelectableValue';
 
 export interface InvestmentData {
     precioActual: number;

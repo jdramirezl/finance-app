@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import type { Account, Pocket } from '../../types';
 import { currencyService } from '../../services/currencyService';
-import SelectableValue from '../SelectableValue';
+import SelectableValue from '../ui/SelectableValue';
 
 interface AccountSummaryCardCompactProps {
     account: Account;

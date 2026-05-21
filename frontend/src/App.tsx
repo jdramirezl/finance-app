@@ -6,7 +6,7 @@ import { ConfirmDialogProvider } from './contexts/ConfirmDialogContext';
 import Layout from './components/Layout';
 import ProtectedRoute from './components/ProtectedRoute';
 import ToastContainer from './components/ToastContainer';
-import { Skeleton } from './components/Skeleton';
+import { Skeleton } from './components/ui/Skeleton';
 import ErrorBoundary from './components/ErrorBoundary';
 
 // Lazy load page components for code splitting

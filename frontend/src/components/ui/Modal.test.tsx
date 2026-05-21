@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '../test/testUtils';
+import { render, screen } from '../../test/testUtils';
 import userEvent from '@testing-library/user-event';
 import Modal from './Modal';
 
@@ -34,7 +34,7 @@ describe('Modal', () => {
             </Modal>
         );
 
-        const backdrop = container.querySelector('.backdrop-blur-md');
+        const backdrop = container.querySelector('.backdrop-blur-sm');
         if (backdrop) {
             await user.click(backdrop);
         }

@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { PieChart, Plus } from 'lucide-react';
-import Button from '../Button';
-import Card from '../Card';
-import EmptyState from '../EmptyState';
+import Button from '../ui/Button';
+import Card from '../ui/Card';
+import EmptyState from '../ui/EmptyState';
 import BudgetEntryRow, { type DistributionEntry } from './BudgetEntryRow';
 import DonutChart from './DonutChart';
 import { useToast } from '../../hooks/useToast';

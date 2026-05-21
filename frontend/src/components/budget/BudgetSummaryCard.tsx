@@ -1,5 +1,5 @@
-import Card from '../Card';
-import AnimatedProgressBar from '../AnimatedProgressBar';
+import Card from '../ui/Card';
+import AnimatedProgressBar from '../ui/AnimatedProgressBar';
 import { Sparkles } from 'lucide-react';
 
 interface BudgetSummaryCardProps {

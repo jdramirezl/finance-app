@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import type { SubPocket, FixedExpenseGroup, Currency } from '../../types';
-import Button from '../Button';
-import Input from '../Input';
+import Button from '../ui/Button';
+import Input from '../ui/Input';
 import { currencyService } from '../../services/currencyService';
 import { calculateAporteMensual } from '../../utils/fixedExpenseUtils';
 

@@ -1,9 +1,9 @@
 import { useMemo } from 'react';
 import { Receipt } from 'lucide-react';
 import type { Account, Currency, FixedExpenseGroup, SubPocket } from '../../types';
-import EmptyState from '../EmptyState';
-import SortableList from '../SortableList';
-import SortableItem from '../SortableItem';
+import EmptyState from '../ui/EmptyState';
+import SortableList from '../ui/SortableList';
+import SortableItem from '../ui/SortableItem';
 import FixedExpenseGroupCard from './FixedExpenseGroupCard';
 
 export interface FixedExpensesListProps {

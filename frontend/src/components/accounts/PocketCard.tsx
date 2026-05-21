@@ -1,7 +1,7 @@
 import { memo } from 'react';
 import type { Pocket } from '../../types';
 import { Edit2, Trash2, ArrowRightLeft, Lock, PieChart, Banknote, Wallet } from 'lucide-react';
-import ActionButtons from '../ActionButtons';
+import ActionButtons from '../ui/ActionButtons';
 
 interface PocketCardProps {
     pocket: Pocket;

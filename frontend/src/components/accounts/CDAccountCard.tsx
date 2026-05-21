@@ -1,8 +1,8 @@
 import { memo } from 'react';
 import type { CDInvestmentAccount, CDCalculationResult } from '../../types';
-import { EditDeleteActions } from '../ActionButtons';
+import { EditDeleteActions } from '../ui/ActionButtons';
 import { TrendingUp, Landmark, AlertTriangle } from 'lucide-react';
-import SelectableValue from '../SelectableValue';
+import SelectableValue from '../ui/SelectableValue';
 import { currencyService } from '../../services/currencyService';
 import { cdCalculationService } from '../../services/cdCalculationService';
 

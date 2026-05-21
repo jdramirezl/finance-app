@@ -1,8 +1,8 @@
 import type { Currency } from '../../types';
 import { currencyService } from '../../services/currencyService';
-import AnimatedCounter from '../AnimatedCounter';
-import SelectableValue from '../SelectableValue';
-import { Skeleton } from '../Skeleton';
+import AnimatedCounter from '../ui/AnimatedCounter';
+import SelectableValue from '../ui/SelectableValue';
+import { Skeleton } from '../ui/Skeleton';
 
 interface TotalsSummaryProps {
     consolidatedTotal: number;

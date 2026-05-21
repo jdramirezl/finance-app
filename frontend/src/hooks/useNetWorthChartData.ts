@@ -24,7 +24,7 @@ import { currencyService } from '../services/currencyService';
 import {
     formatCurrencyAmount,
     type FormatCurrencyAmountOptions,
-} from '../components/CurrencyAmount';
+} from '../components/ui/CurrencyAmount';
 import type { NetWorthSnapshot } from '../services/netWorthSnapshotService';
 import type { Currency } from '../types';
 

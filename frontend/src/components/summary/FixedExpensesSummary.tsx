@@ -1,10 +1,10 @@
 import { useMemo, Fragment } from 'react';
 import type { Account, SubPocket, FixedExpenseGroup, Pocket, Currency } from '../../types';
 import { currencyService } from '../../services/currencyService';
-import Card from '../Card';
-import ProgressBar from '../ProgressBar';
+import Card from '../ui/Card';
+import ProgressBar from '../ui/ProgressBar';
 import { Wallet } from 'lucide-react';
-import SelectableValue from '../SelectableValue';
+import SelectableValue from '../ui/SelectableValue';
 
 interface FixedExpensesSummaryProps {
     subPockets: SubPocket[];

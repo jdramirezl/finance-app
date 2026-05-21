@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { Calendar, TrendingUp, AlertTriangle, Clock, Landmark, DollarSign, Percent } from 'lucide-react';
 import { format } from 'date-fns';
-import Card from '../Card';
-import Button from '../Button';
+import Card from '../ui/Card';
+import Button from '../ui/Button';
 import { currencyService } from '../../services/currencyService';
 import { cdCalculationService } from '../../services/cdCalculationService';
 import { parseDate } from '../../utils/dateUtils';

@@ -5,7 +5,7 @@ import type {
   Currency,
   Pocket,
 } from '../../types';
-import EmptyState from '../EmptyState';
+import EmptyState from '../ui/EmptyState';
 import CurrencySection from './CurrencySection';
 import type { InvestmentData } from './InvestmentCard';
 

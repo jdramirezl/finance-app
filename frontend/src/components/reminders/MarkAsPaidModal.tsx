@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import Modal from '../Modal';
-import Button from '../Button';
+import Modal from '../ui/Modal';
+import Button from '../ui/Button';
 import { useMovementsQuery, useAccountsQuery } from '../../hooks/queries';
 import { format, isWithinInterval, addDays, subDays } from 'date-fns';
 import { Check, Search, Link as LinkIcon, Wallet } from 'lucide-react';

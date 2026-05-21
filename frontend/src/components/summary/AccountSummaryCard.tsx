@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import type { Account, Pocket } from '../../types';
 import { currencyService } from '../../services/currencyService';
 import { Wallet, CreditCard, Banknote, PiggyBank, Lock } from 'lucide-react';
-import SelectableValue from '../SelectableValue';
+import SelectableValue from '../ui/SelectableValue';
 
 interface AccountSummaryCardProps {
     account: Account;

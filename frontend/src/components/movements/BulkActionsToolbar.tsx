@@ -1,5 +1,5 @@
 import { Trash2 } from 'lucide-react';
-import Button from '../Button';
+import Button from '../ui/Button';
 
 export interface BulkActionsToolbarProps {
   selectedCount: number;

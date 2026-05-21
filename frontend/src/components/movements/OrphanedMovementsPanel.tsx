@@ -1,6 +1,6 @@
 import { X } from 'lucide-react';
-import Button from '../Button';
-import Card from '../Card';
+import Button from '../ui/Button';
+import Card from '../ui/Card';
 import type { Movement } from '../../types';
 
 export interface OrphanedRestoreRequest {

@@ -2,7 +2,7 @@ import { Info, Layers, Pencil, Plus, Trash2 } from 'lucide-react';
 import { currencyService } from '../../services/currencyService';
 import type { Currency, SubPocket } from '../../types';
 import { calculateAporteMensual } from '../../utils/fixedExpenseUtils';
-import Button from '../Button';
+import Button from '../ui/Button';
 import type { PlanningScenario } from './ScenarioForm';
 
 export interface ScenarioSectionProps {

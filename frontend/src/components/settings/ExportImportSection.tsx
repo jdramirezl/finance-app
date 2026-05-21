@@ -1,6 +1,6 @@
 import { Download } from 'lucide-react';
-import Button from '../Button';
-import Card from '../Card';
+import Button from '../ui/Button';
+import Card from '../ui/Card';
 
 export interface ExportImportSectionProps {
   isExporting: boolean;

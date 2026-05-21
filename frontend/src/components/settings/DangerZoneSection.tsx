@@ -1,5 +1,5 @@
 import { RefreshCw } from 'lucide-react';
-import Card from '../Card';
+import Card from '../ui/Card';
 import DebugStockPrice from './DebugStockPrice';
 import DebugExchangeRate from './DebugExchangeRate';
 

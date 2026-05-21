@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { investmentService } from '../../services/investmentService';
-import Button from '../Button';
-import Input from '../Input';
-import Card from '../Card';
+import Button from '../ui/Button';
+import Input from '../ui/Input';
+import Card from '../ui/Card';
 import { Search, RotateCw } from 'lucide-react';
 import { currencyService } from '../../services/currencyService';
 import { parseDate } from '../../utils/dateUtils';

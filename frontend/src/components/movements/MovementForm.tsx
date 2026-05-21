@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { format } from 'date-fns';
 import { useAccountsQuery, useMovementTemplatesQuery, usePocketsQuery } from '../../hooks/queries';
-import Button from '../Button';
-import Input from '../Input';
-import Select from '../Select';
+import Button from '../ui/Button';
+import Input from '../ui/Input';
+import Select from '../ui/Select';
 import AccountPocketSelector from '../selectors/AccountPocketSelector';
 import { toDateOnly } from '../../utils/dateUtils';
 import { MOVEMENT_TYPES, isFixedMovement } from '../../utils/movementTypes';

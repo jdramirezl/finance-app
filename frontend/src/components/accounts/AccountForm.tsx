@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import type { Account } from '../../types';
 import { CURRENCY_OPTIONS, DEFAULT_CURRENCY } from '../../constants';
-import Button from '../Button';
-import Input from '../Input';
-import Select from '../Select';
-import ColorSelector from '../ColorSelector';
+import Button from '../ui/Button';
+import Input from '../ui/Input';
+import Select from '../ui/Select';
+import ColorSelector from '../ui/ColorSelector';
 
 interface AccountFormProps {
     initialData?: Account | null;

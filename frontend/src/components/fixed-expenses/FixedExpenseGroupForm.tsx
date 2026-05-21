@@ -2,8 +2,8 @@ import { useState } from 'react';
 import type { FixedExpenseGroup } from '../../types';
 import { useFixedExpenseGroupMutations } from '../../hooks/queries';
 import { useToast } from '../../hooks/useToast';
-import Button from '../Button';
-import Input from '../Input';
+import Button from '../ui/Button';
+import Input from '../ui/Input';
 
 interface FixedExpenseGroupFormProps {
     initialData?: FixedExpenseGroup | null;

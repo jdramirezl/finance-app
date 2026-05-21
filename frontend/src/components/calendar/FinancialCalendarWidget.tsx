@@ -6,8 +6,8 @@ import { useMovementsQuery, useAccountsQuery } from '../../hooks/queries';
 import { currencyService } from '../../services/currencyService';
 import { parseDate } from '../../utils/dateUtils';
 import type { Movement, Currency } from '../../types';
-import Card from '../Card';
-import Button from '../Button';
+import Card from '../ui/Card';
+import Button from '../ui/Button';
 
 interface DayData {
   date: Date;

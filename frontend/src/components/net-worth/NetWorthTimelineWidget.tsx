@@ -21,9 +21,9 @@ import {
     type NetWorthDateRange,
     type NetWorthViewMode,
 } from '../../hooks/useNetWorthChartData';
-import Card from '../Card';
-import Button from '../Button';
-import CurrencyAmount from '../CurrencyAmount';
+import Card from '../ui/Card';
+import Button from '../ui/Button';
+import CurrencyAmount from '../ui/CurrencyAmount';
 import NetWorthChart from './NetWorthChart';
 import NetWorthEditModal, {
     type NetWorthEditModalHandle,

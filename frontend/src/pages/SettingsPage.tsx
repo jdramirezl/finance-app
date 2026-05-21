@@ -1,7 +1,7 @@
 import { useSettingsQuery, useUpdateSettings } from '../hooks/queries';
 import { useSettingsActions } from '../hooks/useSettingsActions';
 import { useToast } from '../hooks/useToast';
-import Card from '../components/Card';
+import Card from '../components/ui/Card';
 import {
   DangerZoneSection,
   ExportImportSection,

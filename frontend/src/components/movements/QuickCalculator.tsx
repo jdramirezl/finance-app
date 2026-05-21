@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Plus, Minus } from 'lucide-react';
-import Button from '../Button';
-import Input from '../Input';
+import Button from '../ui/Button';
+import Input from '../ui/Input';
 import { useSelection } from '../../contexts/SelectionContext';
 
 interface QuickCalculatorProps {

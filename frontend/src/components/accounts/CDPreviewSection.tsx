@@ -1,6 +1,6 @@
 import { Calendar } from 'lucide-react';
 import { addMonths, format } from 'date-fns';
-import Button from '../Button';
+import Button from '../ui/Button';
 import { currencyService } from '../../services/currencyService';
 import { cdCalculationService } from '../../services/cdCalculationService';
 import { parseDate } from '../../utils/dateUtils';

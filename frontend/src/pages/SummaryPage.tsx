@@ -12,13 +12,13 @@ import { useConsolidatedTotal } from '../hooks/useConsolidatedTotal';
 import { useInvestmentPrices } from '../hooks/useInvestmentPrices';
 import { useToast } from '../hooks/useToast';
 import type { AccountCardDisplaySettings } from '../types';
-import EmptyState from '../components/EmptyState';
-import PageHeader from '../components/PageHeader';
+import EmptyState from '../components/ui/EmptyState';
+import PageHeader from '../components/ui/PageHeader';
 import {
   SkeletonAccountCard,
   SkeletonList,
   SkeletonStats,
-} from '../components/Skeleton';
+} from '../components/ui/Skeleton';
 import FinancialCalendarWidget from '../components/calendar/FinancialCalendarWidget';
 import NetWorthTimelineWidget from '../components/net-worth/NetWorthTimelineWidget';
 import RemindersWidget from '../components/reminders/RemindersWidget';

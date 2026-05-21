@@ -7,7 +7,7 @@ import type {
   SnapshotFrequency,
 } from '../../types';
 import { SUPPORTED_CURRENCIES } from '../../constants';
-import Card from '../Card';
+import Card from '../ui/Card';
 
 const DISPLAY_MODES: AccountCardDisplayMode[] = ['compact', 'detailed'];
 const SNAPSHOT_FREQUENCIES: SnapshotFrequency[] = ['daily', 'weekly', 'monthly', 'manual'];

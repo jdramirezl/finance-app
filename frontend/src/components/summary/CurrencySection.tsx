@@ -6,7 +6,7 @@ import InvestmentCard, { type InvestmentData } from './InvestmentCard';
 import InvestmentCardCompact from './InvestmentCardCompact';
 import CDSummaryCard from './CDSummaryCard';
 import CDSummaryCardCompact from './CDSummaryCardCompact';
-import Card from '../Card';
+import Card from '../ui/Card';
 import { Banknote } from 'lucide-react';
 
 interface CurrencySectionProps {

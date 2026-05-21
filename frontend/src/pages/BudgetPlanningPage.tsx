@@ -13,11 +13,11 @@ import { useBudgetPersistence } from '../hooks/useBudgetPersistence';
 import { useToast } from '../hooks/useToast';
 import type { Currency } from '../types';
 import BatchMovementForm from '../components/BatchMovementForm';
-import Button from '../components/Button';
-import EmptyState from '../components/EmptyState';
-import Modal from '../components/Modal';
-import PageHeader from '../components/PageHeader';
-import { Skeleton, SkeletonCard, SkeletonList } from '../components/Skeleton';
+import Button from '../components/ui/Button';
+import EmptyState from '../components/ui/EmptyState';
+import Modal from '../components/ui/Modal';
+import PageHeader from '../components/ui/PageHeader';
+import { Skeleton, SkeletonCard, SkeletonList } from '../components/ui/Skeleton';
 import {
   BudgetDistribution,
   BudgetIncomeSection,

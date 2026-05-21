@@ -1,10 +1,10 @@
 import { useState, type FormEvent } from 'react';
 import { DollarSign, Percent } from 'lucide-react';
 import { format } from 'date-fns';
-import Input from '../Input';
-import Select from '../Select';
-import Button from '../Button';
-import ColorSelector from '../ColorSelector';
+import Input from '../ui/Input';
+import Select from '../ui/Select';
+import Button from '../ui/Button';
+import ColorSelector from '../ui/ColorSelector';
 import { parseDate } from '../../utils/dateUtils';
 import {
   CURRENCY_OPTIONS_WITH_NAMES,

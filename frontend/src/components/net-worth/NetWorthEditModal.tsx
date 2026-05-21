@@ -13,9 +13,9 @@ import { format, parseISO } from 'date-fns';
 
 import { useNetWorthSnapshotMutations } from '../../hooks/queries/useNetWorthSnapshotQueries';
 import { useConfirmDialog } from '../../contexts/ConfirmDialogContext';
-import Button from '../Button';
-import Input from '../Input';
-import Modal from '../Modal';
+import Button from '../ui/Button';
+import Input from '../ui/Input';
+import Modal from '../ui/Modal';
 import type { NetWorthSnapshot } from '../../services/netWorthSnapshotService';
 
 export interface NetWorthEditModalHandle {

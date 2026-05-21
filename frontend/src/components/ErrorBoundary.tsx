@@ -1,6 +1,6 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
-import Button from './Button';
+import Button from './ui/Button';
 
 /**
  * Render-time error boundary.

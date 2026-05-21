@@ -3,10 +3,10 @@ import { useMovementTemplatesQuery, useAccountsQuery, usePocketsQuery, useMoveme
 import { useToast } from '../hooks/useToast';
 import { useConfirmDialog } from '../contexts/ConfirmDialogContext';
 import { Plus } from 'lucide-react';
-import Button from '../components/Button';
-import Card from '../components/Card';
-import Modal from '../components/Modal';
-import { Skeleton } from '../components/Skeleton';
+import Button from '../components/ui/Button';
+import Card from '../components/ui/Card';
+import Modal from '../components/ui/Modal';
+import { Skeleton } from '../components/ui/Skeleton';
 import MovementTemplateForm from '../components/movements/MovementTemplateForm';
 import TemplateCard from '../components/movements/TemplateCard';
 import type { MovementTemplate, MovementType } from '../types';

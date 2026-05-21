@@ -1,7 +1,7 @@
 import { memo } from 'react';
 import { Trash2 } from 'lucide-react';
-import Input from '../Input';
-import Select from '../Select';
+import Input from '../ui/Input';
+import Select from '../ui/Select';
 import AccountPocketSelector from '../selectors/AccountPocketSelector';
 import { MOVEMENT_TYPES } from '../../utils/movementTypes';
 import type { MovementType } from '../../types';

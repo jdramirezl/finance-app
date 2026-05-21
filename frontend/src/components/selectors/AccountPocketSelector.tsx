@@ -4,7 +4,7 @@ import {
     usePocketsQuery,
     useSubPocketsQuery,
 } from '../../hooks/queries';
-import Select from '../Select';
+import Select from '../ui/Select';
 import { isFixedMovement } from '../../utils/movementTypes';
 import type { MovementType } from '../../types';
 
