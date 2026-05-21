@@ -44,6 +44,11 @@ export interface ISubPocketRepository {
   delete(id: string, userId: string): Promise<void>;
 
   /**
+   * Delete all sub-pockets belonging to the given pocket IDs (bulk operation)
+   */
+  deleteByPocketIds(pocketIds: string[], userId: string): Promise<number>;
+
+  /**
    * Update display order for multiple sub-pockets
    */
   updateDisplayOrders(subPocketIds: string[], userId: string): Promise<void>;

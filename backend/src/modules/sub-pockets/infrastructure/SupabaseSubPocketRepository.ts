@@ -161,6 +161,26 @@ export class SupabaseSubPocketRepository implements ISubPocketRepository {
   }
 
   /**
+   * Delete all sub-pockets belonging to the given pocket IDs (bulk operation)
+   */
+  async deleteByPocketIds(pocketIds: string[], userId: string): Promise<number> {
+    if (pocketIds.length === 0) return 0;
+
+    const { data, error } = await this.supabase
+      .from('sub_pockets')
+      .delete()
+      .in('pocket_id', pocketIds)
+      .eq('user_id', userId)
+      .select('id');
+
+    if (error) {
+      throw new DatabaseError(`Failed to bulk delete sub-pockets: ${error.message}`);
+    }
+
+    return data?.length ?? 0;
+  }
+
+  /**
    * Update display order for multiple sub-pockets
    */
   async updateDisplayOrders(subPocketIds: string[], userId: string): Promise<void> {

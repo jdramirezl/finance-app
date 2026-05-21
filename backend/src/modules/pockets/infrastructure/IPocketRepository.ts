@@ -71,6 +71,11 @@ export interface IPocketRepository {
   delete(id: string, userId: string): Promise<void>;
 
   /**
+   * Delete all pockets for a given account (bulk operation)
+   */
+  deleteByAccountId(accountId: string, userId: string): Promise<number>;
+
+  /**
    * Update display order for multiple pockets
    */
   updateDisplayOrders(pocketIds: string[], userId: string): Promise<void>;

@@ -246,6 +246,24 @@ export class SupabasePocketRepository implements IPocketRepository {
   }
 
   /**
+   * Delete all pockets for a given account (bulk operation)
+   */
+  async deleteByAccountId(accountId: string, userId: string): Promise<number> {
+    const { data, error } = await this.supabase
+      .from('pockets')
+      .delete()
+      .eq('account_id', accountId)
+      .eq('user_id', userId)
+      .select('id');
+
+    if (error) {
+      throw new DatabaseError(`Failed to bulk delete pockets: ${error.message}`);
+    }
+
+    return data?.length ?? 0;
+  }
+
+  /**
    * Update display order for multiple pockets
    */
   async updateDisplayOrders(pocketIds: string[], userId: string): Promise<void> {
