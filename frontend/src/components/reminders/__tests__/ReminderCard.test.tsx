@@ -8,7 +8,7 @@ const baseReminder: ReminderWithProjection = {
   userId: 'user-1',
   title: 'Netflix',
   amount: 199,
-  dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
+  dueDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
   isPaid: false,
   recurrence: { type: 'monthly', interval: 1, endType: 'never' },
   createdAt: '2025-01-01T00:00:00Z',
@@ -23,20 +23,36 @@ const handlers = {
 };
 
 describe('ReminderCard', () => {
-  it('shows Pay Now and Mark as Paid buttons for projected occurrences', () => {
-    const projected: ReminderWithProjection = {
+  it('shows Pay Now and Mark as Paid for next actionable projected occurrence', () => {
+    const nextActionable: ReminderWithProjection = {
       ...baseReminder,
       id: 'rem-1_projected_2025-08-15',
       isProjected: true,
+      isNextActionable: true,
       originalReminderId: 'rem-1',
-      // Future date ensures status is 'projected'
-      dueDate: '2099-06-15',
+      dueDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
     };
 
-    render(<ReminderCard reminder={projected} {...handlers} />);
+    render(<ReminderCard reminder={nextActionable} {...handlers} />);
 
     expect(screen.getByLabelText(/pay.*now/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/mark.*as paid/i)).toBeInTheDocument();
+  });
+
+  it('hides Pay Now and Mark as Paid for future projected (non-next-actionable) occurrence', () => {
+    const futureProjected: ReminderWithProjection = {
+      ...baseReminder,
+      id: 'rem-1_projected_2099-06-15',
+      isProjected: true,
+      isNextActionable: false,
+      originalReminderId: 'rem-1',
+      dueDate: '2099-06-15',
+    };
+
+    render(<ReminderCard reminder={futureProjected} {...handlers} />);
+
+    expect(screen.queryByLabelText(/pay.*now/i)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/mark.*as paid/i)).not.toBeInTheDocument();
   });
 
   it('hides Pay Now and Mark as Paid buttons when already paid', () => {
@@ -51,18 +67,26 @@ describe('ReminderCard', () => {
     expect(screen.queryByLabelText(/mark.*as paid/i)).not.toBeInTheDocument();
   });
 
-  it('calls onPayNow when Pay Now button is clicked on projected occurrence', async () => {
-    const projected: ReminderWithProjection = {
+  it('shows Pay Now and Mark as Paid for overdue projected occurrence', () => {
+    const overdue: ReminderWithProjection = {
       ...baseReminder,
-      id: 'rem-1_projected_2099-06-15',
+      id: 'rem-1_projected_2020-01-01',
       isProjected: true,
       originalReminderId: 'rem-1',
-      dueDate: '2099-06-15',
+      dueDate: '2020-01-01',
     };
 
-    render(<ReminderCard reminder={projected} {...handlers} />);
+    render(<ReminderCard reminder={overdue} {...handlers} />);
+
+    // Overdue status means !isProjected in status terms, so buttons show
+    expect(screen.getByLabelText(/pay.*now/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/mark.*as paid/i)).toBeInTheDocument();
+  });
+
+  it('calls onPayNow when Pay Now button is clicked', async () => {
+    render(<ReminderCard reminder={baseReminder} {...handlers} />);
 
     screen.getByLabelText(/pay.*now/i).click();
-    expect(handlers.onPayNow).toHaveBeenCalledWith(projected);
+    expect(handlers.onPayNow).toHaveBeenCalledWith(baseReminder);
   });
 });
