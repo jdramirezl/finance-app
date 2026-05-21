@@ -97,7 +97,7 @@ const SpendingCard = ({ primaryCurrency }: SpendingCardProps) => {
 
   if (isLoading || converting) {
     return (
-      <div className="rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-5 shadow-sm">
+      <div className="rounded-xl bg-surface-container border border-white/[0.08] backdrop-blur-xl p-5">
         <Skeleton className="h-4 w-24 mb-3" />
         <Skeleton className="h-8 w-36 mb-2" />
         <Skeleton className="h-4 w-28" />
@@ -111,10 +111,10 @@ const SpendingCard = ({ primaryCurrency }: SpendingCardProps) => {
   const isDecrease = percentChange !== null && percentChange < 0;
 
   return (
-    <div className="rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-5 shadow-sm">
+    <div className="rounded-xl bg-surface-container border border-white/[0.08] backdrop-blur-xl p-5">
       {/* Period toggle */}
       <div className="flex items-center justify-between mb-3">
-        <span className="text-sm font-semibold text-gray-600 dark:text-gray-400">
+        <span className="text-sm font-semibold text-on-surface-variant uppercase tracking-wider">
           Spending
         </span>
         <div className="flex gap-1">
@@ -124,8 +124,8 @@ const SpendingCard = ({ primaryCurrency }: SpendingCardProps) => {
               onClick={() => setPeriod(p)}
               className={`px-2 py-0.5 text-xs rounded-full font-medium transition-colors ${
                 period === p
-                  ? 'bg-gray-900 text-white dark:bg-gray-100 dark:text-gray-900'
-                  : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
+                  ? 'bg-primary text-on-primary'
+                  : 'text-on-surface-variant hover:text-on-surface'
               }`}
             >
               {PERIOD_CONFIG[p].label}
@@ -135,21 +135,21 @@ const SpendingCard = ({ primaryCurrency }: SpendingCardProps) => {
       </div>
 
       {/* Primary total */}
-      <div className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-1">
+      <div className="text-2xl font-bold font-mono text-on-surface mb-1">
         {currencyService.formatCurrency(totals.current, primaryCurrency)}
       </div>
 
       {/* Secondary: today's spending when viewing week/month */}
       {todayTotal !== null && (
-        <div className="text-sm text-gray-500 dark:text-gray-400 mb-2">
+        <div className="text-sm font-mono text-on-surface-variant mb-2">
           Today: {currencyService.formatCurrency(todayTotal, primaryCurrency)}
         </div>
       )}
 
       {/* Comparison badge */}
       {percentChange !== null && (
-        <div className={`inline-flex items-center gap-1 text-xs font-medium ${
-          isDecrease ? 'text-green-600 dark:text-green-400' : isIncrease ? 'text-red-600 dark:text-red-400' : 'text-gray-500'
+        <div className={`inline-flex items-center gap-1 text-xs font-medium font-mono ${
+          isDecrease ? 'text-emerald-400' : isIncrease ? 'text-red-400' : 'text-on-surface-variant'
         }`}>
           {isIncrease && <TrendingUp className="w-3 h-3" />}
           {isDecrease && <TrendingDown className="w-3 h-3" />}

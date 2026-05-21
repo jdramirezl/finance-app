@@ -40,15 +40,15 @@ const CDSummaryCardCompact = ({ account }: CDSummaryCardCompactProps) => {
 
   // Status styling
   const getStatusColor = () => {
-    if (hasError) return 'text-red-600 dark:text-red-400';
-    if (!summary) return 'text-gray-600 dark:text-gray-400';
+    if (hasError) return 'text-red-400';
+    if (!summary) return 'text-on-surface-variant';
     switch (summary.status) {
       case 'matured':
-        return 'text-green-600 dark:text-green-400';
+        return 'text-emerald-400';
       case 'near-maturity':
-        return 'text-yellow-600 dark:text-yellow-400';
+        return 'text-tertiary';
       default:
-        return 'text-blue-600 dark:text-blue-400';
+        return 'text-primary';
     }
   };
 
@@ -78,14 +78,14 @@ const CDSummaryCardCompact = ({ account }: CDSummaryCardCompactProps) => {
             className="w-3 h-3 rounded-full transition-transform group-hover:scale-125"
             style={{ backgroundColor: account.color }}
           />
-          <span className="font-semibold text-lg text-gray-900 dark:text-gray-100 group-hover:text-amber-600 dark:group-hover:text-amber-400">
+          <span className="font-semibold text-lg text-on-surface group-hover:text-primary">
             {account.name}
           </span>
           <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${getStatusColor()}`}>
             {getStatusText()}
           </span>
         </div>
-        <span className="font-mono text-lg font-semibold text-gray-900 dark:text-gray-100">
+        <span className="font-mono text-lg font-semibold text-on-surface">
           <SelectableValue id={`cd-sum-bal-${account.id}`} value={netBalance} currency={account.currency}>
             {currencyService.formatCurrency(netBalance, account.currency)}
           </SelectableValue>
@@ -95,21 +95,21 @@ const CDSummaryCardCompact = ({ account }: CDSummaryCardCompactProps) => {
       {/* CD Details - compact like pockets */}
       <div className="ml-5 space-y-1">
         <div className="flex items-center justify-between text-sm">
-          <span className="text-gray-700 dark:text-gray-300">
-            Certificate of Deposit • {account.interestRate || 0}% APY
+          <span className="text-on-surface-variant">
+            Certificate of Deposit • <span className="font-mono">{account.interestRate || 0}%</span> APY
           </span>
           <div className="flex items-center gap-1">
-            <Landmark className="w-3 h-3 text-amber-600 dark:text-amber-400" />
+            <Landmark className="w-3 h-3 text-tertiary" />
           </div>
         </div>
 
         {!hasError && calculation && (
           <>
             <div className="flex items-center justify-between text-sm">
-              <span className="text-gray-700 dark:text-gray-300">
+              <span className="text-on-surface-variant">
                 Total money invested:
               </span>
-              <span className="font-mono text-gray-900 dark:text-gray-100">
+              <span className="font-mono text-on-surface">
                 <SelectableValue id={`cd-principal-${account.id}`} value={account.principal || 0} currency={account.currency}>
                   {currencyService.formatCurrency(account.principal || 0, account.currency)}
                 </SelectableValue>
@@ -117,10 +117,10 @@ const CDSummaryCardCompact = ({ account }: CDSummaryCardCompactProps) => {
             </div>
 
             <div className="flex items-center justify-between text-sm">
-              <span className="text-gray-700 dark:text-gray-300">
+              <span className="text-on-surface-variant">
                 {account.withholdingTaxRate && account.withholdingTaxRate > 0 ? 'Net interest earned:' : 'Interest earned:'}
               </span>
-              <span className="font-mono text-green-600 dark:text-green-400">
+              <span className="font-mono text-emerald-400">
                 <SelectableValue
                   id={`cd-interest-${account.id}`}
                   value={account.withholdingTaxRate && account.withholdingTaxRate > 0 ? calculation.netInterest : calculation.accruedInterest}
@@ -137,20 +137,20 @@ const CDSummaryCardCompact = ({ account }: CDSummaryCardCompactProps) => {
             </div>
 
             <div className="flex items-center justify-between text-sm">
-              <span className="text-gray-700 dark:text-gray-300">
+              <span className="text-on-surface-variant">
                 Maturity:
               </span>
-              <span className="text-gray-900 dark:text-gray-100">
+              <span className="font-mono text-on-surface">
                 {formatDisplayDate(account.maturityDate, 'MMM dd, yyyy')}
               </span>
             </div>
 
             {calculation.daysToMaturity > 0 && (
               <div className="flex items-center justify-between text-sm">
-                <span className="text-gray-700 dark:text-gray-300">
+                <span className="text-on-surface-variant">
                   Days to maturity:
                 </span>
-                <span className="text-gray-900 dark:text-gray-100">
+                <span className="font-mono text-on-surface">
                   {calculation.daysToMaturity}
                 </span>
               </div>
@@ -160,14 +160,14 @@ const CDSummaryCardCompact = ({ account }: CDSummaryCardCompactProps) => {
 
         {/* Withholding Tax Warning - compact */}
         {account.withholdingTaxRate && account.withholdingTaxRate > 0 && (
-          <div className="flex items-center gap-2 text-xs text-red-600 dark:text-red-400 mt-2">
+          <div className="flex items-center gap-2 text-xs text-red-400 mt-2">
             <AlertTriangle className="w-3 h-3 flex-shrink-0" />
             <span>{account.withholdingTaxRate}% withholding tax will be deducted from interest earnings.</span>
           </div>
         )}
 
         {hasError && (
-          <div className="flex items-center gap-2 text-xs text-red-600 dark:text-red-400 mt-2">
+          <div className="flex items-center gap-2 text-xs text-red-400 mt-2">
             <AlertTriangle className="w-3 h-3 flex-shrink-0" />
             <span>Error calculating CD values. Please check configuration.</span>
           </div>

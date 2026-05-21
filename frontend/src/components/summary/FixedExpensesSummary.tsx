@@ -51,7 +51,7 @@ const FixedExpensesSummary = ({
     if (!subPockets.length) {
         return (
             <Card>
-                <div className="p-8 text-center text-gray-500 dark:text-gray-400">
+                <div className="p-8 text-center text-on-surface-variant">
                     No fixed expenses yet
                 </div>
             </Card>
@@ -69,24 +69,24 @@ const FixedExpensesSummary = ({
         return (
             <tr
                 key={subPocket.id}
-                className="hover:bg-gray-50 dark:hover:bg-gray-700/30"
+                className="hover:bg-surface-container-high/30"
             >
-                <td className="px-4 py-2 text-sm font-medium text-gray-900 dark:text-gray-100">
+                <td className="px-4 py-2 text-sm font-medium text-on-surface">
                     <div className="flex items-center gap-2">
-                        <span className={!subPocket.enabled ? 'line-through text-gray-500' : ''}>
+                        <span className={!subPocket.enabled ? 'line-through text-on-surface-variant' : ''}>
                             {subPocket.name}
                         </span>
                         {!subPocket.enabled && (
-                            <span className="text-[11px] bg-gray-100 dark:bg-gray-800 text-gray-500 px-1 rounded">OFF</span>
+                            <span className="text-[11px] bg-surface-container-highest text-on-surface-variant px-1 rounded">OFF</span>
                         )}
                     </div>
                 </td>
-                <td className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300">
+                <td className="px-4 py-2 text-sm font-mono text-on-surface-variant">
                     <SelectableValue id={`fixed-bal-${subPocket.id}`} value={subPocket.balance} currency={currency as Currency}>
                         {currencyService.formatCurrency(subPocket.balance, currency as Currency)}
                     </SelectableValue>
                 </td>
-                <td className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300">
+                <td className="px-4 py-2 text-sm font-mono text-on-surface-variant">
                     <SelectableValue id={`fixed-tot-${subPocket.id}`} value={subPocket.valueTotal} currency={currency as Currency}>
                         {currencyService.formatCurrency(subPocket.valueTotal, currency as Currency)}
                     </SelectableValue>
@@ -102,18 +102,18 @@ const FixedExpensesSummary = ({
         <Card>
             {/* Header */}
             <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+                <h3 className="text-lg font-semibold text-on-surface flex items-center gap-2">
                     <Wallet className="w-5 h-5" />
                     Fixed Expenses
                 </h3>
             </div>
 
             {/* Total Summary */}
-            <div className="mb-6 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border dark:border-gray-600">
-                <div className="text-sm text-gray-600 dark:text-gray-400 mb-1">
+            <div className="mb-6 p-4 bg-surface-container-high/50 rounded-lg border border-outline-variant">
+                <div className="text-sm text-on-surface-variant mb-1 uppercase tracking-wider">
                     Total in Fixed Expenses
                 </div>
-                <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+                <div className="text-2xl font-bold font-mono text-on-surface">
                     {currencyService.formatCurrency(
                         totalMoney,
                         primaryCurrency as Currency
@@ -124,23 +124,23 @@ const FixedExpensesSummary = ({
             {/* Groups & Expenses grouped by Account */}
             <div className="overflow-x-auto">
                 <table className="w-full min-w-[600px]">
-                    <thead className="bg-gray-50 dark:bg-gray-700/50 border-b dark:border-gray-600">
+                    <thead className="bg-surface-container-high/50 border-b border-outline-variant">
                         <tr>
-                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
+                            <th className="px-4 py-2 text-left text-xs font-medium text-on-surface-variant uppercase tracking-wider">
                                 Name
                             </th>
-                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
+                            <th className="px-4 py-2 text-left text-xs font-medium text-on-surface-variant uppercase tracking-wider">
                                 Contributed
                             </th>
-                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
+                            <th className="px-4 py-2 text-left text-xs font-medium text-on-surface-variant uppercase tracking-wider">
                                 Target
                             </th>
-                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
+                            <th className="px-4 py-2 text-left text-xs font-medium text-on-surface-variant uppercase tracking-wider">
                                 Progress
                             </th>
                         </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                    <tbody className="divide-y divide-outline-variant">
                         {pocketIds.map(pocketId => {
                             const parentPocket = pockets.find(p => p.id === pocketId);
                             const parentAccount = accounts.find(a => a.id === parentPocket?.accountId);
@@ -154,19 +154,19 @@ const FixedExpensesSummary = ({
                             return (
                                 <Fragment key={pocketId}>
                                     {/* Account Separator */}
-                                    <tr className="bg-blue-50/30 dark:bg-blue-900/10">
-                                        <td colSpan={4} className="px-4 py-1.5 border-y border-blue-100 dark:border-blue-900/30">
+                                    <tr className="bg-primary/5">
+                                        <td colSpan={4} className="px-4 py-1.5 border-y border-primary/20">
                                             <div className="flex items-center justify-between">
                                                 <div className="flex items-center gap-2">
                                                     <div 
                                                         className="w-2 h-2 rounded-full" 
                                                         style={{ backgroundColor: parentAccount?.color }} 
                                                     />
-                                                    <span className="text-[11px] font-bold uppercase tracking-widest text-blue-600 dark:text-blue-400">
+                                                    <span className="text-[11px] font-bold uppercase tracking-widest text-primary">
                                                         Account: {parentAccount?.name || 'Unknown'} ({currency})
                                                     </span>
                                                 </div>
-                                                <span className="text-[11px] font-bold text-blue-600 dark:text-blue-400">
+                                                <span className="text-[11px] font-bold font-mono text-primary">
                                                     Account Total: {currencyService.formatCurrency(accountTotal, currency as Currency)}
                                                 </span>
                                             </div>
@@ -180,7 +180,7 @@ const FixedExpensesSummary = ({
 
                                         return (
                                             <Fragment key={group.id}>
-                                                <tr className="bg-gray-50/30 dark:bg-gray-800/20">
+                                                <tr className="bg-surface-container/30">
                                                     <td colSpan={4} className="px-4 py-1">
                                                         <div className="flex items-center justify-between">
                                                             <div className="flex items-center gap-2">
@@ -188,11 +188,11 @@ const FixedExpensesSummary = ({
                                                                     className="w-1.5 h-1.5 rounded-full"
                                                                     style={{ backgroundColor: group.color }}
                                                                 />
-                                                                <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">
+                                                                <span className="text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">
                                                                     {group.name}
                                                                 </span>
                                                             </div>
-                                                            <span className="text-[11px] font-bold text-gray-400 dark:text-gray-500">
+                                                            <span className="text-[11px] font-bold font-mono text-on-surface-variant">
                                                                 Group Total: {currencyService.formatCurrency(
                                                                     groupExpenses.reduce((sum, sp) => sum + sp.balance, 0), 
                                                                     currency as Currency
@@ -209,13 +209,13 @@ const FixedExpensesSummary = ({
                                     {/* Default Group for this pocket */}
                                     {groupedExpenses.defaultExpenses.filter(sp => sp.pocketId === pocketId).length > 0 && (
                                         <>
-                                            <tr className="bg-gray-50/30 dark:bg-gray-800/20">
+                                            <tr className="bg-surface-container/30">
                                                 <td colSpan={4} className="px-4 py-1">
                                                     <div className="flex items-center justify-between ml-3.5">
-                                                        <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">
+                                                        <span className="text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">
                                                             Default
                                                         </span>
-                                                        <span className="text-[11px] font-bold text-gray-400 dark:text-gray-500">
+                                                        <span className="text-[11px] font-bold font-mono text-on-surface-variant">
                                                             Total: {currencyService.formatCurrency(
                                                                 groupedExpenses.defaultExpenses
                                                                     .filter(sp => sp.pocketId === pocketId)
