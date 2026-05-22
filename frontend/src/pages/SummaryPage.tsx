@@ -1,12 +1,10 @@
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo } from 'react';
 import { Wallet } from 'lucide-react';
 import {
   useAccountsQuery,
   useFixedExpenseGroupsQuery,
-  useMovementsQuery,
   usePocketsQuery,
   useSettingsQuery,
-  useSpendingSummaryQuery,
   useSubPocketsQuery,
 } from '../hooks/queries';
 import { useAutoNetWorthSnapshot } from '../hooks/useAutoNetWorthSnapshot';
@@ -14,11 +12,10 @@ import { useConsolidatedTotal } from '../hooks/useConsolidatedTotal';
 import { useInvestmentPrices } from '../hooks/useInvestmentPrices';
 import { useSlowQuery } from '../hooks/useSlowQuery';
 import { useToast } from '../hooks/useToast';
-import { currencyService, type BatchConversionRequest } from '../services/currencyService';
-import type { Currency } from '../types';
-import type { PeriodSummary } from '../services/movementService';
+import type { AccountCardDisplaySettings } from '../types';
 import EmptyState from '../components/ui/EmptyState';
 import SlowQueryIndicator from '../components/feedback/SlowQueryIndicator';
+import PageHeader from '../components/ui/PageHeader';
 import {
   SkeletonAccountCard,
   SkeletonList,
@@ -26,37 +23,26 @@ import {
 } from '../components/ui/Skeleton';
 import { ErrorBoundary } from '../components/feedback';
 import QueryErrorCard from '../components/feedback/QueryErrorCard';
+import FinancialCalendarWidget from '../components/summary/FinancialCalendarWidget';
 import NetWorthTimelineWidget from '../components/net-worth/NetWorthTimelineWidget';
 import RemindersWidget from '../components/reminders/RemindersWidget';
-import NetWorthHero from '../components/summary/NetWorthHero';
-import SpendingDensityCard from '../components/summary/SpendingDensityCard';
-import CapitalBreakdown from '../components/summary/CapitalBreakdown';
-import FixedObligationsWidget from '../components/summary/FixedObligationsWidget';
-import FloatingActionBar from '../components/summary/FloatingActionBar';
+import {
+  CurrencyBreakdownSection,
+  FixedExpensesSummary,
+  SpendingCard,
+  TotalsSummary,
+} from '../components/summary';
 import FloatingStatsBar from '../components/summary/FloatingStatsBar';
 import { SelectionProvider } from '../contexts/SelectionContext';
 
-/** Convert a multi-currency PeriodSummary to a single primary-currency amount. */
-async function convertPeriodTotal(
-  period: PeriodSummary,
-  primaryCurrency: Currency
-): Promise<number> {
-  if (period.totals.length === 0) return 0;
-  const same = period.totals.filter((t) => t.currency === primaryCurrency);
-  const other = period.totals.filter((t) => t.currency !== primaryCurrency);
-  const base = same.reduce((sum, t) => sum + t.amount, 0);
-  if (other.length === 0) return base;
-  const conversions: BatchConversionRequest[] = other.map((t) => ({
-    amount: t.amount,
-    from: t.currency,
-    to: primaryCurrency,
-  }));
-  const results = await currencyService.convertBatch(conversions);
-  return base + results.reduce((sum, r) => sum + r.convertedAmount, 0);
-}
+const DEFAULT_DISPLAY: AccountCardDisplaySettings = {
+  normal: 'detailed',
+  investment: 'detailed',
+  cd: 'detailed',
+};
 
 const SummaryPage = () => {
-  // Data queries
+  // Data
   const {
     data: accounts = [],
     isLoading: accountsLoading,
@@ -91,46 +77,36 @@ const SummaryPage = () => {
     error: fixedExpenseGroupsError,
     refetch: fixedExpenseGroupsRefetch,
   } = useFixedExpenseGroupsQuery();
-  const { data: movements = [] } = useMovementsQuery();
-  const { data: spendingData } = useSpendingSummaryQuery();
 
   const toast = useToast();
   const primaryCurrency = settings?.primaryCurrency || 'USD';
+  const accountCardDisplay = settings?.accountCardDisplay || DEFAULT_DISPLAY;
 
-  // Investment prices
-  const { investmentData } = useInvestmentPrices({ accounts, pockets, toast });
+  // Investment prices and refresh handler
+  const { investmentData, refreshingPrices, handleRefreshPrice } =
+    useInvestmentPrices({ accounts, pockets, toast });
 
-  // Consolidated totals
+  // Per-currency totals + consolidated total
   const {
+    accountsByCurrency,
+    sortedCurrencies,
     totalsByCurrency,
     consolidatedTotal,
     isConsolidatedReady,
   } = useConsolidatedTotal({ accounts, primaryCurrency, investmentData });
 
-  // Auto-snapshot
+  // Auto-snapshot on load (consumes consolidated total to avoid race condition)
   useAutoNetWorthSnapshot({ consolidatedTotal, totalsByCurrency, isConsolidatedReady });
 
   // Fixed expenses derived data
-  const fixedPockets = useMemo(() => pockets.filter((p) => p.type === 'fixed'), [pockets]);
-
-  const fixedSubPockets = useMemo(() => {
-    return subPockets.filter((sp) =>
+  const { fixedSubPockets, totalFixedExpensesMoney } = useMemo(() => {
+    const fixedPockets = pockets.filter((p) => p.type === 'fixed');
+    const subs = subPockets.filter((sp) =>
       fixedPockets.some((fp) => fp.id === sp.pocketId)
     );
-  }, [fixedPockets, subPockets]);
-
-  const fixedExpensesCurrency = fixedPockets[0]?.currency || primaryCurrency;
-
-  // Today's spending for the floating bar
-  const [todaySpending, setTodaySpending] = useState(0);
-  useEffect(() => {
-    if (!spendingData) return;
-    let cancelled = false;
-    convertPeriodTotal(spendingData.today, primaryCurrency).then((val) => {
-      if (!cancelled) setTodaySpending(val);
-    });
-    return () => { cancelled = true; };
-  }, [spendingData, primaryCurrency]);
+    const total = subs.reduce((sum, sp) => sum + sp.balance, 0);
+    return { fixedSubPockets: subs, totalFixedExpensesMoney: total };
+  }, [pockets, subPockets]);
 
   // Loading state
   const isLoading =
@@ -153,37 +129,34 @@ const SummaryPage = () => {
 
   return (
     <SelectionProvider>
-      <div className="grid grid-cols-12 gap-6 h-full max-w-[1600px] mx-auto w-full pb-24">
-        {/* LEFT COLUMN: Net Worth + Spending + Accounts */}
-        <section className="col-span-12 lg:col-span-7 flex flex-col gap-6 lg:h-full lg:overflow-hidden">
-          {/* Net Worth Hero */}
-          <ErrorBoundary>
-            {accountsIsError || settingsIsError ? (
-              <div className="space-y-2">
-                {accountsIsError && (
-                  <QueryErrorCard title="accounts" error={accountsError} onRetry={() => accountsRefetch()} />
-                )}
-                {settingsIsError && (
-                  <QueryErrorCard title="settings" error={settingsError} onRetry={() => settingsRefetch()} />
-                )}
-              </div>
-            ) : (
-              <NetWorthHero
-                consolidatedTotal={consolidatedTotal}
-                primaryCurrency={primaryCurrency}
-                totalsByCurrency={totalsByCurrency}
-                accountCount={accounts.length}
-                isConsolidatedReady={isConsolidatedReady}
-              />
-            )}
-          </ErrorBoundary>
+      <div className="space-y-6">
+        <PageHeader title="Summary" />
 
-          {/* Spending Density */}
-          <ErrorBoundary>
-            <SpendingDensityCard primaryCurrency={primaryCurrency} />
-          </ErrorBoundary>
+        <ErrorBoundary>
+          {accountsIsError || settingsIsError ? (
+            <div className="space-y-2">
+              {accountsIsError && (
+                <QueryErrorCard title="accounts" error={accountsError} onRetry={() => accountsRefetch()} />
+              )}
+              {settingsIsError && (
+                <QueryErrorCard title="settings" error={settingsError} onRetry={() => settingsRefetch()} />
+              )}
+            </div>
+          ) : (
+            <TotalsSummary
+              consolidatedTotal={consolidatedTotal}
+              primaryCurrency={primaryCurrency}
+              totalsByCurrency={totalsByCurrency}
+              isConsolidatedReady={isConsolidatedReady}
+            />
+          )}
+        </ErrorBoundary>
 
-          {/* Liquidity Pools (scrollable account list) */}
+        <ErrorBoundary>
+          <SpendingCard primaryCurrency={primaryCurrency} />
+        </ErrorBoundary>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <ErrorBoundary>
             {accountsIsError || pocketsIsError ? (
               <div className="space-y-2">
@@ -195,64 +168,63 @@ const SummaryPage = () => {
                 )}
               </div>
             ) : (
-              <CapitalBreakdown
-                accounts={accounts}
+              <CurrencyBreakdownSection
+                sortedCurrencies={sortedCurrencies}
+                accountsByCurrency={accountsByCurrency}
                 pockets={pockets}
                 investmentData={investmentData}
-                primaryCurrency={primaryCurrency}
+                refreshingPrices={refreshingPrices}
+                accountCardDisplay={accountCardDisplay}
+                onRefreshPrice={handleRefreshPrice}
               />
             )}
           </ErrorBoundary>
-        </section>
 
-        {/* RIGHT COLUMN: Growth Matrix + Reminders + Fixed Commitments */}
-        <section className="col-span-12 lg:col-span-5 flex flex-col gap-6 lg:h-full lg:overflow-hidden">
-          {/* Growth Matrix (Net Worth Timeline) */}
-          <ErrorBoundary>
-            <NetWorthTimelineWidget />
-          </ErrorBoundary>
+          <div className="space-y-6">
+            <ErrorBoundary>
+              <FinancialCalendarWidget primaryCurrency={primaryCurrency} />
+            </ErrorBoundary>
 
-          {/* Pending Reminders */}
-          <ErrorBoundary>
-            <RemindersWidget />
-          </ErrorBoundary>
+            <ErrorBoundary>
+              <NetWorthTimelineWidget />
+            </ErrorBoundary>
 
-          {/* Fixed Commitments */}
-          <ErrorBoundary>
-            {subPocketsIsError || fixedExpenseGroupsIsError ? (
-              <div className="space-y-2">
-                {subPocketsIsError && (
-                  <QueryErrorCard title="sub-pockets" error={subPocketsError} onRetry={() => subPocketsRefetch()} />
-                )}
-                {fixedExpenseGroupsIsError && (
-                  <QueryErrorCard title="fixed expense groups" error={fixedExpenseGroupsError} onRetry={() => fixedExpenseGroupsRefetch()} />
-                )}
+            <ErrorBoundary>
+              <div className="space-y-4 h-[400px]">
+                <RemindersWidget />
               </div>
-            ) : fixedSubPockets.length === 0 ? (
-              <EmptyState
-                icon={Wallet}
-                title="No fixed expenses yet"
-                description="Create fixed expenses to track your recurring bills."
-              />
-            ) : (
-              <FixedObligationsWidget
-                subPockets={fixedSubPockets}
-                groups={fixedExpenseGroups}
-                primaryCurrency={fixedExpensesCurrency}
-              />
-            )}
-          </ErrorBoundary>
-        </section>
+            </ErrorBoundary>
 
-        {/* Floating Action Bar (always visible on desktop) */}
-        <FloatingActionBar
-          accounts={accounts}
-          movements={movements}
-          todaySpending={todaySpending}
-          primaryCurrency={primaryCurrency}
-        />
+            <ErrorBoundary>
+              {subPocketsIsError || fixedExpenseGroupsIsError ? (
+                <div className="space-y-2">
+                  {subPocketsIsError && (
+                    <QueryErrorCard title="sub-pockets" error={subPocketsError} onRetry={() => subPocketsRefetch()} />
+                  )}
+                  {fixedExpenseGroupsIsError && (
+                    <QueryErrorCard title="fixed expense groups" error={fixedExpenseGroupsError} onRetry={() => fixedExpenseGroupsRefetch()} />
+                  )}
+                </div>
+              ) : fixedSubPockets.length === 0 ? (
+                <EmptyState
+                  icon={Wallet}
+                  title="No fixed expenses yet"
+                  description="Create fixed expenses to track your recurring bills."
+                />
+              ) : (
+                <FixedExpensesSummary
+                  subPockets={fixedSubPockets}
+                  groups={fixedExpenseGroups}
+                  accounts={accounts}
+                  pockets={pockets}
+                  totalMoney={totalFixedExpensesMoney}
+                  primaryCurrency={primaryCurrency}
+                />
+              )}
+            </ErrorBoundary>
+          </div>
+        </div>
 
-        {/* Selection stats bar (appears on top when items selected) */}
         <FloatingStatsBar primaryCurrency={primaryCurrency} />
       </div>
     </SelectionProvider>
