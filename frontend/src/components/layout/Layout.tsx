@@ -84,7 +84,7 @@ const Layout = ({ children }: LayoutProps) => {
   );
 
   return (
-    <div className="min-h-screen bg-surface-base pb-20 md:pb-0 overflow-x-hidden">
+    <div className="min-h-screen bg-gray-900 pb-20 md:pb-0 overflow-x-hidden">
       <Sidebar items={NAV_ITEMS} />
       <BottomNav items={NAV_ITEMS} bottomItems={BOTTOM_NAV_ITEMS} />
 

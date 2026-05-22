@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { DollarSign, LogOut, Menu, X } from 'lucide-react';
+import { DollarSign, LogOut, Menu, Moon, Sun, X } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { useThemeStore } from '../../store/themeStore';
 
 interface NavItem {
   path: string;
@@ -19,6 +20,7 @@ const BottomNav = ({ items, bottomItems }: BottomNavProps) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { signOut, user } = useAuth();
+  const { theme, toggleTheme } = useThemeStore();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   useEffect(() => {
@@ -33,35 +35,44 @@ const BottomNav = ({ items, bottomItems }: BottomNavProps) => {
   return (
     <>
       {/* Mobile Header */}
-      <div className="md:hidden fixed top-0 left-0 right-0 h-16 bg-surface-container-low/95 backdrop-blur-xl border-b border-white/[0.06] z-40 px-4 flex items-center justify-between">
+      <div className="md:hidden fixed top-0 left-0 right-0 h-16 bg-gray-800 border-b border-gray-700 z-40 px-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary-container to-primary flex items-center justify-center">
-            <DollarSign className="w-5 h-5 text-on-primary" strokeWidth={2.5} aria-hidden="true" />
+          <div className="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center">
+            <DollarSign className="w-5 h-5 text-blue-400" strokeWidth={2.5} aria-hidden="true" />
           </div>
-          <span className="font-bold text-lg text-primary font-display">Finance</span>
+          <span className="font-bold text-lg text-gray-100">Finance</span>
         </div>
-        <button
-          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          className="p-2 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high/50 transition-colors"
-          aria-label={isMobileMenuOpen ? 'Close navigation menu' : 'Open navigation menu'}
-          aria-expanded={isMobileMenuOpen}
-        >
-          {isMobileMenuOpen ? (
-            <X className="w-6 h-6" aria-hidden="true" />
-          ) : (
-            <Menu className="w-6 h-6" aria-hidden="true" />
-          )}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={toggleTheme}
+            className="p-2 rounded-lg text-gray-400 hover:text-gray-100 transition-colors"
+            aria-label="Toggle theme"
+          >
+            {theme === 'dark' ? <Sun className="w-5 h-5" aria-hidden="true" /> : <Moon className="w-5 h-5" aria-hidden="true" />}
+          </button>
+          <button
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            className="p-2 rounded-lg text-gray-400 hover:text-gray-100 transition-colors"
+            aria-label={isMobileMenuOpen ? 'Close navigation menu' : 'Open navigation menu'}
+            aria-expanded={isMobileMenuOpen}
+          >
+            {isMobileMenuOpen ? (
+              <X className="w-6 h-6" aria-hidden="true" />
+            ) : (
+              <Menu className="w-6 h-6" aria-hidden="true" />
+            )}
+          </button>
+        </div>
       </div>
 
       {/* Mobile Menu Overlay */}
       {isMobileMenuOpen && (
         <div
-          className="md:hidden fixed inset-0 z-30 bg-black/60 backdrop-blur-sm pt-16"
+          className="md:hidden fixed inset-0 z-30 bg-black/60 pt-16"
           onClick={() => setIsMobileMenuOpen(false)}
         >
           <div
-            className="bg-surface-container-low/95 backdrop-blur-xl p-4 border-b border-white/[0.06] rounded-b-2xl"
+            className="bg-gray-800 p-4 border-b border-gray-700 rounded-b-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="space-y-1">
@@ -75,8 +86,8 @@ const BottomNav = ({ items, bottomItems }: BottomNavProps) => {
                     className={`
                       flex items-center gap-3 px-4 py-3 rounded-xl transition-colors
                       ${isActive
-                        ? 'bg-primary/10 text-primary'
-                        : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high/50'
+                        ? 'bg-blue-500/10 text-blue-400'
+                        : 'text-gray-400 hover:text-gray-100 hover:bg-gray-700/50'
                       }
                     `}
                   >
@@ -85,12 +96,12 @@ const BottomNav = ({ items, bottomItems }: BottomNavProps) => {
                   </Link>
                 );
               })}
-              <div className="pt-4 mt-4 border-t border-white/[0.06]">
+              <div className="pt-4 mt-4 border-t border-gray-700">
                 <div className="flex items-center justify-between px-4 py-2">
-                  <span className="text-sm text-on-surface-variant">{user?.email}</span>
+                  <span className="text-sm text-gray-400">{user?.email}</span>
                   <button
                     onClick={handleSignOut}
-                    className="p-2 text-error hover:bg-error/10 rounded-lg transition-colors"
+                    className="p-2 text-red-400 hover:bg-red-900/20 rounded-lg transition-colors"
                     aria-label="Sign out"
                   >
                     <LogOut className="w-5 h-5" aria-hidden="true" />
@@ -103,7 +114,7 @@ const BottomNav = ({ items, bottomItems }: BottomNavProps) => {
       )}
 
       {/* Bottom Navigation Bar */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-surface-container-low/90 backdrop-blur-xl border-t border-white/[0.06] z-40 pb-safe">
+      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-gray-800 border-t border-gray-700 z-40 pb-safe">
         <div className="flex items-center justify-around p-2">
           {bottomItems.map((item) => {
             const Icon = item.icon;
@@ -114,7 +125,7 @@ const BottomNav = ({ items, bottomItems }: BottomNavProps) => {
                 to={item.path}
                 className={`
                   flex flex-col items-center gap-0.5 px-3 py-2.5 rounded-lg transition-colors
-                  ${isActive ? 'text-primary' : 'text-on-surface-variant'}
+                  ${isActive ? 'text-blue-400' : 'text-gray-400'}
                 `}
               >
                 <Icon className="w-6 h-6" aria-hidden="true" />
@@ -124,7 +135,7 @@ const BottomNav = ({ items, bottomItems }: BottomNavProps) => {
           })}
           <button
             onClick={() => setIsMobileMenuOpen(true)}
-            className="flex flex-col items-center gap-0.5 px-3 py-2.5 rounded-lg text-on-surface-variant"
+            className="flex flex-col items-center gap-0.5 px-3 py-2.5 rounded-lg text-gray-400"
             aria-label="Open navigation menu"
           >
             <Menu className="w-6 h-6" aria-hidden="true" />
