@@ -216,8 +216,6 @@ const SummaryPage = () => {
                 <RemindersWidget />
               </div>
             </ErrorBoundary>
-              )}
-            </ErrorBoundary>
           </div>
         </div>
 
