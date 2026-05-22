@@ -35,7 +35,7 @@ describe('CapitalBreakdown', () => {
     vi.clearAllMocks();
   });
 
-  it('shows converted balance in primary currency for foreign accounts', () => {
+  it('shows account balance in its own currency', () => {
     const accounts: Account[] = [
       makeAccount({ id: 'usd-1', name: 'US Bank', currency: 'USD', balance: 100 }),
     ];
@@ -49,13 +49,11 @@ describe('CapitalBreakdown', () => {
       />
     );
 
-    // Should show converted amount (100 * 3830 = 383000) formatted as COP
-    expect(screen.getByText('COP 383,000')).toBeInTheDocument();
-    // Should show native amount below
+    // Should show balance in account's own currency
     expect(screen.getByText('$100.00')).toBeInTheDocument();
   });
 
-  it('shows balance directly when account currency matches primary', () => {
+  it('groups accounts by currency', () => {
     const accounts: Account[] = [
       makeAccount({ id: 'cop-1', name: 'Local Bank', currency: 'COP', balance: 5000000 }),
     ];
@@ -69,11 +67,10 @@ describe('CapitalBreakdown', () => {
       />
     );
 
-    // Should show amount in primary currency directly
+    // Should show amount in account currency
     expect(screen.getByText('COP 5,000,000')).toBeInTheDocument();
-    // Should NOT show a native subtitle since no conversion needed
-    const allText = screen.getByText('COP 5,000,000').closest('[class*="text-right"]');
-    expect(allText?.querySelectorAll('.text-\\[10px\\]')).toHaveLength(1); // only status label
+    // Should show currency group header
+    expect(screen.getByText('COP Accounts')).toBeInTheDocument();
   });
 
   it('renders empty state when no accounts', () => {
