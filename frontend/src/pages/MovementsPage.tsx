@@ -1,16 +1,17 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
-import { format } from 'date-fns';
 import { Plus } from 'lucide-react';
 import {
   usePocketsQuery,
-  useInfiniteMovementsQuery,
   useMovementTemplatesQuery,
   useOrphanedMovementsQuery,
   useSubPocketsQuery,
   useMovementMutations,
   useMovementTemplateMutations,
   useReminderMutations,
+  useMovementYearsQuery,
+  useMonthlyMovementsQuery,
 } from '../hooks/queries';
+import { useSettingsQuery } from '../hooks/queries/useSettingsQuery';
 import { useToast } from '../hooks/useToast';
 import { useConfirmDialog } from '../contexts/ConfirmDialogContext';
 import { useBulkSelection } from '../hooks/useBulkSelection';
@@ -35,53 +36,53 @@ import BulkActionsToolbar from '../components/movements/BulkActionsToolbar';
 import MovementFormPanel from '../components/movements/MovementFormPanel';
 import RestoreOrphanedModal from '../components/movements/RestoreOrphanedModal';
 import QuickAddMovement from '../components/movements/QuickAddMovement';
+import YearMonthNav from '../components/movements/YearMonthNav';
+import PaginationControls from '../components/movements/PaginationControls';
 
 const EMPTY_POCKETS: Pocket[] = [];
 const EMPTY_SUBPOCKETS: SubPocket[] = [];
 const EMPTY_MOVEMENTS: Movement[] = [];
 const EMPTY_TEMPLATES: MovementTemplate[] = [];
+const DEFAULT_PAGE_SIZE = 50;
 
 const MovementsPage = () => {
   // Data + mutations
   const { data: pockets = EMPTY_POCKETS } = usePocketsQuery();
   const { data: subPockets = EMPTY_SUBPOCKETS } = useSubPocketsQuery();
+  const { data: settings } = useSettingsQuery();
 
-  // Server-side filter state for category/tags — drives the API query.
-  // These are also exposed via the filter hook for client-side redundancy.
+  // Year/month/page state
+  const now = new Date();
+  const [selectedYear, setSelectedYear] = useState(now.getFullYear());
+  const [selectedMonth, setSelectedMonth] = useState(now.getMonth() + 1);
+  const [currentPage, setCurrentPage] = useState(1);
+
+  // Server-side filter state for category/tags
   const [apiCategory, setApiCategory] = useState<string>('all');
   const [apiTags, setApiTags] = useState<string[]>([]);
 
-  // Movements are loaded incrementally via an infinite query. The first
-  // page is fetched on mount; further pages are pulled in by the user
-  // via the Load More button below the list.
+  const pageSize = settings?.movementsPerPage ?? DEFAULT_PAGE_SIZE;
+
+  // Fetch years for nav
+  const { data: yearsData } = useMovementYearsQuery();
+  const years = useMemo(() => yearsData?.years.map((y) => y.year) ?? [], [yearsData]);
+
+  // Fetch movements for selected month + page
   const {
-    data: infiniteMovements,
+    data: monthlyData,
     isLoading: movementsLoading,
-    hasNextPage: hasMoreMovements,
-    fetchNextPage: fetchMoreMovements,
-    isFetchingNextPage: isLoadingMoreMovements,
-  } = useInfiniteMovementsQuery(undefined, {
+    isFetching,
+  } = useMonthlyMovementsQuery(selectedYear, selectedMonth, currentPage, pageSize, {
     category: apiCategory !== 'all' ? apiCategory : undefined,
     tags: apiTags.length > 0 ? apiTags : undefined,
   });
 
-  // Flatten the page list into a single Movement[] for the existing
-  // filter/sort hooks, dropping orphaned entries (which are surfaced
-  // separately by useOrphanedMovementsQuery / OrphanedMovementsPanel).
-  const movements = useMemo<Movement[]>(() => {
-    if (!infiniteMovements) return EMPTY_MOVEMENTS;
-    const flattened: Movement[] = [];
-    for (const page of infiniteMovements.pages) {
-      for (const m of page.data) {
-        if (!m.isOrphaned) flattened.push(m);
-      }
-    }
-    return flattened;
-  }, [infiniteMovements]);
-
-  // Total movement count (across all pages, server-reported). Falls
-  // back to what we've loaded so far if the first page hasn't returned.
-  const totalMovements = infiniteMovements?.pages[0]?.total ?? movements.length;
+  const movements = useMemo<Movement[]>(
+    () => monthlyData?.data.filter((m) => !m.isOrphaned) ?? EMPTY_MOVEMENTS,
+    [monthlyData],
+  );
+  const totalMovements = monthlyData?.total ?? 0;
+  const totalPages = Math.ceil(totalMovements / pageSize);
 
   const { data: movementTemplates = EMPTY_TEMPLATES, isLoading: templatesLoading } = useMovementTemplatesQuery();
   const { data: orphanedMovements = EMPTY_MOVEMENTS } = useOrphanedMovementsQuery();
@@ -95,6 +96,13 @@ const MovementsPage = () => {
   const { filteredMovements, filters, setFilters } = useMovementsFilter({ movements });
   const { sortedMovementsByMonth, sortField, sortOrder, setSortField, setSortOrder } =
     useMovementsSort({ movements: filteredMovements });
+
+  // Flatten sorted output (all movements are for one month)
+  const sortedMovements = useMemo(
+    () => sortedMovementsByMonth.flatMap(([, ms]) => ms),
+    [sortedMovementsByMonth],
+  );
+
   const formState = useMovementFormState(movementTemplates);
   const bulk = useBulkSelection();
 
@@ -109,30 +117,25 @@ const MovementsPage = () => {
   const [batchActiveAccountId, setBatchActiveAccountId] = useState<string>('');
   const [batchActivePocketId, setBatchActivePocketId] = useState<string>('');
   const [batchRows, setBatchRows] = useState<BatchMovementRow[]>([]);
-  const [expandedMonths, setExpandedMonths] = useState<Set<string>>(
-    () => new Set([format(new Date(), 'yyyy-MM')])
-  );
-  const toggleMonth = useCallback((month: string) => {
-    setExpandedMonths((prev) => {
-      const next = new Set(prev);
-      if (next.has(month)) next.delete(month);
-      else next.add(month);
-      return next;
-    });
-  }, []);
-  const expandMonth = useCallback((monthKey: string) => {
-    setExpandedMonths((prev) =>
-      prev.has(monthKey) ? prev : new Set(prev).add(monthKey)
-    );
+
+  // Year/month selection handler — resets page to 1
+  const handleYearMonthSelect = useCallback((year: number, month: number) => {
+    setSelectedYear(year);
+    setSelectedMonth(month);
+    setCurrentPage(1);
   }, []);
 
-  // URL-driven filters and form opens
+  const handlePageChange = useCallback((page: number) => {
+    setCurrentPage(page);
+  }, []);
+
+  // URL-driven filters and form opens (expandMonth is no-op now)
   useURLActions({
     pockets, subPockets, movementTemplates, templatesLoading,
-    formState, setFilters, expandMonth,
+    formState, setFilters, expandMonth: () => {},
   });
 
-  // Modal lifecycle: closing tears down both single + batch forms
+  // Modal lifecycle
   const closeForms = useCallback(() => {
     formState.resetFormState();
     setShowBatchForm(false);
@@ -141,7 +144,7 @@ const MovementsPage = () => {
     setBatchActivePocketId('');
   }, [formState]);
 
-  // Action hooks (submit / per-row / bulk / restore)
+  // Action hooks
   const { handleSubmit, handleBatchSave, isSaving } = useMovementSubmit({
     formState, closeForms, setShowBatchForm, setError, toast,
     mutations: {
@@ -161,23 +164,20 @@ const MovementsPage = () => {
     },
   });
   const { handleBulkApplyPending, handleBulkMarkAsPending, handleBulkDelete } =
-    useMovementBulkActions({
-      bulk, movements, confirm, toast,
-    });
+    useMovementBulkActions({ bulk, movements, confirm, toast });
   const restore = useOrphanedRestore({
     restoreMutation: movementMutations.restoreOrphanedMovements,
     toast,
   });
 
-  // Stable handlers passed to memoized MovementList row.
   const handleEditMovement = useCallback(
     (movement: Movement) => {
       formState.openEditForm(
         movement,
-        pockets.find((p) => p.id === movement.pocketId)
+        pockets.find((p) => p.id === movement.pocketId),
       );
     },
-    [formState, pockets]
+    [formState, pockets],
   );
 
   // Side panel data
@@ -193,7 +193,7 @@ const MovementsPage = () => {
     (values: Pick<import('../components/movements/MovementForm').MovementFormData, 'type' | 'accountId' | 'pocketId' | 'subPocketId' | 'amount'>) => {
       formState.setLiveValues(values);
     },
-    [formState]
+    [formState],
   );
 
   const handleUseCalculatorAmount = (calculatedAmount: number) => {
@@ -210,19 +210,12 @@ const MovementsPage = () => {
     setBatchActivePocketId(row.pocketId);
   };
 
-  // Stable handler for the Load More button. Wrapped so we can safely
-  // pass it to the Button without leaking the synthetic event into
-  // fetchNextPage (which expects no arguments).
-  const handleLoadMore = useCallback(() => {
-    fetchMoreMovements();
-  }, [fetchMoreMovements]);
-
   const handleQuickAddExpand = useCallback(
     (prefill: { amount?: number; notes?: string; type?: MovementType }) => {
       formState.setDefaultValues(prefill);
       formState.openNewForm();
     },
-    [formState]
+    [formState],
   );
 
   if (movementsLoading) {
@@ -238,7 +231,6 @@ const MovementsPage = () => {
   }
 
   const orphanedCount = orphanedMovements.length;
-  const loadedCount = movements.length;
 
   return (
     <div className="space-y-6">
@@ -261,6 +253,13 @@ const MovementsPage = () => {
         </div>
       </div>
 
+      <YearMonthNav
+        years={years}
+        selectedYear={selectedYear}
+        selectedMonth={selectedMonth}
+        onSelect={handleYearMonthSelect}
+      />
+
       <QuickAddMovement variant="inline" onExpandToFull={handleQuickAddExpand} />
 
       {error && (
@@ -282,8 +281,8 @@ const MovementsPage = () => {
         filters={filters}
         setFilters={{
           ...setFilters,
-          setCategory: (v: string) => { setFilters.setCategory(v); setApiCategory(v); },
-          setTags: (v: string[]) => { setFilters.setTags(v); setApiTags(v); },
+          setCategory: (v: string) => { setFilters.setCategory(v); setApiCategory(v); setCurrentPage(1); },
+          setTags: (v: string[]) => { setFilters.setTags(v); setApiTags(v); setCurrentPage(1); },
         }}
       />
 
@@ -296,10 +295,9 @@ const MovementsPage = () => {
       />
 
       <MovementList
-        movementsByMonth={sortedMovementsByMonth}
+        movements={sortedMovements}
         sortField={sortField} sortOrder={sortOrder}
         setSortField={setSortField} setSortOrder={setSortOrder}
-        expandedMonths={expandedMonths} toggleMonth={toggleMonth}
         selectedMovementIds={bulk.selectedIds}
         toggleSelection={bulk.toggleSelection}
         onEdit={handleEditMovement}
@@ -309,26 +307,13 @@ const MovementsPage = () => {
         deletingId={deletingId} applyingId={applyingId}
       />
 
-      {/*
-        Load More section: only rendered when the server has more pages.
-        Shows the loaded-vs-total count so users understand what's been
-        fetched, and disables itself while a page is in flight.
-      */}
-      {hasMoreMovements && (
-        <div className="flex flex-col items-center gap-2 py-4">
-          <p className="text-sm text-gray-600 dark:text-gray-400">
-            Showing {loadedCount} of {totalMovements} movements
-          </p>
-          <Button
-            variant="secondary"
-            onClick={handleLoadMore}
-            loading={isLoadingMoreMovements}
-            disabled={isLoadingMoreMovements}
-          >
-            {isLoadingMoreMovements ? 'Loading…' : 'Load More'}
-          </Button>
-        </div>
-      )}
+      <PaginationControls
+        page={currentPage}
+        totalPages={totalPages}
+        totalItems={totalMovements}
+        pageSize={pageSize}
+        onPageChange={handlePageChange}
+      />
 
       {orphanedCount > 0 && !showOrphaned && (
         <div className="text-center py-3 mt-4">

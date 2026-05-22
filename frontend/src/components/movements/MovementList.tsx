@@ -13,13 +13,11 @@ import InlineEditableAmount from '../ui/InlineEditableAmount';
 import SelectableValue from '../ui/SelectableValue';
 
 interface MovementListProps {
-    movementsByMonth: [string, Movement[]][];
+    movements: Movement[];
     sortField: SortField;
     sortOrder: SortOrder;
     setSortField: (field: SortField) => void;
     setSortOrder: (order: SortOrder) => void;
-    expandedMonths: Set<string>;
-    toggleMonth: (month: string) => void;
     selectedMovementIds: Set<string>;
     toggleSelection: (id: string) => void;
     onEdit: (movement: Movement) => void;
@@ -233,13 +231,11 @@ const MovementRow = memo(({
 MovementRow.displayName = 'MovementRow';
 
 const MovementList = ({
-    movementsByMonth,
+    movements,
     sortField,
     sortOrder,
     setSortField,
     setSortOrder,
-    expandedMonths,
-    toggleMonth,
     selectedMovementIds,
     toggleSelection,
     onEdit,
@@ -291,41 +287,21 @@ const MovementList = ({
             : <ChevronDown className="w-4 h-4" aria-hidden="true" />;
     };
 
-    // Per-month income/expense totals — only recompute when the grouping
-    // itself changes, not when an unrelated piece of state (e.g. selection)
-    // changes.
-    const monthTotals = useMemo(() => {
-        const map = new Map<string, { income: number; expense: number }>();
-        movementsByMonth.forEach(([monthKey, monthMovements]) => {
-            let income = 0;
-            let expense = 0;
-            for (const m of monthMovements) {
-                if (m.type.includes('Ingreso')) income += m.amount;
-                else if (m.type.includes('Egreso')) expense += m.amount;
-            }
-            map.set(monthKey, { income, expense });
-        });
-        return map;
-    }, [movementsByMonth]);
-
-    // Selection stats for the floating bar — keyed off the selection set
-    // and the movements list.
+    // Selection stats for the floating bar
     const selectionStats = useMemo(() => {
         if (selectedMovementIds.size === 0) {
             return { sum: 0, average: 0 };
         }
-        const selectedMovements = movementsByMonth
-            .flatMap(([, ms]) => ms)
-            .filter((m) => selectedMovementIds.has(m.id));
+        const selectedMovements = movements.filter((m) => selectedMovementIds.has(m.id));
         const sum = selectedMovements.reduce((acc, m) => {
             const isIncome = m.type.includes('Ingreso');
             return acc + (isIncome ? m.amount : -m.amount);
         }, 0);
         const average = selectedMovements.length > 0 ? sum / selectedMovements.length : 0;
         return { sum, average };
-    }, [movementsByMonth, selectedMovementIds]);
+    }, [movements, selectedMovementIds]);
 
-    if (movementsByMonth.length === 0) {
+    if (movements.length === 0) {
         return (
             <Card padding="lg">
                 <div className="text-center py-12">
@@ -379,64 +355,25 @@ const MovementList = ({
                 </Button>
             </div>
 
-            {movementsByMonth.map(([monthKey, monthMovements]) => {
-                const isExpanded = expandedMonths.has(monthKey);
-                const monthDate = parseISO(monthKey + '-01');
-                const totals = monthTotals.get(monthKey) ?? { income: 0, expense: 0 };
-
-                return (
-                    <div key={monthKey} className="space-y-2">
-                        <button
-                            onClick={() => toggleMonth(monthKey)}
-                            className="sticky top-0 z-10 w-full flex items-center justify-between p-4 bg-white/90 dark:bg-gray-800/90 backdrop-blur-lg rounded-lg shadow-md hover:shadow-lg border border-gray-200 dark:border-gray-700 transition-all"
-                            aria-expanded={isExpanded}
-                            aria-label={`${isExpanded ? 'Collapse' : 'Expand'} ${format(monthDate, 'MMMM yyyy')}`}
-                        >
-                            <div className="flex items-center gap-4">
-                                {isExpanded
-                                    ? <ChevronUp className="w-5 h-5 text-gray-500" aria-hidden="true" />
-                                    : <ChevronDown className="w-5 h-5 text-gray-500" aria-hidden="true" />}
-                                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                                    {format(monthDate, 'MMMM yyyy')}
-                                </h3>
-                                <span className="text-sm text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded-full">
-                                    {monthMovements.length}
-                                </span>
-                            </div>
-                            <div className="flex items-center gap-4 text-sm">
-                                <span className="text-green-600 dark:text-green-400 font-medium">
-                                    +${totals.income.toLocaleString()}
-                                </span>
-                                <span className="text-red-600 dark:text-red-400 font-medium">
-                                    -${totals.expense.toLocaleString()}
-                                </span>
-                            </div>
-                        </button>
-
-                        {isExpanded && (
-                            <div className="space-y-2 pl-4 border-l-2 border-gray-200 dark:border-gray-700 ml-4">
-                                {monthMovements.map((movement) => (
-                                    <MovementRow
-                                        key={movement.id}
-                                        movement={movement}
-                                        account={accountById.get(movement.accountId)}
-                                        pocket={pocketById.get(movement.pocketId)}
-                                        linkedReminder={reminderByMovementId.get(movement.id)}
-                                        isSelected={selectedMovementIds.has(movement.id)}
-                                        isDeleting={deletingId === movement.id}
-                                        isApplying={applyingId === movement.id}
-                                        onToggleSelection={toggleSelection}
-                                        onEdit={onEdit}
-                                        onDelete={onDelete}
-                                        onApplyPending={onApplyPending}
-                                        onUpdateAmount={onUpdateAmount}
-                                    />
-                                ))}
-                            </div>
-                        )}
-                    </div>
-                );
-            })}
+            <div className="space-y-2">
+                {movements.map((movement) => (
+                    <MovementRow
+                        key={movement.id}
+                        movement={movement}
+                        account={accountById.get(movement.accountId)}
+                        pocket={pocketById.get(movement.pocketId)}
+                        linkedReminder={reminderByMovementId.get(movement.id)}
+                        isSelected={selectedMovementIds.has(movement.id)}
+                        isDeleting={deletingId === movement.id}
+                        isApplying={applyingId === movement.id}
+                        onToggleSelection={toggleSelection}
+                        onEdit={onEdit}
+                        onDelete={onDelete}
+                        onApplyPending={onApplyPending}
+                        onUpdateAmount={onUpdateAmount}
+                    />
+                ))}
+            </div>
             {/* Floating Stats Bar */}
             {selectedMovementIds.size > 0 && (
                 <div className="fixed bottom-24 md:bottom-6 left-1/2 transform -translate-x-1/2 bg-gray-900/90 dark:bg-gray-800/90 text-white backdrop-blur-md px-6 py-3 rounded-full shadow-xl z-50 flex items-center gap-6 animate-in slide-in-from-bottom-4 fade-in duration-200 border border-gray-700/50">

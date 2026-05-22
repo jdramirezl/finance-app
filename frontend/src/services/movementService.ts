@@ -141,8 +141,25 @@ class MovementService {
     return await apiClient.get<Movement[]>(`/api/movements?${params.toString()}`);
   }
 
-  async getMovementsByMonth(year: number, month: number): Promise<Movement[]> {
-    return await apiClient.get<Movement[]>(`/api/movements?year=${year}&month=${month}`);
+  async getMovementYears(): Promise<{ years: { year: number; count: number }[] }> {
+    return await apiClient.get<{ years: { year: number; count: number }[] }>('/api/movements/years');
+  }
+
+  async getMovementsByMonth(
+    year: number,
+    month: number,
+    page?: number,
+    limit?: number,
+    filters?: { category?: string; tags?: string[] },
+  ): Promise<PaginatedResponse<Movement>> {
+    const params = new URLSearchParams();
+    params.set('year', String(year));
+    params.set('month', String(month));
+    if (page) params.set('page', String(page));
+    if (limit) params.set('limit', String(limit));
+    if (filters?.category) params.set('category', filters.category);
+    if (filters?.tags?.length) params.set('tags', filters.tags.join(','));
+    return await apiClient.get<PaginatedResponse<Movement>>(`/api/movements?${params.toString()}`);
   }
 
   async getMovementsGroupedByMonth(): Promise<Map<string, Movement[]>> {
