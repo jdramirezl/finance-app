@@ -16,28 +16,27 @@ const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 const ReminderCalendarHeatmap = ({ reminders }: Props) => {
     const [currentMonth, setCurrentMonth] = useState(new Date());
+    const [hoveredDate, setHoveredDate] = useState<string | null>(null);
 
-    // Build occurrence map: yyyy-MM-dd -> { count, titles }
+    // Build occurrence map: yyyy-MM-dd -> { count, items }
     const occurrenceMap = useMemo(() => {
-        const map = new Map<string, { count: number; titles: string[] }>();
+        const map = new Map<string, { count: number; items: { title: string; amount: number }[] }>();
 
-        const addDate = (dateStr: string, title: string) => {
-            const key = dateStr.slice(0, 10); // yyyy-MM-dd
+        const addDate = (dateStr: string, title: string, amount: number) => {
+            const key = dateStr.slice(0, 10);
             const existing = map.get(key);
             if (existing) {
                 existing.count++;
-                existing.titles.push(title);
+                existing.items.push({ title, amount });
             } else {
-                map.set(key, { count: 1, titles: [title] });
+                map.set(key, { count: 1, items: [{ title, amount }] });
             }
         };
 
         reminders.forEach(reminder => {
-            // Add base due date
-            addDate(reminder.dueDate, reminder.title);
-            // Add projected occurrences
+            addDate(reminder.dueDate, reminder.title, reminder.amount);
             const projections = generateProjectedOccurrences(reminder, 3);
-            projections.forEach(p => addDate(p.dueDate, p.title));
+            projections.forEach(p => addDate(p.dueDate, p.title, p.amount));
         });
 
         return map;
@@ -100,25 +99,31 @@ const ReminderCalendarHeatmap = ({ reminders }: Props) => {
                     const occurrence = occurrenceMap.get(key);
                     const count = occurrence?.count ?? 0;
 
-                    const dotClass = count === 0
-                        ? ''
-                        : count === 1
-                            ? 'bg-primary/60'
-                            : count === 2
-                                ? 'bg-primary/80'
-                                : 'bg-primary';
+                    const dotSize = count <= 1 ? 'w-1.5 h-1.5' : count === 2 ? 'w-[7px] h-[7px]' : 'w-2 h-2';
+                    const dotOpacity = count <= 1 ? 'bg-primary/50' : count === 2 ? 'bg-primary/70' : 'bg-primary';
 
                     return (
                         <div
                             key={key}
-                            className={`relative flex flex-col items-center justify-center h-9 rounded-md text-xs transition-colors ${
+                            className={`relative flex flex-col items-center justify-center h-9 rounded-md text-xs transition-colors cursor-default ${
                                 !inMonth ? 'opacity-30' : isPast ? 'opacity-50' : ''
                             } ${isToday(day) ? 'ring-1 ring-primary' : ''}`}
-                            title={occurrence ? occurrence.titles.join(', ') : undefined}
+                            onMouseEnter={() => count > 0 && setHoveredDate(key)}
+                            onMouseLeave={() => setHoveredDate(null)}
+                            onClick={() => count > 0 && setHoveredDate(h => h === key ? null : key)}
                         >
                             <span className="text-on-surface">{format(day, 'd')}</span>
                             {count > 0 && (
-                                <span className={`absolute bottom-1 w-1.5 h-1.5 rounded-full ${dotClass}`} />
+                                <span className={`absolute bottom-1 rounded-full ${dotSize} ${dotOpacity}`} />
+                            )}
+                            {hoveredDate === key && occurrence && (
+                                <div className="absolute z-50 bottom-full mb-1 left-1/2 -translate-x-1/2 bg-surface-container-high border border-outline-variant rounded-md px-2 py-1.5 shadow-lg whitespace-nowrap">
+                                    {occurrence.items.map((item, i) => (
+                                        <div key={i} className="text-xs text-on-surface">
+                                            {item.title} - ${item.amount.toLocaleString()}
+                                        </div>
+                                    ))}
+                                </div>
                             )}
                         </div>
                     );
