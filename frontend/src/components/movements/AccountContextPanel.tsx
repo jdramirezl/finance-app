@@ -2,6 +2,8 @@ import { useMemo } from 'react';
 import { useAccountsQuery, usePocketsQuery, useSubPocketsQuery } from '../../hooks/queries';
 import { formatCurrency } from '../../utils/formatCurrency';
 import { CheckCircle2 } from 'lucide-react';
+import SelectableValue from '../ui/SelectableValue';
+import type { Currency } from '../../types';
 
 interface AccountContextPanelProps {
   accountId: string | null;
@@ -42,12 +44,14 @@ const AccountContextPanel = ({ accountId, selectedPocketId, className = '', delt
     );
   }
 
-  const renderBalancePreview = (current: number, delta: number, currency: string, isSmall = false) => {
+  const renderBalancePreview = (current: number, delta: number, currency: string, id: string, isSmall = false) => {
     if (!delta || delta === 0) {
       return (
-        <p className={`${isSmall ? 'text-sm font-semibold' : 'text-2xl font-bold text-blue-600 dark:text-blue-400'}`}>
-          {formatCurrency(current, currency)}
-        </p>
+        <SelectableValue id={id} value={current} currency={currency as Currency}>
+          <p className={`${isSmall ? 'text-sm font-semibold' : 'text-2xl font-bold text-blue-600 dark:text-blue-400'}`}>
+            {formatCurrency(current, currency)}
+          </p>
+        </SelectableValue>
       );
     }
 
@@ -56,16 +60,20 @@ const AccountContextPanel = ({ accountId, selectedPocketId, className = '', delt
 
     return (
       <div className="flex flex-col items-end">
-        <p className="text-[11px] text-gray-400 dark:text-gray-500 line-through leading-none mb-1">
-          {formatCurrency(current, currency)}
-        </p>
-        <p className={`
-          ${isSmall ? 'text-sm font-bold' : 'text-2xl font-bold'}
-          ${isIncrease ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}
-          leading-none
-        `}>
-          {formatCurrency(next, currency)}
-        </p>
+        <SelectableValue id={`${id}-current`} value={current} currency={currency as Currency}>
+          <p className="text-[11px] text-gray-400 dark:text-gray-500 line-through leading-none mb-1">
+            {formatCurrency(current, currency)}
+          </p>
+        </SelectableValue>
+        <SelectableValue id={`${id}-projected`} value={next} currency={currency as Currency}>
+          <p className={`
+            ${isSmall ? 'text-sm font-bold' : 'text-2xl font-bold'}
+            ${isIncrease ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}
+            leading-none
+          `}>
+            {formatCurrency(next, currency)}
+          </p>
+        </SelectableValue>
       </div>
     );
   };
@@ -79,7 +87,7 @@ const AccountContextPanel = ({ accountId, selectedPocketId, className = '', delt
         <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-1">
           {account.name}
         </h3>
-        {renderBalancePreview(account.balance, accountDelta, account.currency)}
+        {renderBalancePreview(account.balance, accountDelta, account.currency, `ctx-acct-${accountId}`)}
         <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
           Total Balance
         </p>
@@ -145,6 +153,7 @@ const AccountContextPanel = ({ accountId, selectedPocketId, className = '', delt
                             pocket.balance, 
                             deltas?.pocketDeltas[pocket.id] || 0, 
                             pocket.currency, 
+                            `ctx-pocket-${pocket.id}`,
                             true
                           )}
                         </div>
@@ -169,6 +178,7 @@ const AccountContextPanel = ({ accountId, selectedPocketId, className = '', delt
                                 subPocket.balance,
                                 deltas?.subPocketDeltas[subPocket.id] || 0,
                                 pocket.currency,
+                                `ctx-subpocket-${subPocket.id}`,
                                 true
                               )}
                             </div>
