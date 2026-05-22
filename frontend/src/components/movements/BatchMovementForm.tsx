@@ -68,7 +68,7 @@ const BatchMovementForm = forwardRef<BatchMovementFormRef, BatchMovementFormProp
     onFocusRowRef.current = onFocusRow;
     onRowsChangeRef.current = onRowsChange;
 
-    const lastFocusedIndexRef = useRef<number | null>(null);
+    const lastFocusedIndexRef = useRef<number | null>(0);
 
     // Watch rows to fire onRowsChange and onFocusRow
     const watchedRows = watch('rows');
