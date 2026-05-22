@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Search, Calendar, Filter, X } from 'lucide-react';
+import { Filter, X } from 'lucide-react';
 import Button from '../ui/Button';
 import Input from '../ui/Input';
 import Select from '../ui/Select';
@@ -43,22 +43,11 @@ interface MovementFiltersProps {
     };
 }
 
-const DATE_RANGE_LABELS: Record<DateRangeOption, string> = {
-    all: 'All Time',
-    '7days': 'Last 7 Days',
-    '30days': 'Last 30 Days',
-    '3months': 'Last 3 Months',
-    '6months': 'Last 6 Months',
-    year: 'Last Year',
-    custom: 'Custom',
-};
-
-const DATE_RANGE_CYCLE: DateRangeOption[] = ['all', '7days', '30days', '3months', '6months', 'year'];
-
 const MovementFilters = ({ showFilters, setShowFilters, movements, filters, setFilters }: MovementFiltersProps) => {
     const { data: accounts = [] } = useAccountsQuery();
     const { data: pockets = [] } = usePocketsQuery();
 
+    // Collect unique categories from current movements (includes custom ones not in predefined list)
     const categoryOptions = useMemo(() => {
         const custom = new Set<string>();
         for (const m of movements) {
@@ -73,10 +62,13 @@ const MovementFilters = ({ showFilters, setShowFilters, movements, filters, setF
         ];
     }, [movements]);
 
+    // Collect unique tags from current movements
     const availableTags = useMemo(() => {
         const tagSet = new Set<string>();
         for (const m of movements) {
-            if (m.tags) for (const t of m.tags) tagSet.add(t);
+            if (m.tags) {
+                for (const t of m.tags) tagSet.add(t);
+            }
         }
         return [...tagSet].sort();
     }, [movements]);
@@ -109,97 +101,48 @@ const MovementFilters = ({ showFilters, setShowFilters, movements, filters, setF
         filters.tags.length > 0,
     ].filter(Boolean).length;
 
-    const cycleDateRange = () => {
-        const currentIdx = DATE_RANGE_CYCLE.indexOf(filters.dateRange);
-        const nextIdx = (currentIdx + 1) % DATE_RANGE_CYCLE.length;
-        setFilters.setDateRange(DATE_RANGE_CYCLE[nextIdx]);
-    };
-
-    const togglePending = () => {
-        setFilters.setShowPending(filters.showPending === 'pending' ? 'all' : 'pending');
-    };
-
     return (
         <div className="space-y-4">
-            {/* Compact filter row */}
-            <div className="flex flex-wrap items-center gap-3">
-                {/* Search input */}
-                <div className="flex-1 min-w-[240px] relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                    <input
-                        type="text"
-                        placeholder="Search transactions..."
+            <div className="flex flex-col sm:flex-row gap-4">
+                <div className="flex-1">
+                    <Input
+                        placeholder="Search movements..."
                         value={filters.search}
                         onChange={(e) => setFilters.setSearch(e.target.value)}
                         aria-label="Search movements"
-                        className="w-full bg-gray-800/50 border-none rounded-lg pl-10 pr-4 py-2 text-sm focus:ring-1 focus:ring-blue-500 outline-none"
                     />
                 </div>
-
-                {/* Date range button */}
-                <button
-                    type="button"
-                    onClick={cycleDateRange}
-                    className="flex items-center gap-2 px-3 py-2 bg-gray-800/50 rounded-lg text-sm text-gray-100 hover:bg-gray-700 transition-colors"
-                >
-                    <Calendar className="w-4 h-4" />
-                    {DATE_RANGE_LABELS[filters.dateRange]}
-                </button>
-
-                {/* More Filters button */}
-                <button
-                    type="button"
-                    onClick={() => setShowFilters(!showFilters)}
-                    aria-expanded={showFilters}
-                    className={`flex items-center gap-2 px-3 py-2 bg-gray-800/50 rounded-lg text-sm text-gray-100 hover:bg-gray-700 transition-colors ${
-                        showFilters || activeFiltersCount > 0 ? 'ring-1 ring-blue-500/30 text-blue-400' : ''
-                    }`}
-                >
-                    <Filter className="w-4 h-4" />
-                    More Filters
+                <div className="flex gap-2">
+                    <Button
+                        variant="secondary"
+                        onClick={() => setShowFilters(!showFilters)}
+                        className={showFilters || activeFiltersCount > 0 ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800' : ''}
+                        aria-expanded={showFilters}
+                    >
+                        <Filter className="w-5 h-5" aria-hidden="true" />
+                        Filters
+                        {activeFiltersCount > 0 && (
+                            <span className="ml-2 bg-blue-100 dark:bg-blue-800 text-blue-700 dark:text-blue-200 text-xs px-2 py-0.5 rounded-full">
+                                {activeFiltersCount}
+                            </span>
+                        )}
+                    </Button>
                     {activeFiltersCount > 0 && (
-                        <span className="ml-1 bg-blue-500/20 text-blue-400 text-xs px-1.5 py-0.5 rounded-full">
-                            {activeFiltersCount}
-                        </span>
+                        <Button
+                            variant="ghost"
+                            onClick={clearFilters}
+                            className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                            aria-label="Clear all filters"
+                            title="Clear all filters"
+                        >
+                            <X className="w-5 h-5" aria-hidden="true" />
+                        </Button>
                     )}
-                </button>
-
-                {/* Divider */}
-                <div className="h-6 w-px bg-gray-600 mx-1" />
-
-                {/* Pending toggle */}
-                <label className="flex items-center gap-2 cursor-pointer group">
-                    <div
-                        className={`relative w-10 h-5 rounded-full transition-colors ${
-                            filters.showPending === 'pending' ? 'bg-blue-500' : 'bg-gray-600 group-hover:bg-gray-500'
-                        }`}
-                        onClick={togglePending}
-                    >
-                        <div
-                            className={`absolute top-1 left-1 w-3 h-3 rounded-full transition-transform ${
-                                filters.showPending === 'pending' ? 'translate-x-5 bg-white' : 'bg-gray-400'
-                            }`}
-                        />
-                    </div>
-                    <span className="text-xs font-medium text-gray-400">Pending only</span>
-                </label>
-
-                {/* Clear filters */}
-                {activeFiltersCount > 0 && (
-                    <button
-                        type="button"
-                        onClick={clearFilters}
-                        className="p-2 text-gray-400 hover:text-gray-100 rounded-lg hover:bg-gray-700 transition-colors"
-                        aria-label="Clear all filters"
-                    >
-                        <X className="w-4 h-4" />
-                    </button>
-                )}
+                </div>
             </div>
 
-            {/* Expanded filter panel */}
             {showFilters && (
-                <div className="p-4 bg-gray-800 rounded-xl border border-gray-700 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     <Select
                         label="Status"
                         value={filters.showPending}
@@ -210,6 +153,7 @@ const MovementFilters = ({ showFilters, setShowFilters, movements, filters, setF
                             { value: 'pending', label: 'Pending Only' },
                         ]}
                     />
+
                     <Select
                         label="Account"
                         value={filters.account}
@@ -219,6 +163,7 @@ const MovementFilters = ({ showFilters, setShowFilters, movements, filters, setF
                             ...accounts.map(acc => ({ value: acc.id, label: acc.name }))
                         ]}
                     />
+
                     <Select
                         label="Pocket"
                         value={filters.pocket}
@@ -230,7 +175,9 @@ const MovementFilters = ({ showFilters, setShowFilters, movements, filters, setF
                                     (filters.account === 'all' || p.accountId === filters.account) &&
                                     p.accountId === acc.id
                                 );
+
                                 if (accountPockets.length === 0) return [];
+
                                 return [{
                                     label: acc.name,
                                     options: accountPockets.map(p => ({ value: p.id, label: p.name }))
@@ -238,12 +185,14 @@ const MovementFilters = ({ showFilters, setShowFilters, movements, filters, setF
                             })
                         ]}
                     />
+
                     <MovementTypeSelect
                         label="Type"
                         includeAll
                         value={filters.type}
                         onChange={setFilters.setType}
                     />
+
                     <Select
                         label="Date Range"
                         value={filters.dateRange}
@@ -258,6 +207,7 @@ const MovementFilters = ({ showFilters, setShowFilters, movements, filters, setF
                             { value: 'custom', label: 'Custom Range' },
                         ]}
                     />
+
                     {filters.dateRange === 'custom' && (
                         <>
                             <Input
@@ -266,7 +216,10 @@ const MovementFilters = ({ showFilters, setShowFilters, movements, filters, setF
                                 value={filters.dateFrom}
                                 onChange={(e) => {
                                     const newFromDate = e.target.value;
+                                    // Prevent start date from being after end date
                                     if (filters.dateTo && newFromDate && newFromDate > filters.dateTo) {
+                                        // If user tries to set start date after end date,
+                                        // set end date to the same as start date
                                         setFilters.setDateTo(newFromDate);
                                     }
                                     setFilters.setDateFrom(newFromDate);
@@ -279,7 +232,10 @@ const MovementFilters = ({ showFilters, setShowFilters, movements, filters, setF
                                 value={filters.dateTo}
                                 onChange={(e) => {
                                     const newToDate = e.target.value;
+                                    // Prevent end date from being before start date
                                     if (filters.dateFrom && newToDate && newToDate < filters.dateFrom) {
+                                        // If user tries to set end date before start date, 
+                                        // set start date to the same as end date
                                         setFilters.setDateFrom(newToDate);
                                     }
                                     setFilters.setDateTo(newToDate);
@@ -288,6 +244,7 @@ const MovementFilters = ({ showFilters, setShowFilters, movements, filters, setF
                             />
                         </>
                     )}
+
                     <div className="flex gap-2">
                         <div className="flex-1">
                             <Input
@@ -308,16 +265,20 @@ const MovementFilters = ({ showFilters, setShowFilters, movements, filters, setF
                             />
                         </div>
                     </div>
+
                     <Select
                         label="Category"
                         value={filters.category}
                         onChange={(e) => setFilters.setCategory(e.target.value)}
                         options={categoryOptions}
                     />
+
                     {availableTags.length > 0 && (
                         <div className="space-y-1">
-                            <label className="block text-sm font-medium text-gray-400">Tags</label>
-                            <div className="flex flex-wrap gap-1.5 p-2 border border-gray-600 rounded-xl bg-gray-600 min-h-[44px]">
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                Tags
+                            </label>
+                            <div className="flex flex-wrap gap-1.5 p-2 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 min-h-[44px]">
                                 {availableTags.map(tag => {
                                     const selected = filters.tags.includes(tag);
                                     return (
@@ -333,8 +294,8 @@ const MovementFilters = ({ showFilters, setShowFilters, movements, filters, setF
                                             }}
                                             className={`px-2 py-0.5 text-xs rounded-full border transition-colors ${
                                                 selected
-                                                    ? 'bg-blue-500/10 border-blue-500/30 text-blue-400'
-                                                    : 'border-gray-600 text-gray-400 hover:bg-gray-700'
+                                                    ? 'bg-blue-100 dark:bg-blue-900/40 border-blue-300 dark:border-blue-700 text-blue-700 dark:text-blue-300'
+                                                    : 'bg-gray-100 dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
                                             }`}
                                         >
                                             {tag}

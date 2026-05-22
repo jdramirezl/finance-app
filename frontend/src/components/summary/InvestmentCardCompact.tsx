@@ -62,12 +62,12 @@ const InvestmentCardCompact = ({
                         className="w-3 h-3 rounded-full transition-transform group-hover:scale-125"
                         style={{ backgroundColor: account.color }}
                     />
-                    <span className="font-semibold text-lg text-on-surface group-hover:text-primary">
+                    <span className="font-semibold text-lg text-gray-900 dark:text-gray-100 group-hover:text-purple-600 dark:group-hover:text-purple-400">
                         {account.name}
                     </span>
-                    <TrendingUp className="w-4 h-4 text-secondary" aria-hidden="true" />
+                    <TrendingUp className="w-4 h-4 text-purple-600 dark:text-purple-400" aria-hidden="true" />
                 </div>
-                <span className="font-mono text-lg font-semibold text-on-surface">
+                <span className="font-mono text-lg font-semibold text-gray-900 dark:text-gray-100">
                     <SelectableValue id={`inv-total-${account.id}`} value={data?.totalValue ?? account.balance} currency={account.currency}>
                         {currencyService.formatCurrency(data?.totalValue ?? account.balance, account.currency)}
                     </SelectableValue>
@@ -76,13 +76,13 @@ const InvestmentCardCompact = ({
 
             <div className="ml-5 space-y-2 text-sm">
                 {!data ? (
-                    <div className="text-on-surface-variant italic">
+                    <div className="text-gray-500 dark:text-gray-400 italic">
                         Loading investment data...
                     </div>
                 ) : (
                     <>
                         <div className="flex items-center justify-between mb-2">
-                            <div className="font-semibold font-mono text-on-surface">
+                            <div className="font-semibold text-gray-900 dark:text-gray-100">
                                 {stockSymbol} | {currencyService.formatCurrency(data.totalValue, account.currency)}
                             </div>
                             <Button
@@ -99,10 +99,10 @@ const InvestmentCardCompact = ({
                             </Button>
                         </div>
 
-                        <div className="space-y-1 text-on-surface-variant">
+                        <div className="space-y-1 text-gray-700 dark:text-gray-300">
                             <div className="flex justify-between">
                                 <span>Total money invested:</span>
-                                <span className="font-mono text-on-surface">
+                                <span className="font-mono">
                                     <SelectableValue id={`inv-invested-${account.id}`} value={montoInvertido} currency={account.currency}>
                                         {currencyService.formatCurrency(montoInvertido, account.currency)}
                                     </SelectableValue>
@@ -110,31 +110,31 @@ const InvestmentCardCompact = ({
                             </div>
                             <div className="flex justify-between">
                                 <span>Total shares:</span>
-                                <span className="font-mono text-on-surface">{shares.toFixed(6)}</span>
+                                <span className="font-mono">{shares.toFixed(6)}</span>
                             </div>
                             <div className="flex justify-between">
                                 <span>Current share price:</span>
-                                <span className="font-mono text-on-surface">
+                                <span className="font-mono">
                                     {currencyService.formatCurrency(data.precioActual, account.currency)}
                                 </span>
                             </div>
 
                             {data.lastUpdated && (
-                                <div className="flex justify-between text-xs text-on-surface-variant italic">
+                                <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 italic">
                                     <span>Last updated:</span>
-                                    <span className="font-mono">{formatDistanceToNow(data.lastUpdated, { addSuffix: true })}</span>
+                                    <span>{formatDistanceToNow(data.lastUpdated, { addSuffix: true })}</span>
                                 </div>
                             )}
 
                             <div className="flex justify-between">
                                 <span>Gains %:</span>
-                                <span className={`font-mono font-semibold ${data.gainsPct >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                                <span className={`font-mono font-semibold ${data.gainsPct >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                                     {data.gainsPct >= 0 ? '+' : ''}{data.gainsPct.toFixed(2)}%
                                 </span>
                             </div>
                             <div className="flex justify-between">
                                 <span>Total money gained:</span>
-                                <span className={`font-mono font-semibold ${data.gainsUSD >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                                <span className={`font-mono font-semibold ${data.gainsUSD >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                                     <SelectableValue id={`inv-gains-${account.id}`} value={data.gainsUSD} currency={account.currency}>
                                         {data.gainsUSD >= 0 ? '+' : ''}{currencyService.formatCurrency(data.gainsUSD, account.currency)}
                                     </SelectableValue>

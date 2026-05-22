@@ -27,11 +27,11 @@ const AccountSummaryCardCompact = ({ account, pockets }: AccountSummaryCardCompa
                         className="w-3 h-3 rounded-full transition-transform group-hover:scale-125"
                         style={{ backgroundColor: account.color }}
                     />
-                    <span className="font-semibold text-lg text-on-surface group-hover:text-primary">
+                    <span className="font-semibold text-lg text-gray-900 dark:text-gray-100 group-hover:text-blue-600 dark:group-hover:text-blue-400">
                         {account.name}
                     </span>
                 </div>
-                <span className="font-mono text-lg font-semibold text-on-surface">
+                <span className="font-mono text-lg font-semibold text-gray-900 dark:text-gray-100">
                     <SelectableValue id={`acc-sum-bal-${account.id}`} value={account.balance} currency={account.currency}>
                         {currencyService.formatCurrency(account.balance, account.currency)}
                     </SelectableValue>
@@ -41,15 +41,15 @@ const AccountSummaryCardCompact = ({ account, pockets }: AccountSummaryCardCompa
             <div className="ml-5 space-y-1">
                 {pockets.map((pocket) => (
                     <div key={pocket.id} className="flex items-center justify-between text-sm">
-                        <span className="text-on-surface-variant">
+                        <span className="text-gray-700 dark:text-gray-300">
                             {pocket.name}
                             {pocket.type === 'fixed' && (
-                                <span className="ml-2 text-xs text-primary">
+                                <span className="ml-2 text-xs text-blue-600 dark:text-blue-400">
                                     (fixed)
                                 </span>
                             )}
                         </span>
-                        <span className="font-mono text-on-surface">
+                        <span className="font-mono text-gray-900 dark:text-gray-100">
                             <SelectableValue id={`pocket-sum-bal-${pocket.id}`} value={pocket.balance} currency={pocket.currency}>
                                 {currencyService.formatCurrency(pocket.balance, pocket.currency)}
                             </SelectableValue>

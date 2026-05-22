@@ -1,12 +1,10 @@
-import { memo, useMemo, useState, useRef, useEffect } from 'react';
-import { MoreVertical, Edit2, Trash2, ToggleLeft, ToggleRight, ArrowRightLeft } from 'lucide-react';
-import type { FixedExpenseGroup, SubPocket } from '../../types';
+import { memo, useMemo } from 'react';
+import type { FixedExpenseGroup, SubPocket, Account } from '../../types';
+import { ChevronDown, ChevronRight, Edit2, Trash2, ToggleLeft, ToggleRight } from 'lucide-react';
+import Button from '../ui/Button';
+import AnimatedProgressBar from '../ui/AnimatedProgressBar';
 import CurrencyAmount from '../ui/CurrencyAmount';
-import {
-  calculateAporteMensual,
-  calculateSimpleMonthlyContribution,
-  calculateProgress,
-} from '../../utils/fixedExpenseUtils';
+import { calculateAporteMensual, calculateSimpleMonthlyContribution, calculateProgress } from '../../utils/fixedExpenseUtils';
 
 interface FixedExpenseGroupCardProps {
   group: FixedExpenseGroup;
@@ -14,285 +12,359 @@ interface FixedExpenseGroupCardProps {
   allGroups: FixedExpenseGroup[];
   currency: string;
   isDefaultGroup: boolean;
+  isCollapsed: boolean;
+  isToggling: boolean;
+  /**
+   * All callbacks take the relevant id/group/subPocket so the parent can
+   * hold a single stable callback (via useCallback) per action and the card
+   * binds it to its own group/expense at the call site. This keeps
+   * React.memo effective when one card re-renders.
+   */
+  onToggleCollapse: (groupId: string) => void;
+  onToggleGroup: (groupId: string, enabled: boolean) => void;
   onEditGroup: (group: FixedExpenseGroup) => void;
   onDeleteGroup: (group: FixedExpenseGroup) => void;
   onEditExpense: (subPocket: SubPocket) => void;
   onDeleteExpense: (id: string) => void;
   onToggleExpense: (id: string) => void;
-  onToggleGroup: (groupId: string, enabled: boolean) => void;
   onMoveToGroup: (subPocketId: string, groupId: string) => void;
   deletingId: string | null;
   togglingId: string | null;
-  togglingGroupId: string | null;
+  pocketAccountMap?: Map<string, Account>;
 }
 
-type ExpenseStatus = 'SETTLED' | 'RECURRING' | 'IN PROGRESS' | 'DUE SOON' | 'OFF';
-
-function getExpenseStatus(sp: SubPocket): ExpenseStatus {
-  if (!sp.enabled) return 'OFF';
-  const progress = calculateProgress(sp.balance, sp.valueTotal);
-  if (progress >= 100) return 'SETTLED';
-  // Recurring: periodicity is 1 month (monthly bill that resets)
-  if (sp.periodicityMonths === 1) return 'RECURRING';
-  // DUE SOON: less than 10% funded
-  if (progress < 10) return 'DUE SOON';
-  return 'IN PROGRESS';
-}
-
-function getStatusColor(status: ExpenseStatus): string {
-  switch (status) {
-    case 'SETTLED': return 'text-blue-400';
-    case 'RECURRING': return 'text-blue-400';
-    case 'IN PROGRESS': return 'text-gray-400';
-    case 'DUE SOON': return 'text-red-400';
-    case 'OFF': return 'text-gray-400';
-  }
-}
-
-const MoveDropdown = ({ groups, onMove }: { groups: FixedExpenseGroup[]; onMove: (groupId: string) => void }) => {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [open]);
-
-  return (
-    <div className="relative" ref={ref}>
-      <button
-        onClick={() => setOpen(!open)}
-        className="p-1 text-gray-400 hover:text-blue-400 transition-colors rounded"
-        title="Move to group"
-      >
-        <ArrowRightLeft className="w-3.5 h-3.5" />
-      </button>
-      {open && (
-        <div className="absolute right-0 top-6 z-30 bg-gray-700 border border-gray-600 rounded-lg shadow-xl py-1 min-w-[120px]">
-          {groups.map((g) => (
-            <button
-              key={g.id}
-              onClick={() => { onMove(g.id); setOpen(false); }}
-              className="w-full text-left px-3 py-1.5 text-xs text-gray-100 hover:bg-gray-700/50"
-            >
-              {g.name}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-};
-
+/**
+ * Renders a single fixed-expense group with its sub-pocket rows.
+ * Memoized so changes to one group (collapse, toggle, edit) don't cause
+ * every other group's totals/progress bars to re-compute.
+ */
 const FixedExpenseGroupCard = ({
   group,
   subPockets,
   allGroups,
   currency,
   isDefaultGroup,
+  isCollapsed,
+  isToggling,
+  onToggleCollapse,
+  onToggleGroup,
   onEditGroup,
   onDeleteGroup,
   onEditExpense,
   onDeleteExpense,
   onToggleExpense,
-  onToggleGroup,
   onMoveToGroup,
   deletingId,
   togglingId,
-  togglingGroupId,
+  pocketAccountMap,
 }: FixedExpenseGroupCardProps) => {
-  const [menuOpen, setMenuOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
-
-  // Close menu on outside click
-  useEffect(() => {
-    if (!menuOpen) return;
-    const handler = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setMenuOpen(false);
-      }
+  // Group-level aggregates: filter+reduce twice over the same list. Memoized
+  // so we don't redo the math on every parent re-render.
+  const { enabledCount, totalMonthlyExpected, totalMonthlyActual } = useMemo(() => {
+    let enabled = 0;
+    let expected = 0;
+    let actual = 0;
+    for (const sp of subPockets) {
+      if (!sp.enabled) continue;
+      enabled += 1;
+      expected += calculateSimpleMonthlyContribution(sp.valueTotal, sp.periodicityMonths);
+      actual += calculateAporteMensual(sp.valueTotal, sp.periodicityMonths, sp.balance);
+    }
+    return {
+      enabledCount: enabled,
+      totalMonthlyExpected: expected,
+      totalMonthlyActual: actual,
     };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [menuOpen]);
+  }, [subPockets]);
 
-  const groupTotal = useMemo(
-    () => subPockets.filter((sp) => sp.enabled).reduce((sum, sp) => sum + calculateSimpleMonthlyContribution(sp.valueTotal, sp.periodicityMonths), 0),
-    [subPockets]
-  );
+  const allEnabled = subPockets.length > 0 && enabledCount === subPockets.length;
+  const someEnabled = enabledCount > 0 && enabledCount < subPockets.length;
+
+  const groupToggleLabel = allEnabled
+    ? `Disable all expenses in ${group.name}`
+    : `Enable all expenses in ${group.name}`;
 
   return (
-    <section className="bg-gray-800 border border-gray-700 rounded-xl flex flex-col">
-      {/* Header: icon + name + kebab */}
-      <div className="p-5 border-b border-gray-700 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div
-            className="w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold"
-            style={{ backgroundColor: `${group.color}15`, color: group.color }}
-          >
-            {group.name.charAt(0).toUpperCase()}
-          </div>
-          <h3 className="text-xl font-semibold text-gray-100">{group.name}</h3>
-        </div>
-
-        {/* Group toggle + Kebab menu */}
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => {
-              const anyEnabled = subPockets.some((sp) => sp.enabled);
-              onToggleGroup(group.id, !anyEnabled);
-            }}
-            disabled={togglingGroupId === group.id || subPockets.length === 0}
-            className="text-gray-400 hover:text-blue-400 transition-colors disabled:opacity-50"
-            title={subPockets.some((sp) => sp.enabled) ? 'Disable all in group' : 'Enable all in group'}
-          >
-            {subPockets.some((sp) => sp.enabled)
-              ? <ToggleRight className="w-6 h-6 text-blue-400" />
-              : <ToggleLeft className="w-6 h-6" />}
-          </button>
-
-          <div className="relative" ref={menuRef}>
-          <button
-            onClick={() => setMenuOpen(!menuOpen)}
-            className="p-1 text-gray-400 hover:text-gray-100 transition-colors rounded"
-            aria-label={`Actions for ${group.name}`}
-          >
-            <MoreVertical className="w-5 h-5" />
-          </button>
-          {menuOpen && (
-            <div className="absolute right-0 top-8 z-20 bg-gray-700 border border-gray-600 rounded-lg shadow-xl py-1 min-w-[140px]">
-              {!isDefaultGroup && (
-                <>
-                  <button
-                    onClick={() => { onEditGroup(group); setMenuOpen(false); }}
-                    className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-100 hover:bg-gray-700/50"
-                  >
-                    <Edit2 className="w-3.5 h-3.5" /> Edit
-                  </button>
-                  <button
-                    onClick={() => { onDeleteGroup(group); setMenuOpen(false); }}
-                    className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-400 hover:bg-gray-700/50"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" /> Delete
-                  </button>
-                </>
+    <div
+      className="border dark:border-gray-700 rounded-xl transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5"
+      style={{ borderLeftWidth: '4px', borderLeftColor: group.color }}
+    >
+      {/* Group Header */}
+      <div className="bg-gray-50 dark:bg-gray-800 p-4 sticky top-0 z-10 border-b dark:border-gray-700 rounded-t-xl">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3 flex-1">
+            <button
+              onClick={() => onToggleCollapse(group.id)}
+              className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors"
+              aria-label={isCollapsed ? `Expand ${group.name}` : `Collapse ${group.name}`}
+              aria-expanded={!isCollapsed}
+            >
+              {isCollapsed ? (
+                <ChevronRight className="w-5 h-5 text-gray-600 dark:text-gray-400" aria-hidden="true" />
+              ) : (
+                <ChevronDown className="w-5 h-5 text-gray-600 dark:text-gray-400" aria-hidden="true" />
               )}
-            </div>
-          )}
-        </div>
-        </div>
-      </div>
+            </button>
 
-      {/* Expense rows */}
-      <div className="flex-1 p-5 space-y-6">
-        {subPockets.length === 0 ? (
-          <p className="text-center text-gray-400 text-sm py-4">
-            No expenses in this group
-          </p>
-        ) : (
-          subPockets.map((sp) => {
-            const progress = calculateProgress(sp.balance, sp.valueTotal);
-            const monthlyContrib = calculateAporteMensual(sp.valueTotal, sp.periodicityMonths, sp.balance);
-            const status = getExpenseStatus(sp);
-            const statusColor = getStatusColor(status);
-            const otherGroups = allGroups.filter((g) => g.id !== group.id);
-
-            return (
-              <div
-                key={sp.id}
-                className={`group/row relative space-y-2 ${!sp.enabled ? 'opacity-50' : ''}`}
-              >
-                {/* Name + amounts + hover actions */}
-                <div className="flex justify-between items-center">
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => onToggleExpense(sp.id)}
-                      disabled={togglingId === sp.id}
-                      className="text-gray-400 hover:text-blue-400 transition-colors disabled:opacity-50"
-                      title={sp.enabled ? 'Disable expense' : 'Enable expense'}
-                    >
-                      {sp.enabled
-                        ? <ToggleRight className="w-5 h-5 text-blue-400" />
-                        : <ToggleLeft className="w-5 h-5" />}
-                    </button>
-                    <span className="text-sm text-gray-100 text-left">
-                      {sp.name}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    {/* Hover-reveal action buttons */}
-                    <div className="flex items-center gap-0.5 opacity-0 group-hover/row:opacity-100 transition-opacity">
-                      <button
-                        onClick={() => onEditExpense(sp)}
-                        className="p-1 text-gray-400 hover:text-blue-400 transition-colors rounded"
-                        title="Edit expense"
-                      >
-                        <Edit2 className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        onClick={() => onDeleteExpense(sp.id)}
-                        disabled={deletingId === sp.id}
-                        className="p-1 text-gray-400 hover:text-red-400 transition-colors rounded disabled:opacity-50"
-                        title="Delete expense"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                      {otherGroups.length > 0 && (
-                        <MoveDropdown
-                          groups={otherGroups}
-                          onMove={(groupId) => onMoveToGroup(sp.id, groupId)}
-                        />
-                      )}
-                    </div>
-                    <span className="text-sm font-medium text-gray-100 ml-2">
-                      <CurrencyAmount amount={sp.balance} currency={currency} className="text-gray-100" />
-                      {' '}
-                      <span className="text-gray-400">
-                        / <CurrencyAmount amount={sp.valueTotal} currency={currency} />
-                      </span>
-                    </span>
-                  </div>
-                </div>
-
-                {/* Progress bar */}
-                <div className="h-1 w-full bg-gray-600 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-gradient-to-r from-blue-500 to-[#4cd7f6] rounded-full transition-all duration-700 ease-out"
-                    style={{ width: `${Math.min(progress, 100)}%` }}
+            <div className="flex-1">
+              <div className="flex items-center gap-2">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                  {group.name}
+                </h3>
+                <span className="text-sm text-gray-500 dark:text-gray-400">
+                  ({enabledCount}/{subPockets.length} enabled)
+                </span>
+              </div>
+              <div className="flex items-center gap-4 text-sm">
+                <div>
+                  <span className="text-gray-500 dark:text-gray-400">Expected:</span>
+                  <CurrencyAmount
+                    amount={totalMonthlyExpected}
+                    currency={currency}
+                    className="ml-1 font-medium text-gray-900 dark:text-gray-100"
                   />
                 </div>
-
-                {/* Monthly contrib + status badge */}
-                <div className="flex justify-between text-[10px] font-bold uppercase tracking-[0.06em] text-gray-400">
-                  <span>
-                    MONTHLY CONTRIB: <CurrencyAmount amount={monthlyContrib} currency={currency} />
-                  </span>
-                  <span className={statusColor}>{status}</span>
+                <div>
+                  <span className="text-gray-500 dark:text-gray-400">Actual:</span>
+                  <CurrencyAmount
+                    amount={totalMonthlyActual}
+                    currency={currency}
+                    className="ml-1 font-medium text-blue-600 dark:text-blue-400"
+                  />
                 </div>
               </div>
-            );
-          })
-        )}
-      </div>
+            </div>
+          </div>
 
-      {/* Footer: group total */}
-      <div className="px-5 py-4 bg-gray-700/50 mt-auto rounded-b-xl border-t border-gray-700">
-        <div className="flex justify-between items-center">
-          <span className="text-[11px] font-bold uppercase tracking-[0.06em] text-gray-400">
-            GROUP TOTAL
-          </span>
-          <CurrencyAmount
-            amount={groupTotal}
-            currency={currency}
-            className="text-sm font-medium text-blue-400"
-          />
+          <div className="flex items-center gap-2">
+            {/* Group Toggle */}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => onToggleGroup(group.id, !allEnabled)}
+              loading={isToggling}
+              disabled={isToggling || subPockets.length === 0}
+              className={`p-2 ${allEnabled
+                ? 'text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/30'
+                : someEnabled
+                  ? 'text-yellow-600 dark:text-yellow-400 hover:bg-yellow-50 dark:hover:bg-yellow-900/30'
+                  : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+                }`}
+              title={groupToggleLabel}
+              aria-label={groupToggleLabel}
+            >
+              {allEnabled ? (
+                <ToggleRight className="w-5 h-5" aria-hidden="true" />
+              ) : (
+                <ToggleLeft className="w-5 h-5" aria-hidden="true" />
+              )}
+            </Button>
+
+            {/* Edit Group */}
+            {!isDefaultGroup && (
+              <>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => onEditGroup(group)}
+                  className="p-2 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30"
+                  title="Edit group"
+                  aria-label={`Edit group ${group.name}`}
+                >
+                  <Edit2 className="w-4 h-4" aria-hidden="true" />
+                </Button>
+
+                {/* Delete Group */}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => onDeleteGroup(group)}
+                  className="p-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30"
+                  title="Delete group"
+                  aria-label={`Delete group ${group.name}`}
+                >
+                  <Trash2 className="w-4 h-4" aria-hidden="true" />
+                </Button>
+              </>
+            )}
+          </div>
         </div>
       </div>
-    </section>
+
+      {/* Expenses List */}
+      {!isCollapsed && (
+        <div className="divide-y dark:divide-gray-700">
+          {subPockets.length === 0 ? (
+            <div className="p-8 text-center text-gray-500 dark:text-gray-400">
+              No expenses in this group
+            </div>
+          ) : (
+            subPockets.map((subPocket) => {
+              const aporteMensualExpected = calculateSimpleMonthlyContribution(subPocket.valueTotal, subPocket.periodicityMonths);
+              const aporteMensualActual = calculateAporteMensual(subPocket.valueTotal, subPocket.periodicityMonths, subPocket.balance);
+              const progress = calculateProgress(subPocket.balance, subPocket.valueTotal);
+              const isDeleting = deletingId === subPocket.id;
+              const isTogglingExpense = togglingId === subPocket.id;
+              const account = pocketAccountMap?.get(subPocket.pocketId);
+              const expenseToggleLabel = subPocket.enabled
+                ? `Disable ${subPocket.name}`
+                : `Enable ${subPocket.name}`;
+
+              return (
+                <div
+                  key={subPocket.id}
+                  className={`p-4 hover:bg-gradient-to-r hover:from-gray-50 hover:to-transparent dark:hover:from-gray-800/50 dark:hover:to-transparent transition-all duration-200 ${!subPocket.enabled ? 'opacity-50' : ''
+                    } last:rounded-b-xl`}
+                >
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2 mb-2">
+                        <div className="flex items-center gap-2">
+                          <h4 className={`font-medium text-gray-900 dark:text-gray-100 ${!subPocket.enabled ? 'line-through' : ''}`}>
+                            {subPocket.name}
+                          </h4>
+                          {account && (
+                            <span
+                              className="px-1.5 py-0.5 text-[11px] uppercase font-bold rounded border opacity-70"
+                              style={{
+                                color: account.color,
+                                borderColor: account.color,
+                                backgroundColor: `${account.color}10`
+                              }}
+                            >
+                              {account.name}
+                            </span>
+                          )}
+                          {!subPocket.enabled && (
+                            <span className="px-2 py-0.5 text-xs font-medium bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded">
+                              Disabled
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Group Selector */}
+                        <select
+                          value={subPocket.groupId || ''}
+                          onChange={(e) => onMoveToGroup(subPocket.id, e.target.value)}
+                          className="text-xs px-2 py-1 border dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                          title="Move to group"
+                          aria-label={`Move ${subPocket.name} to a different group`}
+                        >
+                          {allGroups.map(g => (
+                            <option key={g.id} value={g.id}>
+                              {g.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
+                        <div>
+                          <span className="text-gray-500 dark:text-gray-400">Total:</span>
+                          <CurrencyAmount
+                            amount={subPocket.valueTotal}
+                            currency={currency}
+                            className="ml-2 font-medium text-gray-900 dark:text-gray-100"
+                          />
+                        </div>
+                        <div>
+                          <span className="text-gray-500 dark:text-gray-400">Expected:</span>
+                          <CurrencyAmount
+                            amount={aporteMensualExpected}
+                            currency={currency}
+                            className="ml-2 font-medium text-gray-900 dark:text-gray-100"
+                          />
+                        </div>
+                        <div>
+                          <span className="text-gray-500 dark:text-gray-400">Actual:</span>
+                          <CurrencyAmount
+                            amount={aporteMensualActual}
+                            currency={currency}
+                            className="ml-2 font-medium text-blue-600 dark:text-blue-400"
+                          />
+                        </div>
+                        <div>
+                          <span className="text-gray-500 dark:text-gray-400">Balance:</span>
+                          <CurrencyAmount
+                            amount={subPocket.balance}
+                            currency={currency}
+                            className="ml-2 font-medium text-gray-900 dark:text-gray-100"
+                          />
+                        </div>
+                        <div>
+                          <span className="text-gray-500 dark:text-gray-400">Periodicity:</span>
+                          <span className="ml-2 font-medium text-gray-900 dark:text-gray-100">
+                            {subPocket.periodicityMonths} months
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Progress Bar */}
+                      <div className="mt-3">
+                        <AnimatedProgressBar
+                          value={subPocket.balance}
+                          max={subPocket.valueTotal}
+                          color={progress >= 100 ? 'green' : progress >= 75 ? 'blue' : progress >= 50 ? 'orange' : 'red'}
+                          showPercentage={true}
+                          height="md"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => onToggleExpense(subPocket.id)}
+                        loading={isTogglingExpense}
+                        disabled={isTogglingExpense}
+                        className={`p-2 ${subPocket.enabled
+                          ? 'text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/30'
+                          : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+                          }`}
+                        title={expenseToggleLabel}
+                        aria-label={expenseToggleLabel}
+                      >
+                        {subPocket.enabled ? (
+                          <ToggleRight className="w-5 h-5" aria-hidden="true" />
+                        ) : (
+                          <ToggleLeft className="w-5 h-5" aria-hidden="true" />
+                        )}
+                      </Button>
+
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => onEditExpense(subPocket)}
+                        className="p-2 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30"
+                        title="Edit"
+                        aria-label={`Edit fixed expense ${subPocket.name}`}
+                      >
+                        <Edit2 className="w-4 h-4" aria-hidden="true" />
+                      </Button>
+
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => onDeleteExpense(subPocket.id)}
+                        loading={isDeleting}
+                        disabled={isDeleting}
+                        className="p-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30"
+                        title="Delete"
+                        aria-label={`Delete fixed expense ${subPocket.name}`}
+                      >
+                        <Trash2 className="w-4 h-4" aria-hidden="true" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      )}
+    </div>
   );
 };
 

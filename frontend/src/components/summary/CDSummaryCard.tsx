@@ -49,15 +49,15 @@ const CDSummaryCard = ({ account }: CDSummaryCardProps) => {
 
   // Status styling
   const getStatusColor = () => {
-    if (hasError) return 'text-red-400 bg-red-400/10';
-    if (!summary) return 'text-on-surface-variant bg-surface-container-highest';
+    if (hasError) return 'text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-900/30';
+    if (!summary) return 'text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-800';
     switch (summary.status) {
       case 'matured':
-        return 'text-emerald-400 bg-emerald-400/10';
+        return 'text-green-600 dark:text-green-400 bg-green-100 dark:bg-green-900/30';
       case 'near-maturity':
-        return 'text-tertiary bg-tertiary/10';
+        return 'text-yellow-600 dark:text-yellow-400 bg-yellow-100 dark:bg-yellow-900/30';
       default:
-        return 'text-primary bg-primary/10';
+        return 'text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/30';
     }
   };
 
@@ -90,7 +90,7 @@ const CDSummaryCard = ({ account }: CDSummaryCardProps) => {
   const progressPercentage = getProgressPercentage();
 
   return (
-    <div className="bg-surface-container-high/50 rounded-lg p-4 border-l-4" style={{ borderColor: account.color }}>
+    <div className="bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 rounded-lg p-4 border-l-4" style={{ borderColor: account.color }}>
       {/* Header */}
       <div className="flex items-center justify-between mb-3">
         <div
@@ -106,25 +106,25 @@ const CDSummaryCard = ({ account }: CDSummaryCardProps) => {
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="font-semibold text-lg text-on-surface group-hover:text-primary">
+              <span className="font-semibold text-lg text-gray-900 dark:text-gray-100 group-hover:text-amber-600 dark:group-hover:text-amber-400">
                 {account.name}
               </span>
               <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${getStatusColor()}`}>
                 {getStatusText()}
               </span>
             </div>
-            <div className="text-sm text-on-surface-variant">
-              Certificate of Deposit • <span className="font-mono">{account.interestRate || 0}%</span> APY
+            <div className="text-sm text-gray-600 dark:text-gray-400">
+              Certificate of Deposit • {account.interestRate || 0}% APY
             </div>
           </div>
         </div>
         <div className="text-right">
-          <div className="font-mono text-2xl font-bold text-on-surface">
+          <div className="font-mono text-2xl font-bold text-gray-900 dark:text-gray-100">
             <SelectableValue id={`cd-sum-bal-${account.id}`} value={netBalance} currency={account.currency}>
               {currencyService.formatCurrency(netBalance, account.currency)}
             </SelectableValue>
           </div>
-          <div className="text-sm text-on-surface-variant">
+          <div className="text-sm text-gray-600 dark:text-gray-400">
             {account.withholdingTaxRate && account.withholdingTaxRate > 0 ? 'Net Current Value' : 'Current Value'}
           </div>
         </div>
@@ -134,11 +134,11 @@ const CDSummaryCard = ({ account }: CDSummaryCardProps) => {
         <>
           {/* Progress to Maturity */}
           <div className="mb-4">
-            <div className="flex items-center justify-between text-sm text-on-surface-variant mb-2">
+            <div className="flex items-center justify-between text-sm text-gray-600 dark:text-gray-400 mb-2">
               <span>Progress to Maturity</span>
-              <span className="font-mono">{progressPercentage.toFixed(1)}%</span>
+              <span>{progressPercentage.toFixed(1)}%</span>
             </div>
-            <div className="w-full bg-surface-container-highest rounded-full h-2 overflow-hidden">
+            <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 overflow-hidden">
               <div
                 className="h-full transition-all duration-300 rounded-full"
                 style={{
@@ -151,12 +151,12 @@ const CDSummaryCard = ({ account }: CDSummaryCardProps) => {
 
           {/* Key Metrics */}
           <div className="grid grid-cols-3 gap-3 mb-4">
-            <div className="bg-surface-container rounded-lg p-3 border border-outline-variant text-center">
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700 text-center">
               <div className="flex items-center justify-center gap-1 mb-1">
-                <DollarSign className="w-3 h-3 text-on-surface-variant" aria-hidden="true" />
-                <span className="text-xs font-medium text-on-surface-variant">Interest</span>
+                <DollarSign className="w-3 h-3 text-gray-600 dark:text-gray-400" aria-hidden="true" />
+                <span className="text-xs font-medium text-gray-700 dark:text-gray-300">Interest</span>
               </div>
-              <div className="text-sm font-bold font-mono text-emerald-400">
+              <div className="text-sm font-bold text-green-600 dark:text-green-400">
                 <SelectableValue
                   id={`cd-interest-${account.id}`}
                   value={account.withholdingTaxRate && account.withholdingTaxRate > 0 ? calculation.netInterest : calculation.accruedInterest}
@@ -172,22 +172,22 @@ const CDSummaryCard = ({ account }: CDSummaryCardProps) => {
               </div>
             </div>
 
-            <div className="bg-surface-container rounded-lg p-3 border border-outline-variant text-center">
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700 text-center">
               <div className="flex items-center justify-center gap-1 mb-1">
-                <Calendar className="w-3 h-3 text-on-surface-variant" aria-hidden="true" />
-                <span className="text-xs font-medium text-on-surface-variant">Maturity</span>
+                <Calendar className="w-3 h-3 text-gray-600 dark:text-gray-400" aria-hidden="true" />
+                <span className="text-xs font-medium text-gray-700 dark:text-gray-300">Maturity</span>
               </div>
-              <div className="text-sm font-bold font-mono text-on-surface">
+              <div className="text-sm font-bold text-gray-900 dark:text-gray-100">
                 {formatDisplayDate(account.maturityDate, 'MMM dd')}
               </div>
             </div>
 
-            <div className="bg-surface-container rounded-lg p-3 border border-outline-variant text-center">
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700 text-center">
               <div className="flex items-center justify-center gap-1 mb-1">
                 <span className="text-lg font-bold" style={{ color: account.color }}>%</span>
-                <span className="text-xs font-medium text-on-surface-variant">APY</span>
+                <span className="text-xs font-medium text-gray-700 dark:text-gray-300">APY</span>
               </div>
-              <div className="text-lg font-bold font-mono text-on-surface">
+              <div className="text-lg font-bold text-gray-900 dark:text-gray-100">
                 {account.interestRate || 0}%
               </div>
             </div>
@@ -195,9 +195,9 @@ const CDSummaryCard = ({ account }: CDSummaryCardProps) => {
 
           {/* Investment Details */}
           <div className="space-y-2">
-            <div className="flex items-center justify-between py-2 px-3 bg-surface-container rounded-md border border-outline-variant">
-              <span className="text-sm font-medium text-on-surface-variant">Principal Amount</span>
-              <span className="font-mono font-semibold text-on-surface">
+            <div className="flex items-center justify-between py-2 px-3 bg-white dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700">
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Principal Amount</span>
+              <span className="font-mono font-semibold text-gray-900 dark:text-gray-100">
                 <SelectableValue id={`cd-principal-${account.id}`} value={account.principal || 0} currency={account.currency}>
                   {currencyService.formatCurrency(account.principal || 0, account.currency)}
                 </SelectableValue>
@@ -205,9 +205,9 @@ const CDSummaryCard = ({ account }: CDSummaryCardProps) => {
             </div>
 
             {calculation.daysToMaturity > 0 && (
-              <div className="flex items-center justify-between py-2 px-3 bg-surface-container rounded-md border border-outline-variant">
-                <span className="text-sm font-medium text-on-surface-variant">Days to Maturity</span>
-                <span className="font-mono font-semibold text-on-surface">
+              <div className="flex items-center justify-between py-2 px-3 bg-white dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700">
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Days to Maturity</span>
+                <span className="font-mono font-semibold text-gray-900 dark:text-gray-100">
                   {calculation.daysToMaturity}
                 </span>
               </div>
@@ -218,14 +218,14 @@ const CDSummaryCard = ({ account }: CDSummaryCardProps) => {
 
       {/* Withholding Tax Warning */}
       {account.withholdingTaxRate && account.withholdingTaxRate > 0 && (
-        <div className="flex items-center gap-2 text-xs text-red-400 mt-3 p-2 bg-red-400/10 rounded-md">
+        <div className="flex items-center gap-2 text-xs text-red-600 dark:text-red-400 mt-3 p-2 bg-red-50 dark:bg-red-900/20 rounded-md">
           <AlertTriangle className="w-3 h-3 flex-shrink-0" aria-hidden="true" />
           <span>{account.withholdingTaxRate}% withholding tax will be deducted from interest earnings.</span>
         </div>
       )}
 
       {hasError && (
-        <div className="flex items-center gap-2 text-xs text-red-400 mt-3 p-2 bg-red-400/10 rounded-md">
+        <div className="flex items-center gap-2 text-xs text-red-600 dark:text-red-400 mt-3 p-2 bg-red-50 dark:bg-red-900/20 rounded-md">
           <AlertTriangle className="w-3 h-3 flex-shrink-0" aria-hidden="true" />
           <span>Error calculating CD values. Please check configuration.</span>
         </div>

@@ -32,21 +32,21 @@ const AccountSummaryCard = ({ account, pockets }: AccountSummaryCardProps) => {
         switch (account.type) {
             case 'normal':
                 if (account.name.toLowerCase().includes('checking')) {
-                    return <CreditCard className="w-4 h-4 text-primary" aria-hidden="true" />;
+                    return <CreditCard className="w-4 h-4 text-blue-600 dark:text-blue-400" aria-hidden="true" />;
                 }
                 if (account.name.toLowerCase().includes('savings')) {
-                    return <PiggyBank className="w-4 h-4 text-emerald-400" aria-hidden="true" />;
+                    return <PiggyBank className="w-4 h-4 text-green-600 dark:text-green-400" aria-hidden="true" />;
                 }
                 if (account.name.toLowerCase().includes('cash')) {
-                    return <Banknote className="w-4 h-4 text-tertiary" aria-hidden="true" />;
+                    return <Banknote className="w-4 h-4 text-amber-600 dark:text-amber-400" aria-hidden="true" />;
                 }
-                return <Wallet className="w-4 h-4 text-on-surface-variant" aria-hidden="true" />;
+                return <Wallet className="w-4 h-4 text-gray-600 dark:text-gray-400" aria-hidden="true" />;
             case 'investment':
-                return <Wallet className="w-4 h-4 text-secondary" aria-hidden="true" />;
+                return <Wallet className="w-4 h-4 text-purple-600 dark:text-purple-400" aria-hidden="true" />;
             case 'cd':
-                return <Wallet className="w-4 h-4 text-tertiary" aria-hidden="true" />;
+                return <Wallet className="w-4 h-4 text-amber-600 dark:text-amber-400" aria-hidden="true" />;
             default:
-                return <Wallet className="w-4 h-4 text-on-surface-variant" aria-hidden="true" />;
+                return <Wallet className="w-4 h-4 text-gray-600 dark:text-gray-400" aria-hidden="true" />;
         }
     };
 
@@ -73,7 +73,9 @@ const AccountSummaryCard = ({ account, pockets }: AccountSummaryCardProps) => {
         }
     };
 
-    // Calculate pocket distribution for visual representation.
+    // Calculate pocket distribution for visual representation. Memoized so
+    // re-renders triggered by props that don't change `pockets`/`balance`
+    // skip this O(n) loop.
     const totalBalance = account.balance;
     const pocketPercentages = useMemo(
         () =>
@@ -85,7 +87,7 @@ const AccountSummaryCard = ({ account, pockets }: AccountSummaryCardProps) => {
     );
 
     return (
-        <div className="bg-surface-container-high/50 rounded-lg p-4 border-l-4" style={{ borderColor: account.color }}>
+        <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4 border-l-4" style={{ borderColor: account.color }}>
             {/* Header */}
             <div className="flex items-center justify-between mb-3">
                 <div
@@ -101,25 +103,25 @@ const AccountSummaryCard = ({ account, pockets }: AccountSummaryCardProps) => {
                     </div>
                     <div>
                         <div className="flex items-center gap-2">
-                            <span className="font-semibold text-lg text-on-surface group-hover:text-primary">
+                            <span className="font-semibold text-lg text-gray-900 dark:text-gray-100 group-hover:text-blue-600 dark:group-hover:text-blue-400">
                                 {account.name}
                             </span>
-                            <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-surface-container-highest text-on-surface-variant">
+                            <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300">
                                 {getAccountTypeLabel()}
                             </span>
                         </div>
-                        <div className="text-sm text-on-surface-variant">
+                        <div className="text-sm text-gray-600 dark:text-gray-400">
                             {pockets.length} pocket{pockets.length !== 1 ? 's' : ''}
                         </div>
                     </div>
                 </div>
                 <div className="text-right">
-                    <div className="font-mono text-2xl font-bold text-on-surface">
+                    <div className="font-mono text-2xl font-bold text-gray-900 dark:text-gray-100">
                         <SelectableValue id={`acc-sum-bal-${account.id}`} value={account.balance} currency={account.currency}>
                             {currencyService.formatCurrency(account.balance, account.currency)}
                         </SelectableValue>
                     </div>
-                    <div className="text-sm text-on-surface-variant">
+                    <div className="text-sm text-gray-600 dark:text-gray-400">
                         Total Balance
                     </div>
                 </div>
@@ -128,11 +130,11 @@ const AccountSummaryCard = ({ account, pockets }: AccountSummaryCardProps) => {
             {/* Balance Distribution Bar */}
             {pockets.length > 1 && totalBalance > 0 && (
                 <div className="mb-3">
-                    <div className="flex items-center justify-between text-xs text-on-surface-variant mb-1">
+                    <div className="flex items-center justify-between text-xs text-gray-600 dark:text-gray-400 mb-1">
                         <span>Balance Distribution</span>
                         <span>{pockets.length} pockets</span>
                     </div>
-                    <div className="w-full bg-surface-container-highest rounded-full h-2 overflow-hidden">
+                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 overflow-hidden">
                         <div className="flex h-full">
                             {pocketPercentages.map((pocket, index) => (
                                 <div
@@ -156,7 +158,7 @@ const AccountSummaryCard = ({ account, pockets }: AccountSummaryCardProps) => {
             {/* Pockets List */}
             <div className="space-y-2">
                 {pockets.map((pocket, index) => (
-                    <div key={pocket.id} className="flex items-center justify-between py-2 px-3 bg-surface-container rounded-md border border-outline-variant">
+                    <div key={pocket.id} className="flex items-center justify-between py-2 px-3 bg-white dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700">
                         <div className="flex items-center gap-3">
                             <div
                                 className="w-3 h-3 rounded-full"
@@ -169,27 +171,27 @@ const AccountSummaryCard = ({ account, pockets }: AccountSummaryCardProps) => {
                             />
                             <div>
                                 <div className="flex items-center gap-2">
-                                    <span className="font-medium text-on-surface">
+                                    <span className="font-medium text-gray-900 dark:text-gray-100">
                                         {pocket.name}
                                     </span>
                                     {pocket.type === 'fixed' && (
                                         <div className="flex items-center gap-1">
-                                            <Lock className="w-3 h-3 text-primary" aria-hidden="true" />
-                                            <span className="text-xs font-medium px-1.5 py-0.5 bg-primary/10 text-primary rounded">
+                                            <Lock className="w-3 h-3 text-blue-600 dark:text-blue-400" aria-hidden="true" />
+                                            <span className="text-xs font-medium px-1.5 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded">
                                                 Fixed
                                             </span>
                                         </div>
                                     )}
                                 </div>
                                 {totalBalance > 0 && (
-                                    <div className="text-xs text-on-surface-variant font-mono">
+                                    <div className="text-xs text-gray-500 dark:text-gray-400">
                                         {((pocket.balance / totalBalance) * 100).toFixed(1)}% of total
                                     </div>
                                 )}
                             </div>
                         </div>
                         <div className="text-right">
-                            <div className="font-mono font-semibold text-on-surface">
+                            <div className="font-mono font-semibold text-gray-900 dark:text-gray-100">
                                 <SelectableValue id={`pocket-sum-bal-${pocket.id}`} value={pocket.balance} currency={pocket.currency}>
                                     {currencyService.formatCurrency(pocket.balance, pocket.currency)}
                                 </SelectableValue>

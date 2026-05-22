@@ -19,14 +19,11 @@ interface DayData {
 interface FinancialCalendarWidgetProps {
   primaryCurrency?: Currency;
   className?: string;
-  /** When true, renders without Card wrapper (for embedding in another card) */
-  embedded?: boolean;
 }
 
 const FinancialCalendarWidget = ({ 
   primaryCurrency = 'USD',
-  className = '',
-  embedded = false,
+  className = '' 
 }: FinancialCalendarWidgetProps) => {
   const navigate = useNavigate();
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -170,17 +167,14 @@ const FinancialCalendarWidget = ({
   const firstDayOfMonth = startOfMonth(currentDate);
   const startingDayOfWeek = firstDayOfMonth.getDay();
 
-  const Wrapper = embedded ? 'div' : Card;
-  const wrapperProps = embedded ? { className: `p-4 ${className}` } : { className: `p-4 ${className}` };
-
   return (
-    <Wrapper {...wrapperProps}>
+    <Card className={`p-4 ${className}`}>
       <div className="space-y-4">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <CalendarIcon className="w-5 h-5 text-primary" aria-hidden="true" />
-            <h3 className="text-lg font-semibold text-on-surface">
+            <CalendarIcon className="w-5 h-5 text-blue-600 dark:text-blue-400" aria-hidden="true" />
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
               Financial Calendar
             </h3>
           </div>
@@ -207,7 +201,7 @@ const FinancialCalendarWidget = ({
             <ChevronLeft className="w-4 h-4" aria-hidden="true" />
           </Button>
           
-          <h4 className="text-lg font-medium text-on-surface">
+          <h4 className="text-lg font-medium text-gray-900 dark:text-gray-100">
             {format(currentDate, 'MMMM yyyy')}
           </h4>
           
@@ -230,7 +224,7 @@ const FinancialCalendarWidget = ({
             {weekDays.map(day => (
               <div
                 key={day}
-                className="text-center text-xs font-medium text-on-surface-variant py-2 uppercase tracking-wider"
+                className="text-center text-xs font-medium text-gray-500 dark:text-gray-400 py-2"
               >
                 {day}
               </div>
@@ -265,15 +259,15 @@ const FinancialCalendarWidget = ({
                   className={`
                     h-16 p-1 rounded-lg border transition-all duration-200 relative
                     ${isCurrentMonth 
-                      ? 'border-outline-variant hover:border-primary' 
+                      ? 'border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-600' 
                       : 'border-transparent'
                     }
                     ${isTodayDate 
-                      ? 'ring-2 ring-primary' 
+                      ? 'ring-2 ring-blue-500 dark:ring-blue-400' 
                       : ''
                     }
                     ${hasActivity 
-                      ? 'hover:bg-surface-container-high cursor-pointer' 
+                      ? 'hover:shadow-md cursor-pointer' 
                       : 'cursor-default'
                     }
                     ${!isCurrentMonth ? 'opacity-30' : ''}
@@ -283,10 +277,10 @@ const FinancialCalendarWidget = ({
                 >
                   {/* Day number */}
                   <div className={`
-                    text-sm font-medium font-mono mb-1
+                    text-sm font-medium mb-1
                     ${isTodayDate 
-                      ? 'text-primary' 
-                      : 'text-on-surface'
+                      ? 'text-blue-600 dark:text-blue-400' 
+                      : 'text-gray-900 dark:text-gray-100'
                     }
                   `}>
                     {format(dayData.date, 'd')}
@@ -297,9 +291,9 @@ const FinancialCalendarWidget = ({
                     <div className="space-y-0.5">
                       {/* Income bar */}
                       {dayData.income > 0 && (
-                        <div className="h-1 bg-surface-container-highest rounded-full overflow-hidden">
+                        <div className="h-1 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
                           <div
-                            className="h-full bg-emerald-400 rounded-full transition-all duration-300"
+                            className="h-full bg-green-500 dark:bg-green-400 rounded-full transition-all duration-300"
                             style={{ width: `${incomeIntensity * 100}%` }}
                           />
                         </div>
@@ -307,9 +301,9 @@ const FinancialCalendarWidget = ({
                       
                       {/* Expense bar */}
                       {dayData.expenses > 0 && (
-                        <div className="h-1 bg-surface-container-highest rounded-full overflow-hidden">
+                        <div className="h-1 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
                           <div
-                            className="h-full bg-red-400 rounded-full transition-all duration-300"
+                            className="h-full bg-red-500 dark:bg-red-400 rounded-full transition-all duration-300"
                             style={{ width: `${expenseIntensity * 100}%` }}
                           />
                         </div>
@@ -332,25 +326,25 @@ const FinancialCalendarWidget = ({
         </div>
 
         {/* Legend */}
-        <div className="flex items-center justify-center gap-4 text-xs text-on-surface-variant">
+        <div className="flex items-center justify-center gap-4 text-xs text-gray-600 dark:text-gray-400">
           <div className="flex items-center gap-1">
-            <div className="w-3 h-1 bg-emerald-400 rounded-full" />
+            <div className="w-3 h-1 bg-green-500 dark:bg-green-400 rounded-full" />
             <span>Income</span>
           </div>
           <div className="flex items-center gap-1">
-            <div className="w-3 h-1 bg-red-400 rounded-full" />
+            <div className="w-3 h-1 bg-red-500 dark:bg-red-400 rounded-full" />
             <span>Expenses</span>
           </div>
         </div>
 
         {/* Summary for current month */}
-        <div className="pt-2 border-t border-outline-variant">
-          <div className="text-sm text-on-surface-variant text-center">
+        <div className="pt-2 border-t border-gray-200 dark:border-gray-700">
+          <div className="text-sm text-gray-600 dark:text-gray-400 text-center">
             {format(currentDate, 'MMMM yyyy')} Summary
           </div>
           <div className="flex justify-center gap-4 mt-1">
             <div className="text-sm">
-              <span className="text-emerald-400 font-medium font-mono">
+              <span className="text-green-600 dark:text-green-400 font-medium">
                 +{currencyService.formatCurrency(
                   currentMonthData.reduce((sum, day) => sum + day.income, 0),
                   primaryCurrency
@@ -358,7 +352,7 @@ const FinancialCalendarWidget = ({
               </span>
             </div>
             <div className="text-sm">
-              <span className="text-red-400 font-medium font-mono">
+              <span className="text-red-600 dark:text-red-400 font-medium">
                 -{currencyService.formatCurrency(
                   currentMonthData.reduce((sum, day) => sum + day.expenses, 0),
                   primaryCurrency
@@ -368,7 +362,7 @@ const FinancialCalendarWidget = ({
           </div>
         </div>
       </div>
-    </Wrapper>
+    </Card>
   );
 };
 

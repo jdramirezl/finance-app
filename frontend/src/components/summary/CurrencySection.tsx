@@ -68,9 +68,9 @@ const CurrencySection = ({
     return (
         <Card>
             <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-on-surface flex items-center gap-2">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
                     <Banknote className="w-5 h-5" />
-                    <span className="uppercase tracking-wider">{currency} Accounts</span>
+                    {currency} Accounts
                 </h3>
             </div>
             <div className="space-y-6">

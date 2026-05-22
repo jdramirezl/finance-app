@@ -23,7 +23,6 @@ import {
 } from '../components/ui/Skeleton';
 import { ErrorBoundary } from '../components/feedback';
 import QueryErrorCard from '../components/feedback/QueryErrorCard';
-import FinancialCalendarWidget from '../components/summary/FinancialCalendarWidget';
 import NetWorthTimelineWidget from '../components/net-worth/NetWorthTimelineWidget';
 import RemindersWidget from '../components/reminders/RemindersWidget';
 import {
@@ -182,7 +181,6 @@ const SummaryPage = () => {
 
           <div className="space-y-6">
             <ErrorBoundary>
-              <FinancialCalendarWidget primaryCurrency={primaryCurrency} />
             </ErrorBoundary>
 
             <ErrorBoundary>

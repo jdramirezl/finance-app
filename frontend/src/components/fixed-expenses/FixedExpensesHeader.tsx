@@ -1,94 +1,75 @@
-import { FolderPlus, Plus } from 'lucide-react';
+import { Plus, Receipt } from 'lucide-react';
 import type { Currency } from '../../types';
-import CurrencyAmount from '../ui/CurrencyAmount';
+import Button from '../ui/Button';
+import Card from '../ui/Card';
 
 export interface FixedExpensesHeaderProps {
+  pocketCount: number;
+  enabledExpenseCount: number;
   totalMonthly: number;
-  totalCommitted: number;
   currency: Currency;
-  onAddGroup: () => void;
-  onAddExpense: () => void;
+  onCreateMovements: () => void;
+  onNewExpense: () => void;
 }
 
 /**
- * Fixed Expenses page header matching Stitch design:
- * - "OPERATIONAL OVERVIEW" label + "Fixed Expenses" title
- * - Glass card with aggregate monthly, committed funding, percentage badge
- * - Action buttons: Add Group (teal) + Add Expense (outlined)
+ * Page header for the Fixed Expenses page: title, action buttons, and the
+ * monthly total summary card.
  */
 const FixedExpensesHeader = ({
+  pocketCount,
+  enabledExpenseCount,
   totalMonthly,
-  totalCommitted,
   currency,
-  onAddGroup,
-  onAddExpense,
+  onCreateMovements,
+  onNewExpense,
 }: FixedExpensesHeaderProps) => {
-  const percentage = totalMonthly > 0
-    ? ((totalCommitted / totalMonthly) * 100).toFixed(1)
-    : '0.0';
-
   return (
-    <div className="space-y-6">
-      {/* Title row + stats card */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+    <>
+      <div className="flex items-center justify-between">
         <div>
-          <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-blue-400 mb-2">
-            OPERATIONAL OVERVIEW
-          </p>
-          <h1 className="text-4xl font-bold text-gray-100 tracking-tight">
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
             Fixed Expenses
           </h1>
+          <p className="text-gray-600 dark:text-gray-400 mt-1">
+            Managing {pocketCount} fixed expense{' '}
+            {pocketCount === 1 ? 'pocket' : 'pockets'}
+          </p>
         </div>
-
-        {/* Aggregate stats glass card */}
-        <div className="bg-gray-800 border border-gray-700 rounded-xl px-6 py-4 flex items-center gap-8 min-w-[320px]">
-          <div>
-            <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-gray-400 mb-1">
-              AGGREGATE MONTHLY
-            </p>
-            <CurrencyAmount
-              amount={totalMonthly}
-              currency={currency}
-              className="text-lg font-semibold text-blue-400"
-            />
-          </div>
-          <div className="h-10 w-px bg-gray-600" />
-          <div>
-            <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-gray-400 mb-1">
-              COMMITTED FUNDING
-            </p>
-            <CurrencyAmount
-              amount={totalCommitted}
-              currency={currency}
-              className="text-lg font-semibold text-blue-300"
-            />
-          </div>
-          <div className="flex-1 text-right">
-            <span className="inline-block px-2 py-1 rounded bg-blue-500/10 text-blue-400 text-[10px] font-medium">
-              {percentage}%
-            </span>
-          </div>
+        <div className="flex gap-2">
+          <Button
+            variant="secondary"
+            onClick={onCreateMovements}
+            disabled={enabledExpenseCount === 0}
+          >
+            <Receipt className="w-5 h-5" />
+            Create Movements
+          </Button>
+          <Button variant="primary" onClick={onNewExpense}>
+            <Plus className="w-5 h-5" />
+            New Fixed Expense
+          </Button>
         </div>
       </div>
 
-      {/* Action buttons */}
-      <div className="flex items-center gap-4">
-        <button
-          onClick={onAddGroup}
-          className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-gradient-to-r from-blue-600 to-[#22d3ee] text-white text-sm font-semibold transition-all active:scale-95 hover:shadow-[0_0_15px_rgba(6,182,212,0.4)]"
-        >
-          <FolderPlus className="w-4 h-4" />
-          Add Group
-        </button>
-        <button
-          onClick={onAddExpense}
-          className="flex items-center gap-2 px-5 py-2.5 rounded-lg border border-gray-600 bg-gray-700/50 hover:bg-gray-600 text-gray-100 text-sm font-semibold transition-all active:scale-95"
-        >
-          <Plus className="w-4 h-4" />
-          Add Expense
-        </button>
-      </div>
-    </div>
+      <Card
+        padding="md"
+        className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800"
+      >
+        <h2 className="text-lg font-semibold text-blue-900 dark:text-blue-200 mb-2">
+          Monthly Fixed Expenses Total
+        </h2>
+        <p className="text-3xl font-bold text-blue-700 dark:text-blue-300">
+          {totalMonthly.toLocaleString(undefined, {
+            style: 'currency',
+            currency,
+          })}
+        </p>
+        <p className="text-sm text-blue-600 dark:text-blue-400 mt-1">
+          Sum of all enabled fixed expenses monthly contributions
+        </p>
+      </Card>
+    </>
   );
 };
 
