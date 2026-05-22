@@ -240,7 +240,7 @@ const AccountsPage = () => {
       </div>
 
       {/* Split Layout: Account List (left) + Pocket Panel (right) */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
         {/* Left: Account List */}
         <div className="lg:col-span-2">
           {filteredAccounts.length === 0 ? (
@@ -270,23 +270,26 @@ const AccountsPage = () => {
                   <div
                     key={account.id}
                     onClick={() => handleSelectAccount(account)}
-                    className={`flex items-center gap-4 px-4 py-3 rounded-lg cursor-pointer transition-colors border ${
+                    style={{ borderLeftColor: account.color || undefined }}
+                    className={`flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-colors border-l-4 border ${
                       isSelected
-                        ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-500 dark:border-blue-400'
+                        ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-500 dark:border-blue-400 ring-1 ring-blue-500/40 dark:ring-blue-400/40'
                         : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700'
                     }`}
                   >
-                    <div className="w-9 h-9 rounded-lg flex items-center justify-center bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 shrink-0">
-                      <Icon className="w-4 h-4" />
+                    <div className="w-7 h-7 rounded-md flex items-center justify-center bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 shrink-0">
+                      <Icon className="w-3.5 h-3.5" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-bold text-gray-900 dark:text-gray-100 truncate">{account.name}</p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{subtitle}</p>
+                      <div className="flex items-center gap-2">
+                        <p className="text-xs font-bold text-gray-900 dark:text-gray-100 truncate">{account.name}</p>
+                        <span className="text-[10px] text-gray-500 dark:text-gray-400 truncate hidden sm:inline">{subtitle}</span>
+                      </div>
                     </div>
-                    <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 shrink-0">
+                    <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 shrink-0">
                       {account.currency}
                     </span>
-                    <span className="text-sm font-bold text-gray-900 dark:text-gray-100 whitespace-nowrap">
+                    <span className="text-xs font-bold text-gray-900 dark:text-gray-100 whitespace-nowrap">
                       {currencyService.formatCurrency(account.balance, account.currency)}
                     </span>
                     <div className="flex gap-1 shrink-0">
@@ -313,7 +316,7 @@ const AccountsPage = () => {
         </div>
 
         {/* Right: Pocket Management Panel */}
-        <div className="lg:col-span-1">
+        <div className="lg:col-span-3">
           <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-5 sticky top-6">
             {selectedAccountId ? (
               <PocketManagementSection
