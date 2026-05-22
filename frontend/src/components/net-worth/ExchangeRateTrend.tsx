@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   CartesianGrid,
+  Legend,
   Line,
   LineChart,
   ResponsiveContainer,
@@ -8,95 +9,94 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import { TrendingUp, TrendingDown } from 'lucide-react';
+import { useQueries } from '@tanstack/react-query';
+import { TrendingUp } from 'lucide-react';
 
-import { useExchangeRateHistoryQuery } from '../../hooks/queries/useReportsQueries';
-import { SUPPORTED_CURRENCIES } from '../../constants/currencies';
+import { useSettingsQuery, useAccountsQuery } from '../../hooks/queries';
+import { reportService } from '../../services/reportService';
+import type { Currency } from '../../types';
 
-const CURRENCY_PAIRS = SUPPORTED_CURRENCIES.flatMap((base) =>
-  SUPPORTED_CURRENCIES.filter((t) => t !== base).map((target) => ({
-    label: `${base} → ${target}`,
-    base,
-    target,
-  }))
-);
+const CURRENCY_COLORS: Record<string, string> = {
+  USD: '#4cd7f6',
+  MXN: '#ffb873',
+  EUR: '#adc6ff',
+  GBP: '#34d399',
+  COP: '#a78bfa',
+};
 
 const ExchangeRateTrend = () => {
-  const [selectedPair, setSelectedPair] = useState(
-    CURRENCY_PAIRS.find((p) => p.base === 'USD' && p.target === 'COP') ?? CURRENCY_PAIRS[0]
-  );
   const [days, setDays] = useState(90);
+  const { data: settings } = useSettingsQuery();
+  const { data: accounts } = useAccountsQuery();
 
-  const { data, isLoading } = useExchangeRateHistoryQuery(
-    selectedPair.base,
-    selectedPair.target,
-    days
-  );
+  const primaryCurrency = settings?.primaryCurrency ?? 'COP';
 
-  const chartData = data?.data ?? [];
+  // Get unique currencies from user's accounts that differ from primary
+  const targetCurrencies = useMemo(() => {
+    if (!accounts) return [];
+    const unique = [...new Set(accounts.map((a) => a.currency))];
+    return unique.filter((c) => c !== primaryCurrency) as Currency[];
+  }, [accounts, primaryCurrency]);
+
+  // Fetch exchange rate history for each pair (base → primary)
+  const rateQueries = useQueries({
+    queries: targetCurrencies.map((currency) => ({
+      queryKey: ['reports', 'exchange-rate-history', currency, primaryCurrency, days],
+      queryFn: () => reportService.getExchangeRateHistory(currency, primaryCurrency, days),
+      staleTime: 1000 * 60 * 30,
+      enabled: !!currency,
+    })),
+  });
+
+  const isLoading = rateQueries.some((q) => q.isLoading);
+
+  // Normalize all series to % change and merge into unified chart data
+  const chartData = useMemo(() => {
+    if (targetCurrencies.length === 0) return [];
+
+    // Collect all dates across all series
+    const dateMap = new Map<string, Record<string, number>>();
+
+    targetCurrencies.forEach((currency, i) => {
+      const entries = rateQueries[i]?.data?.data;
+      if (!entries || entries.length === 0) return;
+      const baseline = entries[0].rate;
+      if (baseline === 0) return;
+
+      entries.forEach(({ date, rate }) => {
+        const pctChange = ((rate - baseline) / baseline) * 100;
+        const existing = dateMap.get(date) ?? {};
+        existing[currency] = pctChange;
+        existing[`${currency}_rate`] = rate;
+        dateMap.set(date, existing);
+      });
+    });
+
+    return Array.from(dateMap.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([date, values]) => ({ date, ...values }));
+  }, [targetCurrencies, rateQueries]);
+
   const hasData = chartData.length > 1;
-
-  const currentRate = hasData ? chartData[chartData.length - 1].rate : null;
-  const firstRate = hasData ? chartData[0].rate : null;
-  const pctChange =
-    currentRate && firstRate ? ((currentRate - firstRate) / firstRate) * 100 : null;
 
   return (
     <div className="space-y-4">
-      {/* Controls */}
-      <div className="flex flex-wrap items-center gap-3">
-        <select
-          value={`${selectedPair.base}_${selectedPair.target}`}
-          onChange={(e) => {
-            const [base, target] = e.target.value.split('_');
-            const pair = CURRENCY_PAIRS.find((p) => p.base === base && p.target === target);
-            if (pair) setSelectedPair(pair);
-          }}
-          className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-1.5 text-sm"
-        >
-          {CURRENCY_PAIRS.map((p) => (
-            <option key={`${p.base}_${p.target}`} value={`${p.base}_${p.target}`}>
-              {p.label}
-            </option>
-          ))}
-        </select>
-
-        <div className="flex rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
-          {[30, 90, 180, 365].map((d) => (
-            <button
-              key={d}
-              onClick={() => setDays(d)}
-              className={`px-3 py-1.5 text-sm font-medium transition-colors ${
-                days === d
-                  ? 'bg-blue-500 text-white'
-                  : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
-              }`}
-            >
-              {d}d
-            </button>
-          ))}
-        </div>
+      {/* Day range buttons */}
+      <div className="flex rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden w-fit">
+        {[30, 90, 180, 365].map((d) => (
+          <button
+            key={d}
+            onClick={() => setDays(d)}
+            className={`px-3 py-1.5 text-sm font-medium transition-colors ${
+              days === d
+                ? 'bg-blue-500 text-white'
+                : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
+            }`}
+          >
+            {d}d
+          </button>
+        ))}
       </div>
-
-      {/* Current rate + change */}
-      {currentRate != null && (
-        <div className="flex items-center gap-4">
-          <span className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-            {currentRate.toLocaleString(undefined, { maximumFractionDigits: 4 })}
-          </span>
-          {pctChange != null && (
-            <span
-              className={`flex items-center gap-1 text-sm font-medium ${
-                pctChange >= 0 ? 'text-green-600' : 'text-red-600'
-              }`}
-            >
-              {pctChange >= 0 ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
-              {pctChange >= 0 ? '+' : ''}
-              {pctChange.toFixed(2)}%
-            </span>
-          )}
-        </div>
-      )}
 
       {/* Chart */}
       {isLoading ? (
@@ -104,9 +104,9 @@ const ExchangeRateTrend = () => {
       ) : !hasData ? (
         <div className="h-64 flex flex-col items-center justify-center text-gray-500 dark:text-gray-400">
           <TrendingUp className="w-10 h-10 mb-2 opacity-50" />
-          <p className="text-sm font-medium">Collecting data...</p>
+          <p className="text-sm font-medium">Collecting rate data...</p>
           <p className="text-xs mt-1 opacity-75">
-            The chart will populate as exchange rates are recorded over time.
+            Chart will populate over time.
           </p>
         </div>
       ) : (
@@ -116,28 +116,39 @@ const ExchangeRateTrend = () => {
             <XAxis
               dataKey="date"
               tick={{ fontSize: 11 }}
-              tickFormatter={(v: string) => v.slice(5)} // MM-DD
+              tickFormatter={(v: string) => v.slice(5)}
             />
             <YAxis
               tick={{ fontSize: 11 }}
               domain={['auto', 'auto']}
-              tickFormatter={(v: number) => v.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+              tickFormatter={(v: number) => `${v >= 0 ? '+' : ''}${v.toFixed(1)}%`}
             />
             <Tooltip
               contentStyle={{ fontSize: 12 }}
-              formatter={(value: number) => [
-                value.toLocaleString(undefined, { maximumFractionDigits: 4 }),
-                'Rate',
-              ]}
+              formatter={(value: number, name: string) => {
+                const rateKey = `${name}_rate`;
+                const point = chartData.find(
+                  (d) => d[name as keyof typeof d] === value
+                );
+                const rate = point?.[rateKey as keyof typeof point] as number | undefined;
+                const label = `${value >= 0 ? '+' : ''}${value.toFixed(2)}%${rate != null ? ` (${rate.toLocaleString(undefined, { maximumFractionDigits: 4 })})` : ''}`;
+                return [label, `${name}→${primaryCurrency}`];
+              }}
             />
-            <Line
-              type="monotone"
-              dataKey="rate"
-              stroke="#3b82f6"
-              strokeWidth={2}
-              dot={false}
-              activeDot={{ r: 4 }}
-            />
+            <Legend />
+            {targetCurrencies.map((currency) => (
+              <Line
+                key={currency}
+                type="monotone"
+                dataKey={currency}
+                name={currency}
+                stroke={CURRENCY_COLORS[currency] ?? '#888'}
+                strokeWidth={2}
+                dot={false}
+                activeDot={{ r: 4 }}
+                connectNulls
+              />
+            ))}
           </LineChart>
         </ResponsiveContainer>
       )}
