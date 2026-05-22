@@ -28,7 +28,7 @@ import RemindersWidget from '../components/reminders/RemindersWidget';
 import {
   CurrencyBreakdownSection,
   FixedExpensesSummary,
-  SpendingCard,
+
   TotalsSummary,
 } from '../components/summary';
 import FloatingStatsBar from '../components/summary/FloatingStatsBar';
@@ -151,10 +151,6 @@ const SummaryPage = () => {
           )}
         </ErrorBoundary>
 
-        <ErrorBoundary>
-          <SpendingCard primaryCurrency={primaryCurrency} />
-        </ErrorBoundary>
-
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <ErrorBoundary>
             {accountsIsError || pocketsIsError ? (
@@ -188,12 +184,6 @@ const SummaryPage = () => {
             </ErrorBoundary>
 
             <ErrorBoundary>
-              <div className="space-y-4 h-[400px]">
-                <RemindersWidget />
-              </div>
-            </ErrorBoundary>
-
-            <ErrorBoundary>
               {subPocketsIsError || fixedExpenseGroupsIsError ? (
                 <div className="space-y-2">
                   {subPocketsIsError && (
@@ -218,6 +208,14 @@ const SummaryPage = () => {
                   totalMoney={totalFixedExpensesMoney}
                   primaryCurrency={primaryCurrency}
                 />
+              )}
+            </ErrorBoundary>
+
+            <ErrorBoundary>
+              <div className="space-y-4 h-[400px]">
+                <RemindersWidget />
+              </div>
+            </ErrorBoundary>
               )}
             </ErrorBoundary>
           </div>
