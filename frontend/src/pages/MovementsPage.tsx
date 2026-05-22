@@ -66,6 +66,10 @@ const MovementsPage = () => {
   // Fetch years for nav
   const { data: yearsData } = useMovementYearsQuery();
   const years = useMemo(() => yearsData?.years.map((y) => y.year) ?? [], [yearsData]);
+  const monthsWithData = useMemo(
+    () => yearsData?.years.find((y) => y.year === selectedYear)?.months ?? [],
+    [yearsData, selectedYear],
+  );
 
   // Fetch movements for selected month + page
   const {
@@ -257,6 +261,7 @@ const MovementsPage = () => {
         years={years}
         selectedYear={selectedYear}
         selectedMonth={selectedMonth}
+        monthsWithData={monthsWithData}
         onSelect={handleYearMonthSelect}
       />
 

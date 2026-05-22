@@ -538,7 +538,7 @@ export class SupabaseMovementRepository implements IMovementRepository {
   /**
    * Get distinct years that have movements, with count per year
    */
-  async getDistinctYears(userId: string): Promise<{ year: number; count: number }[]> {
+  async getDistinctYears(userId: string): Promise<{ year: number; count: number; months: number[] }[]> {
     const { data, error } = await this.supabase
       .from('movements')
       .select('displayed_date')
@@ -553,14 +553,19 @@ export class SupabaseMovementRepository implements IMovementRepository {
       return [];
     }
 
-    const yearCounts = new Map<number, number>();
+    const yearData = new Map<number, { count: number; months: Set<number> }>();
     for (const row of data) {
-      const year = new Date(row.displayed_date).getFullYear();
-      yearCounts.set(year, (yearCounts.get(year) || 0) + 1);
+      const d = new Date(row.displayed_date);
+      const year = d.getFullYear();
+      const month = d.getMonth() + 1;
+      const entry = yearData.get(year) || { count: 0, months: new Set<number>() };
+      entry.count++;
+      entry.months.add(month);
+      yearData.set(year, entry);
     }
 
-    return Array.from(yearCounts.entries())
-      .map(([year, count]) => ({ year, count }))
+    return Array.from(yearData.entries())
+      .map(([year, { count, months }]) => ({ year, count, months: [...months].sort((a, b) => a - b) }))
       .sort((a, b) => b.year - a.year);
   }
 

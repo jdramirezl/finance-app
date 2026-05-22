@@ -68,8 +68,8 @@ const RemindersWidget = () => {
     const hasAnyReminders = monthGroups.some(group => group.reminders.length > 0);
 
     return (
-        <div className="flex flex-col">
-            <Card padding="none" className="overflow-hidden flex flex-col">
+        <div className="flex flex-col h-full">
+            <Card padding="none" className="overflow-hidden flex flex-col flex-1 min-h-0">
                 {/* Header */}
                 <div className="flex items-center justify-between px-4 py-3 border-b border-gray-700">
                     <h3 className="text-lg font-semibold text-gray-100 flex items-center gap-2">
@@ -147,7 +147,7 @@ const RemindersWidget = () => {
                         {/* Monthly Timeline - scrollable with max height */}
                         <div
                             ref={scrollContainerRef}
-                            className="overflow-y-auto max-h-[400px] p-3"
+                            className="overflow-y-auto flex-1 min-h-0 p-3"
                         >
                             {!hasAnyReminders ? (
                                 <div className="flex flex-col items-center justify-center py-8 text-gray-400">

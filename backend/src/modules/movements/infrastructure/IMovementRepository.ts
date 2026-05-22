@@ -219,7 +219,7 @@ export interface IMovementRepository {
   /**
    * Get distinct years that have movements, with count per year
    */
-  getDistinctYears(userId: string): Promise<{ year: number; count: number }[]>;
+  getDistinctYears(userId: string): Promise<{ year: number; count: number; months: number[] }[]>;
 
   /**
    * Count movements by filters

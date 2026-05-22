@@ -141,8 +141,8 @@ class MovementService {
     return await apiClient.get<Movement[]>(`/api/movements?${params.toString()}`);
   }
 
-  async getMovementYears(): Promise<{ years: { year: number; count: number }[] }> {
-    return await apiClient.get<{ years: { year: number; count: number }[] }>('/api/movements/years');
+  async getMovementYears(): Promise<{ years: { year: number; count: number; months: number[] }[] }> {
+    return await apiClient.get<{ years: { year: number; count: number; months: number[] }[] }>('/api/movements/years');
   }
 
   async getMovementsByMonth(

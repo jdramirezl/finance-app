@@ -10,7 +10,7 @@ import type { IMovementRepository } from '../../infrastructure/IMovementReposito
 import { ValidationError } from '../../../../shared/errors/AppError';
 
 export interface MovementYearsDTO {
-  years: { year: number; count: number }[];
+  years: { year: number; count: number; months: number[] }[];
 }
 
 @injectable()
