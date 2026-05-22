@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { format } from 'date-fns';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import {
   usePocketsQuery,
   useInfiniteMovementsQuery,
@@ -245,18 +245,6 @@ const MovementsPage = () => {
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Movements</h1>
         <div className="flex gap-2">
-          {orphanedCount > 0 && (
-            <Button
-              variant="secondary"
-              onClick={() => setShowOrphaned((v) => !v)}
-              className="px-2 sm:px-4"
-              aria-label={`${showOrphaned ? 'Hide' : 'Show'} orphaned movements (${orphanedCount})`}
-              aria-expanded={showOrphaned}
-            >
-              <Trash2 className="w-5 h-5" aria-hidden="true" />
-              <span className="hidden sm:inline ml-2">Orphaned ({orphanedCount})</span>
-            </Button>
-          )}
           <Button
             variant="secondary"
             onClick={() => setShowBatchForm(true)}
@@ -339,6 +327,17 @@ const MovementsPage = () => {
           >
             {isLoadingMoreMovements ? 'Loading…' : 'Load More'}
           </Button>
+        </div>
+      )}
+
+      {orphanedCount > 0 && !showOrphaned && (
+        <div className="text-center py-3 mt-4">
+          <button
+            onClick={() => setShowOrphaned(true)}
+            className="text-xs text-gray-500 dark:text-gray-500 hover:text-gray-300 transition-colors"
+          >
+            {orphanedCount} movements from deleted accounts • Manage
+          </button>
         </div>
       )}
 
