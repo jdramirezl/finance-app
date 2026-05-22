@@ -24,24 +24,24 @@ const MonthSection = ({ monthGroup, onPayNow, onEdit, onDelete, onMarkAsPaid, ad
             <div className={`
                 sticky top-0 z-10 py-2 px-3 mb-2 rounded-lg
                 ${isCurrentMonth
-                    ? 'bg-primary/10 border border-primary/20'
+                    ? 'bg-blue-500/10 border border-blue-500/20'
                     : isPastMonth
-                        ? 'bg-surface-container-high/60'
-                        : 'bg-surface-container/40'
+                        ? 'bg-gray-700/60'
+                        : 'bg-gray-800/40'
                 }
             `}>
                 <h3 className={`
                     text-sm font-semibold uppercase tracking-wide
                     ${isCurrentMonth
-                        ? 'text-primary'
+                        ? 'text-blue-400'
                         : isPastMonth
-                            ? 'text-on-surface-variant'
-                            : 'text-on-surface-variant'
+                            ? 'text-gray-400'
+                            : 'text-gray-400'
                     }
                 `}>
                     {label}
                     {isCurrentMonth && (
-                        <span className="ml-2 text-xs font-normal normal-case text-primary/70">
+                        <span className="ml-2 text-xs font-normal normal-case text-blue-400/70">
                             (Current)
                         </span>
                     )}

@@ -56,26 +56,26 @@ const AllocationStrategy = ({
   const isFullyAllocated = totalPercentage === 100;
 
   return (
-    <div className="glass-card rounded-2xl p-5 flex-1">
+    <div className="bg-gray-800 border border-gray-700 rounded-2xl p-5 flex-1">
       {/* Header */}
       <div className="flex justify-between items-center mb-6">
-        <h3 className="text-xl font-semibold text-on-surface">Allocation Strategy</h3>
+        <h3 className="text-xl font-semibold text-gray-100">Allocation Strategy</h3>
         <div className="flex items-center gap-3">
           {entries.length > 0 && (
             <div className={`flex items-center gap-2 px-3 py-1 rounded-full border ${
               isFullyAllocated
-                ? 'bg-surface-container-highest border-white/5'
-                : 'bg-error/10 border-error/20'
+                ? 'bg-gray-600 border-gray-700'
+                : 'bg-red-400/10 border-red-400/20'
             }`}>
-              <span className={`w-2 h-2 rounded-full ${isFullyAllocated ? 'bg-primary animate-pulse' : 'bg-error'}`} />
-              <span className={`font-mono text-xs font-medium ${isFullyAllocated ? 'text-primary' : 'text-error'}`}>
+              <span className={`w-2 h-2 rounded-full ${isFullyAllocated ? 'bg-blue-500 animate-pulse' : 'bg-red-500'}`} />
+              <span className={`text-xs font-medium ${isFullyAllocated ? 'text-blue-400' : 'text-red-400'}`}>
                 {totalPercentage}% Allocated
               </span>
             </div>
           )}
           <button
             onClick={handleAdd}
-            className="p-2 text-on-surface-variant hover:text-primary hover:bg-primary/10 rounded-lg transition-colors"
+            className="p-2 text-gray-400 hover:text-blue-400 hover:bg-blue-500/10 rounded-lg transition-colors"
             title="Add entry"
           >
             <Plus className="w-5 h-5" />
@@ -85,9 +85,9 @@ const AllocationStrategy = ({
 
       {/* Entries */}
       {entries.length === 0 ? (
-        <div className="text-center py-12 text-on-surface-variant">
+        <div className="text-center py-12 text-gray-400">
           <p className="mb-2">No allocation entries yet</p>
-          <button onClick={handleAdd} className="text-primary hover:underline text-sm">
+          <button onClick={handleAdd} className="text-blue-400 hover:underline text-sm">
             Add your first entry
           </button>
         </div>
@@ -112,7 +112,7 @@ const AllocationStrategy = ({
       <button
         onClick={onGenerateMovements}
         disabled={generateDisabled}
-        className="w-full mt-8 py-4 rounded-xl bg-gradient-to-r from-[#06b6d4] to-[#22d3ee] text-white font-bold text-lg shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:hover:scale-100"
+        className="w-full mt-8 py-4 rounded-xl bg-gradient-to-r from-[#06b6d4] to-[#22d3ee] text-white font-bold text-lg shadow-lg shadow-blue-500/20 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:hover:scale-100"
       >
         <Zap className="w-5 h-5" />
         Generate Movements

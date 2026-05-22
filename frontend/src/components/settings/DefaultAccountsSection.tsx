@@ -18,7 +18,7 @@ const DefaultAccountsSection = ({
 }: DefaultAccountsSectionProps) => {
   return (
     <section>
-      <h2 className="text-xl font-semibold mb-6 text-on-surface flex items-center gap-3">
+      <h2 className="text-xl font-semibold mb-6 text-gray-100 flex items-center gap-3">
         <span className="p-2 bg-[#adc6ff]/10 rounded-lg text-[#adc6ff]">
           <Target className="w-5 h-5" />
         </span>
@@ -26,12 +26,12 @@ const DefaultAccountsSection = ({
       </h2>
 
       <Card className="space-y-6">
-        <p className="text-sm text-on-surface-variant">
+        <p className="text-sm text-gray-400">
           Set default accounts for quick-add. Used when no recent selection exists.
         </p>
 
         <div>
-          <h3 className="text-lg font-medium text-on-surface mb-3">
+          <h3 className="text-lg font-medium text-gray-100 mb-3">
             Default for Expenses
           </h3>
           <AccountPocketSelector
@@ -46,10 +46,10 @@ const DefaultAccountsSection = ({
           />
         </div>
 
-        <hr className="border-white/[0.06]" />
+        <hr className="border-gray-700" />
 
         <div>
-          <h3 className="text-lg font-medium text-on-surface mb-3">
+          <h3 className="text-lg font-medium text-gray-100 mb-3">
             Default for Income
           </h3>
           <AccountPocketSelector

@@ -93,7 +93,7 @@ const MonthlyTrend = ({ months }: MonthlyTrendProps) => {
 
   if (!chartData?.length) {
     return (
-      <div className="text-center py-12 text-on-surface-variant">
+      <div className="text-center py-12 text-gray-400">
         <p className="text-lg font-medium">No data available</p>
         <p className="text-sm mt-1">No transactions found for the selected period.</p>
       </div>

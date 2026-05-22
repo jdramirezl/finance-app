@@ -121,8 +121,8 @@ const BudgetPlanningPage = () => {
       {/* Header: Title + Scenario Tabs */}
       <section className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
-          <h1 className="text-4xl font-bold text-on-surface">Budget Planning</h1>
-          <p className="text-on-surface-variant mt-1 text-sm">
+          <h1 className="text-4xl font-bold text-gray-100">Budget Planning</h1>
+          <p className="text-gray-400 mt-1 text-sm">
             Strategic allocation and scenario modeling
           </p>
         </div>

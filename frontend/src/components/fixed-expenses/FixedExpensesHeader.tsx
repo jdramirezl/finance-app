@@ -32,39 +32,39 @@ const FixedExpensesHeader = ({
       {/* Title row + stats card */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
-          <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-primary mb-2">
+          <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-blue-400 mb-2">
             OPERATIONAL OVERVIEW
           </p>
-          <h1 className="text-4xl font-bold text-on-surface tracking-tight">
+          <h1 className="text-4xl font-bold text-gray-100 tracking-tight">
             Fixed Expenses
           </h1>
         </div>
 
         {/* Aggregate stats glass card */}
-        <div className="bg-surface-container/80 backdrop-blur-[12px] border border-white/[0.08] rounded-xl px-6 py-4 flex items-center gap-8 min-w-[320px]">
+        <div className="bg-gray-800 border border-gray-700 rounded-xl px-6 py-4 flex items-center gap-8 min-w-[320px]">
           <div>
-            <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-on-surface-variant mb-1">
+            <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-gray-400 mb-1">
               AGGREGATE MONTHLY
             </p>
             <CurrencyAmount
               amount={totalMonthly}
               currency={currency}
-              className="text-lg font-semibold font-mono text-primary"
+              className="text-lg font-semibold text-blue-400"
             />
           </div>
-          <div className="h-10 w-px bg-white/10" />
+          <div className="h-10 w-px bg-gray-600" />
           <div>
-            <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-on-surface-variant mb-1">
+            <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-gray-400 mb-1">
               COMMITTED FUNDING
             </p>
             <CurrencyAmount
               amount={totalCommitted}
               currency={currency}
-              className="text-lg font-semibold font-mono text-secondary"
+              className="text-lg font-semibold text-blue-300"
             />
           </div>
           <div className="flex-1 text-right">
-            <span className="inline-block px-2 py-1 rounded bg-primary/10 text-primary text-[10px] font-mono font-medium">
+            <span className="inline-block px-2 py-1 rounded bg-blue-500/10 text-blue-400 text-[10px] font-medium">
               {percentage}%
             </span>
           </div>
@@ -75,14 +75,14 @@ const FixedExpensesHeader = ({
       <div className="flex items-center gap-4">
         <button
           onClick={onAddGroup}
-          className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-gradient-to-r from-primary-container to-[#22d3ee] text-on-primary-container text-sm font-semibold transition-all active:scale-95 hover:shadow-[0_0_15px_rgba(6,182,212,0.4)]"
+          className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-gradient-to-r from-blue-600 to-[#22d3ee] text-white text-sm font-semibold transition-all active:scale-95 hover:shadow-[0_0_15px_rgba(6,182,212,0.4)]"
         >
           <FolderPlus className="w-4 h-4" />
           Add Group
         </button>
         <button
           onClick={onAddExpense}
-          className="flex items-center gap-2 px-5 py-2.5 rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 text-on-surface text-sm font-semibold transition-all active:scale-95"
+          className="flex items-center gap-2 px-5 py-2.5 rounded-lg border border-gray-600 bg-gray-700/50 hover:bg-gray-600 text-gray-100 text-sm font-semibold transition-all active:scale-95"
         >
           <Plus className="w-4 h-4" />
           Add Expense

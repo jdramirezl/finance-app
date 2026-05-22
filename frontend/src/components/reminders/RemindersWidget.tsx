@@ -62,7 +62,7 @@ const RemindersWidget = () => {
     }, [monthGroups.length, activeTab]);
 
     if (isLoading) {
-        return <div className="animate-pulse h-48 bg-surface-container rounded-lg"></div>;
+        return <div className="animate-pulse h-48 bg-gray-800 rounded-lg"></div>;
     }
 
     const hasAnyReminders = monthGroups.some(group => group.reminders.length > 0);
@@ -71,8 +71,8 @@ const RemindersWidget = () => {
         <div className="flex flex-col">
             <Card padding="none" className="overflow-hidden flex flex-col">
                 {/* Header */}
-                <div className="flex items-center justify-between px-4 py-3 border-b border-white/[0.06]">
-                    <h3 className="text-lg font-semibold text-on-surface flex items-center gap-2">
+                <div className="flex items-center justify-between px-4 py-3 border-b border-gray-700">
+                    <h3 className="text-lg font-semibold text-gray-100 flex items-center gap-2">
                         <Calendar className="w-5 h-5" />
                         Payments & Calendar
                     </h3>
@@ -83,8 +83,8 @@ const RemindersWidget = () => {
                                     onClick={() => setShowPaid(!showPaid)}
                                     className={`text-xs px-2 py-1 rounded-md transition-colors ${
                                         showPaid
-                                            ? 'bg-primary/10 text-primary'
-                                            : 'text-on-surface-variant hover:text-on-surface'
+                                            ? 'bg-blue-500/10 text-blue-400'
+                                            : 'text-gray-400 hover:text-gray-100'
                                     }`}
                                     title={showPaid ? 'Hide paid reminders' : 'Show paid reminders'}
                                 >
@@ -106,13 +106,13 @@ const RemindersWidget = () => {
                 </div>
 
                 {/* Tabs */}
-                <div className="flex border-b border-white/[0.06]">
+                <div className="flex border-b border-gray-700">
                     <button
                         onClick={() => setActiveTab('upcoming')}
                         className={`flex-1 px-4 py-2 text-sm font-medium transition-colors flex items-center justify-center gap-1.5 ${
                             activeTab === 'upcoming'
-                                ? 'text-primary border-b-2 border-primary'
-                                : 'text-on-surface-variant hover:text-on-surface'
+                                ? 'text-blue-400 border-b-2 border-blue-500'
+                                : 'text-gray-400 hover:text-gray-100'
                         }`}
                     >
                         <List className="w-4 h-4" />
@@ -122,8 +122,8 @@ const RemindersWidget = () => {
                         onClick={() => setActiveTab('calendar')}
                         className={`flex-1 px-4 py-2 text-sm font-medium transition-colors flex items-center justify-center gap-1.5 ${
                             activeTab === 'calendar'
-                                ? 'text-primary border-b-2 border-primary'
-                                : 'text-on-surface-variant hover:text-on-surface'
+                                ? 'text-blue-400 border-b-2 border-blue-500'
+                                : 'text-gray-400 hover:text-gray-100'
                         }`}
                     >
                         <Calendar className="w-4 h-4" />
@@ -150,7 +150,7 @@ const RemindersWidget = () => {
                             className="overflow-y-auto max-h-[400px] p-3"
                         >
                             {!hasAnyReminders ? (
-                                <div className="flex flex-col items-center justify-center py-8 text-on-surface-variant">
+                                <div className="flex flex-col items-center justify-center py-8 text-gray-400">
                                     <Calendar className="w-10 h-10 mb-3 opacity-50" />
                                     <p className="text-center">No reminders yet</p>
                                     <p className="text-sm text-center mt-1 opacity-75">

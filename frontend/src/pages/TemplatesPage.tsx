@@ -117,10 +117,10 @@ const TemplatesPage = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-on-surface">
+          <h1 className="text-2xl font-bold text-gray-100">
             Movement Templates
           </h1>
-          <p className="text-sm text-on-surface-variant mt-1">
+          <p className="text-sm text-gray-400 mt-1">
             Manage your saved transaction templates for quick entry
           </p>
         </div>
@@ -139,13 +139,13 @@ const TemplatesPage = () => {
       {movementTemplates.length === 0 ? (
         <Card>
           <div className="text-center py-12">
-            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-surface-container-high mb-4">
-              <Plus className="w-8 h-8 text-on-surface-variant" aria-hidden="true" />
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gray-700 mb-4">
+              <Plus className="w-8 h-8 text-gray-400" aria-hidden="true" />
             </div>
-            <h3 className="text-lg font-medium text-on-surface mb-2">
+            <h3 className="text-lg font-medium text-gray-100 mb-2">
               No templates yet
             </h3>
-            <p className="text-on-surface-variant mb-4">
+            <p className="text-gray-400 mb-4">
               Create your first template to speed up transaction entry
             </p>
             <Button

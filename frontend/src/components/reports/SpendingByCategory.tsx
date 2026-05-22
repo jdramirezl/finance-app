@@ -76,7 +76,7 @@ const SpendingByCategory = ({ startDate, endDate }: SpendingByCategoryProps) => 
 
   if (converted.data.length === 0) {
     return (
-      <div className="text-center py-12 text-on-surface-variant">
+      <div className="text-center py-12 text-gray-400">
         <p className="text-lg font-medium">No spending data</p>
         <p className="text-sm mt-1">No expenses found for this period.</p>
       </div>
@@ -108,7 +108,7 @@ const SpendingByCategory = ({ startDate, endDate }: SpendingByCategoryProps) => 
             />
           </PieChart>
         </ResponsiveContainer>
-        <p className="text-sm text-on-surface-variant mt-2">
+        <p className="text-sm text-gray-400 mt-2">
           Total: {currencyService.formatCurrency(converted.totalExpenses, primaryCurrency)}
         </p>
       </div>
@@ -117,7 +117,7 @@ const SpendingByCategory = ({ startDate, endDate }: SpendingByCategoryProps) => 
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-white/[0.06] text-left text-on-surface-variant">
+            <tr className="border-b border-gray-700 text-left text-gray-400">
               <th className="pb-2 font-medium">Category</th>
               <th className="pb-2 font-medium text-right">Amount</th>
               <th className="pb-2 font-medium text-right">Count</th>
@@ -126,7 +126,7 @@ const SpendingByCategory = ({ startDate, endDate }: SpendingByCategoryProps) => 
           </thead>
           <tbody>
             {converted.data.map((entry) => (
-              <tr key={entry.category} className="border-b border-white/[0.04]">
+              <tr key={entry.category} className="border-b border-gray-700/50">
                 <td className="py-2 flex items-center gap-2">
                   <span
                     className="inline-block w-3 h-3 rounded-full"

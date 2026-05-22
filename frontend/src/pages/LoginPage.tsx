@@ -29,13 +29,13 @@ const LoginPage = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-surface-base px-4">
-      <Card className="w-full max-w-md bg-[rgba(27,33,34,0.8)] backdrop-blur-[12px] border border-white/[0.08]">
+    <div className="min-h-screen flex items-center justify-center bg-gray-900 px-4">
+      <Card className="w-full max-w-md bg-gray-800 border border-gray-700">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-on-surface mb-2">
+          <h1 className="text-3xl font-bold text-gray-100 mb-2">
             Finance App
           </h1>
-          <p className="text-on-surface-variant">
+          <p className="text-gray-400">
             Sign in to manage your finances
           </p>
         </div>
@@ -76,12 +76,12 @@ const LoginPage = () => {
             Sign In
           </Button>
 
-          <div className="text-center text-sm text-on-surface-variant">
+          <div className="text-center text-sm text-gray-400">
             Don't have an account?{' '}
             <button
               type="button"
               onClick={() => navigate('/signup')}
-              className="text-primary hover:underline font-medium"
+              className="text-blue-400 hover:underline font-medium"
             >
               Sign up
             </button>

@@ -80,7 +80,7 @@ const AllocationSliderRow = ({
       <div className="flex justify-between items-end mb-3">
         <div className="flex items-center gap-3">
           <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
-          <span className="text-sm font-semibold text-on-surface">{entry.name || 'Unnamed'}</span>
+          <span className="text-sm font-semibold text-gray-100">{entry.name || 'Unnamed'}</span>
         </div>
         <div className="flex items-baseline gap-4">
           {editingPct ? (
@@ -94,12 +94,12 @@ const AllocationSliderRow = ({
               onChange={(e) => setPctInput(e.target.value)}
               onKeyDown={handlePctKey}
               onBlur={savePct}
-              className="w-16 bg-transparent border-b border-primary outline-none font-mono text-sm text-on-surface-variant text-right"
+              className="w-16 bg-transparent border-b border-blue-400 outline-none text-sm text-gray-400 text-right"
               aria-label="Edit percentage"
             />
           ) : (
             <span
-              className="font-mono text-sm text-on-surface-variant cursor-pointer hover:underline"
+              className="text-sm text-gray-400 cursor-pointer hover:underline"
               onClick={startEditPct}
               role="button"
               tabIndex={0}
@@ -119,12 +119,12 @@ const AllocationSliderRow = ({
               onChange={(e) => setAmtInput(e.target.value)}
               onKeyDown={handleAmtKey}
               onBlur={saveAmt}
-              className="w-28 bg-transparent border-b border-primary outline-none font-mono text-lg text-on-surface text-right"
+              className="w-28 bg-transparent border-b border-blue-400 outline-none text-lg text-gray-100 text-right"
               aria-label="Edit amount"
             />
           ) : (
             <span
-              className="font-mono text-lg text-on-surface cursor-pointer hover:underline"
+              className="text-lg text-gray-100 cursor-pointer hover:underline"
               onClick={startEditAmt}
               role="button"
               tabIndex={0}
@@ -136,7 +136,7 @@ const AllocationSliderRow = ({
           )}
           <button
             onClick={() => onDelete(entry.id)}
-            className="opacity-0 group-hover:opacity-100 p-1 text-error hover:bg-error/10 rounded transition-opacity"
+            className="opacity-0 group-hover:opacity-100 p-1 text-red-400 hover:bg-red-400/10 rounded transition-opacity"
             title="Remove"
           >
             <Trash2 className="w-3.5 h-3.5" />

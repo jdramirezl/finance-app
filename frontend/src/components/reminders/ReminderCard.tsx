@@ -41,19 +41,19 @@ const statusStyles: Record<ReminderStatus, {
         icon: <Calendar className="w-4 h-4 text-[#ffb873]" aria-hidden="true" />,
     },
     upcoming: {
-        card: 'bg-primary/5',
-        border: 'border-l-primary',
-        icon: <Calendar className="w-4 h-4 text-primary" aria-hidden="true" />,
+        card: 'bg-blue-500/5',
+        border: 'border-l-blue-400',
+        icon: <Calendar className="w-4 h-4 text-blue-400" aria-hidden="true" />,
     },
     paid: {
-        card: 'bg-surface-container-high/50 opacity-60',
-        border: 'border-l-outline',
+        card: 'bg-gray-700/50 opacity-60',
+        border: 'border-l-gray-500',
         icon: <Check className="w-4 h-4 text-[#34d399]" aria-hidden="true" />,
     },
     projected: {
-        card: 'bg-surface-container/30 border-dashed',
-        border: 'border-l-outline border-dashed',
-        icon: <Clock className="w-4 h-4 text-on-surface-variant" aria-hidden="true" />,
+        card: 'bg-gray-800/30 border-dashed',
+        border: 'border-l-gray-500 border-dashed',
+        icon: <Clock className="w-4 h-4 text-gray-400" aria-hidden="true" />,
     },
 };
 
@@ -66,7 +66,7 @@ const ReminderCard = ({ reminder, onPayNow, onEdit, onDelete, onMarkAsPaid, adva
     return (
         <div
             className={`
-                relative rounded-lg border-l-4 border border-outline-variant
+                relative rounded-lg border-l-4 border border-gray-600
                 ${styles.card} ${styles.border}
                 ${isProjected ? 'border-dashed' : ''}
                 transition-all duration-200 group
@@ -86,11 +86,11 @@ const ReminderCard = ({ reminder, onPayNow, onEdit, onDelete, onMarkAsPaid, adva
                     <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
                             {styles.icon}
-                            <h4 className={`font-medium text-on-surface truncate ${isPaid ? 'line-through text-on-surface-variant' : ''}`}>
+                            <h4 className={`font-medium text-gray-100 truncate ${isPaid ? 'line-through text-gray-400' : ''}`}>
                                 {reminder.title}
                             </h4>
                             {isProjected && (
-                                <span className="text-xs px-1.5 py-0.5 rounded bg-surface-container-highest text-on-surface-variant">
+                                <span className="text-xs px-1.5 py-0.5 rounded bg-gray-600 text-gray-400">
                                     projected
                                 </span>
                             )}
@@ -98,7 +98,7 @@ const ReminderCard = ({ reminder, onPayNow, onEdit, onDelete, onMarkAsPaid, adva
 
                         {/* Date and status badge */}
                         <div className="flex items-center gap-2 mt-1">
-                            <span className={`text-sm font-mono ${isPaid ? 'text-outline' : 'text-on-surface-variant'}`}>
+                            <span className={`text-sm ${isPaid ? 'text-gray-500' : 'text-gray-400'}`}>
                                 {format(parseISO(reminder.dueDate), 'MMM d')}
                             </span>
                             {styles.badge && styles.badgeText && (
@@ -111,7 +111,7 @@ const ReminderCard = ({ reminder, onPayNow, onEdit, onDelete, onMarkAsPaid, adva
 
                     {/* Amount */}
                     <div className="text-right">
-                        <span className={`block font-bold text-lg whitespace-nowrap font-mono ${isPaid ? 'line-through text-outline' : 'text-on-surface'}`}>
+                        <span className={`block font-bold text-lg whitespace-nowrap ${isPaid ? 'line-through text-gray-500' : 'text-gray-100'}`}>
                             ${reminder.amount.toLocaleString()}
                         </span>
                         {!isPaid && !isProjected && status === 'upcoming' && (() => {
@@ -119,7 +119,7 @@ const ReminderCard = ({ reminder, onPayNow, onEdit, onDelete, onMarkAsPaid, adva
                             if (daysUntil <= 3) {
                                 return <span className="text-xs font-bold text-[#ffb873] block animate-pulse">URGENT</span>;
                             } else if (daysUntil <= 7) {
-                                return <span className="text-xs font-medium text-primary block">This Week</span>;
+                                return <span className="text-xs font-medium text-blue-400 block">This Week</span>;
                             }
                             return null;
                         })()}
@@ -140,7 +140,7 @@ const ReminderCard = ({ reminder, onPayNow, onEdit, onDelete, onMarkAsPaid, adva
                             </button>
                             <button
                                 onClick={() => onMarkAsPaid(reminder)}
-                                className="p-1.5 text-primary hover:bg-primary/10 rounded-lg transition-colors"
+                                className="p-1.5 text-blue-400 hover:bg-blue-500/10 rounded-lg transition-colors"
                                 title="Mark as Paid (no new movement)"
                                 aria-label={`Mark ${reminder.title} as paid without creating a movement`}
                             >
@@ -150,7 +150,7 @@ const ReminderCard = ({ reminder, onPayNow, onEdit, onDelete, onMarkAsPaid, adva
                     )}
                     <button
                         onClick={() => onEdit(reminder)}
-                        className="p-1.5 text-primary hover:bg-primary/10 rounded-lg transition-colors"
+                        className="p-1.5 text-blue-400 hover:bg-blue-500/10 rounded-lg transition-colors"
                         title={isProjected ? 'Create from Template' : 'Edit'}
                         aria-label={isProjected ? `Create reminder from ${reminder.title} template` : `Edit reminder ${reminder.title}`}
                     >

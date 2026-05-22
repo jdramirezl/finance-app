@@ -17,18 +17,18 @@ const BudgetIncomeCard = ({
   currency,
 }: BudgetIncomeCardProps) => {
   return (
-    <div className="glass-card rounded-2xl p-5 flex flex-col md:flex-row items-center gap-8">
+    <div className="bg-gray-800 border border-gray-700 rounded-2xl p-5 flex flex-col md:flex-row items-center gap-8">
       {/* Left: Income input */}
       <div className="flex-1 w-full">
-        <label className="text-[11px] font-bold uppercase tracking-[0.06em] text-on-surface-variant mb-4 block">
+        <label className="text-[11px] font-bold uppercase tracking-[0.06em] text-gray-400 mb-4 block">
           Monthly Income
         </label>
         <div className="relative flex items-baseline">
-          <span className="text-primary text-4xl font-bold mr-4">$</span>
+          <span className="text-blue-400 text-4xl font-bold mr-4">$</span>
           <input
             type="text"
             inputMode="decimal"
-            className="bg-transparent border-none focus:ring-0 text-4xl font-black text-on-surface w-full p-0"
+            className="bg-transparent border-none focus:ring-0 text-4xl font-black text-gray-100 w-full p-0"
             placeholder="0.00"
             value={initialAmount > 0 ? initialAmount.toLocaleString() : ''}
             onChange={(e) => {
@@ -40,17 +40,17 @@ const BudgetIncomeCard = ({
       </div>
 
       {/* Divider */}
-      <div className="h-px md:h-16 w-full md:w-px bg-white/10" />
+      <div className="h-px md:h-16 w-full md:w-px bg-gray-600" />
 
       {/* Right: Deductions + Distributable */}
       <div className="flex-1 w-full flex flex-col gap-1">
         <div className="flex justify-between items-center">
-          <span className="text-on-surface-variant text-sm">Fixed Expenses</span>
-          <span className="font-mono text-sm text-error">- {fmt(totalFixedExpenses, currency)}</span>
+          <span className="text-gray-400 text-sm">Fixed Expenses</span>
+          <span className="text-sm text-red-400">- {fmt(totalFixedExpenses, currency)}</span>
         </div>
-        <div className="flex justify-between items-center mt-2 p-3 rounded-lg bg-primary/10 border border-primary/20">
-          <span className="text-primary font-bold text-sm">Distributable</span>
-          <span className="font-mono text-lg font-semibold text-primary">
+        <div className="flex justify-between items-center mt-2 p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
+          <span className="text-blue-400 font-bold text-sm">Distributable</span>
+          <span className="text-lg font-semibold text-blue-400">
             {fmt(distributable, currency)}
           </span>
         </div>

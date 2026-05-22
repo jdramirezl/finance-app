@@ -195,7 +195,7 @@ const BudgetDistribution = ({
     return (
         <Card padding="md">
             <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-semibold text-on-surface">Distribution</h2>
+                <h2 className="text-xl font-semibold text-gray-100">Distribution</h2>
                 <Button
                     variant="primary"
                     onClick={handleAddEntry}
@@ -231,7 +231,7 @@ const BudgetDistribution = ({
                                                 className="w-3 h-3 rounded-full flex-shrink-0"
                                                 style={{ backgroundColor: entry.color }}
                                             />
-                                            <span className="text-on-surface-variant truncate">
+                                            <span className="text-gray-400 truncate">
                                                 {entry.name} ({entry.percentage.toFixed(0)}%)
                                             </span>
                                         </div>
@@ -244,7 +244,7 @@ const BudgetDistribution = ({
                     <div className="space-y-3 overflow-x-auto pb-2">
                         <div className="min-w-[700px]">
                             {/* Header */}
-                            <div className={`grid ${showConversion ? 'grid-cols-[2fr_1fr_1.5fr_1.5fr_1fr]' : 'grid-cols-12'} gap-4 pb-2 border-b border-white/[0.06] font-semibold text-sm text-on-surface-variant`}>
+                            <div className={`grid ${showConversion ? 'grid-cols-[2fr_1fr_1.5fr_1.5fr_1fr]' : 'grid-cols-12'} gap-4 pb-2 border-b border-gray-700 font-semibold text-sm text-gray-400`}>
                                 <div className={showConversion ? '' : 'col-span-4'}>Name</div>
                                 <div className={showConversion ? '' : 'col-span-3'}>Percentage</div>
                                 <div className={showConversion ? '' : 'col-span-3'}>Amount ({currency})</div>

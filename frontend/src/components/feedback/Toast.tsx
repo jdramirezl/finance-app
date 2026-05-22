@@ -51,7 +51,7 @@ const Toast = ({ message, type = 'info', duration = 5000, onClose }: ToastProps)
 
   return (
     <div
-      className={`flex items-center gap-3 px-4 py-3 rounded-lg border border-gray-200 dark:border-gray-700 shadow-2xl backdrop-blur-xl max-w-md transition-all duration-300 ${isExiting ? 'animate-toast-exit' : 'animate-toast-enter'
+      className={`flex items-center gap-3 px-4 py-3 rounded-lg border border-gray-200 dark:border-gray-700 shadow-2xl max-w-md transition-all duration-300 ${isExiting ? 'animate-toast-exit' : 'animate-toast-enter'
         } ${styles[type]}`}
       role="alert"
     >

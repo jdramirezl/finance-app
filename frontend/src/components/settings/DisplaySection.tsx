@@ -33,8 +33,8 @@ const DisplaySection = ({ settings, isUpdating, onDisplayChange }: DisplaySectio
   return (
     <div className="space-y-8">
       <div>
-        <h3 className="text-2xl font-semibold text-on-surface mb-1">Display</h3>
-        <p className="text-on-surface-variant text-sm">
+        <h3 className="text-2xl font-semibold text-gray-100 mb-1">Display</h3>
+        <p className="text-gray-400 text-sm">
           Choose how account cards appear on the summary page.
         </p>
       </div>
@@ -43,7 +43,7 @@ const DisplaySection = ({ settings, isUpdating, onDisplayChange }: DisplaySectio
         <div className="space-y-6">
           {(Object.keys(ACCOUNT_KIND_LABELS) as AccountKind[]).map((kind) => (
             <div key={kind}>
-              <h4 className="font-medium text-on-surface mb-3">{ACCOUNT_KIND_LABELS[kind]}</h4>
+              <h4 className="font-medium text-gray-100 mb-3">{ACCOUNT_KIND_LABELS[kind]}</h4>
               <div className="grid grid-cols-2 gap-3">
                 {DISPLAY_MODES.map((mode) => {
                   const active = (display[kind] || 'detailed') === mode;
@@ -52,8 +52,8 @@ const DisplaySection = ({ settings, isUpdating, onDisplayChange }: DisplaySectio
                       key={`${kind}-${mode}`}
                       className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition-all ${
                         active
-                          ? 'border-primary bg-primary/10'
-                          : 'border-outline-variant hover:bg-surface-container-high'
+                          ? 'border-blue-500 bg-blue-500/10'
+                          : 'border-gray-600 hover:bg-gray-700'
                       }`}
                     >
                       <input
@@ -63,11 +63,11 @@ const DisplaySection = ({ settings, isUpdating, onDisplayChange }: DisplaySectio
                         checked={active}
                         onChange={() => onDisplayChange(kind, mode)}
                         disabled={isUpdating}
-                        className="w-4 h-4 text-primary"
+                        className="w-4 h-4 text-blue-400"
                       />
                       <div>
-                        <span className="font-medium text-on-surface capitalize">{mode}</span>
-                        <span className="text-xs text-on-surface-variant block">
+                        <span className="font-medium text-gray-100 capitalize">{mode}</span>
+                        <span className="text-xs text-gray-400 block">
                           {mode === 'compact' ? 'Simple list view' : 'Rich visual cards'}
                         </span>
                       </div>

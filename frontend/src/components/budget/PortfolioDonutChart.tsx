@@ -22,8 +22,8 @@ const PortfolioDonutChart = ({ entries, distributable, currency, colors }: Portf
   }
 
   return (
-    <div className="glass-card rounded-2xl p-5 flex flex-col items-center min-h-[400px]">
-      <h3 className="text-[11px] font-bold uppercase tracking-[0.06em] text-on-surface-variant self-start mb-4">
+    <div className="bg-gray-800 border border-gray-700 rounded-2xl p-5 flex flex-col items-center min-h-[400px]">
+      <h3 className="text-[11px] font-bold uppercase tracking-[0.06em] text-gray-400 self-start mb-4">
         Portfolio Distribution
       </h3>
 
@@ -47,10 +47,10 @@ const PortfolioDonutChart = ({ entries, distributable, currency, colors }: Portf
         </PieChart>
         {/* Center label */}
         <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <span className="font-mono text-lg font-semibold text-on-surface">
+          <span className="text-lg font-semibold text-gray-100">
             {fmt(distributable, currency)}
           </span>
-          <span className="text-[10px] text-on-surface-variant uppercase tracking-tight">
+          <span className="text-[10px] text-gray-400 uppercase tracking-tight">
             Total Allocated
           </span>
         </div>

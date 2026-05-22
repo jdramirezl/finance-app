@@ -66,16 +66,16 @@ const ReminderCalendarHeatmap = ({ reminders }: Props) => {
             <div className="flex items-center justify-between mb-3">
                 <button
                     onClick={() => setCurrentMonth(m => addMonths(m, -1))}
-                    className="p-1 rounded hover:bg-white/[0.06] text-on-surface-variant"
+                    className="p-1 rounded hover:bg-gray-700/50 text-gray-400"
                 >
                     <ChevronLeft className="w-4 h-4" />
                 </button>
-                <span className="text-sm font-medium text-on-surface">
+                <span className="text-sm font-medium text-gray-100">
                     {format(currentMonth, 'MMMM yyyy')}
                 </span>
                 <button
                     onClick={() => setCurrentMonth(m => addMonths(m, 1))}
-                    className="p-1 rounded hover:bg-white/[0.06] text-on-surface-variant"
+                    className="p-1 rounded hover:bg-gray-700/50 text-gray-400"
                 >
                     <ChevronRight className="w-4 h-4" />
                 </button>
@@ -84,7 +84,7 @@ const ReminderCalendarHeatmap = ({ reminders }: Props) => {
             {/* Weekday headers */}
             <div className="grid grid-cols-7 mb-1">
                 {WEEKDAYS.map(d => (
-                    <div key={d} className="text-center text-xs text-on-surface-variant py-1">
+                    <div key={d} className="text-center text-xs text-gray-400 py-1">
                         {d}
                     </div>
                 ))}
@@ -100,26 +100,26 @@ const ReminderCalendarHeatmap = ({ reminders }: Props) => {
                     const count = occurrence?.count ?? 0;
 
                     const dotSize = count <= 1 ? 'w-1.5 h-1.5' : count === 2 ? 'w-[7px] h-[7px]' : 'w-2 h-2';
-                    const dotOpacity = count <= 1 ? 'bg-primary/50' : count === 2 ? 'bg-primary/70' : 'bg-primary';
+                    const dotOpacity = count <= 1 ? 'bg-blue-500/50' : count === 2 ? 'bg-blue-500/70' : 'bg-blue-500';
 
                     return (
                         <div
                             key={key}
                             className={`relative flex flex-col items-center justify-center h-9 rounded-md text-xs transition-colors cursor-default ${
                                 !inMonth ? 'opacity-30' : isPast ? 'opacity-50' : ''
-                            } ${isToday(day) ? 'ring-1 ring-primary' : ''}`}
+                            } ${isToday(day) ? 'ring-1 ring-blue-500' : ''}`}
                             onMouseEnter={() => count > 0 && setHoveredDate(key)}
                             onMouseLeave={() => setHoveredDate(null)}
                             onClick={() => count > 0 && setHoveredDate(h => h === key ? null : key)}
                         >
-                            <span className="text-on-surface">{format(day, 'd')}</span>
+                            <span className="text-gray-100">{format(day, 'd')}</span>
                             {count > 0 && (
                                 <span className={`absolute bottom-1 rounded-full ${dotSize} ${dotOpacity}`} />
                             )}
                             {hoveredDate === key && occurrence && (
-                                <div className="absolute z-50 bottom-full mb-1 left-1/2 -translate-x-1/2 bg-surface-container-high border border-outline-variant rounded-md px-2 py-1.5 shadow-lg whitespace-nowrap">
+                                <div className="absolute z-50 bottom-full mb-1 left-1/2 -translate-x-1/2 bg-gray-700 border border-gray-600 rounded-md px-2 py-1.5 shadow-lg whitespace-nowrap">
                                     {occurrence.items.map((item, i) => (
-                                        <div key={i} className="text-xs text-on-surface">
+                                        <div key={i} className="text-xs text-gray-100">
                                             {item.title} - ${item.amount.toLocaleString()}
                                         </div>
                                     ))}

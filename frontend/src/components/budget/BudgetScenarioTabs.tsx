@@ -20,24 +20,24 @@ const BudgetScenarioTabs = ({ scenarios, activeIds, onToggle, onCreate }: Budget
     : DEFAULT_TABS;
 
   return (
-    <div className="flex items-center gap-1 glass-card p-1.5 rounded-xl">
+    <div className="flex items-center gap-1 bg-gray-800 border border-gray-700 p-1.5 rounded-xl">
       {tabs.map((tab) => (
         <button
           key={tab.id}
           onClick={() => onToggle(tab.id)}
           className={`px-4 py-2 rounded-lg text-sm transition-colors ${
             activeIds.includes(tab.id)
-              ? 'bg-primary/10 text-primary font-bold'
-              : 'text-on-surface-variant hover:bg-white/5'
+              ? 'bg-blue-500/10 text-blue-400 font-bold'
+              : 'text-gray-400 hover:bg-gray-700/50'
           }`}
         >
           {tab.label}
         </button>
       ))}
-      <div className="w-px h-6 bg-white/10 mx-1" />
+      <div className="w-px h-6 bg-gray-600 mx-1" />
       <button
         onClick={onCreate}
-        className="p-2 text-on-surface-variant hover:text-primary transition-colors"
+        className="p-2 text-gray-400 hover:text-blue-400 transition-colors"
         title="Add scenario"
       >
         <Plus className="w-5 h-5" />

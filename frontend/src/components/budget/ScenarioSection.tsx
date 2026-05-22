@@ -43,7 +43,7 @@ const ScenarioSection = ({
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-on-surface flex items-center gap-2">
+        <h2 className="text-lg font-semibold text-gray-100 flex items-center gap-2">
           <Layers className="w-5 h-5" aria-hidden="true" />
           Planning Scenarios
         </h2>
@@ -54,8 +54,8 @@ const ScenarioSection = ({
       </div>
 
       {scenarios.length === 0 ? (
-        <div className="p-4 bg-surface-container/50 rounded-lg border border-dashed border-outline-variant text-center">
-          <p className="text-sm text-on-surface-variant">
+        <div className="p-4 bg-gray-800/50 rounded-lg border border-dashed border-gray-600 text-center">
+          <p className="text-sm text-gray-400">
             Create scenarios to test different fixed expense combinations (e.g.
             &quot;Bare Minimum&quot;, &quot;Ideal&quot;).
           </p>
@@ -70,8 +70,8 @@ const ScenarioSection = ({
                 key={scenario.id}
                 className={`relative p-4 rounded-lg border transition-all cursor-pointer ${
                   isActive
-                    ? 'bg-primary/10 border-primary ring-1 ring-primary'
-                    : 'bg-surface-container border-outline-variant hover:border-primary/50'
+                    ? 'bg-blue-500/10 border-blue-500 ring-1 ring-blue-500'
+                    : 'bg-gray-800 border-gray-600 hover:border-blue-500/50'
                 }`}
                 onClick={() => onToggle(scenario.id)}
                 role="button"
@@ -86,13 +86,13 @@ const ScenarioSection = ({
                 aria-label={`${isActive ? 'Deactivate' : 'Activate'} scenario ${scenario.name}`}
               >
                 <div className="flex justify-between items-start mb-2">
-                  <h3 className="font-semibold text-on-surface">
+                  <h3 className="font-semibold text-gray-100">
                     {scenario.name}
                   </h3>
                   <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
                     <button
                       onClick={() => onEdit(scenario)}
-                      className="p-1 text-on-surface-variant hover:text-primary"
+                      className="p-1 text-gray-400 hover:text-blue-400"
                       aria-label={`Edit scenario ${scenario.name}`}
                       title="Edit scenario"
                     >
@@ -100,7 +100,7 @@ const ScenarioSection = ({
                     </button>
                     <button
                       onClick={() => onDelete(scenario.id)}
-                      className="p-1 text-on-surface-variant hover:text-[#ffb4ab]"
+                      className="p-1 text-gray-400 hover:text-red-400"
                       aria-label={`Delete scenario ${scenario.name}`}
                       title="Delete scenario"
                     >
@@ -108,10 +108,10 @@ const ScenarioSection = ({
                     </button>
                   </div>
                 </div>
-                <div className="text-2xl font-bold text-on-surface font-mono">
+                <div className="text-2xl font-bold text-gray-100">
                   {currencyService.formatCurrency(total, currency)}
                 </div>
-                <p className="text-xs text-on-surface-variant mt-1">
+                <p className="text-xs text-gray-400 mt-1">
                   {scenario.expenseIds.length} expenses included
                 </p>
               </div>
@@ -121,7 +121,7 @@ const ScenarioSection = ({
       )}
 
       {activeScenarioIds.size > 0 && (
-        <div className="flex items-center gap-2 text-sm text-primary bg-primary/10 p-2 rounded">
+        <div className="flex items-center gap-2 text-sm text-blue-400 bg-blue-500/10 p-2 rounded">
           <Info className="w-4 h-4" aria-hidden="true" />
           <span>
             Using expenses from <b>{activeScenarioIds.size} active scenario(s)</b>{' '}

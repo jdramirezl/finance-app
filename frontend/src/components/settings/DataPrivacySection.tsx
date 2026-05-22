@@ -11,8 +11,8 @@ const DataPrivacySection = ({ isExporting, onExport }: DataPrivacySectionProps) 
   return (
     <div className="space-y-8">
       <div>
-        <h3 className="text-2xl font-semibold text-on-surface mb-1">Data &amp; Privacy</h3>
-        <p className="text-on-surface-variant text-sm">
+        <h3 className="text-2xl font-semibold text-gray-100 mb-1">Data &amp; Privacy</h3>
+        <p className="text-gray-400 text-sm">
           Export your data or manage your privacy settings.
         </p>
       </div>
@@ -20,8 +20,8 @@ const DataPrivacySection = ({ isExporting, onExport }: DataPrivacySectionProps) 
       <Card>
         <div className="flex items-center justify-between">
           <div>
-            <h4 className="font-semibold text-on-surface">Export Backup</h4>
-            <p className="text-sm text-on-surface-variant">
+            <h4 className="font-semibold text-gray-100">Export Backup</h4>
+            <p className="text-sm text-gray-400">
               Download all your data as JSON
             </p>
           </div>
