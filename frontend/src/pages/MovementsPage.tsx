@@ -268,13 +268,6 @@ const MovementsPage = () => {
         </div>
       )}
 
-      <OrphanedMovementsPanel
-        isOpen={showOrphaned}
-        orphanedMovements={orphanedMovements}
-        onClose={() => setShowOrphaned(false)}
-        onRestoreClick={restore.open}
-      />
-
       <MovementFilters
         showFilters={showFilters} setShowFilters={setShowFilters}
         movements={movements}
@@ -325,6 +318,13 @@ const MovementsPage = () => {
           </button>
         </div>
       )}
+
+      <OrphanedMovementsPanel
+        isOpen={showOrphaned}
+        orphanedMovements={orphanedMovements}
+        onClose={() => setShowOrphaned(false)}
+        onRestoreClick={restore.open}
+      />
 
       <MovementFormPanel
         formState={formState} isSaving={isSaving}

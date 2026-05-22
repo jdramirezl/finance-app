@@ -183,6 +183,13 @@ const SummaryPage = () => {
             <ErrorBoundary>
               <NetWorthTimelineWidget />
             </ErrorBoundary>
+
+            <ErrorBoundary>
+              <div className="space-y-4 h-[400px]">
+                <RemindersWidget />
+              </div>
+            </ErrorBoundary>
+
             <ErrorBoundary>
               {subPocketsIsError || fixedExpenseGroupsIsError ? (
                 <div className="space-y-2">
@@ -209,12 +216,6 @@ const SummaryPage = () => {
                   primaryCurrency={primaryCurrency}
                 />
               )}
-            </ErrorBoundary>
-
-            <ErrorBoundary>
-              <div className="space-y-4 h-[400px]">
-                <RemindersWidget />
-              </div>
             </ErrorBoundary>
           </div>
         </div>
