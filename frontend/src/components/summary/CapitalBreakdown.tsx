@@ -30,39 +30,39 @@ const InvestmentDetail = ({ account, data, currency }: { account: Account; data?
     <div className="space-y-2">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span className="font-mono text-xs font-bold text-tertiary">{symbol}</span>
-          <span className="font-mono text-xs text-on-surface-variant">
+          <span className="text-xs font-bold text-amber-400">{symbol}</span>
+          <span className="text-xs text-gray-400">
             @ {currencyService.formatCurrency(price, currency)}
           </span>
         </div>
-        <span className="font-mono text-sm font-bold text-on-surface">
+        <span className="text-sm font-bold text-gray-100">
           {currencyService.formatCurrency(totalValue, currency)}
         </span>
       </div>
       <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
         <div className="flex justify-between">
-          <span className="text-on-surface-variant">Invested</span>
-          <span className="font-mono text-on-surface">{currencyService.formatCurrency(invested, currency)}</span>
+          <span className="text-gray-400">Invested</span>
+          <span className="text-gray-100">{currencyService.formatCurrency(invested, currency)}</span>
         </div>
         <div className="flex justify-between">
-          <span className="text-on-surface-variant">Shares</span>
-          <span className="font-mono text-on-surface">{shares.toFixed(6)}</span>
+          <span className="text-gray-400">Shares</span>
+          <span className="text-gray-100">{shares.toFixed(6)}</span>
         </div>
         <div className="flex justify-between">
-          <span className="text-on-surface-variant">Gains</span>
-          <span className={`font-mono font-bold ${gainsColor}`}>
+          <span className="text-gray-400">Gains</span>
+          <span className={`font-bold ${gainsColor}`}>
             {gainsSign}{gainsPct.toFixed(2)}%
           </span>
         </div>
         <div className="flex justify-between">
-          <span className="text-on-surface-variant">Gained</span>
-          <span className={`font-mono ${gainsColor}`}>
+          <span className="text-gray-400">Gained</span>
+          <span className={`${gainsColor}`}>
             {gainsSign}{currencyService.formatCurrency(Math.abs(gainsUSD), currency)}
           </span>
         </div>
       </div>
       {lastUpdated && (
-        <p className="text-[10px] text-on-surface-variant text-right">
+        <p className="text-[10px] text-gray-400 text-right">
           Updated {formatDistanceToNow(new Date(lastUpdated), { addSuffix: true })}
         </p>
       )}
@@ -88,41 +88,41 @@ const CDDetail = ({ account, currency }: { account: Account; currency: Currency 
   const isMatured = daysToMaturity === 0;
   const isNearMaturity = daysToMaturity !== null && daysToMaturity <= 30 && !isMatured;
   const statusText = isMatured ? 'Matured' : isNearMaturity ? 'Near Maturity' : 'Active';
-  const statusColor = isMatured ? 'text-secondary' : isNearMaturity ? 'text-amber-400' : 'text-emerald-400';
+  const statusColor = isMatured ? 'text-blue-300' : isNearMaturity ? 'text-amber-400' : 'text-emerald-400';
 
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span className="text-xs text-on-surface-variant">Certificate of Deposit</span>
-          <span className="font-mono text-xs font-bold text-secondary">{apy}% APY</span>
+          <span className="text-xs text-gray-400">Certificate of Deposit</span>
+          <span className="text-xs font-bold text-blue-300">{apy}% APY</span>
         </div>
         <span className={`text-[10px] font-bold uppercase ${statusColor}`}>{statusText}</span>
       </div>
       <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
         <div className="flex justify-between">
-          <span className="text-on-surface-variant">Principal</span>
-          <span className="font-mono text-on-surface">{currencyService.formatCurrency(principal, currency)}</span>
+          <span className="text-gray-400">Principal</span>
+          <span className="text-gray-100">{currencyService.formatCurrency(principal, currency)}</span>
         </div>
         <div className="flex justify-between">
-          <span className="text-on-surface-variant">Net Interest</span>
-          <span className="font-mono text-emerald-400">{currencyService.formatCurrency(netInterest, currency)}</span>
+          <span className="text-gray-400">Net Interest</span>
+          <span className="text-emerald-400">{currencyService.formatCurrency(netInterest, currency)}</span>
         </div>
         {maturityDate && (
           <>
             <div className="flex justify-between">
-              <span className="text-on-surface-variant">Maturity</span>
-              <span className="font-mono text-on-surface">{format(new Date(maturityDate), 'MMM dd, yyyy')}</span>
+              <span className="text-gray-400">Maturity</span>
+              <span className="text-gray-100">{format(new Date(maturityDate), 'MMM dd, yyyy')}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-on-surface-variant">Days Left</span>
-              <span className="font-mono text-on-surface">{daysToMaturity}</span>
+              <span className="text-gray-400">Days Left</span>
+              <span className="text-gray-100">{daysToMaturity}</span>
             </div>
           </>
         )}
       </div>
       {taxRate != null && taxRate > 0 && (
-        <p className="text-[10px] text-on-surface-variant italic">
+        <p className="text-[10px] text-gray-400 italic">
           {taxRate}% withholding tax will be deducted
         </p>
       )}
@@ -137,9 +137,9 @@ const NormalDetail = ({ account, pockets, currency }: { account: Account; pocket
   return (
     <div className="space-y-1">
       {accountPockets.map((pocket) => (
-        <div key={pocket.id} className="flex items-center justify-between pl-2 border-l border-white/10">
-          <span className="text-xs text-on-surface-variant">{pocket.name}</span>
-          <span className="font-mono text-xs text-on-surface">
+        <div key={pocket.id} className="flex items-center justify-between pl-2 border-l border-gray-700">
+          <span className="text-xs text-gray-400">{pocket.name}</span>
+          <span className="text-xs text-gray-100">
             {currencyService.formatCurrency(pocket.balance, currency)}
           </span>
         </div>
@@ -169,10 +169,10 @@ const CapitalBreakdown = ({ accounts, pockets, investmentData, primaryCurrency }
   const currencyGroups = Object.entries(groupedByCurrency).sort(([a], [b]) => a.localeCompare(b));
 
   return (
-    <div className="glass-card rounded-xl flex flex-col min-h-0 flex-1">
-      <div className="p-4 border-b border-white/5 flex justify-between items-center">
-        <h3 className="text-xl font-semibold text-on-surface">Liquidity Pools</h3>
-        <span className="font-mono text-xs text-on-surface-variant">
+    <div className="bg-gray-800 border border-gray-700 rounded-xl flex flex-col min-h-0 flex-1">
+      <div className="p-4 border-b border-gray-700 flex justify-between items-center">
+        <h3 className="text-xl font-semibold text-gray-100">Liquidity Pools</h3>
+        <span className="text-xs text-gray-400">
           {accounts.length} ACCOUNTS
         </span>
       </div>
@@ -181,11 +181,11 @@ const CapitalBreakdown = ({ accounts, pockets, investmentData, primaryCurrency }
         {currencyGroups.map(([currency, groupAccounts]) => (
           <div key={currency}>
             <div className="flex items-center gap-2 px-2 py-1.5 mb-2">
-              <div className="h-px flex-1 bg-white/10" />
-              <span className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">
+              <div className="h-px flex-1 bg-gray-700" />
+              <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
                 {currency} Accounts
               </span>
-              <div className="h-px flex-1 bg-white/10" />
+              <div className="h-px flex-1 bg-gray-700" />
             </div>
             <div className="space-y-3">
               {groupAccounts.map((account) => {
@@ -197,9 +197,9 @@ const CapitalBreakdown = ({ accounts, pockets, investmentData, primaryCurrency }
                   : type === 'cd' ? Lock
                     : account.currency !== 'USD' ? Globe : Wallet;
 
-                const borderColor = type === 'investment' ? 'border-l-tertiary'
-                  : type === 'cd' ? 'border-l-secondary'
-                    : 'border-l-primary';
+                const borderColor = type === 'investment' ? 'border-l-amber-400'
+                  : type === 'cd' ? 'border-l-blue-300'
+                    : 'border-l-blue-400';
 
                 const typeLabel = type === 'investment' ? 'Investment'
                   : type === 'cd' ? 'CD'
@@ -208,18 +208,18 @@ const CapitalBreakdown = ({ accounts, pockets, investmentData, primaryCurrency }
                 return (
                   <div
                     key={account.id}
-                    className={`p-4 bg-white/5 rounded-lg border border-white/5 border-l-2 ${borderColor} space-y-3`}
+                    className={`p-4 bg-gray-700/50 rounded-lg border border-gray-700 border-l-2 ${borderColor} space-y-3`}
                   >
                     {/* Header */}
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <Icon className="w-4 h-4 text-on-surface-variant" />
+                        <Icon className="w-4 h-4 text-gray-400" />
                         <div>
-                          <p className="text-sm font-bold text-on-surface">{account.name}</p>
-                          <p className="text-[10px] text-on-surface-variant uppercase tracking-wider">{typeLabel}</p>
+                          <p className="text-sm font-bold text-gray-100">{account.name}</p>
+                          <p className="text-[10px] text-gray-400 uppercase tracking-wider">{typeLabel}</p>
                         </div>
                       </div>
-                      <p className="font-mono text-sm font-bold text-on-surface">
+                      <p className="text-sm font-bold text-gray-100">
                         {currencyService.formatCurrency(balance, account.currency)}
                       </p>
                     </div>

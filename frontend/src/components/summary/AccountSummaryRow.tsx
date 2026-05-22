@@ -18,16 +18,16 @@ const AccountSummaryRow = ({ account, pockets, investmentData }: AccountSummaryR
   const type = account.type || 'normal';
 
   const borderColor = type === 'investment'
-    ? 'border-l-tertiary'
+    ? 'border-l-amber-400'
     : type === 'cd'
-      ? 'border-l-secondary'
-      : 'border-l-primary';
+      ? 'border-l-blue-300'
+      : 'border-l-blue-400';
 
   const iconBg = type === 'investment'
-    ? 'bg-tertiary/10 text-tertiary'
+    ? 'bg-amber-400/10 text-amber-400'
     : type === 'cd'
-      ? 'bg-secondary/10 text-secondary'
-      : 'bg-primary/10 text-primary';
+      ? 'bg-blue-300/10 text-blue-300'
+      : 'bg-blue-500/10 text-blue-400';
 
   const Icon = type === 'investment' ? TrendingUp
     : type === 'cd' ? Lock
@@ -64,10 +64,10 @@ const AccountSummaryRow = ({ account, pockets, investmentData }: AccountSummaryR
       const isUrgent = days <= 30;
       return {
         text: days === 0 ? 'MATURED' : `DUE IN ${days}D`,
-        className: isUrgent ? 'text-amber-400 bg-amber-400/10' : 'text-secondary bg-secondary/10',
+        className: isUrgent ? 'text-amber-400 bg-amber-400/10' : 'text-blue-300 bg-blue-300/10',
       };
     }
-    return { text: 'AVAILABLE', className: 'text-primary bg-primary/10' };
+    return { text: 'AVAILABLE', className: 'text-blue-400 bg-blue-500/10' };
   })();
 
   // Additional info line
@@ -83,20 +83,20 @@ const AccountSummaryRow = ({ account, pockets, investmentData }: AccountSummaryR
   })();
 
   return (
-    <div className={`glass-card rounded-xl p-5 border-l-4 ${borderColor} flex flex-col gap-3 group hover:bg-white/5 transition-all`}>
+    <div className={`bg-gray-800 border border-gray-700 rounded-xl p-5 border-l-4 ${borderColor} flex flex-col gap-3 group hover:bg-gray-700/50 transition-all`}>
       <div className="flex justify-between items-center">
         <div className="flex items-center gap-4">
           <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${iconBg}`}>
             <Icon className="w-5 h-5" />
           </div>
           <div>
-            <p className="text-sm font-bold text-on-surface">{account.name}</p>
-            <p className="font-mono text-xs text-on-surface-variant mt-0.5">{subtitle}</p>
+            <p className="text-sm font-bold text-gray-100">{account.name}</p>
+            <p className="text-xs text-gray-400 mt-0.5">{subtitle}</p>
           </div>
         </div>
 
         <div className="text-right">
-          <p className="font-mono text-lg text-on-surface">
+          <p className="text-lg text-gray-100">
             {currencyService.formatCurrency(balance, account.currency)}
           </p>
           <span className={`inline-block text-[10px] font-bold px-1.5 py-0.5 rounded mt-1 ${statusBadge.className}`}>
@@ -106,13 +106,13 @@ const AccountSummaryRow = ({ account, pockets, investmentData }: AccountSummaryR
       </div>
 
       {additionalInfo && (
-        <p className="text-[10px] text-on-surface-variant font-mono pl-16">{additionalInfo}</p>
+        <p className="text-[10px] text-gray-400 pl-16">{additionalInfo}</p>
       )}
 
       {/* CD maturity progress bar */}
       {type === 'cd' && cdCalc && account.cdCreatedAt && (
         <div className="space-y-1">
-          <div className="flex justify-between text-[10px] text-on-surface-variant font-bold uppercase tracking-wider">
+          <div className="flex justify-between text-[10px] text-gray-400 font-bold uppercase tracking-wider">
             <span>Maturity Progress</span>
             <span>
               {Math.min(100, Math.round(
@@ -121,9 +121,9 @@ const AccountSummaryRow = ({ account, pockets, investmentData }: AccountSummaryR
               ))}%
             </span>
           </div>
-          <div className="bg-surface-container-highest h-1 rounded-full overflow-hidden">
+          <div className="bg-gray-700 h-1 rounded-full overflow-hidden">
             <div
-              className="bg-secondary h-full"
+              className="bg-blue-300 h-full"
               style={{
                 width: `${Math.min(100, Math.round(
                   ((Date.now() - new Date(account.cdCreatedAt).getTime()) /

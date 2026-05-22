@@ -45,21 +45,21 @@ const FixedObligationsWidget = ({ subPockets, groups, primaryCurrency = 'USD' }:
     const progress = monthlyTarget > 0 ? Math.min((sp.balance / monthlyTarget) * 100, 100) : 0;
 
     return (
-      <tr key={sp.id} className="hover:bg-surface-container-high/30">
-        <td className="px-3 py-1.5 text-sm text-on-surface">
+      <tr key={sp.id} className="hover:bg-gray-700/30">
+        <td className="px-3 py-1.5 text-sm text-gray-100">
           <div className="flex items-center gap-1.5">
-            <span className={!sp.enabled ? 'line-through text-on-surface-variant' : ''}>
+            <span className={!sp.enabled ? 'line-through text-gray-400' : ''}>
               {sp.name}
             </span>
             {!sp.enabled && (
-              <span className="text-[10px] bg-surface-container-highest text-on-surface-variant px-1 rounded">OFF</span>
+              <span className="text-[10px] bg-gray-700 text-gray-400 px-1 rounded">OFF</span>
             )}
           </div>
         </td>
-        <td className="px-3 py-1.5 text-xs font-mono text-on-surface-variant">
+        <td className="px-3 py-1.5 text-xs text-gray-400">
           {currencyService.formatCurrency(sp.balance, primaryCurrency)}
         </td>
-        <td className="px-3 py-1.5 text-xs font-mono text-on-surface-variant">
+        <td className="px-3 py-1.5 text-xs text-gray-400">
           {currencyService.formatCurrency(monthlyTarget, primaryCurrency)}
         </td>
         <td className="px-3 py-1.5 min-w-[80px]">
@@ -72,23 +72,23 @@ const FixedObligationsWidget = ({ subPockets, groups, primaryCurrency = 'USD' }:
   return (
     <Card padding="none" className="overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-white/[0.06]">
-        <h3 className="text-lg font-semibold text-on-surface flex items-center gap-2">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-700">
+        <h3 className="text-lg font-semibold text-gray-100 flex items-center gap-2">
           <Wallet className="w-5 h-5" />
           Fixed Expenses
         </h3>
         <button
           onClick={() => navigate('/fixed-expenses')}
-          className="text-[10px] font-bold uppercase tracking-wider text-primary hover:underline"
+          className="text-[10px] font-bold uppercase tracking-wider text-blue-400 hover:underline"
         >
           VIEW ALL
         </button>
       </div>
 
       {/* Total */}
-      <div className="px-4 py-2 bg-surface-container-high/30 border-b border-white/[0.06] flex justify-between items-center">
-        <span className="text-xs text-on-surface-variant uppercase tracking-wider">Monthly Total</span>
-        <span className="text-sm font-bold font-mono text-on-surface">
+      <div className="px-4 py-2 bg-gray-700/30 border-b border-gray-700 flex justify-between items-center">
+        <span className="text-xs text-gray-400 uppercase tracking-wider">Monthly Total</span>
+        <span className="text-sm font-bold text-gray-100">
           {currencyService.formatCurrency(totalCurrent, primaryCurrency)} / {currencyService.formatCurrency(totalTarget, primaryCurrency)}
         </span>
       </div>
@@ -96,15 +96,15 @@ const FixedObligationsWidget = ({ subPockets, groups, primaryCurrency = 'USD' }:
       {/* Table */}
       <div className="overflow-x-auto max-h-[400px] overflow-y-auto">
         <table className="w-full">
-          <thead className="bg-surface-container-high/50 sticky top-0">
+          <thead className="bg-gray-700/50 sticky top-0">
             <tr>
-              <th className="px-3 py-1.5 text-left text-[10px] font-medium text-on-surface-variant uppercase tracking-wider">Name</th>
-              <th className="px-3 py-1.5 text-left text-[10px] font-medium text-on-surface-variant uppercase tracking-wider">Contributed</th>
-              <th className="px-3 py-1.5 text-left text-[10px] font-medium text-on-surface-variant uppercase tracking-wider">Target</th>
-              <th className="px-3 py-1.5 text-left text-[10px] font-medium text-on-surface-variant uppercase tracking-wider">Progress</th>
+              <th className="px-3 py-1.5 text-left text-[10px] font-medium text-gray-400 uppercase tracking-wider">Name</th>
+              <th className="px-3 py-1.5 text-left text-[10px] font-medium text-gray-400 uppercase tracking-wider">Contributed</th>
+              <th className="px-3 py-1.5 text-left text-[10px] font-medium text-gray-400 uppercase tracking-wider">Target</th>
+              <th className="px-3 py-1.5 text-left text-[10px] font-medium text-gray-400 uppercase tracking-wider">Progress</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-white/[0.04]">
+          <tbody className="divide-y divide-gray-700/50">
             {groupedData.sortedGroups.map(group => {
               const expenses = groupedData.groupsMap.get(group.id);
               if (!expenses?.length) return null;
@@ -114,16 +114,16 @@ const FixedObligationsWidget = ({ subPockets, groups, primaryCurrency = 'USD' }:
               return (
                 <Fragment key={group.id}>
                   {/* Group Header */}
-                  <tr className="bg-surface-container/30">
+                  <tr className="bg-gray-800/30">
                     <td colSpan={4} className="px-3 py-1">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-1.5">
                           <div className="w-2 h-2 rounded-full" style={{ backgroundColor: group.color }} />
-                          <span className="text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">
+                          <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400">
                             {group.name}
                           </span>
                         </div>
-                        <span className="text-[11px] font-mono text-on-surface-variant">
+                        <span className="text-[11px] text-gray-400">
                           {currencyService.formatCurrency(groupTotal, primaryCurrency)}
                         </span>
                       </div>
@@ -137,9 +137,9 @@ const FixedObligationsWidget = ({ subPockets, groups, primaryCurrency = 'USD' }:
             {/* Ungrouped */}
             {groupedData.ungrouped.length > 0 && (
               <>
-                <tr className="bg-surface-container/30">
+                <tr className="bg-gray-800/30">
                   <td colSpan={4} className="px-3 py-1">
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400">
                       Other
                     </span>
                   </td>

@@ -47,7 +47,7 @@ const SpendingDensityCard = ({ primaryCurrency }: SpendingDensityCardProps) => {
 
   if (isLoading || !totals) {
     return (
-      <div className="glass-card rounded-xl p-6">
+      <div className="bg-gray-800 border border-gray-700 rounded-xl p-6">
         <Skeleton className="h-4 w-32 mb-4" />
         <div className="grid grid-cols-3 gap-3">
           <Skeleton className="h-20" />
@@ -76,17 +76,17 @@ const SpendingDensityCard = ({ primaryCurrency }: SpendingDensityCardProps) => {
   ];
 
   return (
-    <div className="glass-card rounded-xl p-6">
+    <div className="bg-gray-800 border border-gray-700 rounded-xl p-6">
       <div className="flex justify-between items-center mb-4">
-        <h3 className="text-xl font-semibold text-on-surface flex items-center gap-2">
-          <BarChart3 className="w-5 h-5 text-primary" />
+        <h3 className="text-xl font-semibold text-gray-100 flex items-center gap-2">
+          <BarChart3 className="w-5 h-5 text-blue-400" />
           Spending Density
         </h3>
         <div className="flex gap-2">
-          <button className="px-3 py-1 rounded bg-white/5 text-[10px] font-bold uppercase tracking-wider text-on-surface-variant hover:text-on-surface transition-colors">
+          <button className="px-3 py-1 rounded bg-gray-700 text-[10px] font-bold uppercase tracking-wider text-gray-400 hover:text-gray-100 transition-colors">
             EXPORT
           </button>
-          <button className="px-3 py-1 rounded bg-primary/20 text-primary text-[10px] font-bold uppercase tracking-wider hover:bg-primary/30 transition-colors">
+          <button className="px-3 py-1 rounded bg-blue-500/10 text-blue-400 text-[10px] font-bold uppercase tracking-wider hover:bg-blue-500/20 transition-colors">
             ANALYSIS
           </button>
         </div>
@@ -96,18 +96,18 @@ const SpendingDensityCard = ({ primaryCurrency }: SpendingDensityCardProps) => {
         {periods.map((p) => (
           <div
             key={p.label}
-            className="bg-surface-container-lowest/50 p-4 rounded-lg border border-white/5"
+            className="bg-gray-700/50 p-4 rounded-lg border border-gray-700"
           >
-            <p className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant mb-1">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">
               {p.label}
             </p>
-            <p className="font-mono text-lg font-semibold text-on-surface">
+            <p className="text-lg font-semibold text-gray-100">
               {currencyService.formatCurrency(p.amount, primaryCurrency)}
             </p>
-            <div className="w-full bg-white/5 h-1 mt-2 rounded-full overflow-hidden">
+            <div className="w-full bg-gray-700 h-1 mt-2 rounded-full overflow-hidden">
               <div
                 className={`h-full rounded-full transition-all ${
-                  p.warn ? 'bg-error shadow-[0_0_8px_rgba(255,180,171,0.4)]' : 'bg-primary'
+                  p.warn ? 'bg-red-400' : 'bg-blue-400'
                 }`}
                 style={{ width: `${p.pct}%` }}
               />
