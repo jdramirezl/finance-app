@@ -132,56 +132,57 @@ const SummaryPage = () => {
         <PageHeader title="Summary" />
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-          <ErrorBoundary>
-            {accountsIsError || settingsIsError ? (
-              <div className="space-y-2">
-                {accountsIsError && (
-                  <QueryErrorCard title="accounts" error={accountsError} onRetry={() => accountsRefetch()} />
-                )}
-                {settingsIsError && (
-                  <QueryErrorCard title="settings" error={settingsError} onRetry={() => settingsRefetch()} />
-                )}
-              </div>
-            ) : (
-              <TotalsSummary
-                consolidatedTotal={consolidatedTotal}
-                primaryCurrency={primaryCurrency}
-                totalsByCurrency={totalsByCurrency}
-                isConsolidatedReady={isConsolidatedReady}
-              />
-            )}
-          </ErrorBoundary>
-
-          <ErrorBoundary>
-            <NetWorthTimelineWidget />
-          </ErrorBoundary>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <ErrorBoundary>
-            {accountsIsError || pocketsIsError ? (
-              <div className="space-y-2">
-                {accountsIsError && (
-                  <QueryErrorCard title="accounts" error={accountsError} onRetry={() => accountsRefetch()} />
-                )}
-                {pocketsIsError && (
-                  <QueryErrorCard title="pockets" error={pocketsError} onRetry={() => pocketsRefetch()} />
-                )}
-              </div>
-            ) : (
-              <CurrencyBreakdownSection
-                sortedCurrencies={sortedCurrencies}
-                accountsByCurrency={accountsByCurrency}
-                pockets={pockets}
-                investmentData={investmentData}
-                refreshingPrices={refreshingPrices}
-                accountCardDisplay={accountCardDisplay}
-                onRefreshPrice={handleRefreshPrice}
-              />
-            )}
-          </ErrorBoundary>
-
+          {/* Left column: Total + Accounts */}
           <div className="space-y-6">
+            <ErrorBoundary>
+              {accountsIsError || settingsIsError ? (
+                <div className="space-y-2">
+                  {accountsIsError && (
+                    <QueryErrorCard title="accounts" error={accountsError} onRetry={() => accountsRefetch()} />
+                  )}
+                  {settingsIsError && (
+                    <QueryErrorCard title="settings" error={settingsError} onRetry={() => settingsRefetch()} />
+                  )}
+                </div>
+              ) : (
+                <TotalsSummary
+                  consolidatedTotal={consolidatedTotal}
+                  primaryCurrency={primaryCurrency}
+                  totalsByCurrency={totalsByCurrency}
+                  isConsolidatedReady={isConsolidatedReady}
+                />
+              )}
+            </ErrorBoundary>
+
+            <ErrorBoundary>
+              {accountsIsError || pocketsIsError ? (
+                <div className="space-y-2">
+                  {accountsIsError && (
+                    <QueryErrorCard title="accounts" error={accountsError} onRetry={() => accountsRefetch()} />
+                  )}
+                  {pocketsIsError && (
+                    <QueryErrorCard title="pockets" error={pocketsError} onRetry={() => pocketsRefetch()} />
+                  )}
+                </div>
+              ) : (
+                <CurrencyBreakdownSection
+                  sortedCurrencies={sortedCurrencies}
+                  accountsByCurrency={accountsByCurrency}
+                  pockets={pockets}
+                  investmentData={investmentData}
+                  refreshingPrices={refreshingPrices}
+                  accountCardDisplay={accountCardDisplay}
+                  onRefreshPrice={handleRefreshPrice}
+                />
+              )}
+            </ErrorBoundary>
+          </div>
+
+          {/* Right column: Timeline + Widgets */}
+          <div className="space-y-6">
+            <ErrorBoundary>
+              <NetWorthTimelineWidget />
+            </ErrorBoundary>
             <ErrorBoundary>
               {subPocketsIsError || fixedExpenseGroupsIsError ? (
                 <div className="space-y-2">
