@@ -2,7 +2,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { HelpCircle, LogOut, Moon, Sun } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import { useThemeStore } from '../../store/themeStore';
+import { useThemeStore } from '../../store/useThemeStore';
 
 interface NavItem {
   path: string;
