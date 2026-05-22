@@ -16,7 +16,6 @@ const FixedExpensesPage = lazy(() => import('./pages/FixedExpensesPage'));
 const BudgetPlanningPage = lazy(() => import('./pages/BudgetPlanningPage'));
 const MovementsPage = lazy(() => import('./pages/MovementsPage'));
 const TemplatesPage = lazy(() => import('./pages/TemplatesPage'));
-const ReportsPage = lazy(() => import('./pages/ReportsPage'));
 const SettingsPage = lazy(() => import('./pages/SettingsPage'));
 
 // Loading fallback component
@@ -82,10 +81,6 @@ function App() {
                             <Route
                               path="/templates"
                               element={guard(<TemplatesPage />)}
-                            />
-                            <Route
-                              path="/reports"
-                              element={guard(<ReportsPage />)}
                             />
                             <Route
                               path="/settings"

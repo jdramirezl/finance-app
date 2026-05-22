@@ -2,7 +2,6 @@ import { useCallback, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  BarChart3,
   Calendar,
   FileText,
   Home,
@@ -34,7 +33,6 @@ const NAV_ITEMS: NavItem[] = [
   { path: '/budget-planning', label: 'Budget', icon: Calendar },
   { path: '/movements', label: 'Movements', icon: TrendingUp },
   { path: '/templates', label: 'Templates', icon: FileText },
-  { path: '/reports', label: 'Reports', icon: BarChart3 },
   { path: '/settings', label: 'Settings', icon: Settings },
 ];
 
@@ -84,11 +82,11 @@ const Layout = ({ children }: LayoutProps) => {
   );
 
   return (
-    <div className="min-h-screen bg-gray-900 pb-20 md:pb-0 overflow-x-hidden">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors pb-20 md:pb-0 overflow-x-hidden">
       <Sidebar items={NAV_ITEMS} />
       <BottomNav items={NAV_ITEMS} bottomItems={BOTTOM_NAV_ITEMS} />
 
-      <main className="lg:ml-[260px] p-4 md:p-8 pt-20 lg:pt-8 min-h-screen">
+      <main className="md:ml-64 p-4 md:p-8 pt-20 md:pt-8 min-h-screen">
         <ErrorBoundary>{children}</ErrorBoundary>
       </main>
 

@@ -31,11 +31,11 @@ const CascadeDeleteDialog = ({
         <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
           Delete Account & All Data
         </h3>
-        <p className="text-gray-500 dark:text-gray-400">
+        <p className="text-gray-600 dark:text-gray-400">
           This is a destructive action. You can choose to delete everything or keep the transaction history.
         </p>
 
-        <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-300 dark:border-red-600">
+        <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-100 dark:border-red-800">
           <label className="flex items-start gap-3 cursor-pointer">
             <input
               type="checkbox"
@@ -44,10 +44,10 @@ const CascadeDeleteDialog = ({
               className="mt-1 w-4 h-4 text-red-600 rounded border-gray-300 focus:ring-red-500"
             />
             <div>
-              <span className="font-medium text-red-600 dark:text-red-400">
+              <span className="font-medium text-red-900 dark:text-red-100">
                 Delete all movements history
               </span>
-              <p className="text-sm text-red-600/80 dark:text-red-400/80 mt-1">
+              <p className="text-sm text-red-700 dark:text-red-300 mt-1">
                 If checked, all movements associated with this account will be permanently deleted.
                 If unchecked, movements will be preserved but marked as orphaned.
               </p>

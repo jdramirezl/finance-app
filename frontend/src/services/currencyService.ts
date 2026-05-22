@@ -42,6 +42,15 @@ export interface BatchConversionResult {
   rate: number;
 }
 
+export interface ExchangeRateHistoryEntry {
+  date: string;
+  rate: number;
+}
+
+export interface ExchangeRateHistoryResponse {
+  data: ExchangeRateHistoryEntry[];
+}
+
 interface BatchConversionResponseItem extends BatchConversionResult {
   amount: number;
   from: string;
@@ -147,6 +156,13 @@ class CurrencyService {
   async getDebugRate(from: Currency, to: Currency): Promise<{ from: string; to: string; rate: number; cachedAt: string; source?: string }> {
     return await apiClient.get<{ from: string; to: string; rate: number; cachedAt: string; source?: string }>(
       `/api/currency/rates?from=${from}&to=${to}`
+    );
+  }
+
+  // Get historical exchange rate data for charting
+  async getExchangeRateHistory(base: string, target: string, days: number = 90): Promise<ExchangeRateHistoryResponse> {
+    return apiClient.get<ExchangeRateHistoryResponse>(
+      `/api/reports/exchange-rate-history?base=${base}&target=${target}&days=${days}`
     );
   }
 

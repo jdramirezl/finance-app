@@ -27,7 +27,7 @@ const Card = ({
     danger: 'border-2 border-red-500 dark:border-red-400 bg-red-50 dark:bg-red-900/20',
   };
 
-  const hoverStyles = hover ? 'hover:border-gray-300 dark:hover:border-gray-600 hover:shadow-md hover:scale-[1.01]' : '';
+  const hoverStyles = hover ? 'hover:shadow-lg hover:-translate-y-0.5 hover:scale-[1.01]' : '';
 
   const paddings: Record<CardPadding, string> = {
     none: '',

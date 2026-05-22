@@ -1,32 +1,35 @@
-import { memo, useState } from 'react';
-import type { CDInvestmentAccount, Pocket } from '../../types';
-import type { CDCalculationResult } from '../../types';
-import { Landmark, GripVertical, Edit2, Trash2, ChevronDown, TrendingUp, AlertTriangle } from 'lucide-react';
+import { memo } from 'react';
+import type { CDInvestmentAccount, CDCalculationResult } from '../../types';
+import { EditDeleteActions } from '../ui/ActionButtons';
+import { TrendingUp, Landmark, AlertTriangle } from 'lucide-react';
+import SelectableValue from '../ui/SelectableValue';
+import { currencyService } from '../../services/currencyService';
 import { cdCalculationService } from '../../services/cdCalculationService';
 
 interface CDAccountCardProps {
     account: CDInvestmentAccount;
-    isSelected?: boolean;
-    pockets?: Pocket[];
+    isSelected: boolean;
+    /** Receives the account so the parent can hold a stable callback. */
     onSelect: (account: CDInvestmentAccount) => void;
     onEdit: (account: CDInvestmentAccount) => void;
     onDelete: (id: string) => void;
-    onAddPocket?: () => void;
     isDeleting?: boolean;
 }
 
+/**
+ * Renders a single Certificate of Deposit account card. Memoized so
+ * editing or selecting another row does not re-trigger the (relatively
+ * expensive) CD calculation for every row in the list.
+ */
 const CDAccountCard = ({
     account,
-    isSelected = false,
-    pockets = [],
+    isSelected,
     onSelect,
     onEdit,
     onDelete,
-    onAddPocket,
     isDeleting = false,
 }: CDAccountCardProps) => {
-    const [pocketsExpanded, setPocketsExpanded] = useState(false);
-
+    // Calculate current CD values with error handling
     let calculation: CDCalculationResult | null = null;
     let hasError = false;
     let isNearMaturity = false;
@@ -38,143 +41,70 @@ const CDAccountCard = ({
         hasError = true;
     }
 
+    // Get display balance - use calculated current value or show error
     const displayBalance = hasError ? 0 : (calculation?.currentValue || 0);
 
     return (
         <div
             onClick={() => onSelect(account)}
-            className={`bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden flex flex-col relative border-t-4 transition-transform hover:scale-[1.01] shadow-xl group cursor-pointer ${isSelected ? 'ring-2 ring-blue-500 dark:ring-blue-400' : ''}`}
-            style={{ borderTopColor: account.color }}
+            className={`p-4 bg-white dark:bg-gray-800 rounded-lg border-2 cursor-pointer transition-all group relative overflow-hidden ${isSelected
+                ? 'border-blue-500 dark:border-blue-400 shadow-md'
+                : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+                } bg-gradient-to-r from-white to-amber-50 dark:from-gray-800 dark:to-amber-900/10`}
         >
-            <div className="p-5 flex-1">
-                {/* Header: icon + name + type + hover actions */}
-                <div className="flex justify-between items-start mb-4">
-                    <div className="flex items-center gap-3">
-                        <div
-                            className="w-10 h-10 rounded-lg flex items-center justify-center"
-                            style={{ backgroundColor: `${account.color}20`, color: account.color }}
-                        >
-                            <Landmark className="w-5 h-5" aria-hidden="true" />
-                        </div>
-                        <div>
-                            <div className="flex items-center gap-2">
-                                <h3 className="font-semibold text-lg text-gray-900 dark:text-gray-100">{account.name}</h3>
-                                {isNearMaturity && !hasError && (
-                                    <AlertTriangle className="w-4 h-4 text-amber-500 dark:text-amber-400" aria-hidden="true" />
-                                )}
-                            </div>
-                            <p className="text-[10px] uppercase tracking-widest text-gray-500 dark:text-gray-400">
-                                CERTIFICATE OF DEPOSIT
-                                {account.interestRate && ` · ${account.interestRate}% APY`}
-                            </p>
-                        </div>
-                    </div>
-                    <div
-                        className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                        onClick={(e) => e.stopPropagation()}
-                    >
-                        <button className="p-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-grab active:cursor-grabbing">
-                            <GripVertical className="w-[18px] h-[18px]" aria-hidden="true" />
-                        </button>
-                        <button className="p-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors" onClick={() => onEdit(account)}>
-                            <Edit2 className="w-[18px] h-[18px]" aria-hidden="true" />
-                        </button>
-                        <button
-                            className="p-1 hover:text-red-600 dark:hover:text-red-400 transition-colors"
-                            onClick={() => onDelete(account.id)}
-                            disabled={isDeleting}
-                        >
-                            <Trash2 className="w-[18px] h-[18px]" aria-hidden="true" />
-                        </button>
-                    </div>
-                </div>
+            <div className="absolute top-0 right-0 w-16 h-16 bg-amber-100 dark:bg-amber-900/20 rounded-bl-full -mr-8 -mt-8 z-0" />
 
-                {/* Currency badge + Balance */}
-                <div className="mb-6">
-                    <span
-                        className="inline-block px-2 py-0.5 rounded text-[10px] mb-2 tracking-widest"
-                        style={{ backgroundColor: `${account.color}1a`, color: account.color }}
-                    >
-                        {account.currency}
-                    </span>
-                    <div
-                        className="text-[28px] tracking-tight"
-                        style={{ color: account.color }}
-                    >
-                        {displayBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between relative z-10 gap-4 sm:gap-0">
+                <div className="flex items-center gap-3 w-full sm:w-auto">
+                    <div className="w-10 h-10 rounded-full flex-shrink-0 flex items-center justify-center bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400">
+                        <Landmark className="w-5 h-5" aria-hidden="true" />
                     </div>
-                    {!hasError && calculation && calculation.accruedInterest > 0 && (
-                        <div className="flex items-center gap-1 text-xs text-success mt-1">
-                            <TrendingUp className="w-3 h-3" aria-hidden="true" />
-                            <span>
-                                +{calculation.accruedInterest.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                            <h3 className="font-semibold text-gray-900 dark:text-gray-100 truncate max-w-[200px] sm:max-w-none">{account.name}</h3>
+                            <span className="text-[11px] px-1.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 font-medium border border-amber-200 dark:border-amber-800 whitespace-nowrap">
+                                Certificate of Deposit
                             </span>
+                            {isNearMaturity && !hasError && (
+                                <AlertTriangle className="w-4 h-4 text-yellow-500 flex-shrink-0" aria-hidden="true" />
+                            )}
                         </div>
-                    )}
+                        <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+                            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: account.color }} />
+                            <span>{account.currency}</span>
+                            {!hasError && account.interestRate && (
+                                <>
+                                    <span>•</span>
+                                    <span>{account.interestRate}% APY</span>
+                                </>
+                            )}
+                        </div>
+                    </div>
                 </div>
-
-                {/* Collapsible Pockets */}
-                <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
-                    {/* CD Details */}
-                    {!hasError && calculation && (
-                        <div className="mb-4 space-y-1.5 text-xs text-gray-500 dark:text-gray-400">
-                            <div className="flex justify-between">
-                                <span>Principal</span>
-                                <span className="text-gray-900 dark:text-gray-100">{account.principal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                            </div>
-                            <div className="flex justify-between">
-                                <span>Net Interest</span>
-                                <span className="text-success">+{calculation.netInterest.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                            </div>
-                            <div className="flex justify-between">
-                                <span>Maturity</span>
-                                <span className="text-gray-900 dark:text-gray-100">{new Date(account.maturityDate).toLocaleDateString(undefined, { month: 'short', day: '2-digit', year: 'numeric' })}</span>
-                            </div>
-                            <div className="flex justify-between">
-                                <span>Days to Maturity</span>
-                                <span className={calculation.daysToMaturity <= 30 ? 'text-amber-500 dark:text-amber-400' : 'text-gray-900 dark:text-gray-100'}>{calculation.isMatured ? 'MATURED' : calculation.daysToMaturity}</span>
-                            </div>
-                            <div className="flex justify-between">
-                                <span>APY</span>
-                                <span className="text-gray-900 dark:text-gray-100">{account.interestRate}%</span>
-                            </div>
-                        </div>
-                    )}
-                    <button
-                        className="w-full flex justify-between items-center text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors mb-2"
-                        onClick={(e) => { e.stopPropagation(); setPocketsExpanded(!pocketsExpanded); }}
-                    >
-                        <span className="text-[12px] font-bold tracking-wider">
-                            POCKETS ({pockets.length})
+                <div className="flex items-center justify-between sm:justify-end gap-2 sm:gap-3 w-full sm:w-auto min-w-0">
+                    <div className="flex flex-col items-end">
+                        <span className="font-mono text-sm sm:text-lg truncate min-w-0 flex-1 sm:flex-none text-amber-700 dark:text-amber-300 font-bold">
+                            <SelectableValue id={`cd-bal-${account.id}`} value={displayBalance} currency={account.currency}>
+                                {displayBalance.toLocaleString(undefined, {
+                                    style: 'currency',
+                                    currency: account.currency,
+                                })}
+                            </SelectableValue>
                         </span>
-                        <ChevronDown
-                            className="w-4 h-4 transition-transform duration-300"
-                            style={{ transform: pocketsExpanded ? 'rotate(180deg)' : undefined }}
-                        />
-                    </button>
-                    <div
-                        className="space-y-2 overflow-hidden transition-all duration-300"
-                        style={{ maxHeight: pocketsExpanded ? '500px' : '0px' }}
-                    >
-                        {pockets.length === 0 && (
-                            <p className="text-[12px] text-center text-gray-400 dark:text-gray-500 py-2">No pockets defined</p>
-                        )}
-                        {pockets.map((pocket) => (
-                            <div key={pocket.id} className="flex justify-between items-center p-2 rounded bg-gray-50 dark:bg-gray-700/50">
-                                <span className="text-sm">{pocket.name}</span>
-                                <span className="text-sm">
-                                    {pocket.balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                </span>
+                        {!hasError && calculation && calculation.accruedInterest > 0 && (
+                            <div className="flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
+                                <TrendingUp className="w-3 h-3" aria-hidden="true" />
+                                <span>+{currencyService.formatCurrency(calculation.accruedInterest, account.currency)}</span>
                             </div>
-                        ))}
-                        {onAddPocket && (
-                            <button
-                                className="w-full py-2 border border-dashed border-gray-300 dark:border-gray-600 rounded text-[11px] font-bold text-gray-500 dark:text-gray-400 hover:border-blue-500 dark:hover:border-blue-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors mt-2"
-                                onClick={(e) => { e.stopPropagation(); onAddPocket(); }}
-                            >
-                                + ADD POCKET
-                            </button>
                         )}
+                    </div>
+                    <div onClick={(e) => e.stopPropagation()}>
+                        <EditDeleteActions
+                            onEdit={() => onEdit(account)}
+                            onDelete={() => onDelete(account.id)}
+                            isDeleting={isDeleting}
+                            showOnHover={false}
+                        />
                     </div>
                 </div>
             </div>

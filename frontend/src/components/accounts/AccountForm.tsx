@@ -104,8 +104,8 @@ const AccountForm = ({
                     )}
 
                     {type === 'cd' && (
-                        <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-300 dark:border-blue-600">
-                            <p className="text-sm text-blue-600 dark:text-blue-400">
+                        <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                            <p className="text-sm text-blue-800 dark:text-blue-200">
                                 <strong>Note:</strong> CD accounts require additional information like principal amount, interest rate, and term. 
                                 You'll be able to configure these details after creating the account.
                             </p>

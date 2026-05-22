@@ -9,13 +9,13 @@ interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
 }
 
 const Input = forwardRef<HTMLInputElement, InputProps>(
-  ({ label, error, helperText, leftIcon, rightIcon, className = '', id, type, ...props }, ref) => {
+  ({ label, error, helperText, leftIcon, rightIcon, className = '', id, ...props }, ref) => {
     const inputId = id || `input-${Math.random().toString(36).substr(2, 9)}`;
 
     const baseStyles = 'w-full px-4 py-3 border rounded-xl transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-0 shadow-sm';
     const normalStyles = 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:border-blue-500 dark:focus:border-blue-400 focus:ring-blue-500/20 dark:focus:ring-blue-400/20 focus:ring-4';
     const errorStyles = 'border-red-500 dark:border-red-400 bg-red-50 dark:bg-red-900/20 text-gray-900 dark:text-gray-100 focus:border-red-500 dark:focus:border-red-400 focus:ring-red-500/20 dark:focus:ring-red-400/20 focus:ring-4';
-    const disabledStyles = 'disabled:opacity-50 disabled:cursor-not-allowed';
+    const disabledStyles = 'disabled:bg-gray-100 dark:disabled:bg-gray-800 disabled:cursor-not-allowed';
 
     return (
       <div className="space-y-1">
@@ -25,7 +25,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
             className="block text-sm font-medium text-gray-700 dark:text-gray-300"
           >
             {label}
-            {props.required && <span className="text-red-600 dark:text-red-400 ml-0.5">*</span>}
+            {props.required && <span className="text-red-500 ml-0.5">*</span>}
           </label>
         )}
 
@@ -39,7 +39,6 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
           <input
             ref={ref}
             id={inputId}
-            type={type}
             className={`${baseStyles} ${error ? errorStyles : normalStyles} ${disabledStyles} ${leftIcon ? 'pl-10' : ''} ${rightIcon ? 'pr-10' : ''} ${className}`}
             {...props}
           />

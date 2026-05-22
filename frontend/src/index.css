@@ -28,20 +28,27 @@
   --color-scheme: light dark;
 }
 
-/* Body defaults */
-body {
-  @apply bg-gray-900 text-gray-100;
-}
-
 /* Custom animations */
 @keyframes toast-enter {
-  from { transform: translateX(100%) scale(0.95); opacity: 0; }
-  to { transform: translateX(0) scale(1); opacity: 1; }
+  from {
+    transform: translateX(100%) scale(0.95);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0) scale(1);
+    opacity: 1;
+  }
 }
 
 @keyframes toast-exit {
-  from { transform: translateX(0) scale(1); opacity: 1; }
-  to { transform: translateX(100%) scale(0.95); opacity: 0; }
+  from {
+    transform: translateX(0) scale(1);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(100%) scale(0.95);
+    opacity: 0;
+  }
 }
 
 .animate-toast-enter {
@@ -54,13 +61,25 @@ body {
 
 /* Floating panel animations */
 @keyframes slide-in-right {
-  from { transform: translateX(100%); opacity: 0; }
-  to { transform: translateX(0); opacity: 1; }
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
 }
 
 @keyframes slide-in-left {
-  from { transform: translateX(-100%); opacity: 0; }
-  to { transform: translateX(0); opacity: 1; }
+  from {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
 }
 
 .animate-slide-in-right {
@@ -73,8 +92,12 @@ body {
 
 /* Modal backdrop animation */
 @keyframes backdrop-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 .animate-backdrop-in {
@@ -83,8 +106,14 @@ body {
 
 /* Modal content animation */
 @keyframes modal-in {
-  from { transform: scale(0.95); opacity: 0; }
-  to { transform: scale(1); opacity: 1; }
+  from {
+    transform: scale(0.95);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
 }
 
 .animate-modal-in {
@@ -115,34 +144,4 @@ body {
 
 .dark .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: rgba(75, 85, 99, 0.7);
-}
-
-/* Range slider */
-.range-slider {
-  -webkit-appearance: none;
-  appearance: none;
-  background: rgba(107, 114, 128, 0.3);
-  height: 4px;
-  border-radius: 2px;
-  cursor: pointer;
-}
-
-.range-slider::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  height: 16px;
-  width: 16px;
-  border-radius: 50%;
-  background: #3b82f6;
-  cursor: pointer;
-  box-shadow: 0 0 6px rgba(59, 130, 246, 0.4);
-}
-
-.range-slider::-moz-range-thumb {
-  height: 16px;
-  width: 16px;
-  border-radius: 50%;
-  background: #3b82f6;
-  cursor: pointer;
-  border: none;
-  box-shadow: 0 0 6px rgba(59, 130, 246, 0.4);
 }

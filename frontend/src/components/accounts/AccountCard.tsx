@@ -1,141 +1,115 @@
-import { memo, useState } from 'react';
-import type { Account, Pocket } from '../../types';
-import { TrendingUp, Wallet, Lock, GripVertical, Edit2, Trash2, ChevronDown } from 'lucide-react';
+import { memo } from 'react';
+import type { Account } from '../../types';
+import { EditDeleteActions } from '../ui/ActionButtons';
+import { TrendingUp, Wallet } from 'lucide-react';
+import SelectableValue from '../ui/SelectableValue';
 
 interface AccountCardProps {
     account: Account;
-    isSelected?: boolean;
-    pockets?: Pocket[];
+    isSelected: boolean;
+    /**
+     * Receives the account so the parent can hold a single stable callback
+     * (via useCallback) instead of creating a new arrow per row, which would
+     * defeat React.memo on this component.
+     */
     onSelect: (account: Account) => void;
     onEdit: (account: Account) => void;
     onDelete: (id: string) => void;
-    onAddPocket?: () => void;
     isDeleting?: boolean;
     isFixedExpensesAccount?: boolean;
 }
 
-function getAccountIcon(account: Account) {
-    if (account.type === 'cd') return <Lock className="w-5 h-5" aria-hidden="true" />;
-    if (account.type === 'investment') return <TrendingUp className="w-5 h-5" aria-hidden="true" />;
-    return <Wallet className="w-5 h-5" aria-hidden="true" />;
-}
-
-function getTypeLabel(account: Account, isFixedExpensesAccount: boolean) {
-    if (isFixedExpensesAccount) return 'FIXED EXPENSES';
-    if (account.type === 'cd') return 'CERTIFICATE OF DEPOSIT';
-    if (account.type === 'investment') return 'INVESTMENT';
-    return 'NORMAL ACCOUNT';
-}
-
+/**
+ * Renders a single account row in the accounts list. Wrapped in React.memo
+ * so editing one account or selecting another doesn't cause every account
+ * card to re-render. Handlers must be stable (useCallback in the parent)
+ * for the memo to be effective.
+ */
 const AccountCard = ({
     account,
-    isSelected = false,
-    pockets = [],
+    isSelected,
     onSelect,
     onEdit,
     onDelete,
-    onAddPocket,
     isDeleting = false,
     isFixedExpensesAccount = false,
 }: AccountCardProps) => {
-    const [pocketsExpanded, setPocketsExpanded] = useState(false);
+    const isInvestment = account.type === 'investment';
+    const isCD = account.type === 'investment' && 'investmentType' in account && account.investmentType === 'cd';
 
     return (
         <div
             onClick={() => onSelect(account)}
-            className={`bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden flex flex-col relative border-t-4 transition-transform hover:scale-[1.01] shadow-xl group cursor-pointer ${isSelected ? 'ring-2 ring-blue-500 dark:ring-blue-400' : ''}`}
-            style={{ borderTopColor: account.color }}
+            className={`p-4 bg-white dark:bg-gray-800 rounded-lg border-2 cursor-pointer transition-all group relative overflow-hidden ${isSelected
+                ? 'border-blue-500 dark:border-blue-400 shadow-md'
+                : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+                } ${isCD ? 'bg-gradient-to-r from-white to-green-50 dark:from-gray-800 dark:to-green-900/10' : isInvestment ? 'bg-gradient-to-r from-white to-purple-50 dark:from-gray-800 dark:to-purple-900/10' : ''} ${isFixedExpensesAccount ? 'bg-gradient-to-r from-white to-blue-50 dark:from-gray-800 dark:to-blue-900/10' : ''}`}
         >
-            <div className="p-5 flex-1">
-                {/* Header: icon + name + type + hover actions */}
-                <div className="flex justify-between items-start mb-4">
-                    <div className="flex items-center gap-3">
-                        <div
-                            className="w-10 h-10 rounded-lg flex items-center justify-center"
-                            style={{ backgroundColor: `${account.color}20`, color: account.color }}
-                        >
-                            {getAccountIcon(account)}
-                        </div>
-                        <div>
-                            <h3 className="font-semibold text-lg text-gray-900 dark:text-gray-100">{account.name}</h3>
-                            <p className="text-[10px] uppercase tracking-widest text-gray-500 dark:text-gray-400">
-                                {getTypeLabel(account, isFixedExpensesAccount)}
-                            </p>
-                        </div>
-                    </div>
-                    <div
-                        className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                        onClick={(e) => e.stopPropagation()}
-                    >
-                        <button className="p-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-grab active:cursor-grabbing">
-                            <GripVertical className="w-[18px] h-[18px]" aria-hidden="true" />
-                        </button>
-                        <button className="p-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors" onClick={() => onEdit(account)}>
-                            <Edit2 className="w-[18px] h-[18px]" aria-hidden="true" />
-                        </button>
-                        <button
-                            className="p-1 hover:text-red-600 dark:hover:text-red-400 transition-colors"
-                            onClick={() => onDelete(account.id)}
-                            disabled={isDeleting}
-                        >
-                            <Trash2 className="w-[18px] h-[18px]" aria-hidden="true" />
-                        </button>
-                    </div>
-                </div>
+            {isCD && (
+                <div className="absolute top-0 right-0 w-16 h-16 bg-green-100 dark:bg-green-900/20 rounded-bl-full -mr-8 -mt-8 z-0" />
+            )}
+            {isInvestment && !isCD && (
+                <div className="absolute top-0 right-0 w-16 h-16 bg-purple-100 dark:bg-purple-900/20 rounded-bl-full -mr-8 -mt-8 z-0" />
+            )}
+            {isFixedExpensesAccount && (
+                <div className="absolute top-0 right-0 w-16 h-16 bg-blue-100 dark:bg-blue-900/20 rounded-bl-full -mr-8 -mt-8 z-0" />
+            )}
 
-                {/* Currency badge + Balance */}
-                <div className="mb-6">
-                    <span
-                        className="inline-block px-2 py-0.5 rounded text-[10px] mb-2 tracking-widest"
-                        style={{ backgroundColor: `${account.color}1a`, color: account.color }}
-                    >
-                        {account.currency}
-                    </span>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between relative z-10 gap-4 sm:gap-0">
+                <div className="flex items-center gap-3 w-full sm:w-auto">
                     <div
-                        className="text-[28px] tracking-tight"
-                        style={{ color: account.color }}
+                        className={`w-10 h-10 rounded-full flex-shrink-0 flex items-center justify-center ${isCD
+                            ? 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400'
+                            : isInvestment
+                                ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400'
+                                : isFixedExpensesAccount
+                                    ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
+                                    : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400'
+                            }`}
                     >
-                        {account.balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        {isInvestment ? <TrendingUp className="w-5 h-5" aria-hidden="true" /> : <Wallet className="w-5 h-5" aria-hidden="true" />}
                     </div>
-                </div>
-
-                {/* Collapsible Pockets */}
-                <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
-                    <button
-                        className="w-full flex justify-between items-center text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors mb-2"
-                        onClick={(e) => { e.stopPropagation(); setPocketsExpanded(!pocketsExpanded); }}
-                    >
-                        <span className="text-[12px] font-bold tracking-wider">
-                            POCKETS ({pockets.length})
-                        </span>
-                        <ChevronDown
-                            className="w-4 h-4 transition-transform duration-300"
-                            style={{ transform: pocketsExpanded ? 'rotate(180deg)' : undefined }}
-                        />
-                    </button>
-                    <div
-                        className="space-y-2 overflow-hidden transition-all duration-300"
-                        style={{ maxHeight: pocketsExpanded ? '500px' : '0px' }}
-                    >
-                        {pockets.length === 0 && (
-                            <p className="text-[12px] text-center text-gray-400 dark:text-gray-500 py-2">No pockets defined</p>
-                        )}
-                        {pockets.map((pocket) => (
-                            <div key={pocket.id} className="flex justify-between items-center p-2 rounded bg-gray-50 dark:bg-gray-700/50">
-                                <span className="text-sm">{pocket.name}</span>
-                                <span className="text-sm">
-                                    {pocket.balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                            <h3 className="font-semibold text-gray-900 dark:text-gray-100 truncate max-w-[200px] sm:max-w-none">{account.name}</h3>
+                            {isCD && (
+                                <span className="text-[11px] px-1.5 py-0.5 rounded-full bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 font-medium border border-green-200 dark:border-green-800 whitespace-nowrap">
+                                    Certificate of Deposit
                                 </span>
-                            </div>
-                        ))}
-                        {onAddPocket && (
-                            <button
-                                className="w-full py-2 border border-dashed border-gray-300 dark:border-gray-600 rounded text-[11px] font-bold text-gray-500 dark:text-gray-400 hover:border-blue-500 dark:hover:border-blue-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors mt-2"
-                                onClick={(e) => { e.stopPropagation(); onAddPocket(); }}
-                            >
-                                + ADD POCKET
-                            </button>
-                        )}
+                            )}
+                            {isInvestment && !isCD && (
+                                <span className="text-[11px] px-1.5 py-0.5 rounded-full bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 font-medium border border-purple-200 dark:border-purple-800 whitespace-nowrap">
+                                    Investments
+                                </span>
+                            )}
+                            {isFixedExpensesAccount && (
+                                <span className="text-[11px] px-1.5 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 font-medium border border-blue-200 dark:border-blue-800 whitespace-nowrap">
+                                    Fixed Expenses
+                                </span>
+                            )}
+                        </div>
+                        <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+                            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: account.color }} />
+                            <span>{account.currency}</span>
+                        </div>
+                    </div>
+                </div>
+                <div className="flex items-center justify-between sm:justify-end gap-2 sm:gap-3 w-full sm:w-auto min-w-0">
+                    <span className={`font-mono text-sm sm:text-lg truncate min-w-0 flex-1 sm:flex-none ${isCD ? 'text-green-700 dark:text-green-300 font-bold' : isInvestment ? 'text-purple-700 dark:text-purple-300 font-bold' : isFixedExpensesAccount ? 'text-blue-700 dark:text-blue-300 font-bold' : 'text-gray-900 dark:text-gray-100'}`}>
+                        <SelectableValue id={`acc-bal-${account.id}`} value={account.balance} currency={account.currency}>
+                            {account.balance.toLocaleString(undefined, {
+                                style: 'currency',
+                                currency: account.currency,
+                            })}
+                        </SelectableValue>
+                    </span>
+                    <div onClick={(e) => e.stopPropagation()}>
+                        <EditDeleteActions
+                            onEdit={() => onEdit(account)}
+                            onDelete={() => onDelete(account.id)}
+                            isDeleting={isDeleting}
+                            showOnHover={false}
+                        />
                     </div>
                 </div>
             </div>

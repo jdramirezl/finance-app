@@ -13,7 +13,7 @@ import { useQueries } from '@tanstack/react-query';
 import { TrendingUp } from 'lucide-react';
 
 import { useSettingsQuery, useAccountsQuery } from '../../hooks/queries';
-import { reportService } from '../../services/reportService';
+import { currencyService } from '../../services/currencyService';
 import type { Currency } from '../../types';
 
 const CURRENCY_COLORS: Record<string, string> = {
@@ -42,7 +42,7 @@ const ExchangeRateTrend = () => {
   const rateQueries = useQueries({
     queries: targetCurrencies.map((currency) => ({
       queryKey: ['reports', 'exchange-rate-history', currency, primaryCurrency, days],
-      queryFn: () => reportService.getExchangeRateHistory(currency, primaryCurrency, days),
+      queryFn: () => currencyService.getExchangeRateHistory(currency, primaryCurrency, days),
       staleTime: 1000 * 60 * 30,
       enabled: !!currency,
     })),
