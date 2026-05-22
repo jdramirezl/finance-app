@@ -13,3 +13,5 @@ export { default as QuickCalculator } from './QuickCalculator';
 export { default as QuickAddMovement } from './QuickAddMovement';
 export { default as RestoreOrphanedModal } from './RestoreOrphanedModal';
 export { default as TemplateCard } from './TemplateCard';
+export { default as PaginationControls } from './PaginationControls';
+export { default as YearMonthNav } from './YearMonthNav';
