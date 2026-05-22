@@ -115,6 +115,10 @@ const FixedExpensesPage = () => {
     (subPocketId: string, groupId: string) => { void actions.handleMoveToGroup(subPocketId, groupId); },
     [actions]
   );
+  const handleToggleGroup = useCallback(
+    (groupId: string, enabled: boolean) => { void actions.handleToggleGroup(groupId, enabled); },
+    [actions]
+  );
 
   if (fixedPockets.length === 0) {
     return (
@@ -157,6 +161,14 @@ const FixedExpensesPage = () => {
         }}
       />
 
+      <button
+        onClick={actions.prepareBatchFromEnabled}
+        className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors"
+      >
+        <Wallet className="w-4 h-4" />
+        Generate Movements
+      </button>
+
       <FixedExpensesList
         groups={fixedExpenseGroups}
         fixedSubPockets={fixedSubPockets}
@@ -164,11 +176,13 @@ const FixedExpensesPage = () => {
         currency={summaryCurrency}
         deletingId={actions.deletingId}
         togglingId={actions.togglingId}
+        togglingGroupId={actions.togglingGroupId}
         onEditGroup={handleEditGroup}
         onDeleteGroup={handleDeleteGroup}
         onEditExpense={handleEditExpense}
         onDeleteExpense={handleDeleteExpense}
         onToggleExpense={handleToggleExpense}
+        onToggleGroup={handleToggleGroup}
         onMoveToGroup={handleMoveToGroup}
       />
 

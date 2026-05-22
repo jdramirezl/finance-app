@@ -11,11 +11,13 @@ export interface FixedExpensesListProps {
   currency: Currency;
   deletingId: string | null;
   togglingId: string | null;
+  togglingGroupId: string | null;
   onEditGroup: (group: FixedExpenseGroup) => void;
   onDeleteGroup: (group: FixedExpenseGroup) => void;
   onEditExpense: (subPocket: SubPocket) => void;
   onDeleteExpense: (id: string) => void;
   onToggleExpense: (id: string) => void;
+  onToggleGroup: (groupId: string, enabled: boolean) => void;
   onMoveToGroup: (subPocketId: string, groupId: string) => void;
 }
 
@@ -29,11 +31,13 @@ const FixedExpensesList = ({
   currency,
   deletingId,
   togglingId,
+  togglingGroupId,
   onEditGroup,
   onDeleteGroup,
   onEditExpense,
   onDeleteExpense,
   onToggleExpense,
+  onToggleGroup,
   onMoveToGroup,
 }: FixedExpensesListProps) => {
   const subPocketsByGroup = useMemo(() => {
@@ -72,9 +76,11 @@ const FixedExpensesList = ({
           onEditExpense={onEditExpense}
           onDeleteExpense={onDeleteExpense}
           onToggleExpense={onToggleExpense}
+          onToggleGroup={onToggleGroup}
           onMoveToGroup={onMoveToGroup}
           deletingId={deletingId}
           togglingId={togglingId}
+          togglingGroupId={togglingGroupId}
         />
       ))}
     </div>

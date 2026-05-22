@@ -19,9 +19,11 @@ interface FixedExpenseGroupCardProps {
   onEditExpense: (subPocket: SubPocket) => void;
   onDeleteExpense: (id: string) => void;
   onToggleExpense: (id: string) => void;
+  onToggleGroup: (groupId: string, enabled: boolean) => void;
   onMoveToGroup: (subPocketId: string, groupId: string) => void;
   deletingId: string | null;
   togglingId: string | null;
+  togglingGroupId: string | null;
 }
 
 type ExpenseStatus = 'SETTLED' | 'RECURRING' | 'IN PROGRESS' | 'DUE SOON' | 'OFF';
@@ -97,9 +99,11 @@ const FixedExpenseGroupCard = ({
   onEditExpense,
   onDeleteExpense,
   onToggleExpense,
+  onToggleGroup,
   onMoveToGroup,
   deletingId,
   togglingId,
+  togglingGroupId,
 }: FixedExpenseGroupCardProps) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -135,8 +139,23 @@ const FixedExpenseGroupCard = ({
           <h3 className="text-xl font-semibold text-gray-100">{group.name}</h3>
         </div>
 
-        {/* Kebab menu */}
-        <div className="relative" ref={menuRef}>
+        {/* Group toggle + Kebab menu */}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => {
+              const anyEnabled = subPockets.some((sp) => sp.enabled);
+              onToggleGroup(group.id, !anyEnabled);
+            }}
+            disabled={togglingGroupId === group.id || subPockets.length === 0}
+            className="text-gray-400 hover:text-blue-400 transition-colors disabled:opacity-50"
+            title={subPockets.some((sp) => sp.enabled) ? 'Disable all in group' : 'Enable all in group'}
+          >
+            {subPockets.some((sp) => sp.enabled)
+              ? <ToggleRight className="w-6 h-6 text-blue-400" />
+              : <ToggleLeft className="w-6 h-6" />}
+          </button>
+
+          <div className="relative" ref={menuRef}>
           <button
             onClick={() => setMenuOpen(!menuOpen)}
             className="p-1 text-gray-400 hover:text-gray-100 transition-colors rounded"
@@ -164,6 +183,7 @@ const FixedExpenseGroupCard = ({
               )}
             </div>
           )}
+        </div>
         </div>
       </div>
 
