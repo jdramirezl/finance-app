@@ -74,7 +74,7 @@ const MovementFormPanel = ({
     <div className="fixed inset-0 z-50 flex items-start justify-center p-4 sm:p-6 pt-12">
       {/* Single shared backdrop */}
       <div
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-backdrop-in transition-opacity"
+        className="absolute inset-0 bg-black/60 animate-backdrop-in transition-opacity"
         onClick={onClose}
         aria-hidden="true"
       />
@@ -86,14 +86,14 @@ const MovementFormPanel = ({
       >
         {/* Form (Main) */}
         <div className={`w-full ${showBatch ? 'max-w-4xl' : 'max-w-2xl'}`}>
-          <div className="bg-surface-container-high/95 backdrop-blur-xl rounded-2xl border border-white/[0.08] max-h-[calc(100dvh-6rem)] overflow-y-auto animate-modal-in flex flex-col">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.06] sticky top-0 bg-surface-container-high/80 backdrop-blur-md z-10">
-              <h2 className="text-xl font-bold text-on-surface">
+          <div className="bg-gray-800 rounded-2xl border border-gray-700 max-h-[calc(100dvh-6rem)] overflow-y-auto animate-modal-in flex flex-col">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-700 sticky top-0 bg-gray-800 z-10">
+              <h2 className="text-xl font-bold text-gray-100">
                 {headerTitle}
               </h2>
               <button
                 onClick={onClose}
-                className="p-2 -mr-2 text-on-surface-variant hover:text-on-surface transition-colors rounded-full hover:bg-surface-container-highest"
+                className="p-2 -mr-2 text-gray-400 hover:text-gray-100 transition-colors rounded-full hover:bg-gray-600"
                 aria-label="Close"
               >
                 <X className="w-5 h-5" />
@@ -127,9 +127,9 @@ const MovementFormPanel = ({
 
         {/* Right panels — kept persistent to avoid layout shifts */}
         <div className="hidden lg:flex flex-col gap-4 w-80 flex-shrink-0 h-[calc(100vh-6rem)] animate-modal-in">
-          <div className="bg-surface-container-high/95 backdrop-blur-xl rounded-2xl border border-white/[0.08] h-[60%] overflow-hidden flex flex-col">
-            <div className="flex items-center justify-between px-4 py-3 border-b border-white/[0.06] flex-shrink-0">
-              <h3 className="text-lg font-semibold text-on-surface">
+          <div className="bg-gray-800 rounded-2xl border border-gray-700 h-[60%] overflow-hidden flex flex-col">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-700 flex-shrink-0">
+              <h3 className="text-lg font-semibold text-gray-100">
                 Account Details
               </h3>
             </div>
@@ -142,9 +142,9 @@ const MovementFormPanel = ({
             </div>
           </div>
 
-          <div className="bg-surface-container-high/95 backdrop-blur-xl rounded-2xl border border-white/[0.08] h-[calc(40%-1rem)] flex flex-col">
-            <div className="flex items-center justify-between px-4 py-3 border-b border-white/[0.06] flex-shrink-0">
-              <h3 className="text-lg font-semibold text-on-surface">
+          <div className="bg-gray-800 rounded-2xl border border-gray-700 h-[calc(40%-1rem)] flex flex-col">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-700 flex-shrink-0">
+              <h3 className="text-lg font-semibold text-gray-100">
                 Quick Calculator
               </h3>
             </div>

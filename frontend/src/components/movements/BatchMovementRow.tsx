@@ -71,17 +71,17 @@ const BatchMovementRowComponent = ({
     return (
         <div
             onFocus={onFocus}
-            className="p-4 border border-outline-variant rounded-lg bg-surface-container/50 space-y-3"
+            className="p-4 border border-gray-600 rounded-lg bg-gray-800/50 space-y-3"
         >
             <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium text-on-surface-variant">
+                <span className="text-sm font-medium text-gray-400">
                     Movement #{index + 1}
                 </span>
                 {canRemove && (
                     <button
                         type="button"
                         onClick={onRemove}
-                        className="text-error hover:text-error/80"
+                        className="text-red-400 hover:text-red-400/80"
                         aria-label={`Remove movement #${index + 1}`}
                         title="Remove this row"
                     >
@@ -140,7 +140,7 @@ const BatchMovementRowComponent = ({
                                                     required
                                                 />
                                                 {(errors?.accountId || errors?.pocketId) && (
-                                                    <p className="text-sm text-error">
+                                                    <p className="text-sm text-red-400">
                                                         {errors?.accountId?.message || errors?.pocketId?.message}
                                                     </p>
                                                 )}

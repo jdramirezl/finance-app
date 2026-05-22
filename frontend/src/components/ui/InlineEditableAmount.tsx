@@ -22,8 +22,8 @@ const InlineEditableAmount = memo(({ amount, isIncome, onSave }: InlineEditableA
     }, [isEditing]);
 
     const colorClass = isIncome
-        ? 'text-success'
-        : 'text-error';
+        ? 'text-green-400'
+        : 'text-red-400';
 
     const startEditing = useCallback(() => {
         setInputValue(String(amount));
@@ -68,7 +68,7 @@ const InlineEditableAmount = memo(({ amount, isIncome, onSave }: InlineEditableA
 
     if (isEditing) {
         return (
-            <span className={`inline-flex items-center gap-1 text-lg font-bold font-mono ${colorClass}`}>
+            <span className={`inline-flex items-center gap-1 text-lg font-bold ${colorClass}`}>
                 {isIncome ? '+' : '-'}$
                 <input
                     ref={inputRef}
@@ -80,7 +80,7 @@ const InlineEditableAmount = memo(({ amount, isIncome, onSave }: InlineEditableA
                     onKeyDown={handleKeyDown}
                     onBlur={save}
                     disabled={isSaving}
-                    className={`w-24 bg-transparent border-b border-current outline-none text-lg font-bold font-mono ${colorClass} ${isSaving ? 'opacity-50' : ''}`}
+                    className={`w-24 bg-transparent border-b border-current outline-none text-lg font-bold ${colorClass} ${isSaving ? 'opacity-50' : ''}`}
                     aria-label="Edit amount"
                 />
                 {isSaving && <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />}
@@ -90,7 +90,7 @@ const InlineEditableAmount = memo(({ amount, isIncome, onSave }: InlineEditableA
 
     return (
         <span
-            className={`text-lg font-bold font-mono ${colorClass} cursor-pointer hover:underline`}
+            className={`text-lg font-bold ${colorClass} cursor-pointer hover:underline`}
             onClick={startEditing}
             role="button"
             tabIndex={0}

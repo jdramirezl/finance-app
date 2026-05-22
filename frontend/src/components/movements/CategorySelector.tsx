@@ -44,7 +44,7 @@ export default function CategorySelector({ value, onChange, label = 'Category' }
 
   return (
     <div ref={containerRef} className="space-y-1 relative">
-      <label className="block text-sm font-medium text-on-surface-variant">
+      <label className="block text-sm font-medium text-gray-400">
         {label}
       </label>
       <div className="relative">
@@ -60,16 +60,16 @@ export default function CategorySelector({ value, onChange, label = 'Category' }
           onChange={handleInputChange}
           onFocus={() => setOpen(true)}
           placeholder="Select or type category..."
-          className={`w-full px-4 py-3 border rounded-xl transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-0 border-outline-variant bg-surface-container-highest text-on-surface focus:border-primary focus:ring-primary/20 ${value ? 'pl-9' : ''}`}
+          className={`w-full px-4 py-3 border rounded-xl transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-0 border-gray-600 bg-gray-600 text-gray-100 focus:border-blue-500 focus:ring-blue-500/20 ${value ? 'pl-9' : ''}`}
         />
       </div>
       {open && filtered.length > 0 && (
-        <ul className="absolute z-50 mt-1 w-full max-h-48 overflow-y-auto bg-surface-container-high border border-white/[0.08] rounded-xl">
+        <ul className="absolute z-50 mt-1 w-full max-h-48 overflow-y-auto bg-gray-700 border border-gray-700 rounded-xl">
           {filtered.map((cat) => (
             <li
               key={cat}
               onClick={() => handleSelect(cat)}
-              className="flex items-center gap-2 px-4 py-2 cursor-pointer hover:bg-surface-container-highest text-sm text-on-surface"
+              className="flex items-center gap-2 px-4 py-2 cursor-pointer hover:bg-gray-600 text-sm text-gray-100"
             >
               <span
                 className="w-2.5 h-2.5 rounded-full flex-shrink-0"

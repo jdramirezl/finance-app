@@ -130,13 +130,13 @@ const BatchMovementForm = forwardRef<BatchMovementFormRef, BatchMovementFormProp
     return (
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-on-surface">
+          <h3 className="text-lg font-semibold text-gray-100">
             Add Multiple Movements
           </h3>
           <button
             type="button"
             onClick={onCancel}
-            className="text-on-surface-variant hover:text-on-surface"
+            className="text-gray-400 hover:text-gray-100"
             aria-label="Close batch movement form"
             title="Close"
           >
@@ -145,7 +145,7 @@ const BatchMovementForm = forwardRef<BatchMovementFormRef, BatchMovementFormProp
         </div>
 
         <div className="space-y-3 mb-4">
-          <div className="text-sm text-on-surface-variant">
+          <div className="text-sm text-gray-400">
             Add multiple movements at once. All movements will be saved together when you click "Save All".
           </div>
 
@@ -154,9 +154,9 @@ const BatchMovementForm = forwardRef<BatchMovementFormRef, BatchMovementFormProp
               type="checkbox"
               checked={watch('markAsPending')}
               onChange={(e) => setValue('markAsPending', e.target.checked)}
-              className="w-4 h-4 text-primary bg-surface-container-highest border-outline-variant rounded focus:ring-primary"
+              className="w-4 h-4 text-blue-500 bg-gray-600 border-gray-600 rounded focus:ring-blue-500"
             />
-            <span className="text-on-surface-variant">
+            <span className="text-gray-400">
               Mark all as pending (won't affect balances until applied)
             </span>
           </label>
@@ -186,7 +186,7 @@ const BatchMovementForm = forwardRef<BatchMovementFormRef, BatchMovementFormProp
           })}
         </div>
 
-        <div className="flex items-center justify-between pt-4 border-t border-outline-variant">
+        <div className="flex items-center justify-between pt-4 border-t border-gray-600">
           <Button type="button" variant="secondary" onClick={addRow} className="flex items-center gap-2">
             <Plus className="w-4 h-4" aria-hidden="true" />
             Add Row

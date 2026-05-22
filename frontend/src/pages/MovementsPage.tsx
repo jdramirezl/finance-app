@@ -223,11 +223,11 @@ const MovementsPage = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <h1 className="text-3xl font-bold text-on-surface tracking-tight">Movements</h1>
+          <h1 className="text-3xl font-bold text-gray-100 tracking-tight">Movements</h1>
           {orphanedCount > 0 && (
             <button
               onClick={() => setShowOrphaned((v) => !v)}
-              className="text-xs text-on-surface-variant hover:text-primary transition-colors"
+              className="text-xs text-gray-400 hover:text-blue-400 transition-colors"
               aria-label={`${showOrphaned ? 'Hide' : 'Show'} orphaned movements (${orphanedCount})`}
               aria-expanded={showOrphaned}
             >

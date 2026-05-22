@@ -33,20 +33,20 @@ export default function TagInput({ value, onChange, label = 'Tags', maxTags = 10
 
   return (
     <div className="space-y-1">
-      <label className="block text-sm font-medium text-on-surface-variant">
+      <label className="block text-sm font-medium text-gray-400">
         {label}
       </label>
-      <div className="flex flex-wrap items-center gap-1.5 px-3 py-2 border border-outline-variant rounded-xl bg-surface-container-highest focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary transition-all duration-200">
+      <div className="flex flex-wrap items-center gap-1.5 px-3 py-2 border border-gray-600 rounded-xl bg-gray-600 focus-within:ring-2 focus-within:ring-blue-500/20 focus-within:border-blue-500 transition-all duration-200">
         {value.map((tag, i) => (
           <span
             key={tag}
-            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-outline-variant text-sm text-on-surface-variant"
+            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-gray-600 text-sm text-gray-400"
           >
             {tag}
             <button
               type="button"
               onClick={() => removeTag(i)}
-              className="text-on-surface-variant hover:text-error"
+              className="text-gray-400 hover:text-red-400"
               aria-label={`Remove tag ${tag}`}
             >
               &times;
@@ -61,12 +61,12 @@ export default function TagInput({ value, onChange, label = 'Tags', maxTags = 10
             onKeyDown={handleKeyDown}
             onBlur={() => { if (input) addTag(input); }}
             placeholder={value.length === 0 ? 'Add tags...' : ''}
-            className="flex-1 min-w-[80px] bg-transparent outline-none text-sm text-on-surface placeholder-on-surface-variant/50"
+            className="flex-1 min-w-[80px] bg-transparent outline-none text-sm text-gray-100 placeholder-gray-500"
           />
         )}
       </div>
       {value.length >= maxTags && (
-        <p className="text-xs text-on-surface-variant">Maximum {maxTags} tags reached</p>
+        <p className="text-xs text-gray-400">Maximum {maxTags} tags reached</p>
       )}
     </div>
   );

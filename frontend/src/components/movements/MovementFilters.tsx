@@ -125,14 +125,14 @@ const MovementFilters = ({ showFilters, setShowFilters, movements, filters, setF
             <div className="flex flex-wrap items-center gap-3">
                 {/* Search input */}
                 <div className="flex-1 min-w-[240px] relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-on-surface-variant" />
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                     <input
                         type="text"
                         placeholder="Search transactions..."
                         value={filters.search}
                         onChange={(e) => setFilters.setSearch(e.target.value)}
                         aria-label="Search movements"
-                        className="w-full bg-surface-container-low border-none rounded-lg pl-10 pr-4 py-2 text-sm focus:ring-1 focus:ring-primary outline-none"
+                        className="w-full bg-gray-800/50 border-none rounded-lg pl-10 pr-4 py-2 text-sm focus:ring-1 focus:ring-blue-500 outline-none"
                     />
                 </div>
 
@@ -140,7 +140,7 @@ const MovementFilters = ({ showFilters, setShowFilters, movements, filters, setF
                 <button
                     type="button"
                     onClick={cycleDateRange}
-                    className="flex items-center gap-2 px-3 py-2 bg-surface-container-low rounded-lg text-sm text-on-surface hover:bg-surface-variant transition-colors"
+                    className="flex items-center gap-2 px-3 py-2 bg-gray-800/50 rounded-lg text-sm text-gray-100 hover:bg-gray-700 transition-colors"
                 >
                     <Calendar className="w-4 h-4" />
                     {DATE_RANGE_LABELS[filters.dateRange]}
@@ -151,37 +151,37 @@ const MovementFilters = ({ showFilters, setShowFilters, movements, filters, setF
                     type="button"
                     onClick={() => setShowFilters(!showFilters)}
                     aria-expanded={showFilters}
-                    className={`flex items-center gap-2 px-3 py-2 bg-surface-container-low rounded-lg text-sm text-on-surface hover:bg-surface-variant transition-colors ${
-                        showFilters || activeFiltersCount > 0 ? 'ring-1 ring-primary/30 text-primary' : ''
+                    className={`flex items-center gap-2 px-3 py-2 bg-gray-800/50 rounded-lg text-sm text-gray-100 hover:bg-gray-700 transition-colors ${
+                        showFilters || activeFiltersCount > 0 ? 'ring-1 ring-blue-500/30 text-blue-400' : ''
                     }`}
                 >
                     <Filter className="w-4 h-4" />
                     More Filters
                     {activeFiltersCount > 0 && (
-                        <span className="ml-1 bg-primary/20 text-primary text-xs px-1.5 py-0.5 rounded-full">
+                        <span className="ml-1 bg-blue-500/20 text-blue-400 text-xs px-1.5 py-0.5 rounded-full">
                             {activeFiltersCount}
                         </span>
                     )}
                 </button>
 
                 {/* Divider */}
-                <div className="h-6 w-px bg-white/10 mx-1" />
+                <div className="h-6 w-px bg-gray-600 mx-1" />
 
                 {/* Pending toggle */}
                 <label className="flex items-center gap-2 cursor-pointer group">
                     <div
                         className={`relative w-10 h-5 rounded-full transition-colors ${
-                            filters.showPending === 'pending' ? 'bg-primary' : 'bg-surface-container-highest group-hover:bg-outline-variant'
+                            filters.showPending === 'pending' ? 'bg-blue-500' : 'bg-gray-600 group-hover:bg-gray-500'
                         }`}
                         onClick={togglePending}
                     >
                         <div
                             className={`absolute top-1 left-1 w-3 h-3 rounded-full transition-transform ${
-                                filters.showPending === 'pending' ? 'translate-x-5 bg-white' : 'bg-on-surface-variant'
+                                filters.showPending === 'pending' ? 'translate-x-5 bg-white' : 'bg-gray-400'
                             }`}
                         />
                     </div>
-                    <span className="text-xs font-medium text-on-surface-variant">Pending only</span>
+                    <span className="text-xs font-medium text-gray-400">Pending only</span>
                 </label>
 
                 {/* Clear filters */}
@@ -189,7 +189,7 @@ const MovementFilters = ({ showFilters, setShowFilters, movements, filters, setF
                     <button
                         type="button"
                         onClick={clearFilters}
-                        className="p-2 text-on-surface-variant hover:text-on-surface rounded-lg hover:bg-surface-variant transition-colors"
+                        className="p-2 text-gray-400 hover:text-gray-100 rounded-lg hover:bg-gray-700 transition-colors"
                         aria-label="Clear all filters"
                     >
                         <X className="w-4 h-4" />
@@ -199,7 +199,7 @@ const MovementFilters = ({ showFilters, setShowFilters, movements, filters, setF
 
             {/* Expanded filter panel */}
             {showFilters && (
-                <div className="p-4 bg-surface-container/80 backdrop-blur-xl rounded-xl border border-white/[0.08] grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="p-4 bg-gray-800 rounded-xl border border-gray-700 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     <Select
                         label="Status"
                         value={filters.showPending}
@@ -316,8 +316,8 @@ const MovementFilters = ({ showFilters, setShowFilters, movements, filters, setF
                     />
                     {availableTags.length > 0 && (
                         <div className="space-y-1">
-                            <label className="block text-sm font-medium text-on-surface-variant">Tags</label>
-                            <div className="flex flex-wrap gap-1.5 p-2 border border-outline-variant rounded-xl bg-surface-container-highest min-h-[44px]">
+                            <label className="block text-sm font-medium text-gray-400">Tags</label>
+                            <div className="flex flex-wrap gap-1.5 p-2 border border-gray-600 rounded-xl bg-gray-600 min-h-[44px]">
                                 {availableTags.map(tag => {
                                     const selected = filters.tags.includes(tag);
                                     return (
@@ -333,8 +333,8 @@ const MovementFilters = ({ showFilters, setShowFilters, movements, filters, setF
                                             }}
                                             className={`px-2 py-0.5 text-xs rounded-full border transition-colors ${
                                                 selected
-                                                    ? 'bg-primary/10 border-primary/30 text-primary'
-                                                    : 'border-outline-variant text-on-surface-variant hover:bg-surface-container-high'
+                                                    ? 'bg-blue-500/10 border-blue-500/30 text-blue-400'
+                                                    : 'border-gray-600 text-gray-400 hover:bg-gray-700'
                                             }`}
                                         >
                                             {tag}

@@ -39,16 +39,16 @@ const getTypeIcon = (type: MovementType, isPending?: boolean) => {
 };
 
 const getTypeIconColor = (type: MovementType, isPending?: boolean) => {
-    if (isPending) return 'bg-primary/20 text-primary';
+    if (isPending) return 'bg-blue-500/20 text-blue-400';
     switch (type) {
         case 'IngresoNormal':
         case 'IngresoFijo':
-            return 'bg-primary-container/20 text-primary-container';
+            return 'bg-blue-600/20 text-blue-400';
         case 'EgresoNormal':
         case 'EgresoFijo':
-            return 'bg-tertiary-container/20 text-tertiary';
+            return 'bg-amber-500/20 text-amber-400';
         default:
-            return 'bg-outline/20 text-outline';
+            return 'bg-gray-500/20 text-gray-400';
     }
 };
 
@@ -78,15 +78,15 @@ const MovementTableRow = memo(({
     return (
         <tr className={`group transition-colors ${
             isPending
-                ? 'border border-dashed border-primary/30 bg-primary/5 hover:bg-primary/10'
-                : 'hover:bg-white/[0.02] border-b border-white/5'
+                ? 'border border-dashed border-blue-500/30 bg-blue-500/5 hover:bg-blue-500/10'
+                : 'hover:bg-gray-700/50 border-b border-gray-700'
         }`}>
             {/* Date */}
             <td className="px-6 py-4">
-                <p className={`font-mono text-xs uppercase ${isPending ? 'text-primary' : 'text-on-surface'}`}>
+                <p className={`text-xs uppercase ${isPending ? 'text-blue-400' : 'text-gray-100'}`}>
                     {format(date, 'MMM dd')}
                 </p>
-                <p className={`text-[10px] uppercase ${isPending ? 'text-primary/70' : 'text-on-surface-variant'}`}>
+                <p className={`text-[10px] uppercase ${isPending ? 'text-blue-400/70' : 'text-gray-400'}`}>
                     {relativeTime}
                 </p>
             </td>
@@ -98,11 +98,11 @@ const MovementTableRow = memo(({
                         <IconComponent className="w-4 h-4" />
                     </div>
                     <div>
-                        <p className="font-medium text-sm text-on-surface">
+                        <p className="font-medium text-sm text-gray-100">
                             {movement.notes || 'Untitled Movement'}
                         </p>
                         {movement.tags && movement.tags.length > 0 && (
-                            <p className="text-[11px] text-on-surface-variant truncate max-w-[200px]">
+                            <p className="text-[11px] text-gray-400 truncate max-w-[200px]">
                                 {movement.tags.join(', ')}
                             </p>
                         )}
@@ -112,8 +112,8 @@ const MovementTableRow = memo(({
 
             {/* Account -> Pocket */}
             <td className="px-6 py-4">
-                <p className="text-xs font-medium text-on-surface">{account?.name || 'Unknown'}</p>
-                <p className="text-[11px] text-on-surface-variant">{pocket?.name || 'Unknown'}</p>
+                <p className="text-xs font-medium text-gray-100">{account?.name || 'Unknown'}</p>
+                <p className="text-[11px] text-gray-400">{pocket?.name || 'Unknown'}</p>
             </td>
 
             {/* Category */}
@@ -129,7 +129,7 @@ const MovementTableRow = memo(({
                         {movement.category}
                     </span>
                 ) : (
-                    <span className="px-2 py-1 bg-surface-container-highest text-[10px] rounded font-bold uppercase text-on-surface-variant">
+                    <span className="px-2 py-1 bg-gray-600 text-[10px] rounded font-bold uppercase text-gray-400">
                         —
                     </span>
                 )}
@@ -149,7 +149,7 @@ const MovementTableRow = memo(({
                 <div className="relative inline-block">
                     <button
                         onClick={() => onEdit(movement)}
-                        className="text-on-surface-variant hover:text-primary transition-colors p-1"
+                        className="text-gray-400 hover:text-blue-400 transition-colors p-1"
                         aria-label={`Actions for ${movement.notes || 'movement'}`}
                     >
                         <MoreVertical className="w-4 h-4" />
@@ -229,11 +229,11 @@ const MovementList = ({
         return (
             <Card padding="lg">
                 <div className="text-center py-12">
-                    <div className="bg-surface-container-high w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <Filter className="w-8 h-8 text-on-surface-variant" />
+                    <div className="bg-gray-700 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <Filter className="w-8 h-8 text-gray-400" />
                     </div>
-                    <h3 className="text-lg font-medium text-on-surface">No movements found</h3>
-                    <p className="text-on-surface-variant mt-2">
+                    <h3 className="text-lg font-medium text-gray-100">No movements found</h3>
+                    <p className="text-gray-400 mt-2">
                         Try adjusting your filters or create a new movement.
                     </p>
                 </div>
@@ -242,36 +242,36 @@ const MovementList = ({
     }
 
     return (
-        <div className="glass-card rounded-xl overflow-hidden">
+        <div className="bg-gray-800 border border-gray-700 rounded-xl overflow-hidden">
             <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse min-w-[900px]">
                     <thead>
-                        <tr className="bg-surface-container-high/50 text-on-surface-variant">
+                        <tr className="bg-gray-700/50 text-gray-400">
                             <th
-                                className="px-6 py-4 text-[11px] font-bold uppercase tracking-widest border-b border-white/5 cursor-pointer hover:text-primary transition-colors"
+                                className="px-6 py-4 text-[11px] font-bold uppercase tracking-widest border-b border-gray-700 cursor-pointer hover:text-blue-400 transition-colors"
                                 onClick={() => handleSort('displayedDate')}
                             >
                                 Date <SortIcon field="displayedDate" />
                             </th>
-                            <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-widest border-b border-white/5">
+                            <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-widest border-b border-gray-700">
                                 Movement
                             </th>
-                            <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-widest border-b border-white/5">
+                            <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-widest border-b border-gray-700">
                                 Account → Pocket
                             </th>
-                            <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-widest border-b border-white/5">
+                            <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-widest border-b border-gray-700">
                                 Category
                             </th>
                             <th
-                                className="px-6 py-4 text-[11px] font-bold uppercase tracking-widest border-b border-white/5 cursor-pointer hover:text-primary transition-colors text-right"
+                                className="px-6 py-4 text-[11px] font-bold uppercase tracking-widest border-b border-gray-700 cursor-pointer hover:text-blue-400 transition-colors text-right"
                                 onClick={() => handleSort('amount')}
                             >
                                 Amount <SortIcon field="amount" />
                             </th>
-                            <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-widest border-b border-white/5" />
+                            <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-widest border-b border-gray-700" />
                         </tr>
                     </thead>
-                    <tbody className="divide-y divide-white/5">
+                    <tbody className="divide-y divide-gray-700">
                         {movements.map((movement) => (
                             <MovementTableRow
                                 key={movement.id}
@@ -289,15 +289,15 @@ const MovementList = ({
             </div>
 
             {/* Pagination */}
-            <div className="p-4 bg-surface-container-high/30 flex justify-between items-center border-t border-white/5">
-                <span className="text-xs text-on-surface-variant">
+            <div className="p-4 bg-gray-700/30 flex justify-between items-center border-t border-gray-700">
+                <span className="text-xs text-gray-400">
                     Showing {startItem}-{endItem} of {totalCount.toLocaleString()} movements
                 </span>
                 <div className="flex gap-2">
                     <button
                         onClick={() => onPageChange(page - 1)}
                         disabled={page <= 1}
-                        className="w-8 h-8 flex items-center justify-center rounded border border-white/5 hover:bg-white/5 disabled:opacity-30 disabled:cursor-not-allowed"
+                        className="w-8 h-8 flex items-center justify-center rounded border border-gray-700 hover:bg-gray-700/50 disabled:opacity-30 disabled:cursor-not-allowed"
                     >
                         <ChevronLeft className="w-4 h-4" />
                     </button>
@@ -307,8 +307,8 @@ const MovementList = ({
                             onClick={() => onPageChange(p)}
                             className={`w-8 h-8 flex items-center justify-center rounded text-xs font-bold ${
                                 p === page
-                                    ? 'bg-primary text-background'
-                                    : 'border border-white/5 hover:bg-white/5'
+                                    ? 'bg-blue-500 text-white'
+                                    : 'border border-gray-700 hover:bg-gray-700/50'
                             }`}
                         >
                             {p}
@@ -317,7 +317,7 @@ const MovementList = ({
                     <button
                         onClick={() => onPageChange(page + 1)}
                         disabled={page >= totalPages}
-                        className="w-8 h-8 flex items-center justify-center rounded border border-white/5 hover:bg-white/5 disabled:opacity-30 disabled:cursor-not-allowed"
+                        className="w-8 h-8 flex items-center justify-center rounded border border-gray-700 hover:bg-gray-700/50 disabled:opacity-30 disabled:cursor-not-allowed"
                     >
                         <ChevronRight className="w-4 h-4" />
                     </button>

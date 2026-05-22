@@ -91,13 +91,13 @@ const QuickAddMovement = ({ variant, onExpandToFull, onClose, onSuccess }: Quick
     <div
       role="form"
       aria-label="Quick add movement"
-      className="glass-card rounded-xl p-4 mb-6"
+      className="bg-gray-800 border border-gray-700 rounded-xl p-4 mb-6"
     >
       <div className="flex flex-wrap items-center gap-4">
         {/* $ amount input */}
         <div className="flex-1 min-w-[180px]">
           <div className="relative">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant font-mono text-sm">$</span>
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">$</span>
             <input
               ref={amountRef}
               type="text"
@@ -107,13 +107,13 @@ const QuickAddMovement = ({ variant, onExpandToFull, onClose, onSuccess }: Quick
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               onKeyDown={handleKeyDown}
-              className="w-full bg-surface-container-lowest border border-outline-variant focus:border-primary rounded px-8 py-2 font-mono text-sm text-on-surface outline-none transition-all"
+              className="w-full bg-gray-900 border border-gray-600 focus:border-blue-500 rounded px-8 py-2 text-sm text-gray-100 outline-none transition-all"
             />
           </div>
         </div>
 
         {/* 3-button type toggle */}
-        <div className="flex bg-surface-container-lowest p-1 rounded-lg border border-outline-variant">
+        <div className="flex bg-gray-900 p-1 rounded-lg border border-gray-600">
           {typeButtons.map((btn) => (
             <button
               key={btn.value}
@@ -123,9 +123,9 @@ const QuickAddMovement = ({ variant, onExpandToFull, onClose, onSuccess }: Quick
               className={`px-4 py-1.5 rounded text-xs font-bold transition-colors ${
                 type === btn.value
                   ? btn.value === 'expense'
-                    ? 'bg-error-container text-white'
-                    : 'bg-primary/20 text-primary'
-                  : 'hover:bg-white/5 text-on-surface-variant'
+                    ? 'bg-red-500 text-white'
+                    : 'bg-blue-500/20 text-blue-400'
+                  : 'hover:bg-gray-700/50 text-gray-400'
               }`}
             >
               {btn.label}
@@ -138,7 +138,7 @@ const QuickAddMovement = ({ variant, onExpandToFull, onClose, onSuccess }: Quick
           value={accountId}
           onChange={(e) => setAccountId(e.target.value)}
           aria-label="Account"
-          className="bg-surface-container-lowest border border-outline-variant rounded px-4 py-2 text-sm text-on-surface outline-none"
+          className="bg-gray-900 border border-gray-600 rounded px-4 py-2 text-sm text-gray-100 outline-none"
         >
           {accounts.map((acc) => (
             <option key={acc.id} value={acc.id}>{acc.name}</option>
@@ -150,7 +150,7 @@ const QuickAddMovement = ({ variant, onExpandToFull, onClose, onSuccess }: Quick
           value={pocketId}
           onChange={(e) => setPocketId(e.target.value)}
           aria-label="Pocket"
-          className="bg-surface-container-lowest border border-outline-variant rounded px-4 py-2 text-sm text-on-surface outline-none"
+          className="bg-gray-900 border border-gray-600 rounded px-4 py-2 text-sm text-gray-100 outline-none"
         >
           {filteredPockets.map((p) => (
             <option key={p.id} value={p.id}>{p.name}</option>
@@ -162,26 +162,26 @@ const QuickAddMovement = ({ variant, onExpandToFull, onClose, onSuccess }: Quick
           type="button"
           disabled={!isValid || createMovement.isPending}
           onClick={handleSubmit}
-          className="w-10 h-10 flex items-center justify-center rounded-lg bg-primary/20 text-primary hover:bg-primary/30 transition-all disabled:opacity-40"
+          className="w-10 h-10 flex items-center justify-center rounded-lg bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 transition-all disabled:opacity-40"
           aria-label="Submit quick add"
         >
           {showSuccess ? (
-            <span className="text-success font-bold">✓</span>
+            <span className="text-green-400 font-bold">✓</span>
           ) : (
             <Send className="w-4 h-4" />
           )}
         </button>
       </div>
-      {error && <p className="text-xs text-error mt-2">{error}</p>}
+      {error && <p className="text-xs text-red-400 mt-2">{error}</p>}
     </div>
   );
 
   if (variant === 'modal') {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} aria-hidden="true" />
-        <div className="relative w-full max-w-lg bg-surface-container-high/95 backdrop-blur-xl rounded-2xl border border-white/[0.08] p-5">
-          <h3 className="text-sm font-semibold text-on-surface-variant mb-3">Quick Add</h3>
+        <div className="absolute inset-0 bg-black/60" onClick={onClose} aria-hidden="true" />
+        <div className="relative w-full max-w-lg bg-gray-800 rounded-2xl border border-gray-700 p-5">
+          <h3 className="text-sm font-semibold text-gray-400 mb-3">Quick Add</h3>
           {form}
         </div>
       </div>
