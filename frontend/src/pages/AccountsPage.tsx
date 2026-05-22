@@ -191,13 +191,12 @@ const AccountsPage = () => {
       {/* Header */}
       <section className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-on-surface">Accounts</h2>
-          <p className="text-on-surface-variant text-sm">Manage your global liquidity and asset distribution.</p>
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Accounts</h2>
+          <p className="text-gray-600 dark:text-gray-400 text-sm">Manage your global liquidity and asset distribution.</p>
         </div>
         <Button
-          variant="outline"
+          variant="primary"
           onClick={() => { setShowAccountForm(true); setEditingAccount(null); }}
-          className="border-2 border-primary-container text-primary font-bold rounded-lg px-6 py-2.5 hover:bg-primary/5"
           aria-label="Create new account"
         >
           <Plus className="w-5 h-5" aria-hidden="true" />
@@ -206,7 +205,7 @@ const AccountsPage = () => {
       </section>
 
       {error && (
-        <div className="p-4 bg-error/10 border border-error/20 text-error rounded-xl">
+        <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-300 dark:border-red-600 text-red-600 dark:text-red-400 rounded-xl">
           {error}
         </div>
       )}
@@ -214,13 +213,13 @@ const AccountsPage = () => {
       {/* Search + Filter chips */}
       <div className="flex gap-4 overflow-x-auto pb-2">
         <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-on-surface-variant" aria-hidden="true" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-gray-500" aria-hidden="true" />
           <input
             type="text"
             placeholder="Search accounts..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-surface-container-low border-none rounded-lg pl-10 pr-4 py-2 text-sm text-on-surface placeholder:text-on-surface-variant/40 focus:ring-1 focus:ring-primary/50 focus:outline-none"
+            className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg pl-10 pr-4 py-2 text-sm text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:ring-1 focus:ring-blue-500/50 dark:focus:ring-blue-400/50 focus:outline-none"
           />
         </div>
         <div className="flex gap-2">
@@ -230,8 +229,8 @@ const AccountsPage = () => {
               onClick={() => setActiveFilter(chip.value)}
               className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
                 activeFilter === chip.value
-                  ? 'bg-primary/10 text-primary border border-primary/20 font-bold'
-                  : 'bg-white/5 text-on-surface-variant border border-white/5 hover:bg-white/10'
+                  ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 border border-blue-500/20 font-bold'
+                  : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-gray-600 hover:bg-gray-200 dark:hover:bg-gray-600'
               }`}
             >
               {chip.label}
@@ -273,34 +272,34 @@ const AccountsPage = () => {
                     onClick={() => handleSelectAccount(account)}
                     className={`flex items-center gap-4 px-4 py-3 rounded-lg cursor-pointer transition-colors border ${
                       isSelected
-                        ? 'bg-primary/10 border-primary/30'
-                        : 'bg-white/5 border-white/5 hover:bg-white/10'
+                        ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-500 dark:border-blue-400'
+                        : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700'
                     }`}
                   >
-                    <div className="w-9 h-9 rounded-lg flex items-center justify-center bg-primary/10 text-primary shrink-0">
+                    <div className="w-9 h-9 rounded-lg flex items-center justify-center bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 shrink-0">
                       <Icon className="w-4 h-4" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-bold text-on-surface truncate">{account.name}</p>
-                      <p className="text-xs text-on-surface-variant font-mono truncate">{subtitle}</p>
+                      <p className="text-sm font-bold text-gray-900 dark:text-gray-100 truncate">{account.name}</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{subtitle}</p>
                     </div>
-                    <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-white/5 text-on-surface-variant shrink-0">
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 shrink-0">
                       {account.currency}
                     </span>
-                    <span className="font-mono text-sm font-bold text-on-surface whitespace-nowrap">
+                    <span className="text-sm font-bold text-gray-900 dark:text-gray-100 whitespace-nowrap">
                       {currencyService.formatCurrency(account.balance, account.currency)}
                     </span>
                     <div className="flex gap-1 shrink-0">
                       <button
                         onClick={(e) => { e.stopPropagation(); isCDAccount(account) ? handleEditCD(account) : handleEditAccount(account); }}
-                        className="p-1.5 rounded-md hover:bg-white/10 text-on-surface-variant hover:text-on-surface transition-colors"
+                        className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
                         aria-label={`Edit ${account.name}`}
                       >
                         <Edit2 className="w-3.5 h-3.5" />
                       </button>
                       <button
                         onClick={(e) => { e.stopPropagation(); handleDeleteAccount(account.id); }}
-                        className="p-1.5 rounded-md hover:bg-error/10 text-on-surface-variant hover:text-error transition-colors"
+                        className="p-1.5 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20 text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 transition-colors"
                         aria-label={`Delete ${account.name}`}
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -315,7 +314,7 @@ const AccountsPage = () => {
 
         {/* Right: Pocket Management Panel */}
         <div className="lg:col-span-1">
-          <div className="glass-card rounded-xl p-5 sticky top-6">
+          <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-5 sticky top-6">
             {selectedAccountId ? (
               <PocketManagementSection
                 accountId={selectedAccountId}
@@ -328,8 +327,8 @@ const AccountsPage = () => {
               />
             ) : (
               <div className="flex flex-col items-center justify-center py-12 text-center">
-                <Wallet className="w-10 h-10 text-on-surface-variant/40 mb-3" aria-hidden="true" />
-                <p className="text-on-surface-variant text-sm">Select an account to manage pockets</p>
+                <Wallet className="w-10 h-10 text-gray-400 dark:text-gray-500 mb-3" aria-hidden="true" />
+                <p className="text-gray-500 dark:text-gray-400 text-sm">Select an account to manage pockets</p>
               </div>
             )}
           </div>

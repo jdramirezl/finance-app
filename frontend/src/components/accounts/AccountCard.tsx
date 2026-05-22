@@ -43,7 +43,7 @@ const AccountCard = ({
     return (
         <div
             onClick={() => onSelect(account)}
-            className={`glass-card rounded-xl overflow-hidden flex flex-col relative border-t-4 transition-transform hover:scale-[1.01] shadow-xl group cursor-pointer ${isSelected ? 'ring-2 ring-primary' : ''}`}
+            className={`bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden flex flex-col relative border-t-4 transition-transform hover:scale-[1.01] shadow-xl group cursor-pointer ${isSelected ? 'ring-2 ring-blue-500 dark:ring-blue-400' : ''}`}
             style={{ borderTopColor: account.color }}
         >
             <div className="p-5 flex-1">
@@ -57,8 +57,8 @@ const AccountCard = ({
                             {getAccountIcon(account)}
                         </div>
                         <div>
-                            <h3 className="font-semibold text-lg text-on-surface">{account.name}</h3>
-                            <p className="text-[10px] uppercase tracking-widest text-on-surface-variant">
+                            <h3 className="font-semibold text-lg text-gray-900 dark:text-gray-100">{account.name}</h3>
+                            <p className="text-[10px] uppercase tracking-widest text-gray-500 dark:text-gray-400">
                                 {getTypeLabel(account, isFixedExpensesAccount)}
                             </p>
                         </div>
@@ -67,14 +67,14 @@ const AccountCard = ({
                         className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
                         onClick={(e) => e.stopPropagation()}
                     >
-                        <button className="p-1 hover:text-primary transition-colors cursor-grab active:cursor-grabbing">
+                        <button className="p-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-grab active:cursor-grabbing">
                             <GripVertical className="w-[18px] h-[18px]" aria-hidden="true" />
                         </button>
-                        <button className="p-1 hover:text-primary transition-colors" onClick={() => onEdit(account)}>
+                        <button className="p-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors" onClick={() => onEdit(account)}>
                             <Edit2 className="w-[18px] h-[18px]" aria-hidden="true" />
                         </button>
                         <button
-                            className="p-1 hover:text-error transition-colors"
+                            className="p-1 hover:text-red-600 dark:hover:text-red-400 transition-colors"
                             onClick={() => onDelete(account.id)}
                             disabled={isDeleting}
                         >
@@ -86,13 +86,13 @@ const AccountCard = ({
                 {/* Currency badge + Balance */}
                 <div className="mb-6">
                     <span
-                        className="inline-block px-2 py-0.5 rounded font-mono text-[10px] mb-2 tracking-widest"
+                        className="inline-block px-2 py-0.5 rounded text-[10px] mb-2 tracking-widest"
                         style={{ backgroundColor: `${account.color}1a`, color: account.color }}
                     >
                         {account.currency}
                     </span>
                     <div
-                        className="font-mono text-[28px] tracking-tight"
+                        className="text-[28px] tracking-tight"
                         style={{ color: account.color }}
                     >
                         {account.balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -100,9 +100,9 @@ const AccountCard = ({
                 </div>
 
                 {/* Collapsible Pockets */}
-                <div className="border-t border-white/5 pt-4">
+                <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
                     <button
-                        className="w-full flex justify-between items-center text-on-surface-variant hover:text-on-surface transition-colors mb-2"
+                        className="w-full flex justify-between items-center text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors mb-2"
                         onClick={(e) => { e.stopPropagation(); setPocketsExpanded(!pocketsExpanded); }}
                     >
                         <span className="text-[12px] font-bold tracking-wider">
@@ -118,19 +118,19 @@ const AccountCard = ({
                         style={{ maxHeight: pocketsExpanded ? '500px' : '0px' }}
                     >
                         {pockets.length === 0 && (
-                            <p className="text-[12px] text-center text-on-surface-variant/40 py-2">No pockets defined</p>
+                            <p className="text-[12px] text-center text-gray-400 dark:text-gray-500 py-2">No pockets defined</p>
                         )}
                         {pockets.map((pocket) => (
-                            <div key={pocket.id} className="flex justify-between items-center p-2 rounded bg-white/5">
+                            <div key={pocket.id} className="flex justify-between items-center p-2 rounded bg-gray-50 dark:bg-gray-700/50">
                                 <span className="text-sm">{pocket.name}</span>
-                                <span className="font-mono text-sm">
+                                <span className="text-sm">
                                     {pocket.balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                 </span>
                             </div>
                         ))}
                         {onAddPocket && (
                             <button
-                                className="w-full py-2 border border-dashed border-white/20 rounded text-[11px] font-bold text-on-surface-variant hover:border-primary hover:text-primary transition-colors mt-2"
+                                className="w-full py-2 border border-dashed border-gray-300 dark:border-gray-600 rounded text-[11px] font-bold text-gray-500 dark:text-gray-400 hover:border-blue-500 dark:hover:border-blue-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors mt-2"
                                 onClick={(e) => { e.stopPropagation(); onAddPocket(); }}
                             >
                                 + ADD POCKET

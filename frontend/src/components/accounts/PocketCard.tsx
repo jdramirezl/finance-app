@@ -37,16 +37,16 @@ const PocketCard = ({
     const isInvestment = pocket.name === 'Shares' || pocket.name === 'Invested Money';
 
     let icon = null;
-    let iconColor = 'text-on-surface-variant';
+    let iconColor = 'text-gray-500 dark:text-gray-400';
 
     if (isFixed) {
         icon = <Lock className="w-4 h-4" aria-hidden="true" />;
-        iconColor = 'text-secondary';
+        iconColor = 'text-blue-600 dark:text-blue-400';
     } else if (isInvestment) {
         icon = pocket.name === 'Shares'
             ? <PieChart className="w-4 h-4" aria-hidden="true" />
             : <Banknote className="w-4 h-4" aria-hidden="true" />;
-        iconColor = 'text-tertiary';
+        iconColor = 'text-amber-500 dark:text-amber-400';
     } else {
         icon = <Wallet className="w-4 h-4" aria-hidden="true" />;
     }
@@ -54,18 +54,18 @@ const PocketCard = ({
     const showMigrate = isFixed && onMigrate;
 
     return (
-        <div className="flex items-center justify-between p-3 rounded-lg group transition-all bg-surface-container-high/50 border border-white/[0.06] hover:bg-surface-container-high/80">
+        <div className="flex items-center justify-between p-3 rounded-lg group transition-all bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700">
             <div className="flex items-center gap-3 min-w-0 flex-1">
                 {icon && (
-                    <div className={`p-1.5 bg-surface-container-highest/50 rounded-md flex-shrink-0 ${iconColor}`}>
+                    <div className={`p-1.5 bg-gray-100 dark:bg-gray-700 rounded-md flex-shrink-0 ${iconColor}`}>
                         {icon}
                     </div>
                 )}
                 <div className="min-w-0 flex-1">
-                    <p className="font-medium text-on-surface truncate">{pocket.name}</p>
-                    <p className="text-sm text-on-surface-variant truncate">
+                    <p className="font-medium text-gray-900 dark:text-gray-100 truncate">{pocket.name}</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 truncate">
                         {isFixed ? 'Fixed Expense' : (isInvestment ? 'Investment' : pocket.type)} •{' '}
-                        <span className="font-mono">
+                        <span>
                             {pocket.balance.toLocaleString(undefined, {
                                 style: 'currency',
                                 currency: pocket.currency,

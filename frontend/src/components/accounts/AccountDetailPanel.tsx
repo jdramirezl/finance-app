@@ -62,7 +62,7 @@ const AccountDetailPanel = ({
             >
               <ArrowLeft className="w-5 h-5" aria-hidden="true" />
             </Button>
-            <h2 className="text-xl font-semibold text-on-surface">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
               Account Details
             </h2>
           </div>
@@ -76,7 +76,7 @@ const AccountDetailPanel = ({
           </Button>
         </div>
 
-        <div className="flex items-center gap-4 p-4 bg-surface-container-high/50 rounded-lg border border-white/[0.06]">
+        <div className="flex items-center gap-4 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-700">
           <div
             className="w-12 h-12 rounded-lg flex items-center justify-center text-white font-bold text-xl"
             style={{ backgroundColor: account.color }}
@@ -84,12 +84,12 @@ const AccountDetailPanel = ({
             {account.currency}
           </div>
           <div>
-            <h3 className="text-lg font-bold text-on-surface">
+            <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">
               {account.name}
             </h3>
-            <p className="text-on-surface-variant">
+            <p className="text-gray-500 dark:text-gray-400">
               Balance:{' '}
-              <span className={`font-mono font-medium ${account.balance >= 0 ? 'text-primary' : 'text-error'}`}>
+              <span className={`font-medium ${account.balance >= 0 ? 'text-blue-600 dark:text-blue-400' : 'text-red-600 dark:text-red-400'}`}>
                 ${account.balance.toLocaleString()}
               </span>
             </p>
