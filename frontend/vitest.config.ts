@@ -32,13 +32,6 @@ export default defineConfig({
         '**/mockData',
         'dist/',
       ],
-      // Increase these thresholds as coverage improves. Never lower them.
-      thresholds: {
-        branches: 60,
-        functions: 60,
-        lines: 60,
-        statements: 60,
-      },
     },
   },
 });

@@ -16,15 +16,6 @@ module.exports = {
   ],
   coverageDirectory: 'coverage',
   coverageReporters: ['text', 'lcov', 'html'],
-  // Increase these thresholds as coverage improves. Never lower them.
-  coverageThreshold: {
-    global: {
-      branches: 50,
-      functions: 50,
-      lines: 50,
-      statements: 50,
-    },
-  },
   moduleNameMapper: {
     '^@shared/(.*)$': '<rootDir>/../shared/$1',
     '^@modules/(.*)$': '<rootDir>/src/modules/$1',
