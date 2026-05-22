@@ -24,6 +24,7 @@ import { Skeleton } from '../components/ui/Skeleton';
 import {
   FixedExpenseForm,
   FixedExpenseGroupForm,
+  FixedExpensesHeader,
   FixedExpensesList,
 } from '../components/fixed-expenses';
 import { FixedExpensesSummary } from '../components/summary';
@@ -44,7 +45,7 @@ const FixedExpensesPage = () => {
   const toast = useToast();
   const { confirm } = useConfirmDialog();
 
-  // Modal state
+  // Modal state — page owns it so the form components can be wired below.
   const [showForm, setShowForm] = useState(false);
   const [showGroupForm, setShowGroupForm] = useState(false);
   const [editingSubPocket, setEditingSubPocket] = useState<SubPocket | null>(null);
@@ -81,6 +82,7 @@ const FixedExpensesPage = () => {
             sp.periodicityMonths,
             sp.balance
           );
+          // Negative balance: compensate the deficit + the normal monthly payment.
           if (sp.balance < 0) {
             return sum + monthly + Math.abs(sp.balance);
           }
@@ -104,7 +106,7 @@ const FixedExpensesPage = () => {
     confirm,
   });
 
-  // Stable handlers
+  // Stable handlers passed to memoized FixedExpenseGroupCard via the list.
   const handleEditGroup = useCallback((group: FixedExpenseGroup) => {
     setEditingGroup(group);
     setShowGroupForm(true);
@@ -114,23 +116,33 @@ const FixedExpensesPage = () => {
     setShowForm(true);
   }, []);
   const handleDeleteGroup = useCallback(
-    (group: FixedExpenseGroup) => { void actions.handleDeleteGroup(group); },
+    (group: FixedExpenseGroup) => {
+      void actions.handleDeleteGroup(group);
+    },
     [actions]
   );
   const handleDeleteExpense = useCallback(
-    (id: string) => { void actions.handleDeleteSubPocket(id); },
+    (id: string) => {
+      void actions.handleDeleteSubPocket(id);
+    },
     [actions]
   );
   const handleToggleExpense = useCallback(
-    (id: string) => { void actions.handleToggleSubPocket(id); },
+    (id: string) => {
+      void actions.handleToggleSubPocket(id);
+    },
     [actions]
   );
   const handleMoveToGroup = useCallback(
-    (subPocketId: string, groupId: string) => { void actions.handleMoveToGroup(subPocketId, groupId); },
+    (subPocketId: string, groupId: string) => {
+      void actions.handleMoveToGroup(subPocketId, groupId);
+    },
     [actions]
   );
   const handleToggleGroup = useCallback(
-    (groupId: string, enabled: boolean) => { void actions.handleToggleGroup(groupId, enabled); },
+    (groupId: string, enabled: boolean) => {
+      void actions.handleToggleGroup(groupId, enabled);
+    },
     [actions]
   );
 
@@ -164,32 +176,17 @@ const FixedExpensesPage = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <PageHeader title="Fixed Expenses" />
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-gray-500 dark:text-gray-400">
-            {fixedPockets.length} pocket{fixedPockets.length !== 1 ? 's' : ''} · {enabledCount} enabled
-          </span>
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={actions.prepareBatchFromEnabled}
-          >
-            <Wallet className="w-4 h-4" aria-hidden="true" />
-            Generate Movements
-          </Button>
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={() => {
-              setEditingSubPocket(null);
-              setShowForm(true);
-            }}
-          >
-            New Expense
-          </Button>
-        </div>
-      </div>
+      <FixedExpensesHeader
+        pocketCount={fixedPockets.length}
+        enabledExpenseCount={enabledCount}
+        totalMonthly={totalFijosMes}
+        currency={summaryCurrency}
+        onCreateMovements={actions.prepareBatchFromEnabled}
+        onNewExpense={() => {
+          setEditingSubPocket(null);
+          setShowForm(true);
+        }}
+      />
 
       <div className="space-y-4">
         {fixedPockets.length === 0 ? (
@@ -233,9 +230,12 @@ const FixedExpensesPage = () => {
         fixedSubPockets={fixedSubPockets}
         pocketAccountMap={pocketAccountMap}
         currency={summaryCurrency}
+        collapsedGroups={actions.collapsedGroups}
         togglingGroupId={actions.togglingGroupId}
         deletingId={actions.deletingId}
         togglingId={actions.togglingId}
+        onReorderGroups={actions.handleReorderGroups}
+        onToggleCollapse={actions.toggleGroupCollapse}
         onToggleGroup={handleToggleGroup}
         onEditGroup={handleEditGroup}
         onDeleteGroup={handleDeleteGroup}
