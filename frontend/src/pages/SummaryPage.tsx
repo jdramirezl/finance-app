@@ -131,25 +131,31 @@ const SummaryPage = () => {
       <div className="space-y-6">
         <PageHeader title="Summary" />
 
-        <ErrorBoundary>
-          {accountsIsError || settingsIsError ? (
-            <div className="space-y-2">
-              {accountsIsError && (
-                <QueryErrorCard title="accounts" error={accountsError} onRetry={() => accountsRefetch()} />
-              )}
-              {settingsIsError && (
-                <QueryErrorCard title="settings" error={settingsError} onRetry={() => settingsRefetch()} />
-              )}
-            </div>
-          ) : (
-            <TotalsSummary
-              consolidatedTotal={consolidatedTotal}
-              primaryCurrency={primaryCurrency}
-              totalsByCurrency={totalsByCurrency}
-              isConsolidatedReady={isConsolidatedReady}
-            />
-          )}
-        </ErrorBoundary>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <ErrorBoundary>
+            {accountsIsError || settingsIsError ? (
+              <div className="space-y-2">
+                {accountsIsError && (
+                  <QueryErrorCard title="accounts" error={accountsError} onRetry={() => accountsRefetch()} />
+                )}
+                {settingsIsError && (
+                  <QueryErrorCard title="settings" error={settingsError} onRetry={() => settingsRefetch()} />
+                )}
+              </div>
+            ) : (
+              <TotalsSummary
+                consolidatedTotal={consolidatedTotal}
+                primaryCurrency={primaryCurrency}
+                totalsByCurrency={totalsByCurrency}
+                isConsolidatedReady={isConsolidatedReady}
+              />
+            )}
+          </ErrorBoundary>
+
+          <ErrorBoundary>
+            <NetWorthTimelineWidget />
+          </ErrorBoundary>
+        </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <ErrorBoundary>
@@ -176,13 +182,6 @@ const SummaryPage = () => {
           </ErrorBoundary>
 
           <div className="space-y-6">
-            <ErrorBoundary>
-            </ErrorBoundary>
-
-            <ErrorBoundary>
-              <NetWorthTimelineWidget />
-            </ErrorBoundary>
-
             <ErrorBoundary>
               {subPocketsIsError || fixedExpenseGroupsIsError ? (
                 <div className="space-y-2">
