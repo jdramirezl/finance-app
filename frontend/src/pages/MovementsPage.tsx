@@ -37,7 +37,8 @@ import MovementFormPanel from '../components/movements/MovementFormPanel';
 import RestoreOrphanedModal from '../components/movements/RestoreOrphanedModal';
 import QuickAddMovement from '../components/movements/QuickAddMovement';
 import YearMonthNav from '../components/movements/YearMonthNav';
-import PaginationControls from '../components/movements/PaginationControls';
+import FloatingStatsBar from '../components/summary/FloatingStatsBar';
+import { SelectionProvider } from '../contexts/SelectionContext';
 
 const EMPTY_POCKETS: Pocket[] = [];
 const EMPTY_SUBPOCKETS: SubPocket[] = [];
@@ -71,12 +72,12 @@ const MovementsPage = () => {
     [yearsData, selectedYear],
   );
 
-  // Fetch movements for selected month + page
+  // Fetch movements for selected month + page (accumulate all pages up to currentPage)
   const {
     data: monthlyData,
     isLoading: movementsLoading,
     isFetching,
-  } = useMonthlyMovementsQuery(selectedYear, selectedMonth, currentPage, pageSize, {
+  } = useMonthlyMovementsQuery(selectedYear, selectedMonth, 1, currentPage * pageSize, {
     category: apiCategory !== 'all' ? apiCategory : undefined,
     tags: apiTags.length > 0 ? apiTags : undefined,
   });
@@ -86,7 +87,7 @@ const MovementsPage = () => {
     [monthlyData],
   );
   const totalMovements = monthlyData?.total ?? 0;
-  const totalPages = Math.ceil(totalMovements / pageSize);
+  const allLoaded = movements.length >= totalMovements;
 
   const { data: movementTemplates = EMPTY_TEMPLATES, isLoading: templatesLoading } = useMovementTemplatesQuery();
   const { data: orphanedMovements = EMPTY_MOVEMENTS } = useOrphanedMovementsQuery();
@@ -122,15 +123,18 @@ const MovementsPage = () => {
   const [batchActivePocketId, setBatchActivePocketId] = useState<string>('');
   const [batchRows, setBatchRows] = useState<BatchMovementRow[]>([]);
 
-  // Year/month selection handler — resets page to 1
+  // Year/month selection handler — resets page to 1, auto-selects available month
   const handleYearMonthSelect = useCallback((year: number, month: number) => {
     setSelectedYear(year);
-    setSelectedMonth(month);
+    const yearEntry = yearsData?.years.find((y) => y.year === year);
+    const available = yearEntry?.months ?? [];
+    const newMonth = available.includes(month) ? month : (available[0] || month);
+    setSelectedMonth(newMonth);
     setCurrentPage(1);
-  }, []);
+  }, [yearsData]);
 
-  const handlePageChange = useCallback((page: number) => {
-    setCurrentPage(page);
+  const handleShowMore = useCallback(() => {
+    setCurrentPage((p) => p + 1);
   }, []);
 
   // URL-driven filters and form opens (expandMonth is no-op now)
@@ -236,7 +240,10 @@ const MovementsPage = () => {
 
   const orphanedCount = orphanedMovements.length;
 
+  const primaryCurrency = settings?.primaryCurrency || 'USD';
+
   return (
+    <SelectionProvider>
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Movements</h1>
@@ -305,13 +312,16 @@ const MovementsPage = () => {
         deletingId={deletingId} applyingId={applyingId}
       />
 
-      <PaginationControls
-        page={currentPage}
-        totalPages={totalPages}
-        totalItems={totalMovements}
-        pageSize={pageSize}
-        onPageChange={handlePageChange}
-      />
+      {!allLoaded && (
+        <div className="flex flex-col items-center gap-2 py-4">
+          <span className="text-sm text-gray-500 dark:text-gray-400">
+            Showing {movements.length} of {totalMovements} movements
+          </span>
+          <Button variant="secondary" onClick={handleShowMore} disabled={isFetching}>
+            {isFetching ? 'Loading...' : 'Show More'}
+          </Button>
+        </div>
+      )}
 
       {orphanedCount > 0 && !showOrphaned && (
         <div className="text-center py-3 mt-4">
@@ -356,7 +366,10 @@ const MovementsPage = () => {
         isSubmitting={restore.isSubmitting}
         onConfirm={restore.confirmRestore}
       />
+
+      <FloatingStatsBar primaryCurrency={primaryCurrency} />
     </div>
+    </SelectionProvider>
   );
 };
 

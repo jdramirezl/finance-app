@@ -185,7 +185,7 @@ const SummaryPage = () => {
             </ErrorBoundary>
 
             <ErrorBoundary>
-              <div className="space-y-4 h-[400px]">
+              <div className="space-y-4 h-[550px]">
                 <RemindersWidget />
               </div>
             </ErrorBoundary>
