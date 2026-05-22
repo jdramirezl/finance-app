@@ -131,7 +131,7 @@ const SummaryPage = () => {
       <div className="space-y-6">
         <PageHeader title="Summary" />
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
           <ErrorBoundary>
             {accountsIsError || settingsIsError ? (
               <div className="space-y-2">
