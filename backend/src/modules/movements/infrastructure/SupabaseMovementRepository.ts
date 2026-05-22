@@ -536,6 +536,35 @@ export class SupabaseMovementRepository implements IMovementRepository {
   }
 
   /**
+   * Get distinct years that have movements, with count per year
+   */
+  async getDistinctYears(userId: string): Promise<{ year: number; count: number }[]> {
+    const { data, error } = await this.supabase
+      .from('movements')
+      .select('displayed_date')
+      .eq('user_id', userId)
+      .eq('is_orphaned', false);
+
+    if (error) {
+      throw new DatabaseError(`Failed to fetch distinct years: ${error.message}`);
+    }
+
+    if (!data || data.length === 0) {
+      return [];
+    }
+
+    const yearCounts = new Map<number, number>();
+    for (const row of data) {
+      const year = new Date(row.displayed_date).getFullYear();
+      yearCounts.set(year, (yearCounts.get(year) || 0) + 1);
+    }
+
+    return Array.from(yearCounts.entries())
+      .map(([year, count]) => ({ year, count }))
+      .sort((a, b) => b.year - a.year);
+  }
+
+  /**
    * Count movements by filters
    */
   async count(userId: string, filters?: MovementFilters): Promise<number> {

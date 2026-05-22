@@ -1,24 +1,28 @@
 /**
  * Get Movements By Month Use Case
- * 
- * Fetches and groups movements by month.
- * 
+ *
+ * Fetches movements for a specific year+month with pagination support.
+ * Returns a PaginatedMovementsDTO envelope.
+ *
  * Requirements: 10.5
  */
 
 import { injectable, inject } from 'tsyringe';
 import type { IMovementRepository } from '../../infrastructure/IMovementRepository';
-import type { MovementResponseDTO } from '../dtos/MovementDTO';
+import type { PaginatedMovementsDTO } from '../dtos/MovementDTO';
 import { MovementMapper } from '../mappers/MovementMapper';
 import { ValidationError } from '../../../../shared/errors/AppError';
 
-/**
- * Grouped movements by month
- */
-export interface MovementsByMonthDTO {
-  year: number;
-  month: number;
-  movements: MovementResponseDTO[];
+const DEFAULT_PAGE = 1;
+const DEFAULT_LIMIT = 50;
+const MAX_LIMIT = 200;
+
+export interface GetMovementsByMonthOptions {
+  page?: number;
+  limit?: number;
+  accountId?: string;
+  pocketId?: string;
+  isPending?: boolean;
 }
 
 @injectable()
@@ -31,45 +35,53 @@ export class GetMovementsByMonthUseCase {
     year: number,
     month: number,
     userId: string,
-    filters?: {
-      accountId?: string;
-      pocketId?: string;
-      isPending?: boolean;
-    }
-  ): Promise<MovementsByMonthDTO> {
-    // Validate year
+    options?: GetMovementsByMonthOptions
+  ): Promise<PaginatedMovementsDTO> {
     if (!year || year < 1900 || year > 2100) {
       throw new ValidationError('Invalid year - must be between 1900 and 2100');
     }
 
-    // Validate month
     if (!month || month < 1 || month > 12) {
       throw new ValidationError('Invalid month - must be between 1 and 12');
     }
 
-    // Fetch movements for the specified month
-    const movements = await this.movementRepo.findByMonth(year, month, userId);
+    const page = this.normalisePage(options?.page);
+    const limit = this.normaliseLimit(options?.limit);
+    const offset = (page - 1) * limit;
 
-    // Apply additional filters if provided
-    let filteredMovements = movements;
-
-    if (filters?.accountId) {
-      filteredMovements = filteredMovements.filter(m => m.accountId === filters.accountId);
-    }
-
-    if (filters?.pocketId) {
-      filteredMovements = filteredMovements.filter(m => m.pocketId === filters.pocketId);
-    }
-
-    if (filters?.isPending !== undefined) {
-      filteredMovements = filteredMovements.filter(m => m.isPending === filters.isPending);
-    }
-
-    // Convert to DTOs
-    return {
+    const filters = {
       year,
       month,
-      movements: MovementMapper.toDTOArray(filteredMovements),
+      accountId: options?.accountId,
+      pocketId: options?.pocketId,
+      isPending: options?.isPending,
     };
+
+    const [movements, total] = await Promise.all([
+      this.movementRepo.findAll(userId, filters, { limit, offset }),
+      this.movementRepo.count(userId, filters),
+    ]);
+
+    return {
+      data: MovementMapper.toDTOArray(movements),
+      total,
+      page,
+      limit,
+      hasMore: offset + movements.length < total,
+    };
+  }
+
+  private normalisePage(page?: number): number {
+    if (page === undefined || page === null) return DEFAULT_PAGE;
+    if (!Number.isFinite(page) || !Number.isInteger(page) || page < 1) {
+      throw new ValidationError('page must be a positive integer');
+    }
+    return page;
+  }
+
+  private normaliseLimit(limit?: number): number {
+    if (limit === undefined || limit === null) return DEFAULT_LIMIT;
+    if (!Number.isFinite(limit) || !Number.isInteger(limit) || limit < 1) return DEFAULT_LIMIT;
+    return Math.min(limit, MAX_LIMIT);
   }
 }

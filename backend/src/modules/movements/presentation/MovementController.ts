@@ -23,6 +23,7 @@ import { MarkAsPendingUseCase } from '../application/useCases/MarkAsPendingUseCa
 import { RestoreOrphanedMovementsUseCase } from '../application/useCases/RestoreOrphanedMovementsUseCase';
 import { CreateTransferUseCase } from '../application/useCases/CreateTransferUseCase';
 import { GetSpendingSummaryUseCase } from '../application/useCases/GetSpendingSummaryUseCase';
+import { GetMovementYearsUseCase } from '../application/useCases/GetMovementYearsUseCase';
 import { DeleteMovementsByAccountUseCase } from '../application/useCases/DeleteMovementsByAccountUseCase';
 import { DeleteMovementsByPocketUseCase } from '../application/useCases/DeleteMovementsByPocketUseCase';
 import {
@@ -53,6 +54,7 @@ export class MovementController {
     @inject(RestoreOrphanedMovementsUseCase) private restoreOrphanedMovementsUseCase: RestoreOrphanedMovementsUseCase,
     @inject(CreateTransferUseCase) private createTransferUseCase: CreateTransferUseCase,
     @inject(GetSpendingSummaryUseCase) private getSpendingSummaryUseCase: GetSpendingSummaryUseCase,
+    @inject(GetMovementYearsUseCase) private getMovementYearsUseCase: GetMovementYearsUseCase,
     @inject(DeleteMovementsByAccountUseCase) private deleteMovementsByAccountUseCase: DeleteMovementsByAccountUseCase,
     @inject(DeleteMovementsByPocketUseCase) private deleteMovementsByPocketUseCase: DeleteMovementsByPocketUseCase,
     @inject(MarkMovementsAsOrphanedUseCase) private markMovementsAsOrphanedUseCase: MarkMovementsAsOrphanedUseCase,
@@ -149,6 +151,25 @@ export class MovementController {
   }
 
   /**
+   * Get distinct years with movement counts
+   * GET /api/movements/years
+   */
+  async getYears(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        res.status(401).json({ error: 'Unauthorized' });
+        return;
+      }
+
+      const result = await this.getMovementYearsUseCase.execute(userId);
+      res.status(200).json(result);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
    * Get movements with optional filters and pagination
    * GET /api/movements
    *
@@ -163,7 +184,7 @@ export class MovementController {
    * Routing:
    *   - accountId provided  -> GetMovementsByAccountUseCase, returns Movement[]
    *   - pocketId provided   -> GetMovementsByPocketUseCase, returns Movement[]
-   *   - year+month provided -> GetMovementsByMonthUseCase, returns { year, month, movements }
+   *   - year+month provided -> GetMovementsByMonthUseCase, returns PaginatedMovementsDTO
    *   - no filter           -> GetAllMovementsUseCase, returns { data, total, page, limit, hasMore }
    *
    * Requirements: 10.5
@@ -225,10 +246,19 @@ export class MovementController {
       if (year && month) {
         const yearNum = parseInt(year as string, 10);
         const monthNum = parseInt(month as string, 10);
+        const pageNum = page ? parseInt(page as string, 10) : undefined;
+        const limitNum = limit ? parseInt(limit as string, 10) : undefined;
         const result = await this.getMovementsByMonthUseCase.execute(
           yearNum,
           monthNum,
-          userId
+          userId,
+          {
+            page: pageNum,
+            limit: limitNum,
+            accountId: undefined,
+            pocketId: undefined,
+            isPending: pending === 'true' ? true : pending === 'false' ? false : undefined,
+          }
         );
         res.status(200).json(result);
         return;

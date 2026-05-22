@@ -69,7 +69,7 @@ router.post('/transfer', validateBody(createTransferSchema), (req, res, next) =>
  * Response shape depends on which filter (if any) was provided:
  *   - accountId  -> 200 + MovementResponseDTO[]
  *   - pocketId   -> 200 + MovementResponseDTO[]
- *   - year+month -> 200 + { year, month, movements: MovementResponseDTO[] }
+ *   - year+month -> 200 + PaginatedMovementsDTO
  *   - no filter  -> 200 + PaginatedMovementsDTO
  *                   { data, total, page, limit, hasMore }
  *
@@ -106,6 +106,14 @@ router.get('/orphaned', (req, res, next) => controller.getOrphaned(req, res, nex
  * Response: 200 + SpendingSummaryDTO
  */
 router.get('/spending-summary', (req, res, next) => controller.getSpendingSummary(req, res, next));
+
+/**
+ * GET /api/movements/years
+ * Get distinct years that have movements with count per year
+ *
+ * Response: 200 + { years: { year: number; count: number }[] }
+ */
+router.get('/years', (req, res, next) => controller.getYears(req, res, next));
 
 /**
  * POST /api/movements/restore-orphaned

@@ -217,6 +217,11 @@ export interface IMovementRepository {
   ): Promise<number>;
 
   /**
+   * Get distinct years that have movements, with count per year
+   */
+  getDistinctYears(userId: string): Promise<{ year: number; count: number }[]>;
+
+  /**
    * Count movements by filters
    */
   count(userId: string, filters?: MovementFilters): Promise<number>;
