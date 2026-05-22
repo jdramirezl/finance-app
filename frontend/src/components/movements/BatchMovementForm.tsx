@@ -5,7 +5,7 @@ import {
   useImperativeHandle,
   useRef,
 } from 'react';
-import { useForm, useFieldArray } from 'react-hook-form';
+import { useForm, useFieldArray, useWatch } from 'react-hook-form';
 import { format } from 'date-fns';
 import { Plus, X } from 'lucide-react';
 import Button from '../ui/Button';
@@ -71,7 +71,7 @@ const BatchMovementForm = forwardRef<BatchMovementFormRef, BatchMovementFormProp
     const lastFocusedIndexRef = useRef<number | null>(0);
 
     // Watch rows to fire onRowsChange and onFocusRow
-    const watchedRows = watch('rows');
+    const watchedRows = useWatch({ control, name: 'rows' }) || [];
 
     // Notify parent when rows are added/removed
     const prevLengthRef = useRef(fields.length);

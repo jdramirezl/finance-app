@@ -264,7 +264,7 @@ const AccountPocketSelector = ({
                 </div>
             )}
 
-            {showSubPocket && fixedPocket && availableSubPockets.length > 0 && (
+            {showSubPocket && isFixedType && fixedPocket && availableSubPockets.length > 0 && (
                 <Select
                     label={subPocketLabel}
                     name={subPocketName}
