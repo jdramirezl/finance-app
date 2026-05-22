@@ -22,9 +22,9 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
   ({ label, error, helperText, options, className = '', id, ...props }, ref) => {
     const selectId = id || `select-${Math.random().toString(36).substr(2, 9)}`;
 
-    const baseStyles = 'w-full px-4 py-3 border rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary/20 appearance-none bg-no-repeat bg-right pr-10 bg-surface-container-highest text-on-surface';
-    const normalStyles = 'border-outline-variant focus:border-primary';
-    const errorStyles = 'border-error focus:border-error focus:ring-error/20';
+    const baseStyles = 'w-full px-4 py-3 border rounded-xl transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-0 shadow-sm appearance-none bg-no-repeat bg-right pr-10';
+    const normalStyles = 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:border-blue-500 dark:focus:border-blue-400 focus:ring-blue-500/20 dark:focus:ring-blue-400/20 focus:ring-4';
+    const errorStyles = 'border-red-500 dark:border-red-400 bg-red-50 dark:bg-red-900/20 text-gray-900 dark:text-gray-100 focus:border-red-500 dark:focus:border-red-400 focus:ring-red-500/20 dark:focus:ring-red-400/20 focus:ring-4';
     const disabledStyles = 'disabled:opacity-50 disabled:cursor-not-allowed';
 
     return (
@@ -32,10 +32,10 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
         {label && (
           <label
             htmlFor={selectId}
-            className="block text-xs font-semibold uppercase tracking-wider text-on-surface-variant"
+            className="block text-sm font-medium text-gray-700 dark:text-gray-300"
           >
             {label}
-            {props.required && <span className="text-error ml-0.5">*</span>}
+            {props.required && <span className="text-red-600 dark:text-red-400 ml-0.5">*</span>}
           </label>
         )}
 
@@ -74,7 +74,7 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
             })}
           </select>
 
-          <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-primary">
+          <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400 dark:text-gray-500">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
             </svg>
@@ -82,11 +82,11 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
         </div>
 
         {error && (
-          <p className="text-sm text-error">{error}</p>
+          <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
         )}
 
         {helperText && !error && (
-          <p className="text-sm text-on-surface-variant">{helperText}</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400">{helperText}</p>
         )}
       </div>
     );

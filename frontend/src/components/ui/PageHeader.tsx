@@ -12,11 +12,11 @@ const PageHeader = ({ title, description, actions, stats }: PageHeaderProps) => 
         <div className="space-y-4">
             <div className="flex items-start justify-between gap-4">
                 <div className="flex-1">
-                    <h1 className="text-2xl font-semibold font-display text-on-surface tracking-tight">
+                    <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-100 tracking-tight">
                         {title}
                     </h1>
                     {description && (
-                        <p className="text-sm text-on-surface-variant mt-2">
+                        <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
                             {description}
                         </p>
                     )}

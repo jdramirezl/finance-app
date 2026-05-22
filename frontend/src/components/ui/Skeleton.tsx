@@ -5,14 +5,14 @@ interface SkeletonProps {
 export const Skeleton = ({ className = '' }: SkeletonProps) => {
   return (
     <div
-      className={`animate-pulse bg-surface-container-high rounded ${className}`}
+      className={`animate-pulse bg-gray-200 dark:bg-gray-700 rounded ${className}`}
     />
   );
 };
 
 export const SkeletonCard = () => {
   return (
-    <div className="bg-surface-container/80 backdrop-blur-[12px] border border-white/[0.08] rounded-xl p-5 space-y-4">
+    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6 space-y-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Skeleton className="w-4 h-4 rounded-full" />
@@ -30,7 +30,7 @@ export const SkeletonCard = () => {
 
 export const SkeletonAccountCard = () => {
   return (
-    <div className="bg-surface-container/80 backdrop-blur-[12px] border border-white/[0.08] rounded-xl p-5">
+    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
           <Skeleton className="w-4 h-4 rounded-full" />
@@ -49,8 +49,8 @@ export const SkeletonAccountCard = () => {
 
 export const SkeletonTable = ({ rows = 5 }: { rows?: number }) => {
   return (
-    <div className="bg-surface-container/80 backdrop-blur-[12px] border border-white/[0.08] rounded-xl overflow-hidden">
-      <div className="border-b border-white/[0.06] p-4">
+    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+      <div className="border-b border-gray-200 dark:border-gray-700 p-4">
         <div className="flex gap-4">
           <Skeleton className="h-5 w-32" />
           <Skeleton className="h-5 w-24" />
@@ -62,7 +62,7 @@ export const SkeletonTable = ({ rows = 5 }: { rows?: number }) => {
       {Array.from({ length: rows }).map((_, i) => (
         <div
           key={i}
-          className="border-b border-white/[0.06] p-4 last:border-b-0"
+          className="border-b border-gray-200 dark:border-gray-700 p-4 last:border-b-0"
         >
           <div className="flex gap-4 items-center">
             <Skeleton className="h-4 w-32" />
@@ -83,7 +83,7 @@ export const SkeletonStats = () => {
       {[1, 2, 3].map((i) => (
         <div
           key={i}
-          className="bg-surface-container/80 backdrop-blur-[12px] border border-white/[0.08] rounded-xl p-5"
+          className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6"
         >
           <Skeleton className="h-4 w-24 mb-3" />
           <Skeleton className="h-8 w-32 mb-2" />
@@ -100,7 +100,7 @@ export const SkeletonList = ({ items = 3 }: { items?: number }) => {
       {Array.from({ length: items }).map((_, i) => (
         <div
           key={i}
-          className="bg-surface-container/80 backdrop-blur-[12px] border border-white/[0.08] rounded-xl p-4"
+          className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4"
         >
           <div className="flex items-center justify-between">
             <div className="flex-1">

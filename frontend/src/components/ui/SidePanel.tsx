@@ -76,7 +76,7 @@ const SidePanel = ({ isOpen, onClose, title, children, width = '400px' }: SidePa
     <>
       {/* Backdrop */}
       <div
-        className={`fixed inset-0 z-[70] bg-black/50 backdrop-blur-sm transition-opacity duration-300 ${
+        className={`fixed inset-0 z-[70] bg-black/50 transition-opacity duration-300 ${
           isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
         }`}
         onClick={onClose}
@@ -95,21 +95,21 @@ const SidePanel = ({ isOpen, onClose, title, children, width = '400px' }: SidePa
         className={`
           fixed top-0 right-0 z-[80] h-full
           w-full md:w-[var(--panel-width)]
-          bg-surface-container-high/95 backdrop-blur-[20px]
-          border-l border-white/[0.08]
+          bg-white dark:bg-gray-800
+          border-l border-gray-200 dark:border-gray-700
           flex flex-col
           transition-transform duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]
           ${isOpen ? 'translate-x-0' : 'translate-x-full'}
         `}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.06] shrink-0">
-          <h2 id="side-panel-title" className="text-lg font-semibold text-on-surface font-display">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700 shrink-0">
+          <h2 id="side-panel-title" className="text-lg font-semibold text-gray-900 dark:text-gray-100">
             {title}
           </h2>
           <button
             onClick={onClose}
-            className="p-2 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest/50 transition-colors"
+            className="p-2 rounded-lg text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
             aria-label="Close panel"
           >
             <X className="w-5 h-5" aria-hidden="true" />

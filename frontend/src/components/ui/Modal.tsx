@@ -104,7 +104,7 @@ const Modal = ({ isOpen, onClose, title, children, size = 'md' }: ModalProps) =>
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
       <div
-        className="absolute inset-0 bg-black/80 backdrop-blur-sm animate-backdrop-in transition-opacity"
+        className="absolute inset-0 bg-gray-900/40 dark:bg-black/60 backdrop-blur-sm animate-backdrop-in transition-opacity"
         onClick={onClose}
         aria-hidden="true"
       />
@@ -114,9 +114,9 @@ const Modal = ({ isOpen, onClose, title, children, size = 'md' }: ModalProps) =>
         tabIndex={-1}
         className={`
           relative w-full ${sizeClasses[size]}
-          bg-surface-container-high/90 backdrop-blur-[20px]
-          rounded-2xl
-          border border-primary/10
+          bg-white dark:bg-gray-800
+          rounded-2xl shadow-2xl
+          border border-gray-100 dark:border-gray-700
           max-h-[calc(100vh-3rem)] overflow-y-auto
           animate-modal-in
           flex flex-col
@@ -127,13 +127,13 @@ const Modal = ({ isOpen, onClose, title, children, size = 'md' }: ModalProps) =>
         aria-labelledby={title ? "modal-title" : undefined}
       >
         {title && (
-          <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.06] sticky top-0 bg-surface-container-high/80 backdrop-blur-md z-10">
-            <h2 id="modal-title" className="text-xl font-semibold text-on-surface">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-700 sticky top-0 bg-white/80 dark:bg-gray-800/80 backdrop-blur-md z-10">
+            <h2 id="modal-title" className="text-xl font-bold text-gray-900 dark:text-gray-100">
               {title}
             </h2>
             <button
               onClick={onClose}
-              className="p-2 -mr-2 text-on-surface-variant hover:text-on-surface transition-colors rounded-full hover:bg-surface-container-highest focus:outline-none focus:ring-2 focus:ring-primary/30"
+              className="p-2 -mr-2 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 transition-colors rounded-full hover:bg-gray-100 dark:hover:bg-gray-700/50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:focus:ring-blue-400/20"
               aria-label="Close modal"
             >
               <X className="w-5 h-5" />
