@@ -10,6 +10,7 @@ import type { SortField, SortOrder } from '../../hooks/useMovementsSort';
 import { getSmartIcon, getDefaultIcon } from '../../constants/smartIcons';
 import { getCategoryColor } from '../../constants/categories';
 import InlineEditableAmount from '../ui/InlineEditableAmount';
+import SelectableValue from '../ui/SelectableValue';
 
 interface MovementListProps {
     movementsByMonth: [string, Movement[]][];
@@ -176,11 +177,17 @@ const MovementRow = memo(({
             </div>
 
             <div className="flex items-center justify-between sm:justify-end gap-4 w-full sm:w-auto pl-12 sm:pl-0">
-                <InlineEditableAmount
-                    amount={movement.amount}
-                    isIncome={isIncome}
-                    onSave={(newAmount) => onUpdateAmount(movement.id, newAmount)}
-                />
+                <SelectableValue
+                    id={`movement-${movement.id}`}
+                    value={movement.amount}
+                >
+                    <InlineEditableAmount
+                        amount={movement.amount}
+                        isIncome={isIncome}
+                        onSave={(newAmount) => onUpdateAmount(movement.id, newAmount)}
+                        triggerMode="icon"
+                    />
+                </SelectableValue>
 
                 <div className="flex gap-2 opacity-60 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
                     {movement.isPending && (
