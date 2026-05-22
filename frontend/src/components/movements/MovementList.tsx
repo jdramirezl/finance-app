@@ -25,6 +25,10 @@ interface MovementListProps {
     onUpdateAmount: (id: string, amount: number) => Promise<void>;
     deletingId: string | null;
     applyingId: string | null;
+    isSelected?: (id: string) => boolean;
+    onToggleSelection?: (id: string) => void;
+    onSelectAll?: (ids: string[]) => void;
+    selectedCount?: number;
 }
 
 const getTypeIcon = (type: MovementType, isPending?: boolean) => {
@@ -60,10 +64,12 @@ interface MovementTableRowProps {
     onDelete: (id: string) => void;
     onApplyPending: (id: string) => void;
     onUpdateAmount: (id: string, amount: number) => Promise<void>;
+    isSelected?: boolean;
+    onToggleSelection?: (id: string) => void;
 }
 
 const MovementTableRow = memo(({
-    movement, account, pocket, onEdit, onDelete, onApplyPending, onUpdateAmount,
+    movement, account, pocket, onEdit, onDelete, onApplyPending, onUpdateAmount, isSelected, onToggleSelection,
 }: MovementTableRowProps) => {
     const isIncome = movement.type.includes('Ingreso');
     const isPending = movement.isPending;
@@ -81,7 +87,18 @@ const MovementTableRow = memo(({
                 ? 'border border-dashed border-blue-500/30 bg-blue-500/5 hover:bg-blue-500/10'
                 : 'hover:bg-gray-700/50 border-b border-gray-700'
         }`}>
-            {/* Date */}
+            {/* Checkbox */}
+            {onToggleSelection && (
+                <td className="px-3 py-4 w-10">
+                    <input
+                        type="checkbox"
+                        checked={!!isSelected}
+                        onChange={() => onToggleSelection(movement.id)}
+                        className="w-4 h-4 rounded border-gray-600 bg-gray-700 text-blue-500 focus:ring-blue-500 focus:ring-offset-0 cursor-pointer"
+                        aria-label={`Select ${movement.notes || 'movement'}`}
+                    />
+                </td>
+            )}
             <td className="px-6 py-4">
                 <p className={`text-xs uppercase ${isPending ? 'text-blue-400' : 'text-gray-100'}`}>
                     {format(date, 'MMM dd')}
@@ -178,6 +195,10 @@ const MovementList = ({
     onUpdateAmount,
     deletingId,
     applyingId,
+    isSelected,
+    onToggleSelection,
+    onSelectAll,
+    selectedCount,
 }: MovementListProps) => {
     const { data: accounts = [] } = useAccountsQuery();
     const { data: pockets = [] } = usePocketsQuery();
@@ -247,6 +268,24 @@ const MovementList = ({
                 <table className="w-full text-left border-collapse min-w-[900px]">
                     <thead>
                         <tr className="bg-gray-700/50 text-gray-400">
+                            {onToggleSelection && (
+                                <th className="px-3 py-4 w-10 border-b border-gray-700">
+                                    <input
+                                        type="checkbox"
+                                        checked={movements.length > 0 && selectedCount === movements.length}
+                                        ref={(el) => { if (el) el.indeterminate = (selectedCount ?? 0) > 0 && (selectedCount ?? 0) < movements.length; }}
+                                        onChange={() => {
+                                            if (selectedCount === movements.length) {
+                                                onSelectAll?.([]);
+                                            } else {
+                                                onSelectAll?.(movements.map((m) => m.id));
+                                            }
+                                        }}
+                                        className="w-4 h-4 rounded border-gray-600 bg-gray-700 text-blue-500 focus:ring-blue-500 focus:ring-offset-0 cursor-pointer"
+                                        aria-label="Select all movements"
+                                    />
+                                </th>
+                            )}
                             <th
                                 className="px-6 py-4 text-[11px] font-bold uppercase tracking-widest border-b border-gray-700 cursor-pointer hover:text-blue-400 transition-colors"
                                 onClick={() => handleSort('displayedDate')}
@@ -282,6 +321,8 @@ const MovementList = ({
                                 onDelete={onDelete}
                                 onApplyPending={onApplyPending}
                                 onUpdateAmount={onUpdateAmount}
+                                isSelected={isSelected?.(movement.id)}
+                                onToggleSelection={onToggleSelection}
                             />
                         ))}
                     </tbody>

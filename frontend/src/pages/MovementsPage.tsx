@@ -300,6 +300,10 @@ const MovementsPage = () => {
         onUpdateAmount={async (id, amount) => { await movementMutations.updateMovement.mutateAsync({ id, updates: { amount } }); }}
         deletingId={deletingId}
         applyingId={applyingId}
+        isSelected={bulk.isSelected}
+        onToggleSelection={bulk.toggleSelection}
+        onSelectAll={bulk.selectAll}
+        selectedCount={bulk.selectedCount}
       />
 
       {/* Load more data from server if available */}
