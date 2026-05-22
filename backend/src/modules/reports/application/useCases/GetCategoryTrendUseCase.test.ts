@@ -11,6 +11,7 @@ describe('GetCategoryTrendUseCase', () => {
       aggregateByCategory: jest.fn(),
       aggregateMonthly: jest.fn(),
       aggregateByCategoryMonthly: jest.fn(),
+      getExchangeRateHistory: jest.fn(),
     };
     useCase = new GetCategoryTrendUseCase(mockRepo);
   });

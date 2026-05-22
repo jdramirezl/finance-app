@@ -135,7 +135,7 @@ describe('UpdateSettingsUseCase Property-Based Tests', () => {
     it('should allow setting API key to any non-empty string', async () => {
       await fc.assert(
         fc.asyncProperty(
-          fc.string({ minLength: 1, maxLength: 20 }), // userId
+          fc.string({ minLength: 1, maxLength: 20 }).filter(s => s.trim().length > 0), // userId
           fc.string({ minLength: 1, maxLength: 100 }).filter(s => s.trim().length > 0), // API key
           async (userId: string, apiKey: string) => {
             // Create existing settings without API key

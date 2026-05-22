@@ -56,6 +56,7 @@ describe('RestoreOrphanedMovementsUseCase Property-Based Tests', () => {
       updateAccountIdByPocketId: jest.fn().mockResolvedValue(0),
       count: jest.fn().mockResolvedValue(0),
         sumExpensesByPeriod: jest.fn().mockResolvedValue([]),
+      getDistinctYears: jest.fn().mockResolvedValue([]),
     };
 
     const mockAccountRepo: jest.Mocked<IAccountRepository> = {
