@@ -1,7 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { subPocketService } from '../../services/subPocketService';
 import { useToast } from '../useToast';
-import type { SubPocket } from '../../types';
 
 const errorMessage = (error: unknown, fallback: string): string =>
     error instanceof Error && error.message ? error.message : fallback;
@@ -42,25 +41,6 @@ export const useSubPocketMutations = () => {
         },
     });
 
-    const toggleSubPocketEnabled = useMutation({
-        mutationFn: (id: string) => subPocketService.toggleSubPocketEnabled(id),
-        onMutate: async (id) => {
-            await queryClient.cancelQueries({ queryKey: ['subPockets'] });
-            const previous = queryClient.getQueryData(['subPockets']);
-            queryClient.setQueryData(['subPockets'], (old: SubPocket[] | undefined) =>
-                old?.map(sp => sp.id === id ? { ...sp, enabled: !sp.enabled } : sp)
-            );
-            return { previous };
-        },
-        onError: (error, _id, context) => {
-            if (context?.previous) queryClient.setQueryData(['subPockets'], context.previous);
-            toast.error(errorMessage(error, 'Failed to toggle fixed expense'));
-        },
-        onSettled: () => {
-            queryClient.invalidateQueries({ queryKey: ['subPockets'] });
-        },
-    });
-
     const moveSubPocketToGroup = useMutation({
         mutationFn: (data: { subPocketId: string; groupId: string }) =>
             subPocketService.moveToGroup(data.subPocketId, data.groupId),
@@ -76,7 +56,6 @@ export const useSubPocketMutations = () => {
         createSubPocket,
         updateSubPocket,
         deleteSubPocket,
-        toggleSubPocketEnabled,
         moveSubPocketToGroup,
     };
 };
