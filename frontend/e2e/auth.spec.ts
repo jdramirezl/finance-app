@@ -3,8 +3,11 @@ import { hasTestCredentials, getTestCredentials } from './helpers/auth';
 
 test.describe('Login flow', () => {
   test.beforeEach(async ({ page }) => {
-    // Clear storage state so we start unauthenticated for login tests
+    // Clear storage state so we start unauthenticated for login tests.
+    // localStorage is per-origin — calling localStorage.clear() on about:blank
+    // throws SecurityError, so we must navigate to the app first.
     await page.context().clearCookies();
+    await page.goto('/');
     await page.evaluate(() => localStorage.clear());
   });
 

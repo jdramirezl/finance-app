@@ -48,6 +48,11 @@ export async function createTestMovement(accountId: string, pocketId: string, ov
 export async function deleteTestData() {
   const accounts = await authFetch('/api/accounts');
   for (const acct of accounts.filter((a: { name: string }) => a.name.startsWith('[TEST]'))) {
-    await authFetch(`/api/accounts/${acct.id}`, { method: 'DELETE' });
+    // Cascade: removes pockets, sub-pockets, and movements in one call so
+    // accounts created with pockets/movements can be cleaned up.
+    await authFetch(`/api/accounts/${acct.id}/cascade`, {
+      method: 'POST',
+      body: JSON.stringify({ deleteMovements: true }),
+    });
   }
 }
