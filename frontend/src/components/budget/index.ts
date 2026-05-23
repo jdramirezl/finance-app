@@ -1,15 +1,10 @@
-export { default as BudgetSummaryCard } from './BudgetSummaryCard';
-export { default as BudgetDistribution } from './BudgetDistribution';
 export { default as BudgetEntryRow } from './BudgetEntryRow';
-export { default as BudgetIncomeSection } from './BudgetIncomeSection';
-export { default as ScenarioSection } from './ScenarioSection';
 export { default as BudgetScenarioTabs } from './BudgetScenarioTabs';
 export { default as BudgetIncomeCard } from './BudgetIncomeCard';
 export { default as AllocationSliderRow } from './AllocationSliderRow';
 export { default as AllocationStrategy } from './AllocationStrategy';
 export { default as PortfolioDonutChart } from './PortfolioDonutChart';
 export { default as BudgetStatsCards } from './BudgetStatsCards';
-export { default as BudgetSidebar } from './BudgetSidebar';
 export { default as ObligationsHeader } from './ObligationsHeader';
 export { default as ObligationsFooter } from './ObligationsFooter';
 export { default as DistributionFooter } from './DistributionFooter';
