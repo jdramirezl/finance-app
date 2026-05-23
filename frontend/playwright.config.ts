@@ -17,14 +17,16 @@ export default defineConfig({
   webServer: [
     {
       command: 'npm run dev --workspace=backend',
-      port: 3001,
+      url: 'http://localhost:3001/api/health',
       reuseExistingServer: true,
       cwd: path.resolve(__dirname, '..'),
+      timeout: 30000,
     },
     {
       command: 'npm run dev',
-      port: 5173,
+      url: 'http://localhost:5173',
       reuseExistingServer: true,
+      timeout: 30000,
     },
   ],
 });
