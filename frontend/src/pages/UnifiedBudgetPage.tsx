@@ -193,6 +193,17 @@ const UnifiedBudgetPage = () => {
     },
     [fixedExpenseActions],
   );
+  const handleMoveToGroup = useCallback(
+    (sp: SubPocket, targetGroupId: string | null) => {
+      // Fire-and-forget: the mutation invalidates the subPockets query on
+      // success and surfaces failures via its onError toast.
+      subPocketMutations.moveSubPocketToGroup.mutate({
+        subPocketId: sp.id,
+        groupId: targetGroupId,
+      });
+    },
+    [subPocketMutations.moveSubPocketToGroup],
+  );
 
   const closeScenarioForm = () => {
     setShowScenarioForm(false);
@@ -292,6 +303,7 @@ const UnifiedBudgetPage = () => {
               onDeleteGroup={handleDeleteGroup}
               onEditExpense={handleEditExpense}
               onDeleteExpense={handleDeleteExpense}
+              onMoveToGroup={handleMoveToGroup}
             />
           </div>
 

@@ -195,5 +195,11 @@ describe('subPocketService', () => {
       await subPocketService.moveToGroup('sp-1', 'group-2');
       expect(apiClient.post).toHaveBeenCalledWith('/api/sub-pockets/sp-1/move-to-group', { groupId: 'group-2' });
     });
+
+    it('should send null groupId to ungroup the sub-pocket', async () => {
+      vi.spyOn(apiClient, 'post').mockResolvedValue(undefined);
+      await subPocketService.moveToGroup('sp-1', null);
+      expect(apiClient.post).toHaveBeenCalledWith('/api/sub-pockets/sp-1/move-to-group', { groupId: null });
+    });
   });
 });

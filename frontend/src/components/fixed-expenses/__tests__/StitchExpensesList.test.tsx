@@ -132,6 +132,7 @@ const buildProps = (overrides: Partial<Props> = {}): Props => ({
   onDeleteGroup: vi.fn(),
   onEditExpense: vi.fn(),
   onDeleteExpense: vi.fn(),
+  onMoveToGroup: vi.fn(),
   ...overrides,
 });
 
@@ -354,6 +355,83 @@ describe('StitchExpensesList', () => {
 
       expect(onDeleteExpense).toHaveBeenCalledTimes(1);
       expect(onDeleteExpense).toHaveBeenCalledWith(internet);
+    });
+  });
+
+  describe('move-to-group wiring', () => {
+    it('forwards onMoveToGroup unchanged to every group card', () => {
+      const onMoveToGroup = vi.fn();
+      render(<StitchExpensesList {...buildProps({ onMoveToGroup })} />);
+
+      for (const cardProps of groupCardRenders) {
+        expect(cardProps.onMoveToGroup).toBe(onMoveToGroup);
+      }
+    });
+
+    it('passes availableGroups with the card\'s own group filtered out', () => {
+      render(<StitchExpensesList {...buildProps()} />);
+
+      const billsRender = groupCardRenders.find(
+        (p) => (p.group as FixedExpenseGroup).id === 'grp-bills',
+      );
+      const defaultRender = groupCardRenders.find(
+        (p) => (p.group as FixedExpenseGroup).id === 'grp-default',
+      );
+
+      const billsAvailable = billsRender?.availableGroups as Array<{
+        id: string;
+        name: string;
+      }>;
+      const defaultAvailable = defaultRender?.availableGroups as Array<{
+        id: string;
+        name: string;
+      }>;
+
+      // Bills card cannot offer Bills as a target.
+      expect(billsAvailable.map((g) => g.id)).toEqual(['grp-default']);
+      // Default card cannot offer Default as a target.
+      expect(defaultAvailable.map((g) => g.id)).toEqual(['grp-bills']);
+    });
+
+    it('exposes only id and name on availableGroups entries', () => {
+      render(<StitchExpensesList {...buildProps()} />);
+
+      const billsRender = groupCardRenders.find(
+        (p) => (p.group as FixedExpenseGroup).id === 'grp-bills',
+      );
+      const billsAvailable = billsRender?.availableGroups as Array<
+        Record<string, unknown>
+      >;
+
+      expect(billsAvailable[0]).toEqual({
+        id: 'grp-default',
+        name: 'Default',
+      });
+      // No extraneous fields (color, displayOrder, createdAt) leak through.
+      expect(Object.keys(billsAvailable[0])).toEqual(['id', 'name']);
+    });
+
+    it('passes all real groups to the synthetic Default bucket', () => {
+      // No real Default group → synthetic Default is appended; it should
+      // see every real group as a valid move target.
+      render(
+        <StitchExpensesList
+          {...buildProps({
+            groups: [billsGroup],
+            fixedSubPockets: [ungrouped],
+          })}
+        />,
+      );
+
+      const syntheticRender = groupCardRenders.find(
+        (p) => (p.group as FixedExpenseGroup).id === '__default__',
+      );
+      const available = syntheticRender?.availableGroups as Array<{
+        id: string;
+        name: string;
+      }>;
+
+      expect(available.map((g) => g.id)).toEqual(['grp-bills']);
     });
   });
 });

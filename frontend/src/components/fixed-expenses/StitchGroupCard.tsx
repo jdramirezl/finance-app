@@ -1,9 +1,10 @@
-import { memo, useMemo } from 'react';
+import { memo, useMemo, useState } from 'react';
 import {
   ChevronDown,
   Edit2,
   FileText,
   Folder,
+  FolderInput,
   Loader2,
   Trash2,
 } from 'lucide-react';
@@ -26,6 +27,17 @@ export interface StitchGroupCardProps {
   onDeleteGroup: () => void;
   onEditExpense: (expense: SubPocket) => void;
   onDeleteExpense: (expense: SubPocket) => void;
+  /**
+   * Move an expense to a different group. `targetGroupId` is the destination
+   * group id, or `null` to ungroup (clear the expense's groupId).
+   */
+  onMoveToGroup: (expense: SubPocket, targetGroupId: string | null) => void;
+  /**
+   * Groups this card's expenses can be moved to. Should already exclude the
+   * card's own group. The "Ungrouped" option (`null`) is appended by the
+   * card itself — do not include it here.
+   */
+  availableGroups: { id: string; name: string }[];
   deletingExpenseId?: string | null;
 }
 
@@ -51,8 +63,15 @@ const StitchGroupCard = ({
   onDeleteGroup,
   onEditExpense,
   onDeleteExpense,
+  onMoveToGroup,
+  availableGroups,
   deletingExpenseId = null,
 }: StitchGroupCardProps) => {
+  // Tracks which expense's move-to-group dropdown is currently open. Only
+  // one can be open at a time; clicking the trigger toggles it, picking an
+  // option closes it, and clicking the backdrop closes it.
+  const [movingExpenseId, setMovingExpenseId] = useState<string | null>(null);
+
   // Group total = sum of monthly contributions for all expenses.
   const { groupTotal } = useMemo(() => {
     let total = 0;
@@ -160,8 +179,81 @@ const StitchGroupCard = ({
                   </div>
 
                   <div className="flex items-center gap-3 flex-shrink-0">
-                    {/* Hover-revealed row actions: edit, delete */}
-                    <div className="opacity-0 group-hover/row:opacity-100 focus-within:opacity-100 transition-opacity flex gap-1">
+                    {/* Hover-revealed row actions: move, edit, delete. The
+                        action group is forced visible while a move dropdown
+                        is open so the menu's anchor button doesn't disappear
+                        when the user moves the cursor onto the dropdown. */}
+                    <div
+                      className={`opacity-0 group-hover/row:opacity-100 focus-within:opacity-100 transition-opacity flex gap-1${
+                        movingExpenseId === expense.id ? ' !opacity-100' : ''
+                      }`}
+                    >
+                      <div className="relative">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setMovingExpenseId((current) =>
+                              current === expense.id ? null : expense.id,
+                            )
+                          }
+                          aria-label={`Move fixed expense ${expense.name} to another group`}
+                          aria-haspopup="menu"
+                          aria-expanded={movingExpenseId === expense.id}
+                          title="Move to group"
+                          className="p-1 rounded-md text-gray-300 hover:bg-gray-700 hover:text-blue-400 transition-colors"
+                        >
+                          <FolderInput
+                            className="w-3.5 h-3.5"
+                            aria-hidden="true"
+                          />
+                        </button>
+                        {movingExpenseId === expense.id && (
+                          <>
+                            {/* Backdrop closes the menu on any outside click. */}
+                            <div
+                              className="fixed inset-0 z-10"
+                              onClick={() => setMovingExpenseId(null)}
+                              aria-hidden="true"
+                            />
+                            <div
+                              role="menu"
+                              aria-label={`Move ${expense.name} to`}
+                              className="absolute right-0 top-full mt-1 z-20 min-w-[160px] bg-gray-800 border border-gray-700 rounded-md shadow-lg py-1"
+                            >
+                              {availableGroups.length === 0 && (
+                                <div className="px-3 py-1.5 text-xs text-gray-500">
+                                  No other groups
+                                </div>
+                              )}
+                              {availableGroups.map((g) => (
+                                <button
+                                  key={g.id}
+                                  type="button"
+                                  role="menuitem"
+                                  onClick={() => {
+                                    onMoveToGroup(expense, g.id);
+                                    setMovingExpenseId(null);
+                                  }}
+                                  className="w-full text-left px-3 py-1.5 text-sm text-gray-200 hover:bg-gray-700"
+                                >
+                                  {g.name}
+                                </button>
+                              ))}
+                              <button
+                                type="button"
+                                role="menuitem"
+                                onClick={() => {
+                                  onMoveToGroup(expense, null);
+                                  setMovingExpenseId(null);
+                                }}
+                                className="w-full text-left px-3 py-1.5 text-sm text-gray-400 hover:bg-gray-700 border-t border-gray-700"
+                              >
+                                Ungrouped
+                              </button>
+                            </div>
+                          </>
+                        )}
+                      </div>
                       <button
                         type="button"
                         onClick={() => onEditExpense(expense)}

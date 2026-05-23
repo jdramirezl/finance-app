@@ -96,8 +96,9 @@ class SubPocketService {
     await apiClient.post('/api/sub-pockets/reorder', { pocketId, subPocketIds });
   }
 
-  // Move sub-pocket to a different group
-  async moveToGroup(subPocketId: string, groupId: string): Promise<void> {
+  // Move sub-pocket to a different group. Pass `null` to ungroup
+  // (i.e. clear the sub-pocket's groupId on the server).
+  async moveToGroup(subPocketId: string, groupId: string | null): Promise<void> {
     await apiClient.post(`/api/sub-pockets/${subPocketId}/move-to-group`, { groupId });
   }
 }

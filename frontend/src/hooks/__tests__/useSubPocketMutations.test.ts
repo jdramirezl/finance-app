@@ -244,5 +244,20 @@ describe('useSubPocketMutations', () => {
 
             expect(mocks.toast.error).toHaveBeenCalledWith('Failed to move expense');
         });
+
+        it('forwards null groupId to ungroup the sub-pocket', async () => {
+            const { wrapper } = createWrapper();
+            vi.mocked(subPocketService.moveToGroup).mockResolvedValue(undefined as never);
+
+            const { result } = renderHook(() => useSubPocketMutations(), { wrapper });
+            await act(async () => {
+                await result.current.moveSubPocketToGroup.mutateAsync({
+                    subPocketId: 'sub-1',
+                    groupId: null,
+                });
+            });
+
+            expect(subPocketService.moveToGroup).toHaveBeenCalledWith('sub-1', null);
+        });
     });
 });

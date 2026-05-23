@@ -42,7 +42,7 @@ export const useSubPocketMutations = () => {
     });
 
     const moveSubPocketToGroup = useMutation({
-        mutationFn: (data: { subPocketId: string; groupId: string }) =>
+        mutationFn: (data: { subPocketId: string; groupId: string | null }) =>
             subPocketService.moveToGroup(data.subPocketId, data.groupId),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['subPockets'] });

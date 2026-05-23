@@ -14,6 +14,13 @@ export interface StitchExpensesListProps {
   onDeleteGroup: (group: FixedExpenseGroup) => void;
   onEditExpense: (expense: SubPocket) => void;
   onDeleteExpense: (expense: SubPocket) => void;
+  /**
+   * Move an expense to a different group. `targetGroupId` is the destination
+   * group id, or `null` to ungroup. The `availableGroups` list passed to
+   * each card is derived from `groups`, with the card's own group filtered
+   * out so it can never appear as a move target.
+   */
+  onMoveToGroup: (expense: SubPocket, targetGroupId: string | null) => void;
   deletingId?: string | null;
 }
 
@@ -37,6 +44,7 @@ const StitchExpensesList = ({
   onDeleteGroup,
   onEditExpense,
   onDeleteExpense,
+  onMoveToGroup,
   deletingId = null,
 }: StitchExpensesListProps) => {
   // ---- Bucketing ----
@@ -117,6 +125,14 @@ const StitchExpensesList = ({
     [onToggleCollapse, onEditGroup, onDeleteGroup],
   );
 
+  // Trim each group down to the {id, name} pair the card menu needs and
+  // memoize so the card's `availableGroups` prop is referentially stable
+  // across re-renders that don't change the group set.
+  const moveTargets = useMemo(
+    () => groups.map((g) => ({ id: g.id, name: g.name })),
+    [groups],
+  );
+
   // ---- Empty state ----
   if (fixedSubPockets.length === 0) {
     return (
@@ -133,6 +149,10 @@ const StitchExpensesList = ({
     <div className="space-y-3">
       {renderGroups.map(({ group, expenses, isDefaultGroup }) => {
         const cardHandlers = buildCardHandlers(group);
+        // Card menu must never offer the card's own group as a move target.
+        // Synthetic Default has id `__default__` which won't match any real
+        // group, so the full list is offered there — that's intentional.
+        const availableGroups = moveTargets.filter((g) => g.id !== group.id);
         return (
           <StitchGroupCard
             key={group.id}
@@ -146,6 +166,8 @@ const StitchExpensesList = ({
             onDeleteGroup={cardHandlers.onDeleteGroup}
             onEditExpense={onEditExpense}
             onDeleteExpense={onDeleteExpense}
+            onMoveToGroup={onMoveToGroup}
+            availableGroups={availableGroups}
             deletingExpenseId={deletingId}
           />
         );

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '../../../test/testUtils';
+import { render, screen, within } from '../../../test/testUtils';
 import userEvent from '@testing-library/user-event';
 import StitchGroupCard from '../StitchGroupCard';
 import type { FixedExpenseGroup, SubPocket } from '../../../types';
@@ -45,6 +45,11 @@ const buildProps = (overrides: Partial<Props> = {}): Props => ({
   onDeleteGroup: vi.fn(),
   onEditExpense: vi.fn(),
   onDeleteExpense: vi.fn(),
+  onMoveToGroup: vi.fn(),
+  availableGroups: [
+    { id: 'grp-subs', name: 'Subscriptions' },
+    { id: 'grp-utilities', name: 'Utilities' },
+  ],
   deletingExpenseId: null,
   ...overrides,
 });
@@ -166,6 +171,136 @@ describe('StitchGroupCard', () => {
       expect(
         screen.getByLabelText(/delete fixed expense electricity/i),
       ).not.toBeDisabled();
+    });
+  });
+
+  describe('move-to-group dropdown', () => {
+    it('does not render the dropdown by default', () => {
+      render(<StitchGroupCard {...buildProps()} />);
+
+      expect(
+        screen.queryByRole('menu', { name: /move internet to/i }),
+      ).not.toBeInTheDocument();
+    });
+
+    it('opens the dropdown when the move button is clicked', async () => {
+      const user = userEvent.setup();
+      render(<StitchGroupCard {...buildProps()} />);
+
+      await user.click(
+        screen.getByLabelText(/move fixed expense internet to another group/i),
+      );
+
+      expect(
+        screen.getByRole('menu', { name: /move internet to/i }),
+      ).toBeInTheDocument();
+    });
+
+    it('shows each available group plus an Ungrouped option in the dropdown', async () => {
+      const user = userEvent.setup();
+      render(<StitchGroupCard {...buildProps()} />);
+
+      await user.click(
+        screen.getByLabelText(/move fixed expense internet to another group/i),
+      );
+
+      const menu = screen.getByRole('menu', { name: /move internet to/i });
+      expect(within(menu).getByRole('menuitem', { name: 'Subscriptions' }))
+        .toBeInTheDocument();
+      expect(within(menu).getByRole('menuitem', { name: 'Utilities' }))
+        .toBeInTheDocument();
+      expect(within(menu).getByRole('menuitem', { name: 'Ungrouped' }))
+        .toBeInTheDocument();
+    });
+
+    it('renders an empty-state hint when no other groups are available', async () => {
+      const user = userEvent.setup();
+      render(
+        <StitchGroupCard {...buildProps({ availableGroups: [] })} />,
+      );
+
+      await user.click(
+        screen.getByLabelText(/move fixed expense internet to another group/i),
+      );
+
+      expect(screen.getByText(/no other groups/i)).toBeInTheDocument();
+      // Ungrouped option is still offered even with no other groups.
+      expect(
+        screen.getByRole('menuitem', { name: 'Ungrouped' }),
+      ).toBeInTheDocument();
+    });
+
+    it('invokes onMoveToGroup with the target group id and closes the menu', async () => {
+      const user = userEvent.setup();
+      const onMoveToGroup = vi.fn();
+      render(<StitchGroupCard {...buildProps({ onMoveToGroup })} />);
+
+      await user.click(
+        screen.getByLabelText(/move fixed expense internet to another group/i),
+      );
+      await user.click(
+        screen.getByRole('menuitem', { name: 'Subscriptions' }),
+      );
+
+      expect(onMoveToGroup).toHaveBeenCalledTimes(1);
+      expect(onMoveToGroup).toHaveBeenCalledWith(internet, 'grp-subs');
+      expect(
+        screen.queryByRole('menu', { name: /move internet to/i }),
+      ).not.toBeInTheDocument();
+    });
+
+    it('invokes onMoveToGroup with null when Ungrouped is picked', async () => {
+      const user = userEvent.setup();
+      const onMoveToGroup = vi.fn();
+      render(<StitchGroupCard {...buildProps({ onMoveToGroup })} />);
+
+      await user.click(
+        screen.getByLabelText(/move fixed expense internet to another group/i),
+      );
+      await user.click(screen.getByRole('menuitem', { name: 'Ungrouped' }));
+
+      expect(onMoveToGroup).toHaveBeenCalledTimes(1);
+      expect(onMoveToGroup).toHaveBeenCalledWith(internet, null);
+    });
+
+    it('toggles the dropdown closed when the move button is clicked again', async () => {
+      const user = userEvent.setup();
+      render(<StitchGroupCard {...buildProps()} />);
+
+      const trigger = screen.getByLabelText(
+        /move fixed expense internet to another group/i,
+      );
+      await user.click(trigger);
+      expect(
+        screen.getByRole('menu', { name: /move internet to/i }),
+      ).toBeInTheDocument();
+
+      await user.click(trigger);
+      expect(
+        screen.queryByRole('menu', { name: /move internet to/i }),
+      ).not.toBeInTheDocument();
+    });
+
+    it('opens only one expense dropdown at a time', async () => {
+      const user = userEvent.setup();
+      render(<StitchGroupCard {...buildProps()} />);
+
+      await user.click(
+        screen.getByLabelText(/move fixed expense internet to another group/i),
+      );
+      await user.click(
+        screen.getByLabelText(
+          /move fixed expense electricity to another group/i,
+        ),
+      );
+
+      // Internet's menu should be replaced by electricity's.
+      expect(
+        screen.queryByRole('menu', { name: /move internet to/i }),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.getByRole('menu', { name: /move electricity to/i }),
+      ).toBeInTheDocument();
     });
   });
 });
