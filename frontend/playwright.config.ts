@@ -21,6 +21,11 @@ export default defineConfig({
       reuseExistingServer: true,
       cwd: path.resolve(__dirname, '..'),
       timeout: 30000,
+      env: {
+        ...process.env,
+        SUPABASE_URL: process.env.SUPABASE_URL || '',
+        SUPABASE_SERVICE_KEY: process.env.SUPABASE_SERVICE_KEY || '',
+      },
     },
     {
       command: 'npm run dev',
