@@ -140,6 +140,7 @@ describe('useBudgetPersistence', () => {
         scenarios: [],
         defaultAccountId: '',
         defaultPocketId: '',
+        budgetCurrency: '',
       });
     });
 
