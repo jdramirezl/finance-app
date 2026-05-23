@@ -125,7 +125,7 @@ const ExchangeRateTrend = () => {
             />
             <Tooltip
               contentStyle={{ fontSize: 12 }}
-              formatter={(value: number, name: string) => {
+              formatter={((value: number, name: string) => {
                 const rateKey = `${name}_rate`;
                 const point = chartData.find(
                   (d) => (d[name as keyof typeof d] as unknown as number | undefined) === value
@@ -133,7 +133,7 @@ const ExchangeRateTrend = () => {
                 const rate = point?.[rateKey as keyof typeof point] as number | undefined;
                 const label = `${value >= 0 ? '+' : ''}${value.toFixed(2)}%${rate != null ? ` (${rate.toLocaleString(undefined, { maximumFractionDigits: 4 })})` : ''}`;
                 return [label, `${name}→${primaryCurrency}`];
-              }}
+              }) as never}
             />
             <Legend />
             {targetCurrencies.map((currency) => (

@@ -132,7 +132,7 @@ const NetWorthChart = ({
                         domain={showVariation ? [-100, 100] : ['auto', 'auto']}
                     />
                     <Tooltip
-                        formatter={tooltipFormatter}
+                        formatter={tooltipFormatter as never}
                         labelFormatter={(label) => `Date: ${label}`}
                         contentStyle={{
                             backgroundColor: 'var(--tooltip-bg, #fff)',

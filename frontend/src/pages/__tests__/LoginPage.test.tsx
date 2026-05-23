@@ -4,6 +4,11 @@ import userEvent from '@testing-library/user-event';
 import LoginPage from '../LoginPage';
 import { supabase } from '../../test/__mocks__/supabase';
 
+const mockNavigate = vi.fn();
+vi.mock('react-router', async () => {
+  const actual = await vi.importActual('react-router');
+  return { ...actual, useNavigate: () => mockNavigate };
+});
 describe('LoginPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
