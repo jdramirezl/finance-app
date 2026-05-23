@@ -26,6 +26,7 @@ import {
 } from '../components/ui/CurrencyAmount';
 import { currencyService } from '../services/currencyService';
 import type { NetWorthSnapshot } from '../services/netWorthSnapshotService';
+import type { Currency } from '../types';
 
 export type NetWorthViewMode = 'total' | 'breakdown';
 export type NetWorthDateRange = '30d' | '6m' | '1y' | 'all';
@@ -160,7 +161,7 @@ export const useNetWorthChartData = ({
                 if (snapshot.breakdown) {
                     Object.entries(snapshot.breakdown).forEach(([currency, value]) => {
                         // Convert to primary currency for comparable Y-axis
-                        data[currency] = currencyService.convertAmount(value, currency, primaryCurrency);
+                        data[currency] = currencyService.convertAmount(value, currency as Currency, primaryCurrency as Currency);
                         // Store native value for tooltip display
                         data[`${currency}_native`] = value;
                     });

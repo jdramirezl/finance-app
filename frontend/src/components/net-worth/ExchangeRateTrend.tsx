@@ -128,7 +128,7 @@ const ExchangeRateTrend = () => {
               formatter={(value: number, name: string) => {
                 const rateKey = `${name}_rate`;
                 const point = chartData.find(
-                  (d) => d[name as keyof typeof d] === value
+                  (d) => (d[name as keyof typeof d] as unknown as number | undefined) === value
                 );
                 const rate = point?.[rateKey as keyof typeof point] as number | undefined;
                 const label = `${value >= 0 ? '+' : ''}${value.toFixed(2)}%${rate != null ? ` (${rate.toLocaleString(undefined, { maximumFractionDigits: 4 })})` : ''}`;

@@ -278,7 +278,7 @@ const UnifiedBudgetPage = () => {
             <div className="mt-3">
               <BudgetCurrencySelector
                 value={persistedBudgetCurrency}
-                onChange={setBudgetCurrency}
+                onChange={(v) => setBudgetCurrency(v as Currency | '')}
                 inferredCurrency={(fixedPockets[0]?.currency || primaryCurrency) as string}
               />
             </div>

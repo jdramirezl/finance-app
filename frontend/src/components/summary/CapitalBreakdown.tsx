@@ -148,7 +148,7 @@ const NormalDetail = ({ account, pockets, currency }: { account: Account; pocket
   );
 };
 
-const CapitalBreakdown = ({ accounts, pockets, investmentData, primaryCurrency }: CapitalBreakdownProps) => {
+const CapitalBreakdown = ({ accounts, pockets, investmentData }: CapitalBreakdownProps) => {
   if (accounts.length === 0) {
     return (
       <EmptyState

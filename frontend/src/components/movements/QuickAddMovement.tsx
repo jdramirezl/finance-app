@@ -17,7 +17,7 @@ export interface QuickAddMovementProps {
 const toMovementType = (simple: SimpleType): MovementType =>
   simple === 'income' ? 'IngresoNormal' : 'EgresoNormal';
 
-const QuickAddMovement = ({ variant, onExpandToFull, onClose, onSuccess }: QuickAddMovementProps) => {
+const QuickAddMovement = ({ variant, onClose, onSuccess }: QuickAddMovementProps) => {
   const [type, setType] = useState<SimpleType>('expense');
   const [amount, setAmount] = useState('');
   const [accountId, setAccountId] = useState('');

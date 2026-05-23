@@ -17,7 +17,6 @@ const NetWorthHero = ({
   consolidatedTotal,
   primaryCurrency,
   totalsByCurrency,
-  accountCount,
   isConsolidatedReady = true,
 }: NetWorthHeroProps) => {
   const { data: snapshots = [] } = useNetWorthSnapshotsQuery();

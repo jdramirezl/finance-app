@@ -6,7 +6,6 @@ import type { Reminder } from '../../services/reminderService';
 
 const today = format(new Date(), 'yyyy-MM-dd');
 const tomorrow = format(addDays(new Date(), 1), 'yyyy-MM-dd');
-const nextWeek = format(addDays(new Date(), 5), 'yyyy-MM-dd');
 const nextMonth = format(addDays(new Date(), 35), 'yyyy-MM-dd');
 const yesterday = format(subDays(new Date(), 1), 'yyyy-MM-dd');
 const threeMonthsAgo = format(subMonths(new Date(), 3), 'yyyy-MM-dd');

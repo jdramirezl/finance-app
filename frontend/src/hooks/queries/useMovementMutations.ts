@@ -39,6 +39,8 @@ export const useMovementMutations = () => {
             displayedDate?: string;
             subPocketId?: string;
             isPending?: boolean;
+            category?: string;
+            tags?: string[];
         }) =>
             movementService.createMovement(
                 data.type,
@@ -48,7 +50,9 @@ export const useMovementMutations = () => {
                 data.notes,
                 data.displayedDate,
                 data.subPocketId,
-                data.isPending
+                data.isPending,
+                data.category,
+                data.tags
             ),
         onSuccess: (_result, variables) => {
             // Movements list always changes.
@@ -118,6 +122,8 @@ export const useMovementMutations = () => {
                 notes: string;
                 displayedDate: string;
                 isPending: boolean;
+                category: string;
+                tags: string[];
             }>;
         }) => movementService.updateMovement(data.id, data.updates),
         onSuccess: (_result, variables) => {

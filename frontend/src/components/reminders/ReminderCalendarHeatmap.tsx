@@ -2,8 +2,7 @@ import { useMemo, useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import {
     startOfMonth, endOfMonth, startOfWeek, endOfWeek,
-    addDays, addMonths, format, isSameDay, isBefore, isToday,
-    parseISO
+    addDays, addMonths, format, isBefore, isToday,
 } from 'date-fns';
 import type { Reminder } from '../../services/reminderService';
 import { generateProjectedOccurrences } from '../../utils/reminderProjections';

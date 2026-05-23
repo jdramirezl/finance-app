@@ -182,10 +182,13 @@ class MovementService {
     notes?: string,
     displayedDate?: string,
     subPocketId?: string,
-    isPending?: boolean
+    isPending?: boolean,
+    category?: string,
+    tags?: string[]
   ): Promise<Movement> {
     return await apiClient.post<Movement>('/api/movements', {
       type, accountId, pocketId, amount, notes, displayedDate, subPocketId, isPending,
+      category, tags,
     });
   }
 
@@ -219,7 +222,7 @@ class MovementService {
 
   async updateMovement(
     id: string,
-    updates: Partial<Pick<Movement, 'type' | 'accountId' | 'pocketId' | 'subPocketId' | 'amount' | 'notes' | 'displayedDate'>>
+    updates: Partial<Pick<Movement, 'type' | 'accountId' | 'pocketId' | 'subPocketId' | 'amount' | 'notes' | 'displayedDate' | 'category' | 'tags' | 'isPending'>>
   ): Promise<Movement> {
     return await apiClient.put<Movement>(`/api/movements/${id}`, updates);
   }
@@ -259,6 +262,8 @@ class MovementService {
     notes?: string;
     displayedDate: string;
     isPending?: boolean;
+    category?: string;
+    tags?: string[];
   }>): Promise<Movement[]> {
     return await apiClient.post<Movement[]>('/api/movements/batch', { movements });
   }
