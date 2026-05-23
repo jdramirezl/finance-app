@@ -34,17 +34,15 @@ class SubPocketService {
     return balance / valueTotal;
   }
 
-  // Calculate total monthly fixed expenses (sum of enabled sub-pockets)
+  // Calculate total monthly fixed expenses (sum of all sub-pockets)
   async calculateTotalFijosMes(pocketId: string): Promise<number> {
     const subPockets = await this.getSubPocketsByPocket(pocketId);
-    return subPockets
-      .filter(sp => sp.enabled)
-      .reduce((sum, sp) => {
-        const contribution = calculateAporteMensual(sp.valueTotal, sp.periodicityMonths, sp.balance);
-        // Add absolute value of negative balance if debt exists
-        const debt = sp.balance < 0 ? Math.abs(sp.balance) : 0;
-        return sum + contribution + debt;
-      }, 0);
+    return subPockets.reduce((sum, sp) => {
+      const contribution = calculateAporteMensual(sp.valueTotal, sp.periodicityMonths, sp.balance);
+      // Add absolute value of negative balance if debt exists
+      const debt = sp.balance < 0 ? Math.abs(sp.balance) : 0;
+      return sum + contribution + debt;
+    }, 0);
   }
 
   // Calculate next payment for a sub-pocket (handles negative balance and near completion)
@@ -93,11 +91,6 @@ class SubPocketService {
     await apiClient.delete(`/api/sub-pockets/${id}`);
   }
 
-  // Toggle enabled state
-  async toggleSubPocketEnabled(id: string): Promise<SubPocket> {
-    return apiClient.post<SubPocket>(`/api/sub-pockets/${id}/toggle`, {});
-  }
-
   // Reorder sub-pockets within a pocket
   async reorderSubPockets(pocketId: string, subPocketIds: string[]): Promise<void> {
     await apiClient.post('/api/sub-pockets/reorder', { pocketId, subPocketIds });
@@ -106,13 +99,6 @@ class SubPocketService {
   // Move sub-pocket to a different group
   async moveToGroup(subPocketId: string, groupId: string): Promise<void> {
     await apiClient.post(`/api/sub-pockets/${subPocketId}/move-to-group`, { groupId });
-  }
-
-  // Toggle all sub-pockets in a group
-  // Note: the backend endpoint flips enabled state for the whole group; the
-  // `_enabled` parameter is preserved for caller compatibility but ignored.
-  async toggleGroup(groupId: string, _enabled: boolean): Promise<void> {
-    await apiClient.post(`/api/fixed-expense-groups/${groupId}/toggle`, {});
   }
 }
 
