@@ -79,7 +79,6 @@ describe('DeleteGroupUseCase - Property Tests', () => {
                 data.valueTotal,
                 data.periodicityMonths,
                 0,
-                true,
                 groupId // All belong to this group
               )
             );

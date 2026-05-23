@@ -16,7 +16,6 @@ describe('SubPocket Entity', () => {
         120,
         12,
         0,
-        true,
         'group-1',
         0
       );
@@ -27,12 +26,11 @@ describe('SubPocket Entity', () => {
       expect(subPocket.valueTotal).toBe(120);
       expect(subPocket.periodicityMonths).toBe(12);
       expect(subPocket.balance).toBe(0);
-      expect(subPocket.enabled).toBe(true);
       expect(subPocket.groupId).toBe('group-1');
       expect(subPocket.displayOrder).toBe(0);
     });
 
-    it('should create sub-pocket with default enabled=true', () => {
+    it('should create sub-pocket with optional fields omitted', () => {
       const subPocket = new SubPocket(
         'sub-1',
         'pocket-1',
@@ -42,7 +40,8 @@ describe('SubPocket Entity', () => {
         0
       );
 
-      expect(subPocket.enabled).toBe(true);
+      expect(subPocket.groupId).toBeUndefined();
+      expect(subPocket.displayOrder).toBeUndefined();
     });
 
     it('should throw error if name is empty', () => {
@@ -86,7 +85,7 @@ describe('SubPocket Entity', () => {
     });
 
     it('should throw error if displayOrder is negative', () => {
-      expect(() => new SubPocket('sub-1', 'pocket-1', 'Netflix', 120, 12, 0, true, undefined, -1))
+      expect(() => new SubPocket('sub-1', 'pocket-1', 'Netflix', 120, 12, 0, undefined, -1))
         .toThrow('Display order cannot be negative');
     });
   });
@@ -170,40 +169,16 @@ describe('SubPocket Entity', () => {
   });
 
   describe('Toggle Enabled', () => {
-    it('should toggle enabled from true to false', () => {
-      const subPocket = new SubPocket('sub-1', 'pocket-1', 'Netflix', 120, 12, 0, true);
-      subPocket.toggleEnabled();
-      expect(subPocket.enabled).toBe(false);
-    });
-
-    it('should toggle enabled from false to true', () => {
-      const subPocket = new SubPocket('sub-1', 'pocket-1', 'Netflix', 120, 12, 0, false);
-      subPocket.toggleEnabled();
-      expect(subPocket.enabled).toBe(true);
-    });
-
-    it('should toggle multiple times', () => {
-      const subPocket = new SubPocket('sub-1', 'pocket-1', 'Netflix', 120, 12, 0, true);
-      subPocket.toggleEnabled();
-      expect(subPocket.enabled).toBe(false);
-      subPocket.toggleEnabled();
-      expect(subPocket.enabled).toBe(true);
-      subPocket.toggleEnabled();
-      expect(subPocket.enabled).toBe(false);
+    it('should not expose toggleEnabled (feature removed)', () => {
+      const subPocket = new SubPocket('sub-1', 'pocket-1', 'Netflix', 120, 12, 0);
+      expect((subPocket as unknown as { toggleEnabled?: () => void }).toggleEnabled).toBeUndefined();
     });
   });
 
   describe('Set Enabled', () => {
-    it('should set enabled to true', () => {
-      const subPocket = new SubPocket('sub-1', 'pocket-1', 'Netflix', 120, 12, 0, false);
-      subPocket.setEnabled(true);
-      expect(subPocket.enabled).toBe(true);
-    });
-
-    it('should set enabled to false', () => {
-      const subPocket = new SubPocket('sub-1', 'pocket-1', 'Netflix', 120, 12, 0, true);
-      subPocket.setEnabled(false);
-      expect(subPocket.enabled).toBe(false);
+    it('should not expose setEnabled (feature removed)', () => {
+      const subPocket = new SubPocket('sub-1', 'pocket-1', 'Netflix', 120, 12, 0);
+      expect((subPocket as unknown as { setEnabled?: (v: boolean) => void }).setEnabled).toBeUndefined();
     });
   });
 
@@ -229,27 +204,17 @@ describe('SubPocket Entity', () => {
     });
 
     it('should clear groupId', () => {
-      const subPocket = new SubPocket('sub-1', 'pocket-1', 'Netflix', 120, 12, 0, true, 'group-1');
+      const subPocket = new SubPocket('sub-1', 'pocket-1', 'Netflix', 120, 12, 0, 'group-1');
       subPocket.updateGroupId(undefined);
       expect(subPocket.groupId).toBeUndefined();
     });
 
     it('should check if has group', () => {
-      const subPocket1 = new SubPocket('sub-1', 'pocket-1', 'Netflix', 120, 12, 0, true, 'group-1');
+      const subPocket1 = new SubPocket('sub-1', 'pocket-1', 'Netflix', 120, 12, 0, 'group-1');
       expect(subPocket1.hasGroup()).toBe(true);
 
       const subPocket2 = new SubPocket('sub-2', 'pocket-1', 'Spotify', 100, 12, 0);
       expect(subPocket2.hasGroup()).toBe(false);
-    });
-  });
-
-  describe('Helper Methods', () => {
-    it('should check if enabled', () => {
-      const subPocket1 = new SubPocket('sub-1', 'pocket-1', 'Netflix', 120, 12, 0, true);
-      expect(subPocket1.isEnabled()).toBe(true);
-
-      const subPocket2 = new SubPocket('sub-2', 'pocket-1', 'Spotify', 100, 12, 0, false);
-      expect(subPocket2.isEnabled()).toBe(false);
     });
   });
 
@@ -262,7 +227,6 @@ describe('SubPocket Entity', () => {
         120,
         12,
         50,
-        true,
         'group-1',
         0
       );
@@ -276,7 +240,6 @@ describe('SubPocket Entity', () => {
         valueTotal: 120,
         periodicityMonths: 12,
         balance: 50,
-        enabled: true,
         groupId: 'group-1',
         displayOrder: 0,
         monthlyContribution: 10,

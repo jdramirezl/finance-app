@@ -78,15 +78,4 @@ router.delete('/:id', (req, res, next) => controller.delete(req, res, next));
  */
 router.post('/reorder', validateBody(reorderGroupsSchema), (req, res, next) => controller.reorder(req, res, next));
 
-/**
- * POST /api/fixed-expense-groups/:id/toggle
- * Toggle group and all sub-pockets
- * 
- * Response: 200 + GroupResponseDTO
- * Errors: 404 (not found)
- * 
- * Requirements: 9.4
- */
-router.post('/:id/toggle', (req, res, next) => controller.toggle(req, res, next));
-
 export default router;

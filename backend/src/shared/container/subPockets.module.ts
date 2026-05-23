@@ -6,7 +6,6 @@ import { GetSubPocketsByPocketUseCase } from '../../modules/sub-pockets/applicat
 import { GetSubPocketsByGroupUseCase } from '../../modules/sub-pockets/application/useCases/GetSubPocketsByGroupUseCase';
 import { UpdateSubPocketUseCase } from '../../modules/sub-pockets/application/useCases/UpdateSubPocketUseCase';
 import { DeleteSubPocketUseCase } from '../../modules/sub-pockets/application/useCases/DeleteSubPocketUseCase';
-import { ToggleSubPocketEnabledUseCase } from '../../modules/sub-pockets/application/useCases/ToggleSubPocketEnabledUseCase';
 import { MoveSubPocketToGroupUseCase } from '../../modules/sub-pockets/application/useCases/MoveSubPocketToGroupUseCase';
 import { ReorderSubPocketsUseCase } from '../../modules/sub-pockets/application/useCases/ReorderSubPocketsUseCase';
 import { SubPocketController } from '../../modules/sub-pockets/presentation/SubPocketController';
@@ -16,7 +15,6 @@ import { CreateFixedExpenseGroupUseCase } from '../../modules/sub-pockets/applic
 import { GetAllGroupsUseCase } from '../../modules/sub-pockets/application/useCases/GetAllGroupsUseCase';
 import { UpdateGroupUseCase } from '../../modules/sub-pockets/application/useCases/UpdateGroupUseCase';
 import { DeleteGroupUseCase } from '../../modules/sub-pockets/application/useCases/DeleteGroupUseCase';
-import { ToggleGroupUseCase } from '../../modules/sub-pockets/application/useCases/ToggleGroupUseCase';
 import { ReorderFixedExpenseGroupsUseCase } from '../../modules/sub-pockets/application/useCases/ReorderFixedExpenseGroupsUseCase';
 import { FixedExpenseGroupController } from '../../modules/sub-pockets/presentation/FixedExpenseGroupController';
 
@@ -29,7 +27,6 @@ export function registerSubPocketModule(): void {
   container.register(GetSubPocketsByGroupUseCase, { useClass: GetSubPocketsByGroupUseCase });
   container.register(UpdateSubPocketUseCase, { useClass: UpdateSubPocketUseCase });
   container.register(DeleteSubPocketUseCase, { useClass: DeleteSubPocketUseCase });
-  container.register(ToggleSubPocketEnabledUseCase, { useClass: ToggleSubPocketEnabledUseCase });
   container.register(MoveSubPocketToGroupUseCase, { useClass: MoveSubPocketToGroupUseCase });
   container.register(ReorderSubPocketsUseCase, { useClass: ReorderSubPocketsUseCase });
   container.register(SubPocketController, { useClass: SubPocketController });
@@ -42,7 +39,6 @@ export function registerSubPocketModule(): void {
   container.register(GetAllGroupsUseCase, { useClass: GetAllGroupsUseCase });
   container.register(UpdateGroupUseCase, { useClass: UpdateGroupUseCase });
   container.register(DeleteGroupUseCase, { useClass: DeleteGroupUseCase });
-  container.register(ToggleGroupUseCase, { useClass: ToggleGroupUseCase });
   container.register(ReorderFixedExpenseGroupsUseCase, { useClass: ReorderFixedExpenseGroupsUseCase });
   container.register(FixedExpenseGroupController, { useClass: FixedExpenseGroupController });
 }

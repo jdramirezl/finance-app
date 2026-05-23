@@ -97,7 +97,6 @@ export class CreateSubPocketUseCase {
       dto.valueTotal,
       dto.periodicityMonths,
       0, // Initial balance
-      true, // Default enabled
       finalGroupId // Always assign to a group (user's default if not specified)
     );
 

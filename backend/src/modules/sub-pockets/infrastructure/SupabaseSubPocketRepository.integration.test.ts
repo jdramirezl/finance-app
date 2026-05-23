@@ -54,8 +54,7 @@ describeIntegration('SupabaseSubPocketRepository Integration Tests', () => {
         'Rent',
         1200,
         1,
-        0,
-        true
+        0
       );
 
       await repository.save(subPocket, testUserId);
@@ -66,7 +65,6 @@ describeIntegration('SupabaseSubPocketRepository Integration Tests', () => {
       expect(saved?.name).toBe('Rent');
       expect(saved?.valueTotal).toBe(1200);
       expect(saved?.periodicityMonths).toBe(1);
-      expect(saved?.enabled).toBe(true);
     });
 
     it('should save a sub-pocket with group and display order', async () => {
@@ -77,7 +75,6 @@ describeIntegration('SupabaseSubPocketRepository Integration Tests', () => {
         600,
         1,
         0,
-        true,
         'group-1',
         5
       );
@@ -253,17 +250,6 @@ describeIntegration('SupabaseSubPocketRepository Integration Tests', () => {
 
       const updated = await repository.findById('sp-update-3', testUserId);
       expect(updated?.balance).toBe(500);
-    });
-
-    it('should update sub-pocket enabled status', async () => {
-      const subPocket = new SubPocket('sp-update-4', 'pocket-1', 'Test', 100, 1, 0, true);
-      await repository.save(subPocket, testUserId);
-
-      subPocket.toggleEnabled();
-      await repository.update(subPocket, testUserId);
-
-      const updated = await repository.findById('sp-update-4', testUserId);
-      expect(updated?.enabled).toBe(false);
     });
 
     it('should update sub-pocket group', async () => {

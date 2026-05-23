@@ -14,7 +14,6 @@ import { GetSubPocketsByPocketUseCase } from '../application/useCases/GetSubPock
 import { GetSubPocketsByGroupUseCase } from '../application/useCases/GetSubPocketsByGroupUseCase';
 import { UpdateSubPocketUseCase } from '../application/useCases/UpdateSubPocketUseCase';
 import { DeleteSubPocketUseCase } from '../application/useCases/DeleteSubPocketUseCase';
-import { ToggleSubPocketEnabledUseCase } from '../application/useCases/ToggleSubPocketEnabledUseCase';
 import { MoveSubPocketToGroupUseCase } from '../application/useCases/MoveSubPocketToGroupUseCase';
 import { ReorderSubPocketsUseCase } from '../application/useCases/ReorderSubPocketsUseCase';
 import type { CreateSubPocketDTO, UpdateSubPocketDTO } from '../application/dtos/SubPocketDTO';
@@ -35,7 +34,6 @@ export class SubPocketController {
     @inject(GetSubPocketsByGroupUseCase) private getSubPocketsByGroupUseCase: GetSubPocketsByGroupUseCase,
     @inject(UpdateSubPocketUseCase) private updateSubPocketUseCase: UpdateSubPocketUseCase,
     @inject(DeleteSubPocketUseCase) private deleteSubPocketUseCase: DeleteSubPocketUseCase,
-    @inject(ToggleSubPocketEnabledUseCase) private toggleSubPocketEnabledUseCase: ToggleSubPocketEnabledUseCase,
     @inject(MoveSubPocketToGroupUseCase) private moveSubPocketToGroupUseCase: MoveSubPocketToGroupUseCase,
     @inject(ReorderSubPocketsUseCase) private reorderSubPocketsUseCase: ReorderSubPocketsUseCase,
     @inject('SubPocketRepository') private subPocketRepo: { findAllByUserId(userId: string): Promise<any[]> }
@@ -144,29 +142,6 @@ export class SubPocketController {
       await this.deleteSubPocketUseCase.execute(subPocketId, userId);
 
       res.status(204).send();
-    } catch (error) {
-      next(error);
-    }
-  }
-
-  /**
-   * Toggle sub-pocket enabled status
-   * POST /api/sub-pockets/:id/toggle
-   * 
-   * Requirements: 8.4
-   */
-  async toggle(req: Request, res: Response, next: NextFunction): Promise<void> {
-    try {
-      const userId = req.user?.id;
-      if (!userId) {
-        res.status(401).json({ error: 'Unauthorized' });
-        return;
-      }
-
-      const subPocketId = req.params.id;
-      const subPocket = await this.toggleSubPocketEnabledUseCase.execute(subPocketId, userId);
-
-      res.status(200).json(subPocket);
     } catch (error) {
       next(error);
     }

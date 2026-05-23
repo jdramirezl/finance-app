@@ -16,7 +16,6 @@ import { CreateFixedExpenseGroupUseCase } from '../application/useCases/CreateFi
 import { GetAllGroupsUseCase } from '../application/useCases/GetAllGroupsUseCase';
 import { UpdateGroupUseCase } from '../application/useCases/UpdateGroupUseCase';
 import { DeleteGroupUseCase } from '../application/useCases/DeleteGroupUseCase';
-import { ToggleGroupUseCase } from '../application/useCases/ToggleGroupUseCase';
 import { ReorderFixedExpenseGroupsUseCase } from '../application/useCases/ReorderFixedExpenseGroupsUseCase';
 import { ValidationError, NotFoundError } from '../../../shared/errors/AppError';
 import { errorHandler } from '../../../shared/middleware/errorHandler';
@@ -27,7 +26,6 @@ describe('FixedExpenseGroupController Integration Tests', () => {
   let mockGetAllGroupsUseCase: jest.Mocked<GetAllGroupsUseCase>;
   let mockUpdateGroupUseCase: jest.Mocked<UpdateGroupUseCase>;
   let mockDeleteGroupUseCase: jest.Mocked<DeleteGroupUseCase>;
-  let mockToggleGroupUseCase: jest.Mocked<ToggleGroupUseCase>;
   let mockReorderGroupsUseCase: jest.Mocked<ReorderFixedExpenseGroupsUseCase>;
   
   const testUserId = 'test-user-123';
@@ -42,7 +40,6 @@ describe('FixedExpenseGroupController Integration Tests', () => {
     mockGetAllGroupsUseCase = { execute: jest.fn() } as any;
     mockUpdateGroupUseCase = { execute: jest.fn() } as any;
     mockDeleteGroupUseCase = { execute: jest.fn() } as any;
-    mockToggleGroupUseCase = { execute: jest.fn() } as any;
     mockReorderGroupsUseCase = { execute: jest.fn() } as any;
 
     // Create controller with mocked use cases
@@ -51,7 +48,6 @@ describe('FixedExpenseGroupController Integration Tests', () => {
       mockGetAllGroupsUseCase,
       mockUpdateGroupUseCase,
       mockDeleteGroupUseCase,
-      mockToggleGroupUseCase,
       mockReorderGroupsUseCase
     );
 
@@ -65,7 +61,6 @@ describe('FixedExpenseGroupController Integration Tests', () => {
     router.get('/', (req, res, next) => controller.getAll(req, res, next));
     router.put('/:id', (req, res, next) => controller.update(req, res, next));
     router.delete('/:id', (req, res, next) => controller.delete(req, res, next));
-    router.post('/:id/toggle', (req, res, next) => controller.toggle(req, res, next));
     router.post('/reorder', (req, res, next) => controller.reorder(req, res, next));
     
     app.use('/api/fixed-expense-groups', router);
@@ -241,36 +236,6 @@ describe('FixedExpenseGroupController Integration Tests', () => {
 
       const response = await request(app)
         .delete('/api/fixed-expense-groups/nonexistent');
-
-      expect(response.status).toBe(404);
-    });
-  });
-
-  describe('POST /api/fixed-expense-groups/:id/toggle - Toggle Group', () => {
-    it('should toggle group and all sub-pockets', async () => {
-      const mockResponse = {
-        id: 'group-123',
-        name: 'Monthly Bills',
-        color: '#3b82f6'
-      };
-
-      mockToggleGroupUseCase.execute.mockResolvedValue(mockResponse as any);
-
-      const response = await request(app)
-        .post('/api/fixed-expense-groups/group-123/toggle');
-
-      expect(response.status).toBe(200);
-      expect(response.body).toEqual(mockResponse);
-      expect(mockToggleGroupUseCase.execute).toHaveBeenCalledWith('group-123', testUserId);
-    });
-
-    it('should return 404 when group not found', async () => {
-      mockToggleGroupUseCase.execute.mockRejectedValue(
-        new NotFoundError('Group not found')
-      );
-
-      const response = await request(app)
-        .post('/api/fixed-expense-groups/nonexistent/toggle');
 
       expect(response.status).toBe(404);
     });

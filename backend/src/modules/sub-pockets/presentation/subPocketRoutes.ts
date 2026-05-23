@@ -70,17 +70,6 @@ router.put('/:id', validateBody(updateSubPocketSchema), (req, res, next) => cont
 router.delete('/:id', (req, res, next) => controller.delete(req, res, next));
 
 /**
- * POST /api/sub-pockets/:id/toggle
- * Toggle sub-pocket enabled status
- * 
- * Response: 200 + SubPocketResponseDTO
- * Errors: 404 (not found)
- * 
- * Requirements: 8.4
- */
-router.post('/:id/toggle', (req, res, next) => controller.toggle(req, res, next));
-
-/**
  * POST /api/sub-pockets/:id/move-to-group
  * Move sub-pocket to group
  * 

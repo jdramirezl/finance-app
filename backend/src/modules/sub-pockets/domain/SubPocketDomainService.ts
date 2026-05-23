@@ -79,16 +79,4 @@ export class SubPocketDomainService {
   calculateTotalMonthlyContribution(subPockets: SubPocket[]): number {
     return subPockets.reduce((total, subPocket) => total + subPocket.monthlyContribution, 0);
   }
-
-  /**
-   * Calculate total monthly contribution for enabled sub-pockets only
-   * 
-   * @param subPockets - Array of sub-pockets
-   * @returns Sum of monthly contributions for enabled sub-pockets
-   */
-  calculateEnabledMonthlyContribution(subPockets: SubPocket[]): number {
-    return subPockets
-      .filter(sp => sp.isEnabled())
-      .reduce((total, subPocket) => total + subPocket.monthlyContribution, 0);
-  }
 }
