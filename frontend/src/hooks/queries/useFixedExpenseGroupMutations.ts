@@ -42,18 +42,6 @@ export const useFixedExpenseGroupMutations = () => {
         },
     });
 
-    const toggleFixedExpenseGroup = useMutation({
-        mutationFn: (data: { id: string; enabled: boolean }) => {
-            return import('../../services/subPocketService').then(m => m.subPocketService.toggleGroup(data.id, data.enabled));
-        },
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['subPockets'] });
-        },
-        onError: (error) => {
-            toast.error(errorMessage(error, 'Failed to toggle group'));
-        },
-    });
-
     const reorderFixedExpenseGroups = useMutation({
         mutationFn: (ids: string[]) => fixedExpenseGroupService.reorder(ids),
         onSuccess: () => {
@@ -68,7 +56,6 @@ export const useFixedExpenseGroupMutations = () => {
         createFixedExpenseGroup,
         updateFixedExpenseGroup,
         deleteFixedExpenseGroup,
-        toggleFixedExpenseGroup,
         reorderFixedExpenseGroups,
     };
 };
