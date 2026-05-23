@@ -11,7 +11,11 @@ import {
 } from 'lucide-react';
 import type { FixedExpenseGroup, SubPocket } from '../../types';
 import CurrencyAmount from '../ui/CurrencyAmount';
-import { calculateSimpleMonthlyContribution } from '../../utils/fixedExpenseUtils';
+import {
+  calculateAporteMensual,
+  calculateProgress,
+  calculateSimpleMonthlyContribution,
+} from '../../utils/fixedExpenseUtils';
 
 export interface StitchGroupCardProps {
   group: FixedExpenseGroup;
@@ -220,100 +224,126 @@ const StitchGroupCard = ({
                 expense.periodicityMonths,
               );
               const isDeleting = deletingExpenseId === expense.id;
+              const progress = calculateProgress(expense.balance, expense.valueTotal);
+              const isFullyFunded = expense.balance >= expense.valueTotal;
+              const nextContribution = calculateAporteMensual(
+                expense.valueTotal,
+                expense.periodicityMonths,
+                expense.balance,
+              );
 
               return (
                 <div
                   key={expense.id}
-                  className="group/row flex items-center justify-between p-2 rounded-lg hover:bg-gray-700/30 transition-colors"
+                  className="group/row rounded-lg hover:bg-gray-700/30 transition-colors"
                 >
-                  <div className="flex items-center gap-3 flex-1 min-w-0">
-                    <FileText
-                      className="w-4 h-4 text-gray-500 flex-shrink-0"
-                      aria-hidden="true"
-                    />
-                    <span className="text-gray-200 truncate">
-                      {expense.name}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center gap-3 flex-shrink-0">
-                    {/* Hover-revealed row actions: move, edit, delete. The
-                        action group is forced visible while a move dropdown
-                        is open so the menu's anchor button doesn't disappear
-                        when the user moves the cursor onto the dropdown. */}
-                    <div
-                      className={`opacity-0 group-hover/row:opacity-100 focus-within:opacity-100 transition-opacity flex gap-1${
-                        movingExpenseId === expense.id ? ' !opacity-100' : ''
-                      }`}
-                    >
-                      <div className="relative">
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            moveButtonRef.current = e.currentTarget;
-                            setMovingExpenseId((current) =>
-                              current === expense.id ? null : expense.id,
-                            );
-                          }}
-                          aria-label={`Move fixed expense ${expense.name} to another group`}
-                          aria-haspopup="menu"
-                          aria-expanded={movingExpenseId === expense.id}
-                          title="Move to group"
-                          className="p-1 rounded-md text-gray-300 hover:bg-gray-700 hover:text-blue-400 transition-colors"
-                        >
-                          <FolderInput
-                            className="w-3.5 h-3.5"
-                            aria-hidden="true"
-                          />
-                        </button>
-                        {movingExpenseId === expense.id &&
-                          createPortal(
-                            <MoveDropdown
-                              anchorRef={moveButtonRef}
-                              groups={availableGroups}
-                              expenseName={expense.name}
-                              onSelect={(groupId) => {
-                                onMoveToGroup(expense, groupId);
-                                setMovingExpenseId(null);
-                              }}
-                              onClose={() => setMovingExpenseId(null)}
-                            />,
-                            document.body,
-                          )}
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => onEditExpense(expense)}
-                        aria-label={`Edit fixed expense ${expense.name}`}
-                        title="Edit expense"
-                        className="p-1 rounded-md text-gray-300 hover:bg-gray-700 hover:text-blue-400 transition-colors"
-                      >
-                        <Edit2 className="w-3.5 h-3.5" aria-hidden="true" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => onDeleteExpense(expense)}
-                        disabled={isDeleting}
-                        aria-label={`Delete fixed expense ${expense.name}`}
-                        title="Delete expense"
-                        className="p-1 rounded-md text-gray-300 hover:bg-gray-700 hover:text-red-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                      >
-                        {isDeleting ? (
-                          <Loader2
-                            className="w-3.5 h-3.5 animate-spin"
-                            aria-hidden="true"
-                          />
-                        ) : (
-                          <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
-                        )}
-                      </button>
+                  <div className="flex items-center justify-between p-2">
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                      <FileText
+                        className="w-4 h-4 text-gray-500 flex-shrink-0"
+                        aria-hidden="true"
+                      />
+                      <span className="text-gray-200 truncate">
+                        {expense.name}
+                      </span>
                     </div>
 
-                    <CurrencyAmount
-                      amount={monthlyAmount}
-                      currency={currency}
-                      className="font-mono text-sm text-gray-100 tabular-nums"
-                    />
+                    <div className="flex items-center gap-3 flex-shrink-0">
+                      {/* Hover-revealed row actions: move, edit, delete. The
+                          action group is forced visible while a move dropdown
+                          is open so the menu's anchor button doesn't disappear
+                          when the user moves the cursor onto the dropdown. */}
+                      <div
+                        className={`opacity-0 group-hover/row:opacity-100 focus-within:opacity-100 transition-opacity flex gap-1${
+                          movingExpenseId === expense.id ? ' !opacity-100' : ''
+                        }`}
+                      >
+                        <div className="relative">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              moveButtonRef.current = e.currentTarget;
+                              setMovingExpenseId((current) =>
+                                current === expense.id ? null : expense.id,
+                              );
+                            }}
+                            aria-label={`Move fixed expense ${expense.name} to another group`}
+                            aria-haspopup="menu"
+                            aria-expanded={movingExpenseId === expense.id}
+                            title="Move to group"
+                            className="p-1 rounded-md text-gray-300 hover:bg-gray-700 hover:text-blue-400 transition-colors"
+                          >
+                            <FolderInput
+                              className="w-3.5 h-3.5"
+                              aria-hidden="true"
+                            />
+                          </button>
+                          {movingExpenseId === expense.id &&
+                            createPortal(
+                              <MoveDropdown
+                                anchorRef={moveButtonRef}
+                                groups={availableGroups}
+                                expenseName={expense.name}
+                                onSelect={(groupId) => {
+                                  onMoveToGroup(expense, groupId);
+                                  setMovingExpenseId(null);
+                                }}
+                                onClose={() => setMovingExpenseId(null)}
+                              />,
+                              document.body,
+                            )}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => onEditExpense(expense)}
+                          aria-label={`Edit fixed expense ${expense.name}`}
+                          title="Edit expense"
+                          className="p-1 rounded-md text-gray-300 hover:bg-gray-700 hover:text-blue-400 transition-colors"
+                        >
+                          <Edit2 className="w-3.5 h-3.5" aria-hidden="true" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => onDeleteExpense(expense)}
+                          disabled={isDeleting}
+                          aria-label={`Delete fixed expense ${expense.name}`}
+                          title="Delete expense"
+                          className="p-1 rounded-md text-gray-300 hover:bg-gray-700 hover:text-red-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        >
+                          {isDeleting ? (
+                            <Loader2
+                              className="w-3.5 h-3.5 animate-spin"
+                              aria-hidden="true"
+                            />
+                          ) : (
+                            <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
+                          )}
+                        </button>
+                      </div>
+
+                      <CurrencyAmount
+                        amount={monthlyAmount}
+                        currency={currency}
+                        className="font-mono text-sm text-gray-100 tabular-nums"
+                      />
+                    </div>
+                  </div>
+                  <div className="px-2 pb-1.5">
+                    <p className="text-xs text-gray-500 mb-0.5">
+                      {isFullyFunded ? (
+                        <span className="text-green-400">Fully funded</span>
+                      ) : (
+                        <>
+                          ${expense.balance.toLocaleString()} saved · next: ${nextContribution.toLocaleString()}
+                        </>
+                      )}
+                    </p>
+                    <div className="h-[2px] w-full bg-blue-500/20 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-blue-400 rounded-full transition-all"
+                        style={{ width: `${Math.min(progress, 100)}%` }}
+                      />
+                    </div>
                   </div>
                 </div>
               );
