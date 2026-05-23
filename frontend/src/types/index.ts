@@ -75,7 +75,6 @@ export interface SubPocket {
   valueTotal: number; // Total amount to save
   periodicityMonths: number; // How many months to divide
   balance: number; // Current balance
-  enabled: boolean; // For toggling in budget planning
   groupId?: string; // References fixed_expense_groups, NULL = Default group
   displayOrder?: number; // For drag & drop reordering
 }
