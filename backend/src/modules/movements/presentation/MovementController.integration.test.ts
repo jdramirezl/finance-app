@@ -397,7 +397,8 @@ describe('MovementController Integration Tests', () => {
       expect(mockGetMovementsByMonthUseCase.execute).toHaveBeenCalledWith(
         2024,
         1,
-        testUserId
+        testUserId,
+        { accountId: undefined, isPending: undefined, limit: undefined, page: undefined, pocketId: undefined }
       );
     });
 
