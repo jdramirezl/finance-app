@@ -13,9 +13,17 @@ export default defineConfig({
     headless: true,
     storageState: storageStatePath,
   },
-  webServer: {
-    command: 'npm run dev',
-    port: 5173,
-    reuseExistingServer: true,
-  },
+  webServer: [
+    {
+      command: 'npm run dev --workspace=backend',
+      port: 3001,
+      reuseExistingServer: true,
+      cwd: path.resolve(__dirname, '..'),
+    },
+    {
+      command: 'npm run dev',
+      port: 5173,
+      reuseExistingServer: true,
+    },
+  ],
 });
