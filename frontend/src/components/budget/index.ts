@@ -9,4 +9,5 @@ export { default as ObligationsHeader } from './ObligationsHeader';
 export { default as ObligationsFooter } from './ObligationsFooter';
 export { default as DistributionFooter } from './DistributionFooter';
 export { default as DistributionHeader } from './DistributionHeader';
+export { default as BudgetCurrencySelector } from './BudgetCurrencySelector';
 export type { DistributionEntry } from './BudgetEntryRow';
