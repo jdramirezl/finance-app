@@ -94,7 +94,7 @@ export const useBudgetActions = ({
   const showConversion = primaryCurrency !== budgetCurrency;
 
   // Pick the relevant subset of fixed expenses based on active scenarios.
-  // - No scenarios exist: fall back to all enabled expenses.
+  // - No scenarios exist: fall back to all fixed expenses.
   // - Scenarios exist but none active: deduct nothing (manual override).
   // - Scenarios active: union of expenses in those scenarios.
   const totalFijosMes = useMemo(() => {
@@ -108,7 +108,7 @@ export const useBudgetActions = ({
     } else if (scenarios.length > 0) {
       relevant = [];
     } else {
-      relevant = fixedSubPockets.filter((sp) => sp.enabled);
+      relevant = fixedSubPockets;
     }
 
     return relevant.reduce(
