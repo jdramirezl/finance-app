@@ -50,7 +50,6 @@ const mockSubPocket = (overrides: Partial<SubPocket> = {}): SubPocket => ({
   valueTotal: 1200,
   periodicityMonths: 12,
   balance: 0,
-  enabled: true,
   ...overrides,
 });
 
@@ -99,12 +98,11 @@ describe('useBudgetActions', () => {
   });
 
   describe('totalFijosMes', () => {
-    it('sums all enabled fixed expenses when no scenarios exist', () => {
-      // 1200 / 12 = 100 per month; 600 / 6 = 100 per month; disabled excluded
+    it('sums all fixed expenses when no scenarios exist', () => {
+      // 1200 / 12 = 100 per month; 600 / 6 = 100 per month
       const fixedSubPockets = [
-        mockSubPocket({ id: 'sp-1', enabled: true, valueTotal: 1200, periodicityMonths: 12 }),
-        mockSubPocket({ id: 'sp-2', enabled: true, valueTotal: 600, periodicityMonths: 6 }),
-        mockSubPocket({ id: 'sp-3', enabled: false, valueTotal: 1200, periodicityMonths: 12 }),
+        mockSubPocket({ id: 'sp-1', valueTotal: 1200, periodicityMonths: 12 }),
+        mockSubPocket({ id: 'sp-2', valueTotal: 600, periodicityMonths: 6 }),
       ];
 
       const { params } = buildParams({ fixedSubPockets, initialAmount: 1000 });
@@ -116,7 +114,7 @@ describe('useBudgetActions', () => {
 
     it('returns zero when scenarios exist but none are active (manual override)', () => {
       const fixedSubPockets = [
-        mockSubPocket({ id: 'sp-1', enabled: true, valueTotal: 1200, periodicityMonths: 12 }),
+        mockSubPocket({ id: 'sp-1', valueTotal: 1200, periodicityMonths: 12 }),
       ];
       const scenarios: PlanningScenario[] = [
         { id: 'sc-1', name: 'Tight', expenseIds: ['sp-1'] },

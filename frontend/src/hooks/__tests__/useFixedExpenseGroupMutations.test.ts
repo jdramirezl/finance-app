@@ -5,15 +5,13 @@ import { createElement, type ReactNode } from 'react';
 
 /**
  * Tests for {@link useFixedExpenseGroupMutations}. The hook wraps
- * `fixedExpenseGroupService` plus a dynamically-imported call into
- * `subPocketService.toggleGroup`. Behaviors we want pinned:
+ * `fixedExpenseGroupService`. Behaviors we want pinned:
  *   - Each mutation forwards its arguments to the underlying service.
  *   - Each mutation invalidates the right query keys on success.
  *     - create / update / reorder → ['fixedExpenseGroups']
  *     - delete → ['fixedExpenseGroups'] + ['subPockets']
  *       (delete moves expenses into the Default group, so the sub-pocket
  *       cache must refetch)
- *     - toggle → ['subPockets'] only (group state lives on its members)
  *   - On failure each mutation surfaces the error message via toast,
  *     falling back to a per-mutation default when the error has none.
  */
@@ -36,19 +34,12 @@ vi.mock('../../services/fixedExpenseGroupService', () => ({
     },
 }));
 
-vi.mock('../../services/subPocketService', () => ({
-    subPocketService: {
-        toggleGroup: vi.fn(),
-    },
-}));
-
 vi.mock('../useToast', () => ({
     useToast: () => mocks.toast,
 }));
 
 import { useFixedExpenseGroupMutations } from '../queries/useFixedExpenseGroupMutations';
 import { fixedExpenseGroupService } from '../../services/fixedExpenseGroupService';
-import { subPocketService } from '../../services/subPocketService';
 
 interface WrapperFixture {
     wrapper: (props: { children: ReactNode }) => ReturnType<typeof createElement>;
@@ -247,55 +238,6 @@ describe('useFixedExpenseGroupMutations', () => {
             });
 
             expect(mocks.toast.error).toHaveBeenCalledWith('Failed to delete group');
-        });
-    });
-
-    describe('toggleFixedExpenseGroup', () => {
-        it('forwards id and enabled to subPocketService.toggleGroup (lazy-loaded)', async () => {
-            const { wrapper } = createWrapper();
-            vi.mocked(subPocketService.toggleGroup).mockResolvedValue(undefined as never);
-
-            const { result } = renderHook(() => useFixedExpenseGroupMutations(), { wrapper });
-            await act(async () => {
-                await result.current.toggleFixedExpenseGroup.mutateAsync({
-                    id: 'grp-1',
-                    enabled: false,
-                });
-            });
-
-            expect(subPocketService.toggleGroup).toHaveBeenCalledWith('grp-1', false);
-        });
-
-        it('invalidates only the subPockets query (toggle lives on members)', async () => {
-            const { wrapper, invalidateSpy } = createWrapper();
-            vi.mocked(subPocketService.toggleGroup).mockResolvedValue(undefined as never);
-
-            const { result } = renderHook(() => useFixedExpenseGroupMutations(), { wrapper });
-            await act(async () => {
-                await result.current.toggleFixedExpenseGroup.mutateAsync({
-                    id: 'grp-1',
-                    enabled: true,
-                });
-            });
-
-            expect(invalidatedKeys(invalidateSpy)).toEqual([['subPockets']]);
-        });
-
-        it('falls back to "Failed to toggle group" on a message-less error', async () => {
-            const { wrapper } = createWrapper();
-            vi.mocked(subPocketService.toggleGroup).mockRejectedValue(new Error(''));
-
-            const { result } = renderHook(() => useFixedExpenseGroupMutations(), { wrapper });
-            await act(async () => {
-                await expect(
-                    result.current.toggleFixedExpenseGroup.mutateAsync({
-                        id: 'grp-1',
-                        enabled: true,
-                    }),
-                ).rejects.toBeDefined();
-            });
-
-            expect(mocks.toast.error).toHaveBeenCalledWith('Failed to toggle group');
         });
     });
 

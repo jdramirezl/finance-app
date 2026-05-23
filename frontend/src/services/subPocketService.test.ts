@@ -10,7 +10,6 @@ const mockSubPocket: SubPocket = {
   valueTotal: 12000,
   periodicityMonths: 1,
   balance: 0,
-  enabled: true,
 };
 
 describe('subPocketService', () => {
@@ -100,9 +99,9 @@ describe('subPocketService', () => {
   });
 
   describe('calculateTotalFijosMes', () => {
-    it('should sum contributions of enabled sub-pockets', async () => {
-      const disabled = { ...mockSubPocket, id: 'sp-2', enabled: false };
-      vi.spyOn(apiClient, 'get').mockResolvedValue([mockSubPocket, disabled]);
+    it('sums contributions across all sub-pockets', async () => {
+      const second = { ...mockSubPocket, id: 'sp-2' };
+      vi.spyOn(apiClient, 'get').mockResolvedValue([mockSubPocket, second]);
       const result = await subPocketService.calculateTotalFijosMes('pocket-1');
       expect(result).toBeGreaterThan(0);
     });
@@ -182,16 +181,6 @@ describe('subPocketService', () => {
     });
   });
 
-  describe('toggleSubPocketEnabled', () => {
-    it('should call toggle endpoint', async () => {
-      const toggled = { ...mockSubPocket, enabled: false };
-      vi.spyOn(apiClient, 'post').mockResolvedValue(toggled);
-      const result = await subPocketService.toggleSubPocketEnabled('sp-1');
-      expect(apiClient.post).toHaveBeenCalledWith('/api/sub-pockets/sp-1/toggle', {});
-      expect(result.enabled).toBe(false);
-    });
-  });
-
   describe('reorderSubPockets', () => {
     it('should call reorder endpoint', async () => {
       vi.spyOn(apiClient, 'post').mockResolvedValue(undefined);
@@ -205,14 +194,6 @@ describe('subPocketService', () => {
       vi.spyOn(apiClient, 'post').mockResolvedValue(undefined);
       await subPocketService.moveToGroup('sp-1', 'group-2');
       expect(apiClient.post).toHaveBeenCalledWith('/api/sub-pockets/sp-1/move-to-group', { groupId: 'group-2' });
-    });
-  });
-
-  describe('toggleGroup', () => {
-    it('should call group toggle endpoint', async () => {
-      vi.spyOn(apiClient, 'post').mockResolvedValue(undefined);
-      await subPocketService.toggleGroup('group-1', true);
-      expect(apiClient.post).toHaveBeenCalledWith('/api/fixed-expense-groups/group-1/toggle', {});
     });
   });
 });

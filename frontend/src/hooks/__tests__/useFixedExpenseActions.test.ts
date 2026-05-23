@@ -31,7 +31,6 @@ const mockSubPocket = (overrides: Partial<SubPocket> = {}): SubPocket => ({
   valueTotal: 1200,
   periodicityMonths: 12,
   balance: 0,
-  enabled: true,
   ...overrides,
 });
 
@@ -56,11 +55,9 @@ const buildParams = (overrides: Partial<UseFixedExpenseActionsParams> = {}) => {
   };
 
   const deleteFixedExpenseGroup: MutationStub = { mutateAsync: vi.fn().mockResolvedValue(undefined), isPending: false };
-  const toggleFixedExpenseGroup: MutationStub = { mutateAsync: vi.fn().mockResolvedValue(undefined), isPending: false };
   const reorderFixedExpenseGroups: MutationStub = { mutateAsync: vi.fn().mockResolvedValue(undefined), isPending: false };
 
   const deleteSubPocket: MutationStub = { mutateAsync: vi.fn().mockResolvedValue(undefined), isPending: false };
-  const toggleSubPocketEnabled: MutationStub = { mutateAsync: vi.fn().mockResolvedValue(undefined), isPending: false };
   const moveSubPocketToGroup: MutationStub = { mutateAsync: vi.fn().mockResolvedValue(undefined), isPending: false };
 
   const toast = {
@@ -78,12 +75,10 @@ const buildParams = (overrides: Partial<UseFixedExpenseActionsParams> = {}) => {
     movementMutations: { createMovement } as unknown as UseFixedExpenseActionsParams['movementMutations'],
     groupMutations: {
       deleteFixedExpenseGroup,
-      toggleFixedExpenseGroup,
       reorderFixedExpenseGroups,
     } as unknown as UseFixedExpenseActionsParams['groupMutations'],
     subPocketMutations: {
       deleteSubPocket,
-      toggleSubPocketEnabled,
       moveSubPocketToGroup,
     } as unknown as UseFixedExpenseActionsParams['subPocketMutations'],
     toast: toast as unknown as UseFixedExpenseActionsParams['toast'],
@@ -95,10 +90,8 @@ const buildParams = (overrides: Partial<UseFixedExpenseActionsParams> = {}) => {
     params,
     createMovement,
     deleteFixedExpenseGroup,
-    toggleFixedExpenseGroup,
     reorderFixedExpenseGroups,
     deleteSubPocket,
-    toggleSubPocketEnabled,
     moveSubPocketToGroup,
     toast,
     confirm,
@@ -133,20 +126,6 @@ describe('useFixedExpenseActions', () => {
       });
 
       expect(deleteSubPocket.mutateAsync).not.toHaveBeenCalled();
-    });
-  });
-
-  describe('handleToggleSubPocket', () => {
-    it('toggles the sub-pocket and reports success', async () => {
-      const { params, toggleSubPocketEnabled, toast } = buildParams();
-      const { result } = renderHook(() => useFixedExpenseActions(params));
-
-      await act(async () => {
-        await result.current.handleToggleSubPocket('sub-1');
-      });
-
-      expect(toggleSubPocketEnabled.mutateAsync).toHaveBeenCalledWith('sub-1');
-      expect(toast.success).toHaveBeenCalledWith('Fixed expense status updated!');
     });
   });
 
@@ -193,23 +172,6 @@ describe('useFixedExpenseActions', () => {
     });
   });
 
-  describe('handleToggleGroup', () => {
-    it('forwards id and enabled flag and toasts on success', async () => {
-      const { params, toggleFixedExpenseGroup, toast } = buildParams();
-      const { result } = renderHook(() => useFixedExpenseActions(params));
-
-      await act(async () => {
-        await result.current.handleToggleGroup('grp-1', false);
-      });
-
-      expect(toggleFixedExpenseGroup.mutateAsync).toHaveBeenCalledWith({
-        id: 'grp-1',
-        enabled: false,
-      });
-      expect(toast.success).toHaveBeenCalledWith('Group disabled successfully!');
-    });
-  });
-
   describe('handleReorderGroups', () => {
     it('passes the ordered ids to the mutation', async () => {
       const { params, reorderFixedExpenseGroups } = buildParams();
@@ -251,23 +213,20 @@ describe('useFixedExpenseActions', () => {
       expect(result.current.batchForm.isOpen).toBe(false);
     });
 
-    it('toasts an error when no enabled expenses exist', () => {
-      const { params, toast } = buildParams({
-        fixedSubPockets: [mockSubPocket({ enabled: false })],
-      });
+    it('toasts an error when no fixed expenses exist', () => {
+      const { params, toast } = buildParams({ fixedSubPockets: [] });
       const { result } = renderHook(() => useFixedExpenseActions(params));
 
       act(() => result.current.prepareBatchFromEnabled());
 
-      expect(toast.error).toHaveBeenCalledWith('No enabled fixed expenses found');
+      expect(toast.error).toHaveBeenCalledWith('No fixed expenses found');
       expect(result.current.batchForm.isOpen).toBe(false);
     });
 
-    it('builds rows for each enabled expense and opens the batch form', () => {
+    it('builds rows for each fixed expense and opens the batch form', () => {
       const fixedSubPockets = [
         mockSubPocket({ id: 'sp-1', name: 'Internet', valueTotal: 1200, periodicityMonths: 12 }),
         mockSubPocket({ id: 'sp-2', name: 'Insurance', valueTotal: 600, periodicityMonths: 6 }),
-        mockSubPocket({ id: 'sp-3', enabled: false }),
       ];
 
       const { params, toast } = buildParams({ fixedSubPockets });

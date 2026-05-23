@@ -26,7 +26,6 @@ const makeSubPocket = (overrides: Partial<SubPocket> = {}): SubPocket => ({
   valueTotal: 1200,
   periodicityMonths: 1,
   balance: 600,
-  enabled: true,
   ...overrides,
 });
 
@@ -146,17 +145,6 @@ describe('FixedObligationsWidget', () => {
     expect(screen.getByText('Rent')).toBeInTheDocument();
     expect(screen.getByText('Other')).toBeInTheDocument();
     expect(screen.getByText('Netflix')).toBeInTheDocument();
-  });
-
-  it('marks disabled sub-pockets with an OFF badge', () => {
-    const subPockets = [makeSubPocket({ name: 'Gym', enabled: false })];
-
-    render(
-      <FixedObligationsWidget subPockets={subPockets} groups={[]} primaryCurrency="USD" />
-    );
-
-    expect(screen.getByText('OFF')).toBeInTheDocument();
-    expect(screen.getByText('Gym')).toBeInTheDocument();
   });
 
   it('skips groups that have no matching sub-pockets', () => {

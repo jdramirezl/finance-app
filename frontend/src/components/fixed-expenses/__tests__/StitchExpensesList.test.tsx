@@ -19,9 +19,7 @@ vi.mock('../StitchGroupCard', () => ({
         data-group-name={props.group.name}
         data-default={String(props.isDefaultGroup)}
         data-collapsed={String(props.isCollapsed)}
-        data-toggling-group={String(props.isTogglingGroup)}
         data-deleting-expense-id={String(props.deletingExpenseId ?? '')}
-        data-toggling-expense-id={String(props.togglingExpenseId ?? '')}
       >
         <span data-testid="group-name">{props.group.name}</span>
         <span data-testid="group-expense-count">{expenses.length}</span>
@@ -35,12 +33,6 @@ vi.mock('../StitchGroupCard', () => ({
           onClick={props.onToggleCollapse as () => void}
         >
           collapse
-        </button>
-        <button
-          data-testid={`trigger-toggle-group-${props.group.id}`}
-          onClick={props.onToggleGroup as () => void}
-        >
-          toggle-group
         </button>
         <button
           data-testid={`trigger-edit-group-${props.group.id}`}
@@ -76,17 +68,6 @@ vi.mock('../StitchGroupCard', () => ({
             delete
           </button>
         ))}
-        {expenses.map((sp) => (
-          <button
-            key={`toggle-${sp.id}`}
-            data-testid={`trigger-toggle-expense-${sp.id}`}
-            onClick={() =>
-              (props.onToggleExpense as (expense: SubPocket) => void)(sp)
-            }
-          >
-            toggle
-          </button>
-        ))}
       </div>
     );
   },
@@ -115,7 +96,6 @@ const internet: SubPocket = {
   valueTotal: 600,
   periodicityMonths: 12,
   balance: 50,
-  enabled: true,
   groupId: 'grp-bills',
 };
 
@@ -126,7 +106,6 @@ const electricity: SubPocket = {
   valueTotal: 1200,
   periodicityMonths: 12,
   balance: 100,
-  enabled: true,
   groupId: 'grp-bills',
 };
 
@@ -137,7 +116,6 @@ const ungrouped: SubPocket = {
   valueTotal: 240,
   periodicityMonths: 12,
   balance: 20,
-  enabled: false,
   // groupId intentionally omitted to land in the Default bucket.
 };
 
@@ -148,16 +126,12 @@ const buildProps = (overrides: Partial<Props> = {}): Props => ({
   fixedSubPockets: [internet, electricity, ungrouped],
   currency: 'USD',
   collapsedGroups: new Set<string>(),
-  togglingGroupId: null,
   deletingId: null,
-  togglingId: null,
   onToggleCollapse: vi.fn(),
-  onToggleGroup: vi.fn(),
   onEditGroup: vi.fn(),
   onDeleteGroup: vi.fn(),
   onEditExpense: vi.fn(),
   onDeleteExpense: vi.fn(),
-  onToggleExpense: vi.fn(),
   ...overrides,
 });
 
@@ -302,35 +276,15 @@ describe('StitchExpensesList', () => {
       expect(defaultCard).toHaveAttribute('data-collapsed', 'false');
     });
 
-    it('forwards isTogglingGroup=true only to the group whose id matches togglingGroupId', () => {
+    it('forwards deletingId to every group card', () => {
       render(
         <StitchExpensesList
-          {...buildProps({ togglingGroupId: 'grp-bills' })}
-        />,
-      );
-
-      const cards = screen.getAllByTestId('group-card');
-      const billsCard = cards.find(
-        (c) => c.getAttribute('data-group-id') === 'grp-bills',
-      );
-      const defaultCard = cards.find(
-        (c) => c.getAttribute('data-group-id') === 'grp-default',
-      );
-
-      expect(billsCard).toHaveAttribute('data-toggling-group', 'true');
-      expect(defaultCard).toHaveAttribute('data-toggling-group', 'false');
-    });
-
-    it('forwards deletingId and togglingId to every group card', () => {
-      render(
-        <StitchExpensesList
-          {...buildProps({ deletingId: 'sp-internet', togglingId: 'sp-electric' })}
+          {...buildProps({ deletingId: 'sp-internet' })}
         />,
       );
 
       for (const card of screen.getAllByTestId('group-card')) {
         expect(card).toHaveAttribute('data-deleting-expense-id', 'sp-internet');
-        expect(card).toHaveAttribute('data-toggling-expense-id', 'sp-electric');
       }
     });
 
@@ -355,17 +309,6 @@ describe('StitchExpensesList', () => {
       expect(onToggleCollapse).toHaveBeenCalledWith('grp-bills');
     });
 
-    it('invokes onToggleGroup with the group when the card triggers it', async () => {
-      const user = userEvent.setup();
-      const onToggleGroup = vi.fn();
-      render(<StitchExpensesList {...buildProps({ onToggleGroup })} />);
-
-      await user.click(screen.getByTestId('trigger-toggle-group-grp-bills'));
-
-      expect(onToggleGroup).toHaveBeenCalledTimes(1);
-      expect(onToggleGroup).toHaveBeenCalledWith(billsGroup);
-    });
-
     it('invokes onEditGroup with the group when the card triggers it', async () => {
       const user = userEvent.setup();
       const onEditGroup = vi.fn();
@@ -388,11 +331,10 @@ describe('StitchExpensesList', () => {
       expect(onDeleteGroup).toHaveBeenCalledWith(billsGroup);
     });
 
-    it('forwards onEditExpense, onDeleteExpense, and onToggleExpense unchanged', () => {
+    it('forwards onEditExpense and onDeleteExpense unchanged', () => {
       const handlers = {
         onEditExpense: vi.fn(),
         onDeleteExpense: vi.fn(),
-        onToggleExpense: vi.fn(),
       };
       render(<StitchExpensesList {...buildProps(handlers)} />);
 
@@ -401,7 +343,6 @@ describe('StitchExpensesList', () => {
       );
       expect(billsRender?.onEditExpense).toBe(handlers.onEditExpense);
       expect(billsRender?.onDeleteExpense).toBe(handlers.onDeleteExpense);
-      expect(billsRender?.onToggleExpense).toBe(handlers.onToggleExpense);
     });
 
     it('routes per-expense callbacks with the expense object', async () => {

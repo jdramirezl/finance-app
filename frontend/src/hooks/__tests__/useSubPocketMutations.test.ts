@@ -7,15 +7,7 @@ import type { SubPocket } from '../../types';
 /**
  * Tests for {@link useSubPocketMutations}.
  *
- * The interesting case here is `toggleSubPocketEnabled`, which uses the
- * TanStack Query optimistic-update lifecycle (`onMutate` / `onError` /
- * `onSettled`):
- *   - `onMutate` cancels in-flight queries, snapshots the cache, then
- *     optimistically flips the `enabled` flag for the targeted sub-pocket.
- *   - `onError` rolls back to the snapshot if the mutation fails.
- *   - `onSettled` always invalidates `['subPockets']` regardless of outcome.
- *
- * The other four mutations (`create`, `update`, `delete`, `moveToGroup`) are
+ * The four mutations (`create`, `update`, `delete`, `moveToGroup`) are
  * straightforward thin wrappers that call the service and invalidate
  * `['subPockets']` on success. Note that this hook does NOT use
  * `broadcastInvalidation` — sub-pocket changes are local-tab only — so we
@@ -36,7 +28,6 @@ vi.mock('../../services/subPocketService', () => ({
         createSubPocket: vi.fn(),
         updateSubPocket: vi.fn(),
         deleteSubPocket: vi.fn(),
-        toggleSubPocketEnabled: vi.fn(),
         moveToGroup: vi.fn(),
     },
 }));
@@ -55,15 +46,9 @@ interface WrapperFixture {
 }
 
 const createWrapper = (): WrapperFixture => {
-    // Note: we deliberately don't set `gcTime: 0` here — this hook's
-    // `toggleSubPocketEnabled` uses the optimistic update lifecycle
-    // (`onMutate` → `onError` rollback / `onSettled` invalidate). With
-    // `gcTime: 0` the cache entry we seed via `setQueryData` is GC'd
-    // immediately because no `useQuery` observer has registered, which
-    // makes the snapshot in `onMutate` undefined.
     const queryClient = new QueryClient({
         defaultOptions: {
-            queries: { retry: false },
+            queries: { retry: false, gcTime: 0 },
             mutations: { retry: false },
         },
     });
@@ -83,7 +68,6 @@ const makeSubPocket = (overrides: Partial<SubPocket> = {}): SubPocket => ({
     valueTotal: 199,
     periodicityMonths: 1,
     balance: 0,
-    enabled: true,
     ...overrides,
 });
 
@@ -210,81 +194,6 @@ describe('useSubPocketMutations', () => {
             });
 
             expect(invalidatedKeys(invalidateSpy)).toEqual([['subPockets']]);
-        });
-    });
-
-    describe('toggleSubPocketEnabled', () => {
-        it('optimistically flips the enabled flag in the cache before the service resolves', async () => {
-            const { wrapper, queryClient } = createWrapper();
-            const initial: SubPocket[] = [
-                makeSubPocket({ id: 'sub-1', enabled: true }),
-                makeSubPocket({ id: 'sub-2', enabled: false }),
-            ];
-            queryClient.setQueryData(['subPockets'], initial);
-
-            // Block the service so we can observe the optimistic update mid-flight.
-            let resolveService: (value: SubPocket) => void = () => {};
-            vi.mocked(subPocketService.toggleSubPocketEnabled).mockImplementation(
-                () => new Promise<SubPocket>((resolve) => { resolveService = resolve; }),
-            );
-
-            const { result } = renderHook(() => useSubPocketMutations(), { wrapper });
-
-            let pending: Promise<unknown>;
-            await act(async () => {
-                pending = result.current.toggleSubPocketEnabled.mutateAsync('sub-1');
-                // Yield once so onMutate can run before we inspect the cache.
-                await Promise.resolve();
-            });
-
-            const optimistic = queryClient.getQueryData<SubPocket[]>(['subPockets']);
-            expect(optimistic?.find((sp) => sp.id === 'sub-1')?.enabled).toBe(false);
-            expect(optimistic?.find((sp) => sp.id === 'sub-2')?.enabled).toBe(false);
-
-            await act(async () => {
-                resolveService(makeSubPocket({ id: 'sub-1', enabled: false }));
-                await pending;
-            });
-
-            expect(subPocketService.toggleSubPocketEnabled).toHaveBeenCalledWith('sub-1');
-        });
-
-        it('rolls back to the snapshot when the service rejects', async () => {
-            const { wrapper, queryClient } = createWrapper();
-            const initial: SubPocket[] = [
-                makeSubPocket({ id: 'sub-1', enabled: true }),
-            ];
-            queryClient.setQueryData(['subPockets'], initial);
-
-            vi.mocked(subPocketService.toggleSubPocketEnabled).mockRejectedValue(new Error('toggle failed'));
-
-            const { result } = renderHook(() => useSubPocketMutations(), { wrapper });
-            await act(async () => {
-                await expect(
-                    result.current.toggleSubPocketEnabled.mutateAsync('sub-1'),
-                ).rejects.toThrow('toggle failed');
-            });
-
-            const restored = queryClient.getQueryData<SubPocket[]>(['subPockets']);
-            expect(restored).toEqual(initial);
-            expect(mocks.toast.error).toHaveBeenCalledWith('toggle failed');
-        });
-
-        it('invalidates subPockets on settle (success path)', async () => {
-            const { wrapper, invalidateSpy, queryClient } = createWrapper();
-            queryClient.setQueryData(['subPockets'], [makeSubPocket({ id: 'sub-1', enabled: true })]);
-            vi.mocked(subPocketService.toggleSubPocketEnabled).mockResolvedValue(
-                makeSubPocket({ id: 'sub-1', enabled: false }),
-            );
-
-            const { result } = renderHook(() => useSubPocketMutations(), { wrapper });
-            await act(async () => {
-                await result.current.toggleSubPocketEnabled.mutateAsync('sub-1');
-            });
-
-            expect(
-                invalidatedKeys(invalidateSpy).some((k) => k.length === 1 && k[0] === 'subPockets'),
-            ).toBe(true);
         });
     });
 
