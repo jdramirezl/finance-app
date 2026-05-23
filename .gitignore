@@ -36,4 +36,6 @@ frontend/e2e/.auth/
 .vite/
 
 # Database backups
+.backups/frontend/test-results/
+frontend/test-results/
 .backups/

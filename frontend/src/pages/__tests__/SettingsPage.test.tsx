@@ -60,7 +60,6 @@ vi.mock('../../components/movements/AccountPocketSelector', () => ({
 }));
 
 // Imported after mocks are registered so the page picks up the mocked modules.
-// eslint-disable-next-line import/first
 import SettingsPage from '../SettingsPage';
 
 // ---------------------------------------------------------------------------

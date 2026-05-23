@@ -188,8 +188,8 @@ describe('SubPocketController Integration Tests', () => {
       const response = await request(app)
         .get('/api/sub-pockets');
 
-      expect(response.status).toBe(400);
-      expect(response.body.error).toContain('pocketId or groupId is required');
+      // Endpoint now returns all sub-pockets when no filter provided
+      expect(response.status).toBe(200);
     });
   });
 

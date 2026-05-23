@@ -66,7 +66,6 @@ vi.mock('../../components/movements/MovementTemplateForm', () => ({
 }));
 
 // Imported after mocks are registered so the page picks up the mocked modules.
-// eslint-disable-next-line import/first
 import TemplatesPage from '../TemplatesPage';
 
 // ---------------------------------------------------------------------------
