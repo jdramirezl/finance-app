@@ -3,7 +3,7 @@ import { hasTestCredentials } from './helpers/auth';
 
 test.describe('Settings and Net Worth flows', () => {
   let originalCurrency: string | null = null;
-  let originalDisplayMode: string | null = null;
+  let originalDisplayMode: 'compact' | 'detailed' | null = null;
 
   test.beforeAll(() => {
     test.skip(!hasTestCredentials(), 'Test credentials not configured');
@@ -11,42 +11,58 @@ test.describe('Settings and Net Worth flows', () => {
 
   test.afterAll(async ({ browser }) => {
     if (!hasTestCredentials()) return;
-    // Restore original settings
+    // Restore the user's pre-test settings so the suite is idempotent.
     const context = await browser.newContext({ storageState: 'e2e/.auth/storage-state.json' });
     const page = await context.newPage();
     await page.goto('/settings');
-    await page.waitForSelector('h1:has-text("Settings")');
+    await page.getByRole('heading', { name: 'Settings' }).waitFor();
 
     if (originalCurrency) {
-      await page.getByRole('radio', { name: originalCurrency }).check();
+      // PreferencesSection renders a <select> for the base currency. The
+      // <label> isn't associated via htmlFor, so locate the select via
+      // its sibling label.
+      const currencySelect = page.locator('label:has-text("Base Currency") + select');
+      await currencySelect.selectOption(originalCurrency);
       await page.waitForTimeout(500);
     }
     if (originalDisplayMode) {
-      await page.getByRole('radio', { name: new RegExp(originalDisplayMode, 'i') }).check();
-      await page.waitForTimeout(500);
+      // Display section is hidden behind nav; click into it before
+      // toggling the radio.
+      await page.getByRole('button', { name: 'Display' }).click();
+      const restoreRadio = page.locator(
+        `input[name="normalAccountDisplay"][value="${originalDisplayMode}"]`,
+      );
+      await restoreRadio.click();
+      await expect(restoreRadio).toBeChecked({ timeout: 5000 });
     }
     await context.close();
   });
 
   test('Settings: change display mode persists after reload', async ({ page }) => {
     await page.goto('/settings');
-    await page.waitForSelector('h1:has-text("Settings")');
+    await page.getByRole('heading', { name: 'Settings' }).waitFor();
 
-    // Capture original display mode for Regular Accounts
+    // The Display section isn't the default — navigate to it first.
+    await page.getByRole('button', { name: 'Display' }).click();
+
     const compactRadio = page.locator('input[name="normalAccountDisplay"][value="compact"]');
     const detailedRadio = page.locator('input[name="normalAccountDisplay"][value="detailed"]');
 
     const isCompact = await compactRadio.isChecked();
     originalDisplayMode = isCompact ? 'compact' : 'detailed';
 
-    // Toggle to the opposite mode
+    // Toggle to the opposite mode. The radio is controlled and its
+    // `checked` only flips after the update mutation resolves, so use
+    // .click() (no synchronous state assertion) plus a follow-up
+    // `toBeChecked()` with timeout instead of .check().
     const targetMode = isCompact ? detailedRadio : compactRadio;
-    await targetMode.check();
-    await page.waitForTimeout(500);
+    await targetMode.click();
+    await expect(targetMode).toBeChecked({ timeout: 5000 });
 
-    // Reload and verify persistence
+    // Reload, re-enter the Display tab, and verify persistence.
     await page.reload();
-    await page.waitForSelector('h1:has-text("Settings")');
+    await page.getByRole('heading', { name: 'Settings' }).waitFor();
+    await page.getByRole('button', { name: 'Display' }).click();
 
     const expectedRadio = isCompact ? detailedRadio : compactRadio;
     await expect(expectedRadio).toBeChecked();
@@ -54,47 +70,50 @@ test.describe('Settings and Net Worth flows', () => {
 
   test('Settings: change primary currency', async ({ page }) => {
     await page.goto('/settings');
-    await page.waitForSelector('h1:has-text("Settings")');
+    await page.getByRole('heading', { name: 'Settings' }).waitFor();
 
-    // Find the currently active currency
-    const activeLabel = page.locator('input[name="primaryCurrency"]:checked');
-    originalCurrency = await activeLabel.getAttribute('value');
+    // Primary currency lives in the Preferences section (the default).
+    // The <label>Base Currency</label> isn't associated to its <select>
+    // via htmlFor, so use an adjacent-sibling locator.
+    const currencySelect = page.locator('label:has-text("Base Currency") + select');
+    originalCurrency = await currencySelect.inputValue();
 
-    // Pick a different currency
     const targetCurrency = originalCurrency === 'USD' ? 'EUR' : 'USD';
-    await page.getByRole('radio', { name: targetCurrency }).check();
+    await currencySelect.selectOption(targetCurrency);
     await page.waitForTimeout(500);
 
-    // Navigate to summary and verify the currency is reflected
+    // Verify the choice is reflected on the summary page.
     await page.goto('/summary');
     await page.waitForTimeout(1000);
-
-    // The page should contain the target currency symbol or code somewhere
     const pageContent = await page.textContent('body');
     expect(pageContent).toContain(targetCurrency === 'USD' ? '$' : '€');
   });
 
-  test('Net worth: view timeline chart', async ({ page }) => {
+  test('Net worth: timeline widget is rendered', async ({ page }) => {
     await page.goto('/summary');
 
-    // The net worth widget should be visible (either chart or empty state)
-    const widget = page.locator('text=Net Worth Timeline').first();
-    await expect(widget).toBeVisible({ timeout: 10000 });
+    // The widget renders the chart heading when there is at least one
+    // snapshot, and an empty-state copy otherwise. Either is a valid
+    // signal that the widget mounted.
+    const successHeading = page.getByRole('heading', { name: 'Net Worth Timeline' });
+    const emptyState = page.getByText('No net worth data yet');
+    await expect(successHeading.or(emptyState).first()).toBeVisible({ timeout: 10000 });
   });
 
   test('Net worth: breakdown view toggle', async ({ page }) => {
     await page.goto('/summary');
-    await page.waitForSelector('text=Net Worth Timeline', { timeout: 10000 });
 
-    // Click "By Currency" button
+    // The view-mode buttons are only rendered inside the success branch
+    // of the widget; if there are no snapshots, skip.
+    const successHeading = page.getByRole('heading', { name: 'Net Worth Timeline' });
+    const heading = await successHeading.isVisible().catch(() => false);
+    test.skip(!heading, 'No net worth snapshots — widget shows empty state');
+
     const byCurrencyBtn = page.getByRole('button', { name: 'By Currency' });
     await byCurrencyBtn.click();
-
-    // Verify the button is now active (has the active class)
     await expect(byCurrencyBtn).toHaveClass(/bg-blue-500/);
 
-    // Click "Total" to switch back
-    const totalBtn = page.getByRole('button', { name: 'Total' });
+    const totalBtn = page.getByRole('button', { name: 'Total', exact: true });
     await totalBtn.click();
     await expect(totalBtn).toHaveClass(/bg-blue-500/);
   });
