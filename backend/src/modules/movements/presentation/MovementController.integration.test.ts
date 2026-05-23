@@ -26,6 +26,8 @@ import { ApplyPendingMovementUseCase } from '../application/useCases/ApplyPendin
 import { MarkAsPendingUseCase } from '../application/useCases/MarkAsPendingUseCase';
 import { RestoreOrphanedMovementsUseCase } from '../application/useCases/RestoreOrphanedMovementsUseCase';
 import { CreateTransferUseCase } from '../application/useCases/CreateTransferUseCase';
+import { GetSpendingSummaryUseCase } from '../application/useCases/GetSpendingSummaryUseCase';
+import { GetMovementYearsUseCase } from '../application/useCases/GetMovementYearsUseCase';
 import { DeleteMovementsByAccountUseCase } from '../application/useCases/DeleteMovementsByAccountUseCase';
 import { DeleteMovementsByPocketUseCase } from '../application/useCases/DeleteMovementsByPocketUseCase';
 import { MarkMovementsAsOrphanedUseCase } from '../application/useCases/MarkMovementsAsOrphanedUseCase';
@@ -49,6 +51,8 @@ describe('MovementController Integration Tests', () => {
   let mockMarkAsPendingUseCase: jest.Mocked<MarkAsPendingUseCase>;
   let mockRestoreOrphanedMovementsUseCase: jest.Mocked<RestoreOrphanedMovementsUseCase>;
   let mockCreateTransferUseCase: jest.Mocked<CreateTransferUseCase>;
+  let mockGetSpendingSummaryUseCase: jest.Mocked<GetSpendingSummaryUseCase>;
+  let mockGetMovementYearsUseCase: jest.Mocked<GetMovementYearsUseCase>;
   let mockDeleteMovementsByAccountUseCase: jest.Mocked<DeleteMovementsByAccountUseCase>;
   let mockDeleteMovementsByPocketUseCase: jest.Mocked<DeleteMovementsByPocketUseCase>;
   let mockMarkMovementsAsOrphanedUseCase: jest.Mocked<MarkMovementsAsOrphanedUseCase>;
@@ -115,6 +119,14 @@ describe('MovementController Integration Tests', () => {
       execute: jest.fn()
     } as any;
 
+    mockGetSpendingSummaryUseCase = {
+      execute: jest.fn()
+    } as any;
+
+    mockGetMovementYearsUseCase = {
+      execute: jest.fn()
+    } as any;
+
     mockDeleteMovementsByAccountUseCase = {
       execute: jest.fn()
     } as any;
@@ -170,6 +182,8 @@ describe('MovementController Integration Tests', () => {
       mockMarkAsPendingUseCase,
       mockRestoreOrphanedMovementsUseCase,
       mockCreateTransferUseCase,
+      mockGetSpendingSummaryUseCase,
+      mockGetMovementYearsUseCase,
       mockDeleteMovementsByAccountUseCase,
       mockDeleteMovementsByPocketUseCase,
       mockMarkMovementsAsOrphanedUseCase,

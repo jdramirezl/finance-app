@@ -145,9 +145,9 @@ describeIntegration('SupabaseSubPocketRepository Integration Tests', () => {
     });
 
     it('should sort sub-pockets by display order ascending', async () => {
-      const sp1 = new SubPocket('sp-sort-1', 'pocket-1', 'Third', 100, 1, 0, true, undefined, 2);
-      const sp2 = new SubPocket('sp-sort-2', 'pocket-1', 'First', 100, 1, 0, true, undefined, 0);
-      const sp3 = new SubPocket('sp-sort-3', 'pocket-1', 'Second', 100, 1, 0, true, undefined, 1);
+      const sp1 = new SubPocket('sp-sort-1', 'pocket-1', 'Third', 100, 1, 0, undefined, 2);
+      const sp2 = new SubPocket('sp-sort-2', 'pocket-1', 'First', 100, 1, 0, undefined, 0);
+      const sp3 = new SubPocket('sp-sort-3', 'pocket-1', 'Second', 100, 1, 0, undefined, 1);
 
       await repository.save(sp1, testUserId);
       await repository.save(sp2, testUserId);
@@ -169,9 +169,9 @@ describeIntegration('SupabaseSubPocketRepository Integration Tests', () => {
     });
 
     it('should return all sub-pockets for a group', async () => {
-      const sp1 = new SubPocket('sp-g1-1', 'pocket-1', 'Rent', 1200, 1, 0, true, 'group-1');
-      const sp2 = new SubPocket('sp-g1-2', 'pocket-1', 'Utilities', 150, 1, 0, true, 'group-1');
-      const sp3 = new SubPocket('sp-g2-1', 'pocket-1', 'Other', 100, 1, 0, true, 'group-2');
+      const sp1 = new SubPocket('sp-g1-1', 'pocket-1', 'Rent', 1200, 1, 0, 'group-1');
+      const sp2 = new SubPocket('sp-g1-2', 'pocket-1', 'Utilities', 150, 1, 0, 'group-1');
+      const sp3 = new SubPocket('sp-g2-1', 'pocket-1', 'Other', 100, 1, 0, 'group-2');
 
       await repository.save(sp1, testUserId);
       await repository.save(sp2, testUserId);

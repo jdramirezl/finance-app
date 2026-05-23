@@ -64,7 +64,11 @@ describe('SettingsController Integration Tests', () => {
         id: 'settings-123',
         userId: testUserId,
         primaryCurrency: 'USD' as const,
-        alphaVantageApiKey: 'test-api-key'
+        alphaVantageApiKey: 'test-api-key',
+        dateFormat: 'yyyy-MM-dd',
+        movementsPerPage: 50,
+        reminderAdvanceDays: 3,
+        defaultCurrencyForNewAccounts: 'USD' as const,
       };
 
       mockGetSettingsUseCase.execute.mockResolvedValue(mockResponse);
@@ -130,7 +134,11 @@ describe('SettingsController Integration Tests', () => {
         id: 'settings-123',
         userId: testUserId,
         primaryCurrency: 'EUR' as const,
-        alphaVantageApiKey: 'test-api-key'
+        alphaVantageApiKey: 'test-api-key',
+        dateFormat: 'yyyy-MM-dd',
+        movementsPerPage: 50,
+        reminderAdvanceDays: 3,
+        defaultCurrencyForNewAccounts: 'USD' as const,
       };
 
       mockUpdateSettingsUseCase.execute.mockResolvedValue(mockResponse);
@@ -156,7 +164,11 @@ describe('SettingsController Integration Tests', () => {
         id: 'settings-123',
         userId: testUserId,
         primaryCurrency: 'USD' as const,
-        alphaVantageApiKey: 'new-api-key'
+        alphaVantageApiKey: 'new-api-key',
+        dateFormat: 'yyyy-MM-dd',
+        movementsPerPage: 50,
+        reminderAdvanceDays: 3,
+        defaultCurrencyForNewAccounts: 'USD' as const,
       };
 
       mockUpdateSettingsUseCase.execute.mockResolvedValue(mockResponse);
@@ -182,7 +194,11 @@ describe('SettingsController Integration Tests', () => {
         id: 'settings-123',
         userId: testUserId,
         primaryCurrency: 'GBP' as const,
-        alphaVantageApiKey: 'new-api-key'
+        alphaVantageApiKey: 'new-api-key',
+        dateFormat: 'yyyy-MM-dd',
+        movementsPerPage: 50,
+        reminderAdvanceDays: 3,
+        defaultCurrencyForNewAccounts: 'USD' as const,
       };
 
       mockUpdateSettingsUseCase.execute.mockResolvedValue(mockResponse);
