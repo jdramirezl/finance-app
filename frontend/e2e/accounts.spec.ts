@@ -21,9 +21,16 @@ const accountRow = (page: Page, name: string): Locator =>
     .last();
 
 test.describe('Account Management', () => {
+  test.beforeAll(async () => {
+    if (hasTestCredentials()) {
+      await deleteTestData();
+    }
+  });
+
   test.beforeEach(async ({ page }) => {
     test.skip(!hasTestCredentials(), 'Test credentials not configured');
     await page.goto('/accounts');
+    await page.waitForLoadState('networkidle');
   });
 
   test.afterAll(async () => {

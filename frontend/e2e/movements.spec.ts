@@ -10,6 +10,7 @@ let targetPocketId: string;
 test.describe('Movement CRUD + Transfer', () => {
   test.beforeAll(async () => {
     if (!hasTestCredentials()) return;
+    await deleteTestData();
     const account = await createTestAccount();
     testAccountId = account.id;
     const pocket = await createTestPocket(testAccountId);
