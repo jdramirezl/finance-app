@@ -16,16 +16,11 @@ export default defineConfig({
   },
   webServer: [
     {
-      command: 'npm run dev --workspace=backend',
+      command: 'cd backend && npx ts-node-dev --respawn --transpile-only src/server.ts',
       url: 'http://localhost:3001/health',
       reuseExistingServer: true,
       cwd: path.resolve(__dirname, '..'),
       timeout: 30000,
-      env: {
-        ...process.env,
-        SUPABASE_URL: process.env.SUPABASE_URL || '',
-        SUPABASE_SERVICE_KEY: process.env.SUPABASE_SERVICE_KEY || '',
-      },
     },
     {
       command: 'npm run dev',
