@@ -102,7 +102,7 @@ describe('BudgetScenarioTabs', () => {
       expect(onToggle).toHaveBeenCalledWith('s1');
     });
 
-    it('shows the monthly total as the sum of enabled scenario expenses', () => {
+    it('shows the monthly total as the sum of all scenario expenses', () => {
       render(
         <BudgetScenarioTabs
           {...defaultProps}
@@ -117,7 +117,10 @@ describe('BudgetScenarioTabs', () => {
       expect(screen.getByText('$50/mo')).toBeInTheDocument();
     });
 
-    it('excludes disabled expenses from the monthly total', () => {
+    it('includes disabled expenses in the monthly total preview', () => {
+      // The scenario preview is "what would this cost if I enabled it",
+      // so a currently-disabled sub-pocket still contributes to the total
+      // when it's listed in the scenario.
       const disabledSubPockets: SubPocket[] = [
         makeSubPocket({ id: 'exp-1', valueTotal: 1200, periodicityMonths: 12 }),
         makeSubPocket({
@@ -137,8 +140,10 @@ describe('BudgetScenarioTabs', () => {
         />,
       );
 
-      // Vacation only counts exp-1 (enabled) → $100/mo
-      expect(screen.getByText('$100/mo')).toBeInTheDocument();
+      // Vacation: exp-1 (100/mo, enabled) + exp-2 (100/mo, disabled) = $200/mo
+      expect(screen.getByText('$200/mo')).toBeInTheDocument();
+      // Tight Budget: exp-3 (50/mo, enabled) = $50/mo
+      expect(screen.getByText('$50/mo')).toBeInTheDocument();
     });
 
     it('shows $0/mo when no fixedSubPockets are provided', () => {

@@ -204,6 +204,14 @@ const UnifiedBudgetPage = () => {
   // otherwise enable all). Default ungrouped expenses (no `groupId`) are
   // folded into a group named "Default" by the list, so include them when
   // computing the toggle for that group.
+  //
+  // The "Default" bucket is special: it always pools truly ungrouped
+  // sub-pockets (`groupId == null`) alongside any expenses with
+  // `groupId === defaultGroup.id`. The backend group-toggle endpoint only
+  // affects sub-pockets with a matching `groupId`, so it can't flip the
+  // ungrouped ones — and the synthetic Default bucket (id `__default__`)
+  // doesn't exist in the database at all. Toggle each affected expense
+  // individually instead.
   const handleToggleGroup = useCallback(
     (group: FixedExpenseGroup) => {
       const groupExpenses = fixedSubPockets.filter((sp) => {
@@ -212,7 +220,18 @@ const UnifiedBudgetPage = () => {
       });
       if (groupExpenses.length === 0) return;
       const allEnabled = groupExpenses.every((sp) => sp.enabled);
-      void fixedExpenseActions.handleToggleGroup(group.id, !allEnabled);
+      const targetEnabled = !allEnabled;
+
+      if (group.name === 'Default') {
+        groupExpenses
+          .filter((sp) => sp.enabled !== targetEnabled)
+          .forEach((sp) => {
+            void fixedExpenseActions.handleToggleSubPocket(sp.id);
+          });
+        return;
+      }
+
+      void fixedExpenseActions.handleToggleGroup(group.id, targetEnabled);
     },
     [fixedExpenseActions, fixedSubPockets],
   );
@@ -340,6 +359,8 @@ const UnifiedBudgetPage = () => {
               distributable={budgetActions.remaining}
               currency={budgetCurrency}
               totalPercentage={totalPercentage}
+              primaryCurrency={primaryCurrency}
+              convertedDistributable={budgetActions.convertedRemaining}
             />
           </div>
 

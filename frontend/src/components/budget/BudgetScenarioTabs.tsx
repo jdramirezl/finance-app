@@ -20,6 +20,11 @@ const numberFormatter = new Intl.NumberFormat('en-US', {
 const formatMonthlyTotal = (amount: number): string =>
   `$${numberFormatter.format(Math.round(amount))}/mo`;
 
+// The preview shows the full monthly cost of a scenario — what the user
+// would pay if they activated it — so it includes every expense listed in
+// `scenario.expenseIds`, regardless of the sub-pocket's current `enabled`
+// state. Filtering by `enabled` here would understate the scenario any time
+// it included a currently-disabled expense.
 const calculateScenarioTotal = (
   scenario: PlanningScenario,
   fixedSubPockets: SubPocket[],
@@ -28,7 +33,7 @@ const calculateScenarioTotal = (
   const expenseIds = new Set(scenario.expenseIds);
 
   return fixedSubPockets
-    .filter((sp) => sp.enabled && expenseIds.has(sp.id))
+    .filter((sp) => expenseIds.has(sp.id))
     .reduce(
       (sum, sp) =>
         sum +
