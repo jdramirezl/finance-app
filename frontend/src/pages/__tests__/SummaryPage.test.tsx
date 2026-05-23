@@ -113,7 +113,6 @@ vi.mock('../../components/summary', async () => {
 });
 
 // Imported after mocks are registered so the page picks up the mocked modules.
-// eslint-disable-next-line import/first
 import SummaryPage from '../SummaryPage';
 
 // ---------------------------------------------------------------------------

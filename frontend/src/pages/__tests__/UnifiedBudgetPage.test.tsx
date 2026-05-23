@@ -133,7 +133,6 @@ vi.mock('../../components/budget/PortfolioDonutChart', () => ({
 }));
 
 // Imported after mocks are registered so the page picks up mocked modules.
-// eslint-disable-next-line import/first
 import UnifiedBudgetPage from '../UnifiedBudgetPage';
 
 // ---------------------------------------------------------------------------
