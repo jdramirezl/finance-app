@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { DistributionEntry } from '../components/budget';
 import type { PlanningScenario } from '../components/budget/ScenarioForm';
+import type { Currency } from '../constants/currencies';
 
 const BUDGET_PLANNING_KEY = 'finance_app_budget_planning';
 const PERSIST_DELAY_MS = 500;
@@ -11,6 +12,13 @@ export interface BudgetPlanningData {
   scenarios: PlanningScenario[];
   defaultAccountId: string;
   defaultPocketId: string;
+  /**
+   * Currency the budget is denominated in. Empty string means "auto-detect"
+   * (fall back to the default account's currency or the user's primary
+   * currency). Stored as `string` rather than {@link Currency} so the empty
+   * sentinel value is representable; the setter narrows to `Currency | ''`.
+   */
+  budgetCurrency: string;
 }
 
 const DEFAULT_DATA: BudgetPlanningData = {
@@ -19,6 +27,7 @@ const DEFAULT_DATA: BudgetPlanningData = {
   scenarios: [],
   defaultAccountId: '',
   defaultPocketId: '',
+  budgetCurrency: '',
 };
 
 const loadBudgetPlanning = (): BudgetPlanningData => {
@@ -50,6 +59,8 @@ export interface UseBudgetPersistenceResult {
   setDefaultAccountId: (value: string) => void;
   defaultPocketId: string;
   setDefaultPocketId: (value: string) => void;
+  budgetCurrency: string;
+  setBudgetCurrency: (value: Currency | '') => void;
 }
 
 /**
@@ -76,6 +87,9 @@ export const useBudgetPersistence = (): UseBudgetPersistenceResult => {
   const [defaultPocketId, setDefaultPocketId] = useState<string>(
     initial.defaultPocketId || ''
   );
+  const [budgetCurrency, setBudgetCurrency] = useState<Currency | ''>(
+    (initial.budgetCurrency as Currency | '') || ''
+  );
 
   // Skip the very first effect run on mount — there's nothing user-driven to
   // persist yet, and writing back what we just loaded is wasted work.
@@ -96,11 +110,12 @@ export const useBudgetPersistence = (): UseBudgetPersistenceResult => {
         scenarios,
         defaultAccountId,
         defaultPocketId,
+        budgetCurrency,
       });
     }, PERSIST_DELAY_MS);
 
     return () => clearTimeout(timeoutId);
-  }, [initialAmount, distributionEntries, scenarios, defaultAccountId, defaultPocketId]);
+  }, [initialAmount, distributionEntries, scenarios, defaultAccountId, defaultPocketId, budgetCurrency]);
 
   return {
     initialAmount,
@@ -113,5 +128,7 @@ export const useBudgetPersistence = (): UseBudgetPersistenceResult => {
     setDefaultAccountId,
     defaultPocketId,
     setDefaultPocketId,
+    budgetCurrency,
+    setBudgetCurrency,
   };
 };
