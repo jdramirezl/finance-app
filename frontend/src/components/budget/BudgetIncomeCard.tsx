@@ -2,8 +2,8 @@ interface BudgetIncomeCardProps {
   initialAmount: number;
   onAmountChange: (value: number) => void;
   totalFixedExpenses: number;
-  distributable: number;
   currency: string;
+  className?: string;
 }
 
 const fmt = (value: number, currency: string) =>
@@ -13,11 +13,18 @@ const BudgetIncomeCard = ({
   initialAmount,
   onAmountChange,
   totalFixedExpenses,
-  distributable,
   currency,
+  className,
 }: BudgetIncomeCardProps) => {
+  const rootClass = [
+    'bg-gray-800 border border-gray-700 rounded-2xl p-5 flex flex-col md:flex-row items-center gap-8',
+    className,
+  ]
+    .filter(Boolean)
+    .join(' ');
+
   return (
-    <div className="bg-gray-800 border border-gray-700 rounded-2xl p-5 flex flex-col md:flex-row items-center gap-8">
+    <div className={rootClass}>
       {/* Left: Income input */}
       <div className="flex-1 w-full">
         <label className="text-[11px] font-bold uppercase tracking-[0.06em] text-gray-400 mb-4 block">
@@ -36,24 +43,19 @@ const BudgetIncomeCard = ({
               onAmountChange(parseFloat(raw) || 0);
             }}
           />
+          <span className="ml-2 text-gray-400 text-sm font-semibold uppercase tracking-wide">
+            {currency}
+          </span>
         </div>
       </div>
 
       {/* Divider */}
       <div className="h-px md:h-16 w-full md:w-px bg-gray-600" />
 
-      {/* Right: Deductions + Distributable */}
-      <div className="flex-1 w-full flex flex-col gap-1">
-        <div className="flex justify-between items-center">
-          <span className="text-gray-400 text-sm">Fixed Expenses</span>
-          <span className="text-sm text-red-400">- {fmt(totalFixedExpenses, currency)}</span>
-        </div>
-        <div className="flex justify-between items-center mt-2 p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
-          <span className="text-blue-400 font-bold text-sm">Distributable</span>
-          <span className="text-lg font-semibold text-blue-400">
-            {fmt(distributable, currency)}
-          </span>
-        </div>
+      {/* Right: Fixed expenses deduction */}
+      <div className="flex-1 w-full flex items-center justify-between">
+        <span className="text-gray-400 text-sm">Fixed Expenses</span>
+        <span className="text-sm text-red-400">- {fmt(totalFixedExpenses, currency)}</span>
       </div>
     </div>
   );
