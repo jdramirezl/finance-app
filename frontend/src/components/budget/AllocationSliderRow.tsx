@@ -11,6 +11,12 @@ interface AllocationSliderRowProps {
   onPercentageChange: (id: string, percentage: number) => void;
   onNameChange: (id: string, name: string) => void;
   onDelete: (id: string) => void;
+  /** Amount converted into the primary currency, used for the legend. */
+  convertedAmount?: number;
+  /** Primary currency code for the converted-amount legend. */
+  primaryCurrency?: string;
+  /** When true and `convertedAmount` is provided, render the conversion legend. */
+  showConversion?: boolean;
 }
 
 const fmt = (value: number, currency: string) =>
@@ -27,6 +33,9 @@ const AllocationSliderRow = ({
   onPercentageChange,
   onNameChange,
   onDelete,
+  convertedAmount,
+  primaryCurrency,
+  showConversion,
 }: AllocationSliderRowProps) => {
   const [editingPct, setEditingPct] = useState(false);
   const [editingAmt, setEditingAmt] = useState(false);
@@ -119,29 +128,43 @@ const AllocationSliderRow = ({
             </span>
           )}
           {editingAmt ? (
-            <input
-              ref={amtRef}
-              type="number"
-              step="0.01"
-              min="0"
-              value={amtInput}
-              onChange={(e) => setAmtInput(e.target.value)}
-              onKeyDown={handleAmtKey}
-              onBlur={saveAmt}
-              className="w-28 bg-transparent border-b border-blue-400 outline-none text-lg text-gray-100 text-right"
-              aria-label="Edit amount"
-            />
+            <div className="flex flex-col items-end">
+              <input
+                ref={amtRef}
+                type="number"
+                step="0.01"
+                min="0"
+                value={amtInput}
+                onChange={(e) => setAmtInput(e.target.value)}
+                onKeyDown={handleAmtKey}
+                onBlur={saveAmt}
+                className="w-28 bg-transparent border-b border-blue-400 outline-none text-lg text-gray-100 text-right"
+                aria-label="Edit amount"
+              />
+              {showConversion && convertedAmount !== undefined && primaryCurrency && (
+                <span className="text-xs text-gray-500">
+                  ≈ {new Intl.NumberFormat('en-US', { style: 'currency', currency: primaryCurrency }).format(convertedAmount)}
+                </span>
+              )}
+            </div>
           ) : (
-            <span
-              className="text-lg text-gray-100 cursor-pointer hover:underline"
-              onClick={startEditAmt}
-              role="button"
-              tabIndex={0}
-              onKeyDown={(e) => { if (e.key === 'Enter') startEditAmt(); }}
-              aria-label={`Edit amount: ${fmt(amount, currency)}`}
-            >
-              {fmt(amount, currency)}
-            </span>
+            <div className="flex flex-col items-end">
+              <span
+                className="text-lg text-gray-100 cursor-pointer hover:underline"
+                onClick={startEditAmt}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => { if (e.key === 'Enter') startEditAmt(); }}
+                aria-label={`Edit amount: ${fmt(amount, currency)}`}
+              >
+                {fmt(amount, currency)}
+              </span>
+              {showConversion && convertedAmount !== undefined && primaryCurrency && (
+                <span className="text-xs text-gray-500">
+                  ≈ {new Intl.NumberFormat('en-US', { style: 'currency', currency: primaryCurrency }).format(convertedAmount)}
+                </span>
+              )}
+            </div>
           )}
           <button
             onClick={() => onDelete(entry.id)}

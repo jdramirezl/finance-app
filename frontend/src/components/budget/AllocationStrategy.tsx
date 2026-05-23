@@ -25,6 +25,18 @@ interface AllocationStrategyProps {
    * state on the unified page.
    */
   generateDisabled?: boolean;
+  /**
+   * When true, each row will render a converted-amount legend (when
+   * `convertedAmounts` and `primaryCurrency` are provided).
+   */
+  showConversion?: boolean;
+  /**
+   * Map of distribution entry id → amount converted into the primary
+   * currency. Looked up per-row to render the legend.
+   */
+  convertedAmounts?: Map<string, number>;
+  /** Primary currency code used to format the conversion legend. */
+  primaryCurrency?: string;
 }
 
 const AllocationStrategy = ({
@@ -33,6 +45,9 @@ const AllocationStrategy = ({
   currency,
   totalPercentage,
   onEntriesChange,
+  showConversion,
+  convertedAmounts,
+  primaryCurrency,
 }: AllocationStrategyProps) => {
   const calcAmount = useCallback(
     (pct: number) => (distributable > 0 ? (distributable * pct) / 100 : 0),
@@ -118,6 +133,9 @@ const AllocationStrategy = ({
               onPercentageChange={handlePercentageChange}
               onNameChange={handleNameChange}
               onDelete={handleDelete}
+              showConversion={showConversion}
+              convertedAmount={convertedAmounts?.get(entry.id)}
+              primaryCurrency={primaryCurrency}
             />
           ))}
         </div>
