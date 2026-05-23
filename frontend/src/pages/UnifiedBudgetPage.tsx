@@ -120,7 +120,6 @@ const UnifiedBudgetPage = () => {
   const primaryCurrency = settings?.primaryCurrency || 'USD';
   const budgetCurrency = (fixedPockets[0]?.currency || primaryCurrency) as Currency;
 
-  const enabledCount = fixedSubPockets.filter((sp) => sp.enabled).length;
   const totalCount = fixedSubPockets.length;
 
   // The aggregated left-panel total, kept in sync with the legacy page so
@@ -128,19 +127,17 @@ const UnifiedBudgetPage = () => {
   // expenses pre-pay the deficit + the next monthly contribution).
   const totalFixedExpensesMonthly = useMemo(
     () =>
-      fixedSubPockets
-        .filter((sp) => sp.enabled)
-        .reduce((sum, sp) => {
-          const monthly = calculateAporteMensual(
-            sp.valueTotal,
-            sp.periodicityMonths,
-            sp.balance,
-          );
-          if (sp.balance < 0) {
-            return sum + monthly + Math.abs(sp.balance);
-          }
-          return sum + monthly;
-        }, 0),
+      fixedSubPockets.reduce((sum, sp) => {
+        const monthly = calculateAporteMensual(
+          sp.valueTotal,
+          sp.periodicityMonths,
+          sp.balance,
+        );
+        if (sp.balance < 0) {
+          return sum + monthly + Math.abs(sp.balance);
+        }
+        return sum + monthly;
+      }, 0),
     [fixedSubPockets],
   );
 
@@ -192,48 +189,6 @@ const UnifiedBudgetPage = () => {
       void fixedExpenseActions.handleDeleteSubPocket(sp.id);
     },
     [fixedExpenseActions],
-  );
-  const handleToggleExpense = useCallback(
-    (sp: SubPocket) => {
-      void fixedExpenseActions.handleToggleSubPocket(sp.id);
-    },
-    [fixedExpenseActions],
-  );
-  // Stitch group toggle is a single button: derive the new enabled state
-  // from the group's current sub-pockets ("all enabled" → disable all,
-  // otherwise enable all). Default ungrouped expenses (no `groupId`) are
-  // folded into a group named "Default" by the list, so include them when
-  // computing the toggle for that group.
-  //
-  // The "Default" bucket is special: it always pools truly ungrouped
-  // sub-pockets (`groupId == null`) alongside any expenses with
-  // `groupId === defaultGroup.id`. The backend group-toggle endpoint only
-  // affects sub-pockets with a matching `groupId`, so it can't flip the
-  // ungrouped ones — and the synthetic Default bucket (id `__default__`)
-  // doesn't exist in the database at all. Toggle each affected expense
-  // individually instead.
-  const handleToggleGroup = useCallback(
-    (group: FixedExpenseGroup) => {
-      const groupExpenses = fixedSubPockets.filter((sp) => {
-        if (sp.groupId) return sp.groupId === group.id;
-        return group.name === 'Default';
-      });
-      if (groupExpenses.length === 0) return;
-      const allEnabled = groupExpenses.every((sp) => sp.enabled);
-      const targetEnabled = !allEnabled;
-
-      if (group.name === 'Default') {
-        groupExpenses
-          .filter((sp) => sp.enabled !== targetEnabled)
-          .forEach((sp) => {
-            void fixedExpenseActions.handleToggleSubPocket(sp.id);
-          });
-        return;
-      }
-
-      void fixedExpenseActions.handleToggleGroup(group.id, targetEnabled);
-    },
-    [fixedExpenseActions, fixedSubPockets],
   );
 
   const closeScenarioForm = () => {
@@ -302,7 +257,6 @@ const UnifiedBudgetPage = () => {
         >
           <div className="sticky top-0 z-10 bg-gray-900 border-b border-gray-700 p-4">
             <ObligationsHeader
-              enabledCount={enabledCount}
               totalCount={totalCount}
               totalMonthly={totalFixedExpensesMonthly}
               currency={budgetCurrency}
@@ -322,16 +276,12 @@ const UnifiedBudgetPage = () => {
               fixedSubPockets={fixedSubPockets}
               currency={budgetCurrency}
               collapsedGroups={fixedExpenseActions.collapsedGroups}
-              togglingGroupId={fixedExpenseActions.togglingGroupId}
               deletingId={fixedExpenseActions.deletingId}
-              togglingId={fixedExpenseActions.togglingId}
               onToggleCollapse={fixedExpenseActions.toggleGroupCollapse}
-              onToggleGroup={handleToggleGroup}
               onEditGroup={handleEditGroup}
               onDeleteGroup={handleDeleteGroup}
               onEditExpense={handleEditExpense}
               onDeleteExpense={handleDeleteExpense}
-              onToggleExpense={handleToggleExpense}
             />
           </div>
 
@@ -345,7 +295,7 @@ const UnifiedBudgetPage = () => {
               setShowExpenseForm(true);
             }}
             onBulkGenerate={fixedExpenseActions.prepareBatchFromEnabled}
-            bulkDisabled={enabledCount === 0}
+            bulkDisabled={fixedSubPockets.length === 0}
           />
         </section>
 
