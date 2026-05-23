@@ -10,15 +10,11 @@ export interface StitchExpensesListProps {
   currency: string;
   collapsedGroups: Set<string>;
   onToggleCollapse: (groupId: string) => void;
-  onToggleGroup: (group: FixedExpenseGroup) => void;
   onEditGroup: (group: FixedExpenseGroup) => void;
   onDeleteGroup: (group: FixedExpenseGroup) => void;
   onEditExpense: (expense: SubPocket) => void;
   onDeleteExpense: (expense: SubPocket) => void;
-  onToggleExpense: (expense: SubPocket) => void;
-  togglingGroupId?: string | null;
   deletingId?: string | null;
-  togglingId?: string | null;
 }
 
 /**
@@ -37,15 +33,11 @@ const StitchExpensesList = ({
   currency,
   collapsedGroups,
   onToggleCollapse,
-  onToggleGroup,
   onEditGroup,
   onDeleteGroup,
   onEditExpense,
   onDeleteExpense,
-  onToggleExpense,
-  togglingGroupId = null,
   deletingId = null,
-  togglingId = null,
 }: StitchExpensesListProps) => {
   // ---- Bucketing ----
   // Bucket sub-pockets by groupId in a single pass so each card receives a
@@ -119,11 +111,10 @@ const StitchExpensesList = ({
   const buildCardHandlers = useCallback(
     (group: FixedExpenseGroup) => ({
       onToggleCollapse: () => onToggleCollapse(group.id),
-      onToggleGroup: () => onToggleGroup(group),
       onEditGroup: () => onEditGroup(group),
       onDeleteGroup: () => onDeleteGroup(group),
     }),
-    [onToggleCollapse, onToggleGroup, onEditGroup, onDeleteGroup],
+    [onToggleCollapse, onEditGroup, onDeleteGroup],
   );
 
   // ---- Empty state ----
@@ -151,15 +142,11 @@ const StitchExpensesList = ({
             isDefaultGroup={isDefaultGroup}
             isCollapsed={collapsedGroups.has(group.id)}
             onToggleCollapse={cardHandlers.onToggleCollapse}
-            onToggleGroup={cardHandlers.onToggleGroup}
             onEditGroup={cardHandlers.onEditGroup}
             onDeleteGroup={cardHandlers.onDeleteGroup}
             onEditExpense={onEditExpense}
             onDeleteExpense={onDeleteExpense}
-            onToggleExpense={onToggleExpense}
-            isTogglingGroup={togglingGroupId === group.id}
             deletingExpenseId={deletingId}
-            togglingExpenseId={togglingId}
           />
         );
       })}
