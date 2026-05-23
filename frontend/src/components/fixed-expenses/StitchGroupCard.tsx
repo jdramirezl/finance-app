@@ -1,4 +1,5 @@
-import { memo, useMemo, useState } from 'react';
+import { memo, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   ChevronDown,
   Edit2,
@@ -49,6 +50,62 @@ export interface StitchGroupCardProps {
  * The rest of the CRUD behaviour is preserved — only the visual layout
  * changes.
  *
+/**
+ * Portal-rendered dropdown for moving an expense to another group.
+ * Positions itself relative to the anchor button's bounding rect,
+ * choosing above or below based on available viewport space.
+ */
+const MoveDropdown = ({
+  anchorRef,
+  groups,
+  expenseName,
+  onSelect,
+  onClose,
+}: {
+  anchorRef: React.RefObject<HTMLButtonElement | null>;
+  groups: { id: string; name: string }[];
+  expenseName: string;
+  onSelect: (groupId: string | null) => void;
+  onClose: () => void;
+}) => {
+  const rect = anchorRef.current?.getBoundingClientRect();
+  const fallback = !rect || (rect.top === 0 && rect.bottom === 0 && rect.right === 0);
+
+  const spaceBelow = fallback ? 999 : window.innerHeight - rect!.bottom;
+  const showAbove = spaceBelow < 200;
+
+  const style: React.CSSProperties = fallback
+    ? { position: 'fixed', top: 0, right: 0, zIndex: 9999 }
+    : {
+        position: 'fixed',
+        right: window.innerWidth - rect!.right,
+        ...(showAbove
+          ? { bottom: window.innerHeight - rect!.top + 4 }
+          : { top: rect!.bottom + 4 }),
+        zIndex: 9999,
+      };
+
+  return (
+    <>
+      <div className="fixed inset-0 z-[9998]" onClick={onClose} aria-hidden="true" />
+      <div role="menu" aria-label={`Move ${expenseName} to`} style={style} className="min-w-[160px] bg-gray-800 border border-gray-700 rounded-md shadow-lg py-1">
+        {groups.length === 0 && (
+          <div className="px-3 py-1.5 text-xs text-gray-500">No other groups</div>
+        )}
+        {groups.map((g) => (
+          <button key={g.id} type="button" role="menuitem" onClick={() => onSelect(g.id)} className="w-full text-left px-3 py-1.5 text-sm text-gray-200 hover:bg-gray-700">
+            {g.name}
+          </button>
+        ))}
+        <button type="button" role="menuitem" onClick={() => onSelect(null)} className="w-full text-left px-3 py-1.5 text-sm text-gray-400 hover:bg-gray-700 border-t border-gray-700">
+          Ungrouped
+        </button>
+      </div>
+    </>
+  );
+};
+
+/**
  * Per-action callbacks are pre-bound to this group/expense by the parent
  * list, which keeps this component a pure presentational unit.
  */
@@ -71,6 +128,7 @@ const StitchGroupCard = ({
   // one can be open at a time; clicking the trigger toggles it, picking an
   // option closes it, and clicking the backdrop closes it.
   const [movingExpenseId, setMovingExpenseId] = useState<string | null>(null);
+  const moveButtonRef = useRef<HTMLButtonElement | null>(null);
 
   // Group total = sum of monthly contributions for all expenses.
   const { groupTotal } = useMemo(() => {
@@ -191,11 +249,12 @@ const StitchGroupCard = ({
                       <div className="relative">
                         <button
                           type="button"
-                          onClick={() =>
+                          onClick={(e) => {
+                            moveButtonRef.current = e.currentTarget;
                             setMovingExpenseId((current) =>
                               current === expense.id ? null : expense.id,
-                            )
-                          }
+                            );
+                          }}
                           aria-label={`Move fixed expense ${expense.name} to another group`}
                           aria-haspopup="menu"
                           aria-expanded={movingExpenseId === expense.id}
@@ -207,52 +266,20 @@ const StitchGroupCard = ({
                             aria-hidden="true"
                           />
                         </button>
-                        {movingExpenseId === expense.id && (
-                          <>
-                            {/* Backdrop closes the menu on any outside click. */}
-                            <div
-                              className="fixed inset-0 z-10"
-                              onClick={() => setMovingExpenseId(null)}
-                              aria-hidden="true"
-                            />
-                            <div
-                              role="menu"
-                              aria-label={`Move ${expense.name} to`}
-                              className="absolute right-0 bottom-full mb-1 z-20 min-w-[160px] bg-gray-800 border border-gray-700 rounded-md shadow-lg py-1"
-                            >
-                              {availableGroups.length === 0 && (
-                                <div className="px-3 py-1.5 text-xs text-gray-500">
-                                  No other groups
-                                </div>
-                              )}
-                              {availableGroups.map((g) => (
-                                <button
-                                  key={g.id}
-                                  type="button"
-                                  role="menuitem"
-                                  onClick={() => {
-                                    onMoveToGroup(expense, g.id);
-                                    setMovingExpenseId(null);
-                                  }}
-                                  className="w-full text-left px-3 py-1.5 text-sm text-gray-200 hover:bg-gray-700"
-                                >
-                                  {g.name}
-                                </button>
-                              ))}
-                              <button
-                                type="button"
-                                role="menuitem"
-                                onClick={() => {
-                                  onMoveToGroup(expense, null);
-                                  setMovingExpenseId(null);
-                                }}
-                                className="w-full text-left px-3 py-1.5 text-sm text-gray-400 hover:bg-gray-700 border-t border-gray-700"
-                              >
-                                Ungrouped
-                              </button>
-                            </div>
-                          </>
-                        )}
+                        {movingExpenseId === expense.id &&
+                          createPortal(
+                            <MoveDropdown
+                              anchorRef={moveButtonRef}
+                              groups={availableGroups}
+                              expenseName={expense.name}
+                              onSelect={(groupId) => {
+                                onMoveToGroup(expense, groupId);
+                                setMovingExpenseId(null);
+                              }}
+                              onClose={() => setMovingExpenseId(null)}
+                            />,
+                            document.body,
+                          )}
                       </div>
                       <button
                         type="button"
