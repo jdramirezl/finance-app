@@ -25,7 +25,6 @@ export interface SubPocketResponseDTO {
   valueTotal: number;
   periodicityMonths: number;
   balance: number;
-  enabled: boolean;
   groupId?: string;
   displayOrder?: number;
   monthlyContribution: number;

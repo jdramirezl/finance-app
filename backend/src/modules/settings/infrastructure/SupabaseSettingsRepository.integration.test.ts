@@ -33,14 +33,15 @@ describeIntegration('SupabaseSettingsRepository Integration Tests', () => {
 
   // Setup: Create repository and test user ID
   beforeAll(() => {
-    repository = new SupabaseSettingsRepository();
     testUserId = `test-user-${Date.now()}-${Math.random().toString(36).substring(7)}`;
-    
+
     // Create Supabase client for cleanup
     supabase = createClient(
       process.env.SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_KEY!
     );
+
+    repository = new SupabaseSettingsRepository(supabase);
   });
 
   // Cleanup: Delete all test data after each test

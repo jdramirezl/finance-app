@@ -13,7 +13,6 @@ import { CreateFixedExpenseGroupUseCase } from '../application/useCases/CreateFi
 import { GetAllGroupsUseCase } from '../application/useCases/GetAllGroupsUseCase';
 import { UpdateGroupUseCase } from '../application/useCases/UpdateGroupUseCase';
 import { DeleteGroupUseCase } from '../application/useCases/DeleteGroupUseCase';
-import { ToggleGroupUseCase } from '../application/useCases/ToggleGroupUseCase';
 import { ReorderFixedExpenseGroupsUseCase } from '../application/useCases/ReorderFixedExpenseGroupsUseCase';
 import type { CreateGroupDTO, UpdateGroupDTO } from '../application/dtos/FixedExpenseGroupDTO';
 
@@ -24,7 +23,6 @@ export class FixedExpenseGroupController {
     @inject(GetAllGroupsUseCase) private getAllGroupsUseCase: GetAllGroupsUseCase,
     @inject(UpdateGroupUseCase) private updateGroupUseCase: UpdateGroupUseCase,
     @inject(DeleteGroupUseCase) private deleteGroupUseCase: DeleteGroupUseCase,
-    @inject(ToggleGroupUseCase) private toggleGroupUseCase: ToggleGroupUseCase,
     @inject(ReorderFixedExpenseGroupsUseCase) private reorderGroupsUseCase: ReorderFixedExpenseGroupsUseCase
   ) { }
 
@@ -115,29 +113,6 @@ export class FixedExpenseGroupController {
       await this.deleteGroupUseCase.execute(groupId, userId);
 
       res.status(204).send();
-    } catch (error) {
-      next(error);
-    }
-  }
-
-  /**
-   * Toggle group and all sub-pockets
-   * POST /api/fixed-expense-groups/:id/toggle
-   * 
-   * Requirements: 9.4
-   */
-  async toggle(req: Request, res: Response, next: NextFunction): Promise<void> {
-    try {
-      const userId = req.user?.id;
-      if (!userId) {
-        res.status(401).json({ error: 'Unauthorized' });
-        return;
-      }
-
-      const groupId = req.params.id;
-      const group = await this.toggleGroupUseCase.execute(groupId, userId);
-
-      res.status(200).json(group);
     } catch (error) {
       next(error);
     }

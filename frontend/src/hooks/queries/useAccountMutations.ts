@@ -1,16 +1,25 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { accountService } from '../../services/accountService';
+import { broadcastInvalidation } from '../../lib/crossTabSync';
 import type { Account } from '../../types';
+import { useToast } from '../useToast';
+
+const errorMessage = (error: unknown, fallback: string): string =>
+    error instanceof Error && error.message ? error.message : fallback;
 
 export const useAccountMutations = () => {
     const queryClient = useQueryClient();
+    const toast = useToast();
 
     const createAccount = useMutation({
         mutationFn: (data: { name: string; color: string; currency: Account['currency']; type?: Account['type']; stockSymbol?: string }) =>
             accountService.createAccount(data.name, data.color, data.currency, data.type, data.stockSymbol),
-        onSuccess: (_, variables) => {
-            console.log(`🏦 Created ${variables.type || 'normal'} account: "${variables.name}" (${variables.currency})`);
+        onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['accounts'] });
+            broadcastInvalidation([['accounts']]);
+        },
+        onError: (error) => {
+            toast.error(errorMessage(error, 'Failed to create account'));
         },
     });
 
@@ -19,6 +28,10 @@ export const useAccountMutations = () => {
             accountService.updateAccount(data.id, data.updates),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['accounts'] });
+            broadcastInvalidation([['accounts']]);
+        },
+        onError: (error) => {
+            toast.error(errorMessage(error, 'Failed to update account'));
         },
     });
 
@@ -27,6 +40,10 @@ export const useAccountMutations = () => {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['accounts'] });
             queryClient.invalidateQueries({ queryKey: ['pockets'] }); // Pockets are deleted too
+            broadcastInvalidation([['accounts'], ['pockets']]);
+        },
+        onError: (error) => {
+            toast.error(errorMessage(error, 'Failed to delete account'));
         },
     });
 
@@ -38,30 +55,22 @@ export const useAccountMutations = () => {
             queryClient.invalidateQueries({ queryKey: ['pockets'] });
             queryClient.invalidateQueries({ queryKey: ['subPockets'] });
             queryClient.invalidateQueries({ queryKey: ['movements'] });
+            broadcastInvalidation([['accounts'], ['pockets'], ['subPockets'], ['movements']]);
+        },
+        onError: (error) => {
+            toast.error(errorMessage(error, 'Failed to delete account'));
         },
     });
 
     const reorderAccounts = useMutation({
-        mutationFn: (accounts: Account[]) => {
-            // We need to save the order to the backend/storage
-            // Assuming SupabaseStorageService.saveAccounts is what was used in the store
-            // But accountService might not have a direct reorder method exposed like this?
-            // Let's check useFinanceStore.ts again.
-            // It calls SupabaseStorageService.saveAccounts(accountsWithOrder)
-            // We should probably move this logic to accountService or just use the service if available.
-            // For now, I'll import SupabaseStorageService here or assume accountService has it.
-            // Wait, accountService.getAllAccounts() returns accounts.
-            // Let's check accountService.ts to see if it has reorder or saveAccounts.
-            // If not, I'll use SupabaseStorageService directly or add it to accountService.
-            // I'll check accountService first.
-            // For now, I will assume I can use SupabaseStorageService directly as the store did.
-            // But better to keep it in service layer.
-            // I'll check accountService in a moment.
-            // I'll use a placeholder for now and fix it if needed.
-            return import('../../services/supabaseStorageService').then(m => m.SupabaseStorageService.saveAccounts(accounts));
-        },
+        mutationFn: (accounts: Account[]) =>
+            accountService.reorderAccounts(accounts.map((a) => a.id)),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['accounts'] });
+            broadcastInvalidation([['accounts']]);
+        },
+        onError: (error) => {
+            toast.error(errorMessage(error, 'Failed to reorder accounts'));
         },
     });
 

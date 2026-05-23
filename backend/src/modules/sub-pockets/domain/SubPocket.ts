@@ -14,7 +14,6 @@ export class SubPocket {
     public valueTotal: number,
     public periodicityMonths: number,
     private _balance: number,
-    public enabled: boolean = true,
     public groupId?: string,
     public displayOrder?: number
   ) {
@@ -101,21 +100,6 @@ export class SubPocket {
   }
 
   /**
-   * Toggle enabled status
-   * Requirements 8.4: Toggle sub-pocket enabled status
-   */
-  toggleEnabled(): void {
-    this.enabled = !this.enabled;
-  }
-
-  /**
-   * Set enabled status explicitly
-   */
-  setEnabled(enabled: boolean): void {
-    this.enabled = enabled;
-  }
-
-  /**
    * Update display order
    */
   updateDisplayOrder(order: number): void {
@@ -131,13 +115,6 @@ export class SubPocket {
    */
   updateGroupId(newGroupId: string | undefined): void {
     this.groupId = newGroupId;
-  }
-
-  /**
-   * Check if sub-pocket is enabled
-   */
-  isEnabled(): boolean {
-    return this.enabled;
   }
 
   /**
@@ -158,7 +135,6 @@ export class SubPocket {
       valueTotal: this.valueTotal,
       periodicityMonths: this.periodicityMonths,
       balance: this._balance,
-      enabled: this.enabled,
       groupId: this.groupId,
       displayOrder: this.displayOrder,
       monthlyContribution: this.monthlyContribution,

@@ -1,28 +1,18 @@
-/**
- * NetWorthSnapshot Routes
- */
-
 import { Router } from 'express';
-import { NetWorthSnapshotController } from '../interfaces/NetWorthSnapshotController';
-import { NetWorthSnapshotService } from '../application/NetWorthSnapshotService';
-import { SupabaseNetWorthSnapshotRepository } from '../infrastructure/SupabaseNetWorthSnapshotRepository';
+import { container } from 'tsyringe';
+import { NetWorthController } from './NetWorthController';
 import { authMiddleware as requireAuth } from '../../../shared/middleware/authMiddleware';
+import { validateBody } from '../../../shared/middleware/validate';
+import { createSnapshotSchema, updateSnapshotSchema } from './schemas';
 
 const router = Router();
+const controller = container.resolve(NetWorthController);
 
-// Initialize dependencies
-const repository = new SupabaseNetWorthSnapshotRepository();
-const service = new NetWorthSnapshotService(repository);
-const controller = new NetWorthSnapshotController(service);
-
-// Apply auth middleware to all routes
 router.use(requireAuth);
-
-// Routes
-router.get('/', controller.getAll);
-router.get('/latest', controller.getLatest);
-router.post('/', controller.create);
-router.put('/:id', controller.update);
-router.delete('/:id', controller.delete);
+router.get('/', (req, res, next) => controller.getAll(req, res, next));
+router.get('/latest', (req, res, next) => controller.getLatest(req, res, next));
+router.post('/', validateBody(createSnapshotSchema), (req, res, next) => controller.create(req, res, next));
+router.put('/:id', validateBody(updateSnapshotSchema), (req, res, next) => controller.update(req, res, next));
+router.delete('/:id', (req, res, next) => controller.delete(req, res, next));
 
 export default router;

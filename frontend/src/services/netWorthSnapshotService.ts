@@ -32,12 +32,12 @@ export const netWorthSnapshotService = {
     },
 
     create: async (data: CreateSnapshotDTO): Promise<NetWorthSnapshot> => {
-        const response = await api.post<NetWorthSnapshot>('/api/net-worth-snapshots', data);
+        const response = await api.post<NetWorthSnapshot>('/api/net-worth-snapshots', { ...data });
         return response;
     },
 
     update: async (id: string, data: Partial<CreateSnapshotDTO>): Promise<NetWorthSnapshot> => {
-        const response = await api.put<NetWorthSnapshot>(`/api/net-worth-snapshots/${id}`, data);
+        const response = await api.put<NetWorthSnapshot>(`/api/net-worth-snapshots/${id}`, { ...data });
         return response;
     },
 

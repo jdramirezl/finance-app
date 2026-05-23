@@ -1,6 +1,10 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { movementTemplateService } from '../../services/movementTemplateService';
 import type { MovementType } from '../../types';
+import { useToast } from '../useToast';
+
+const errorMessage = (error: unknown, fallback: string): string =>
+    error instanceof Error && error.message ? error.message : fallback;
 
 export const useMovementTemplatesQuery = () => {
     return useQuery({
@@ -11,6 +15,7 @@ export const useMovementTemplatesQuery = () => {
 
 export const useMovementTemplateMutations = () => {
     const queryClient = useQueryClient();
+    const toast = useToast();
 
     const createMovementTemplate = useMutation({
         mutationFn: (data: {
@@ -34,6 +39,9 @@ export const useMovementTemplateMutations = () => {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['movementTemplates'] });
         },
+        onError: (error) => {
+            toast.error(errorMessage(error, 'Failed to create template'));
+        },
     });
 
     const updateMovementTemplate = useMutation({
@@ -52,12 +60,18 @@ export const useMovementTemplateMutations = () => {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['movementTemplates'] });
         },
+        onError: (error) => {
+            toast.error(errorMessage(error, 'Failed to update template'));
+        },
     });
 
     const deleteMovementTemplate = useMutation({
         mutationFn: (id: string) => movementTemplateService.deleteTemplate(id),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['movementTemplates'] });
+        },
+        onError: (error) => {
+            toast.error(errorMessage(error, 'Failed to delete template'));
         },
     });
 

@@ -4,38 +4,21 @@
  * Implements IMovementRepository using Supabase as the data store.
  */
 
-import { injectable } from 'tsyringe';
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import type { IMovementRepository, MovementFilters, PaginationOptions } from './IMovementRepository';
+import { injectable, inject } from 'tsyringe';
+import { SupabaseClient } from '@supabase/supabase-js';
+import type { IMovementRepository, MovementFilters, PaginationOptions, CreateTransferAtomicParams, BatchMovementParams } from './IMovementRepository';
 import { Movement } from '../domain/Movement';
 import { MovementMapper } from '../application/mappers/MovementMapper';
 import { DatabaseError } from '../../../shared/errors/AppError';
+import { generateId } from '../../../shared/utils/idGenerator';
 import type { Currency } from '@shared-backend/types';
 
 @injectable()
 export class SupabaseMovementRepository implements IMovementRepository {
-  private supabase: SupabaseClient | null;
+  private supabase: SupabaseClient;
 
-  constructor() {
-    const supabaseUrl = process.env.SUPABASE_URL;
-    const supabaseKey = process.env.SUPABASE_SERVICE_KEY;
-
-    // Only throw error in non-test environments
-    if ((!supabaseUrl || !supabaseKey) && process.env.NODE_ENV !== 'test') {
-      throw new Error('Supabase configuration missing: SUPABASE_URL and SUPABASE_SERVICE_KEY required');
-    }
-
-    // Create client only if credentials are available
-    this.supabase = supabaseUrl && supabaseKey 
-      ? createClient(supabaseUrl, supabaseKey)
-      : null;
-  }
-
-  private ensureClient(): SupabaseClient {
-    if (!this.supabase) {
-      throw new DatabaseError('Supabase client not configured');
-    }
-    return this.supabase;
+  constructor(@inject('SupabaseClient') supabase: SupabaseClient) {
+    this.supabase = supabase;
   }
 
   /**
@@ -44,7 +27,7 @@ export class SupabaseMovementRepository implements IMovementRepository {
   async save(movement: Movement, userId: string): Promise<void> {
     const data = MovementMapper.toPersistence(movement, userId);
     
-    const { error } = await this.ensureClient()
+    const { error } = await this.supabase
       .from('movements')
       .insert(data);
 
@@ -54,10 +37,69 @@ export class SupabaseMovementRepository implements IMovementRepository {
   }
 
   /**
+   * Atomically create a transfer (expense + income) via the create_transfer RPC
+   */
+  async createTransferAtomic(params: CreateTransferAtomicParams): Promise<{ expense: Movement; income: Movement }> {
+    const { data, error } = await this.supabase.rpc('create_transfer', {
+      p_user_id: params.userId,
+      p_source_account_id: params.sourceAccountId,
+      p_source_pocket_id: params.sourcePocketId,
+      p_target_account_id: params.targetAccountId,
+      p_target_pocket_id: params.targetPocketId,
+      p_amount: params.amount,
+      p_displayed_date: params.displayedDate,
+      p_notes: params.notes ?? null,
+    });
+
+    if (error) {
+      throw new DatabaseError(`Atomic transfer failed: ${error.message}`);
+    }
+
+    return {
+      expense: MovementMapper.toDomain(data.expense),
+      income: MovementMapper.toDomain(data.income),
+    };
+  }
+
+  /**
+   * Atomically create multiple movements via the batch_create_movements RPC
+   */
+  async batchCreate(movements: BatchMovementParams[], userId: string): Promise<Movement[]> {
+    const payload = movements.map(m => ({
+      id: generateId(),
+      type: m.type,
+      accountId: m.accountId,
+      pocketId: m.pocketId,
+      subPocketId: m.subPocketId || '',
+      amount: m.amount,
+      notes: m.notes || '',
+      displayedDate: m.displayedDate,
+      isPending: m.isPending ?? false,
+      category: m.category || null,
+      tags: m.tags ?? [],
+    }));
+
+    const { data, error } = await this.supabase.rpc('batch_create_movements', {
+      p_user_id: userId,
+      p_movements: payload,
+    });
+
+    if (error) {
+      throw new DatabaseError(`Batch create movements failed: ${error.message}`);
+    }
+
+    if (!data || !Array.isArray(data)) {
+      return [];
+    }
+
+    return data.map((row: any) => MovementMapper.toDomain(row));
+  }
+
+  /**
    * Find movement by ID
    */
   async findById(id: string, userId: string): Promise<Movement | null> {
-    const { data, error } = await this.ensureClient()
+    const { data, error } = await this.supabase
       .from('movements')
       .select('*')
       .eq('id', id)
@@ -87,7 +129,7 @@ export class SupabaseMovementRepository implements IMovementRepository {
     filters?: MovementFilters,
     pagination?: PaginationOptions
   ): Promise<Movement[]> {
-    let query = this.ensureClient()
+    let query = this.supabase
       .from('movements')
       .select('*')
       .eq('user_id', userId);
@@ -196,7 +238,7 @@ export class SupabaseMovementRepository implements IMovementRepository {
     accountCurrency: Currency,
     userId: string
   ): Promise<Movement[]> {
-    const { data, error } = await this.ensureClient()
+    const { data, error } = await this.supabase
       .from('movements')
       .select('*')
       .eq('user_id', userId)
@@ -225,7 +267,7 @@ export class SupabaseMovementRepository implements IMovementRepository {
     pocketName: string,
     userId: string
   ): Promise<Movement[]> {
-    const { data, error } = await this.ensureClient()
+    const { data, error } = await this.supabase
       .from('movements')
       .select('*')
       .eq('user_id', userId)
@@ -255,7 +297,7 @@ export class SupabaseMovementRepository implements IMovementRepository {
     // Remove id from update data (can't update primary key)
     const { id, ...updateData } = data;
 
-    const { error } = await this.ensureClient()
+    const { error } = await this.supabase
       .from('movements')
       .update(updateData)
       .eq('id', movement.id)
@@ -270,7 +312,7 @@ export class SupabaseMovementRepository implements IMovementRepository {
    * Delete a movement
    */
   async delete(id: string, userId: string): Promise<void> {
-    const { error } = await this.ensureClient()
+    const { error } = await this.supabase
       .from('movements')
       .delete()
       .eq('id', id)
@@ -285,7 +327,7 @@ export class SupabaseMovementRepository implements IMovementRepository {
    * Delete all movements for an account (hard delete)
    */
   async deleteByAccountId(accountId: string, userId: string): Promise<number> {
-    const { data, error } = await this.ensureClient()
+    const { data, error } = await this.supabase
       .from('movements')
       .delete()
       .eq('account_id', accountId)
@@ -303,7 +345,7 @@ export class SupabaseMovementRepository implements IMovementRepository {
    * Delete all movements for a pocket (hard delete)
    */
   async deleteByPocketId(pocketId: string, userId: string): Promise<number> {
-    const { data, error } = await this.ensureClient()
+    const { data, error } = await this.supabase
       .from('movements')
       .delete()
       .eq('pocket_id', pocketId)
@@ -327,7 +369,7 @@ export class SupabaseMovementRepository implements IMovementRepository {
     userId: string
   ): Promise<number> {
     // First, get the account's pocket name for each movement
-    const { data: movements, error: fetchError } = await this.ensureClient()
+    const { data: movements, error: fetchError } = await this.supabase
       .from('movements')
       .select('id, pocket_id')
       .eq('account_id', accountId)
@@ -346,7 +388,7 @@ export class SupabaseMovementRepository implements IMovementRepository {
     
     let pockets: Array<{ id: string; name: string }> = [];
     if (pocketIds.length > 0) {
-      const { data, error: pocketError } = await this.ensureClient()
+      const { data, error: pocketError } = await this.supabase
         .from('pockets')
         .select('id, name')
         .in('id', pocketIds);
@@ -363,7 +405,7 @@ export class SupabaseMovementRepository implements IMovementRepository {
     // Update movements one by one with orphaned data
     // We use individual updates instead of bulk upsert to avoid not-null constraint violations
     for (const movement of movements) {
-      const { error: updateError } = await this.ensureClient()
+      const { error: updateError } = await this.supabase
         .from('movements')
         .update({
           is_orphaned: true,
@@ -391,7 +433,7 @@ export class SupabaseMovementRepository implements IMovementRepository {
     userId: string
   ): Promise<number> {
     // First, get the account info for the pocket
-    const { data: pocket, error: pocketError } = await this.ensureClient()
+    const { data: pocket, error: pocketError } = await this.supabase
       .from('pockets')
       .select('account_id')
       .eq('id', pocketId)
@@ -401,7 +443,7 @@ export class SupabaseMovementRepository implements IMovementRepository {
       throw new DatabaseError(`Failed to fetch pocket: ${pocketError.message}`);
     }
 
-    const { data: account, error: accountError } = await this.ensureClient()
+    const { data: account, error: accountError } = await this.supabase
       .from('accounts')
       .select('name, currency')
       .eq('id', pocket.account_id)
@@ -412,7 +454,7 @@ export class SupabaseMovementRepository implements IMovementRepository {
     }
 
     // Update movements
-    const { data, error } = await this.ensureClient()
+    const { data, error } = await this.supabase
       .from('movements')
       .update({
         is_orphaned: true,
@@ -439,7 +481,7 @@ export class SupabaseMovementRepository implements IMovementRepository {
     newAccountId: string,
     userId: string
   ): Promise<number> {
-    const { data, error } = await this.ensureClient()
+    const { data, error } = await this.supabase
       .from('movements')
       .update({ account_id: newAccountId })
       .eq('pocket_id', pocketId)
@@ -454,10 +496,84 @@ export class SupabaseMovementRepository implements IMovementRepository {
   }
 
   /**
+   * Sum expenses by period, grouped by currency (derived from accounts table).
+   * Only counts EgresoNormal and EgresoFijo, excludes pending movements.
+   */
+  async sumExpensesByPeriod(
+    userId: string,
+    startDate: Date,
+    endDate: Date
+  ): Promise<{ currency: Currency; total: number }[]> {
+    const { data, error } = await this.supabase
+      .from('movements')
+      .select('amount, account_id, accounts!inner(currency)')
+      .eq('user_id', userId)
+      .in('type', ['EgresoNormal', 'EgresoFijo'])
+      .eq('is_pending', false)
+      .gte('displayed_date', startDate.toISOString())
+      .lte('displayed_date', endDate.toISOString());
+
+    if (error) {
+      throw new DatabaseError(`Failed to sum expenses by period: ${error.message}`);
+    }
+
+    if (!data || data.length === 0) {
+      return [];
+    }
+
+    // Group by currency and sum amounts
+    const totals = new Map<string, number>();
+    for (const row of data) {
+      const currency = (row as any).accounts?.currency as string;
+      if (!currency) continue;
+      totals.set(currency, (totals.get(currency) || 0) + row.amount);
+    }
+
+    return Array.from(totals.entries()).map(([currency, total]) => ({
+      currency: currency as Currency,
+      total,
+    }));
+  }
+
+  /**
+   * Get distinct years that have movements, with count per year
+   */
+  async getDistinctYears(userId: string): Promise<{ year: number; count: number; months: number[] }[]> {
+    const { data, error } = await this.supabase
+      .from('movements')
+      .select('displayed_date')
+      .eq('user_id', userId)
+      .eq('is_orphaned', false);
+
+    if (error) {
+      throw new DatabaseError(`Failed to fetch distinct years: ${error.message}`);
+    }
+
+    if (!data || data.length === 0) {
+      return [];
+    }
+
+    const yearData = new Map<number, { count: number; months: Set<number> }>();
+    for (const row of data) {
+      const d = new Date(row.displayed_date);
+      const year = d.getFullYear();
+      const month = d.getMonth() + 1;
+      const entry = yearData.get(year) || { count: 0, months: new Set<number>() };
+      entry.count++;
+      entry.months.add(month);
+      yearData.set(year, entry);
+    }
+
+    return Array.from(yearData.entries())
+      .map(([year, { count, months }]) => ({ year, count, months: [...months].sort((a, b) => a - b) }))
+      .sort((a, b) => b.year - a.year);
+  }
+
+  /**
    * Count movements by filters
    */
   async count(userId: string, filters?: MovementFilters): Promise<number> {
-    let query = this.ensureClient()
+    let query = this.supabase
       .from('movements')
       .select('id', { count: 'exact', head: true })
       .eq('user_id', userId);
@@ -516,6 +632,14 @@ export class SupabaseMovementRepository implements IMovementRepository {
       query = query
         .gte('displayed_date', startDate.toISOString())
         .lte('displayed_date', endDate.toISOString());
+    }
+
+    if (filters.category) {
+      query = query.eq('category', filters.category);
+    }
+
+    if (filters.tags && filters.tags.length > 0) {
+      query = query.overlaps('tags', filters.tags);
     }
 
     return query;

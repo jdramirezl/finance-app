@@ -30,13 +30,12 @@ describeIntegration('SupabaseSubPocketRepository Integration Tests', () => {
   let supabase: any;
 
   beforeAll(() => {
-    repository = new SupabaseSubPocketRepository();
-    testUserId = `test-user-${Date.now()}-${Math.random().toString(36).substring(7)}`;
-    
     supabase = createClient(
       process.env.SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_KEY!
     );
+    repository = new SupabaseSubPocketRepository(supabase);
+    testUserId = `test-user-${Date.now()}-${Math.random().toString(36).substring(7)}`;
   });
 
   afterEach(async () => {
@@ -55,8 +54,7 @@ describeIntegration('SupabaseSubPocketRepository Integration Tests', () => {
         'Rent',
         1200,
         1,
-        0,
-        true
+        0
       );
 
       await repository.save(subPocket, testUserId);
@@ -67,7 +65,6 @@ describeIntegration('SupabaseSubPocketRepository Integration Tests', () => {
       expect(saved?.name).toBe('Rent');
       expect(saved?.valueTotal).toBe(1200);
       expect(saved?.periodicityMonths).toBe(1);
-      expect(saved?.enabled).toBe(true);
     });
 
     it('should save a sub-pocket with group and display order', async () => {
@@ -78,7 +75,6 @@ describeIntegration('SupabaseSubPocketRepository Integration Tests', () => {
         600,
         1,
         0,
-        true,
         'group-1',
         5
       );
@@ -149,9 +145,9 @@ describeIntegration('SupabaseSubPocketRepository Integration Tests', () => {
     });
 
     it('should sort sub-pockets by display order ascending', async () => {
-      const sp1 = new SubPocket('sp-sort-1', 'pocket-1', 'Third', 100, 1, 0, true, undefined, 2);
-      const sp2 = new SubPocket('sp-sort-2', 'pocket-1', 'First', 100, 1, 0, true, undefined, 0);
-      const sp3 = new SubPocket('sp-sort-3', 'pocket-1', 'Second', 100, 1, 0, true, undefined, 1);
+      const sp1 = new SubPocket('sp-sort-1', 'pocket-1', 'Third', 100, 1, 0, undefined, 2);
+      const sp2 = new SubPocket('sp-sort-2', 'pocket-1', 'First', 100, 1, 0, undefined, 0);
+      const sp3 = new SubPocket('sp-sort-3', 'pocket-1', 'Second', 100, 1, 0, undefined, 1);
 
       await repository.save(sp1, testUserId);
       await repository.save(sp2, testUserId);
@@ -173,9 +169,9 @@ describeIntegration('SupabaseSubPocketRepository Integration Tests', () => {
     });
 
     it('should return all sub-pockets for a group', async () => {
-      const sp1 = new SubPocket('sp-g1-1', 'pocket-1', 'Rent', 1200, 1, 0, true, 'group-1');
-      const sp2 = new SubPocket('sp-g1-2', 'pocket-1', 'Utilities', 150, 1, 0, true, 'group-1');
-      const sp3 = new SubPocket('sp-g2-1', 'pocket-1', 'Other', 100, 1, 0, true, 'group-2');
+      const sp1 = new SubPocket('sp-g1-1', 'pocket-1', 'Rent', 1200, 1, 0, 'group-1');
+      const sp2 = new SubPocket('sp-g1-2', 'pocket-1', 'Utilities', 150, 1, 0, 'group-1');
+      const sp3 = new SubPocket('sp-g2-1', 'pocket-1', 'Other', 100, 1, 0, 'group-2');
 
       await repository.save(sp1, testUserId);
       await repository.save(sp2, testUserId);
@@ -254,17 +250,6 @@ describeIntegration('SupabaseSubPocketRepository Integration Tests', () => {
 
       const updated = await repository.findById('sp-update-3', testUserId);
       expect(updated?.balance).toBe(500);
-    });
-
-    it('should update sub-pocket enabled status', async () => {
-      const subPocket = new SubPocket('sp-update-4', 'pocket-1', 'Test', 100, 1, 0, true);
-      await repository.save(subPocket, testUserId);
-
-      subPocket.toggleEnabled();
-      await repository.update(subPocket, testUserId);
-
-      const updated = await repository.findById('sp-update-4', testUserId);
-      expect(updated?.enabled).toBe(false);
     });
 
     it('should update sub-pocket group', async () => {

@@ -1,104 +1,82 @@
 /**
  * useAutoNetWorthSnapshot Hook
- * 
+ *
  * Automatically takes a net worth snapshot on app load if:
  * 1. User has not set frequency to 'manual'
  * 2. Enough time has passed since the last snapshot
+ * 3. The consolidated total is ready (all currency conversions settled)
+ *
+ * This hook consumes the consolidated total from useConsolidatedTotal rather
+ * than computing its own currency conversion, eliminating the race condition
+ * where snapshots could capture partial/stale exchange rate data.
+ *
+ * Multi-tab race condition: If multiple tabs open simultaneously, each may
+ * attempt to create a snapshot. This is safe because the backend uses upsert
+ * with a unique constraint on (user_id, snapshot_date) — concurrent writes
+ * for the same day resolve to a single row.
  */
 
 import { useEffect, useRef } from 'react';
-import { useAccountsQuery, useSettingsQuery } from './queries';
+import { useSettingsQuery } from './queries';
 import { useLatestSnapshotQuery, useNetWorthSnapshotMutations } from './queries/useNetWorthSnapshotQueries';
-import { currencyService } from '../services/currencyService';
+import { parseDate } from '../utils/dateUtils';
 import type { Currency } from '../types';
 
-export const useAutoNetWorthSnapshot = () => {
-    const { data: accounts = [] } = useAccountsQuery();
-    const { data: settings } = useSettingsQuery();
-    const { data: latestSnapshot, isLoading: loadingSnapshot } = useLatestSnapshotQuery();
-    const { createMutation } = useNetWorthSnapshotMutations();
-    const hasRun = useRef(false);
+export interface UseAutoNetWorthSnapshotParams {
+  consolidatedTotal: number;
+  totalsByCurrency: Record<Currency, number>;
+  isConsolidatedReady: boolean;
+}
 
-    useEffect(() => {
-        // Only run once per app session
-        if (hasRun.current) return;
-        if (loadingSnapshot) return;
-        if (accounts.length === 0) return;
-        if (!settings) return;
+export const useAutoNetWorthSnapshot = ({
+  consolidatedTotal,
+  totalsByCurrency,
+  isConsolidatedReady,
+}: UseAutoNetWorthSnapshotParams) => {
+  const { data: settings } = useSettingsQuery();
+  const { data: latestSnapshot, isLoading: loadingSnapshot } = useLatestSnapshotQuery();
+  const { createMutation } = useNetWorthSnapshotMutations();
+  const hasRun = useRef(false);
+  const totalRef = useRef(consolidatedTotal);
+  const breakdownRef = useRef(totalsByCurrency);
+  const mutationRef = useRef(createMutation);
 
-        const frequency = settings.snapshotFrequency || 'weekly';
-        if (frequency === 'manual') return;
+  // Keep refs in sync without triggering re-renders
+  totalRef.current = consolidatedTotal;
+  breakdownRef.current = totalsByCurrency;
+  mutationRef.current = createMutation;
 
-        const shouldTakeSnapshot = () => {
-            if (!latestSnapshot) return true; // No snapshots yet
+  useEffect(() => {
+    if (hasRun.current) return;
+    if (loadingSnapshot) return;
+    if (!settings) return;
+    if (!isConsolidatedReady) return;
 
-            const lastDate = new Date(latestSnapshot.snapshotDate);
-            const now = new Date();
-            const daysDiff = Math.floor((now.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24));
+    const frequency = settings.snapshotFrequency || 'weekly';
+    if (frequency === 'manual') { hasRun.current = true; return; }
 
-            switch (frequency) {
-                case 'daily':
-                    return daysDiff >= 1;
-                case 'weekly':
-                    return daysDiff >= 7;
-                case 'monthly':
-                    return daysDiff >= 30;
-                default:
-                    return false;
-            }
-        };
+    const shouldTake = (): boolean => {
+      if (!latestSnapshot) return true;
+      const lastDate = parseDate(latestSnapshot.snapshotDate);
+      const daysDiff = Math.floor((Date.now() - lastDate.getTime()) / (1000 * 60 * 60 * 24));
+      switch (frequency) {
+        case 'daily': return daysDiff >= 1;
+        case 'weekly': return daysDiff >= 7;
+        case 'monthly': return daysDiff >= 30;
+        default: return false;
+      }
+    };
 
-        if (shouldTakeSnapshot()) {
-            hasRun.current = true;
-            console.log(`📸 Auto-creating net worth snapshot (${frequency} frequency)`);
-
-            // Calculate net worth
-            const calculateNetWorth = async () => {
-                const primaryCurrency = settings.primaryCurrency || 'USD';
-                let totalNetWorth = 0;
-                const breakdown: Record<string, number> = {};
-
-                for (const account of accounts) {
-                    // Add to breakdown per currency
-                    const currency = account.currency;
-                    breakdown[currency] = (breakdown[currency] || 0) + account.balance;
-
-                    // Convert to primary currency for total
-                    // Handle negative balances by converting absolute value and applying sign
-                    const sign = account.balance >= 0 ? 1 : -1;
-                    const absBalance = Math.abs(account.balance);
-
-                    if (absBalance === 0) {
-                        // Skip zero balances
-                        continue;
-                    }
-
-                    try {
-                        const converted = await currencyService.convert(
-                            absBalance,
-                            currency as Currency,
-                            primaryCurrency as Currency
-                        );
-                        totalNetWorth += sign * converted;
-                    } catch {
-                        // If conversion fails, use raw balance
-                        totalNetWorth += account.balance;
-                    }
-                }
-
-                createMutation.mutate({
-                    totalNetWorth,
-                    baseCurrency: primaryCurrency,
-                    breakdown
-                });
-            };
-
-            calculateNetWorth();
-        } else if (latestSnapshot) {
-            const lastDate = new Date(latestSnapshot.snapshotDate);
-            const now = new Date();
-            const daysDiff = Math.floor((now.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24));
-            console.log(`📸 Snapshot skipped: last snapshot was ${daysDiff} day(s) ago (${frequency} frequency)`);
-        }
-    }, [accounts, settings, latestSnapshot, loadingSnapshot, createMutation]);
+    if (shouldTake()) {
+      hasRun.current = true; // Set immediately to prevent re-entry
+      const primaryCurrency = (settings.primaryCurrency || 'USD') as Currency;
+      mutationRef.current.mutate({
+        totalNetWorth: totalRef.current,
+        baseCurrency: primaryCurrency,
+        breakdown: breakdownRef.current as Record<string, number>,
+      });
+    } else {
+      hasRun.current = true;
+    }
+  }, [settings, latestSnapshot, loadingSnapshot, isConsolidatedReady]);
 };

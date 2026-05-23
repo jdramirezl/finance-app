@@ -25,6 +25,7 @@ describe('CreateFixedExpenseGroupUseCase - Property Tests', () => {
       findAllByUserId: jest.fn(),
       update: jest.fn(),
       delete: jest.fn(),
+      updateDisplayOrders: jest.fn(),
     };
     useCase = new CreateFixedExpenseGroupUseCase(mockRepository);
   });

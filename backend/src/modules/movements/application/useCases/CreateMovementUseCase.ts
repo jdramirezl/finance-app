@@ -55,7 +55,13 @@ export class CreateMovementUseCase {
       displayedDate,
       dto.notes,
       dto.subPocketId,
-      dto.isPending || false
+      dto.isPending || false,
+      false, // isOrphaned
+      undefined, // orphanedAccountName
+      undefined, // orphanedAccountCurrency
+      undefined, // orphanedPocketName
+      dto.category,
+      dto.tags ?? []
     );
 
     // Persist movement

@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { SupabaseStorageService } from '../../services/supabaseStorageService';
+import { settingsService } from '../../services/settingsService';
 
 /**
  * Query hook for fetching user settings
@@ -7,6 +7,7 @@ import { SupabaseStorageService } from '../../services/supabaseStorageService';
 export const useSettingsQuery = () => {
     return useQuery({
         queryKey: ['settings'],
-        queryFn: () => SupabaseStorageService.getSettings(),
+        queryFn: () => settingsService.getSettings(),
+        staleTime: 1000 * 60 * 10, // 10 minutes - settings rarely change
     });
 };

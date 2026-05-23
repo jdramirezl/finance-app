@@ -1,369 +1,382 @@
-import { useState, useEffect } from 'react';
-import { useAccountsQuery, usePocketsQuery, useSubPocketsQuery, useMovementTemplatesQuery } from '../../hooks/queries';
-import Button from '../Button';
-import Input from '../Input';
-import Select from '../Select';
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
+import { useForm, useWatch } from 'react-hook-form';
+import { format } from 'date-fns';
+import { useAccountsQuery, useMovementTemplatesQuery, usePocketsQuery, useSubPocketsQuery } from '../../hooks/queries';
+import { useUnsavedChanges } from '../../hooks/useUnsavedChanges';
+import Button from '../ui/Button';
+import Input from '../ui/Input';
+import Select from '../ui/Select';
+import AccountPocketSelector from './AccountPocketSelector';
+import CategorySelector from './CategorySelector';
+import TagInput from './TagInput';
+import { toDateOnly } from '../../utils/dateUtils';
+import { MOVEMENT_TYPES, isFixedMovement } from '../../constants/movementTypes';
 import type { Movement, MovementType } from '../../types';
 
-interface MovementFormProps {
-    initialData?: Movement | null;
-    onSubmit: (e: React.FormEvent<HTMLFormElement>) => Promise<void>;
-    onCancel: () => void;
-    isSaving: boolean;
-    selectedAccountId: string;
-    setSelectedAccountId: (id: string) => void;
-    selectedPocketId: string;
-    setSelectedPocketId: (id: string) => void;
-    selectedSubPocketId: string;
-    setSelectedSubPocketId: (id: string) => void;
-    selectedType: MovementType;
-    setSelectedType: (type: MovementType) => void;
-    amount: string;
-    setAmount: (amount: string) => void;
-    notes: string;
-    setNotes: (notes: string) => void;
-    isFixedExpense: boolean;
-    setIsFixedExpense: (isFixed: boolean) => void;
-    saveAsTemplate: boolean;
-    setSaveAsTemplate: (save: boolean) => void;
-    templateName: string;
-    setTemplateName: (name: string) => void;
-    selectedTemplateId: string;
-    onTemplateSelect: (id: string) => void;
-    defaultValues?: {
-        amount?: number;
-        notes?: string;
-        date?: string;
-        type?: MovementType;
-        fixedExpenseId?: string;
-        templateId?: string;
-    };
+export interface MovementFormData {
+  type: MovementType;
+  displayedDate: string;
+  accountId: string;
+  pocketId: string;
+  subPocketId: string;
+  amount: string;
+  notes: string;
+  category: string;
+  tags: string[];
+  isPending: boolean;
+  isTransfer: boolean;
+  targetAccountId: string;
+  targetPocketId: string;
+  saveAsTemplate: boolean;
+  templateName: string;
 }
 
-const MovementForm = ({
-    initialData,
-    onSubmit,
-    onCancel,
-    isSaving,
-    selectedAccountId,
-    setSelectedAccountId,
-    selectedPocketId,
-    setSelectedPocketId,
-    selectedSubPocketId,
-    setSelectedSubPocketId,
-    selectedType,
-    setSelectedType,
-    amount,
-    setAmount,
-    notes,
-    setNotes,
-    isFixedExpense,
-    setIsFixedExpense,
-    saveAsTemplate,
-    setSaveAsTemplate,
-    templateName,
-    setTemplateName,
-    selectedTemplateId,
-    onTemplateSelect,
-    defaultValues,
-}: MovementFormProps) => {
+export interface MovementFormRef {
+  setAmount: (value: string) => void;
+}
+
+export interface MovementFormProps {
+  initialData?: Movement | null;
+  onSubmit: (data: MovementFormData) => Promise<void>;
+  onCancel: () => void;
+  isSaving: boolean;
+  onValuesChange?: (values: Pick<MovementFormData, 'type' | 'accountId' | 'pocketId' | 'subPocketId' | 'amount'>) => void;
+  defaultValues?: {
+    amount?: number;
+    notes?: string;
+    date?: string;
+    type?: MovementType;
+    fixedExpenseId?: string;
+    templateId?: string;
+  };
+  selectedTemplateId?: string;
+  onTemplateSelect?: (id: string) => void;
+}
+
+const MOVEMENT_TYPE_OPTIONS_WITH_TRANSFER: { value: MovementType | 'Transfer'; label: string }[] = [
+  ...MOVEMENT_TYPES,
+  { value: 'Transfer', label: 'Transfer' },
+];
+
+const MovementForm = forwardRef<MovementFormRef, MovementFormProps>(
+  ({ initialData, onSubmit, onCancel, isSaving, onValuesChange, defaultValues: prefillValues, selectedTemplateId = '', onTemplateSelect }, ref) => {
     const { data: accounts = [] } = useAccountsQuery();
     const { data: pockets = [] } = usePocketsQuery();
     const { data: subPockets = [] } = useSubPocketsQuery();
     const { data: movementTemplates = [] } = useMovementTemplatesQuery();
 
-    // Filter accounts and pockets based on movement type
-    const isFixedMove = selectedType === 'IngresoFijo' || selectedType === 'EgresoFijo';
-    
-    const filteredAccounts = isFixedMove
-        ? accounts.filter(acc => pockets.some(p => p.accountId === acc.id && p.type === 'fixed'))
-        : accounts;
+    const defaultDateValue = initialData?.displayedDate
+      ? toDateOnly(initialData.displayedDate)
+      : prefillValues?.date
+        ? toDateOnly(prefillValues.date)
+        : format(new Date(), 'yyyy-MM-dd');
 
-    const availablePockets = selectedAccountId
-        ? pockets.filter(p => p.accountId === selectedAccountId)
-        : [];
+    const { register, handleSubmit, control, setValue, watch, formState: { errors, isDirty } } = useForm<MovementFormData>({
+      mode: 'onBlur',
+      defaultValues: {
+        type: initialData?.type ?? prefillValues?.type ?? 'EgresoNormal',
+        displayedDate: defaultDateValue,
+        accountId: initialData?.accountId ?? '',
+        pocketId: initialData?.pocketId ?? '',
+        subPocketId: initialData?.subPocketId ?? '',
+        amount: initialData ? initialData.amount.toString() : (prefillValues?.amount ? prefillValues.amount.toString() : ''),
+        notes: initialData?.notes ?? prefillValues?.notes ?? '',
+        category: initialData?.category ?? '',
+        tags: initialData?.tags ?? [],
+        isPending: initialData?.isPending ?? false,
+        isTransfer: false,
+        targetAccountId: '',
+        targetPocketId: '',
+        saveAsTemplate: false,
+        templateName: '',
+      },
+    });
 
-    const filteredPockets = isFixedMove
-        ? availablePockets.filter(p => p.type === 'fixed')
-        : availablePockets.filter(p => p.type !== 'fixed');
-
-    const fixedPocket = availablePockets.find((p) => p.type === 'fixed');
-    const availableSubPockets = fixedPocket && isFixedExpense
-        ? subPockets.filter(sp => sp.pocketId === fixedPocket.id)
-        : [];
-
-    // Determine if this is a fixed expense from defaultValues or initialData
-    const isDefaultFixedExpense = selectedType === 'IngresoFijo' || selectedType === 'EgresoFijo';
+    useUnsavedChanges(isDirty);
 
     const [isTransfer, setIsTransfer] = useState(false);
-    const [targetAccountId, setTargetAccountId] = useState('');
-    const [targetPocketId, setTargetPocketId] = useState('');
 
-    const availableTargetPockets = targetAccountId
-        ? pockets.filter(p => p.accountId === targetAccountId)
-        : [];
+    const watchedType = useWatch({ control, name: 'type' });
+    const watchedAccountId = useWatch({ control, name: 'accountId' });
+    const watchedPocketId = useWatch({ control, name: 'pocketId' });
+    const watchedSubPocketId = useWatch({ control, name: 'subPocketId' });
+    const watchedAmount = useWatch({ control, name: 'amount' });
+    const watchedTargetAccountId = useWatch({ control, name: 'targetAccountId' });
+    const watchedSaveAsTemplate = useWatch({ control, name: 'saveAsTemplate' });
 
-    // Auto-populate fixed pocket when account/type changes
+    const isDefaultFixedExpense = isFixedMovement(watchedType);
+
+    // Notify parent of value changes for side panel balance deltas
     useEffect(() => {
-        if (isFixedMove && selectedAccountId) {
-            const hasFixedPocket = pockets.find(p => p.accountId === selectedAccountId && p.type === 'fixed');
-            if (hasFixedPocket && selectedPocketId !== hasFixedPocket.id) {
-                setSelectedPocketId(hasFixedPocket.id);
-            } else if (!hasFixedPocket) {
-                // If account has no fixed pocket but type is fixed, we should clear account
-                // (Though filteredAccounts should prevent this from being selectable manually)
-                setSelectedAccountId('');
-                setSelectedPocketId('');
-            }
-        } else if (!isFixedMove && selectedPocketId) {
-            // If moved from fixed to normal, clear pocket if it was fixed
-            const currentPocket = pockets.find(p => p.id === selectedPocketId);
-            if (currentPocket?.type === 'fixed') {
-                setSelectedPocketId('');
-            }
-        }
-    }, [isFixedMove, selectedAccountId, pockets, setSelectedPocketId, setSelectedAccountId, selectedPocketId]);
+      onValuesChange?.({
+        type: watchedType,
+        accountId: watchedAccountId,
+        pocketId: watchedPocketId,
+        subPocketId: watchedSubPocketId,
+        amount: watchedAmount,
+      });
+    }, [watchedType, watchedAccountId, watchedPocketId, watchedSubPocketId, watchedAmount, onValuesChange]);
 
-    const movementTypes: { value: MovementType | 'Transfer'; label: string }[] = [
-        { value: 'IngresoNormal', label: 'Normal Income' },
-        { value: 'EgresoNormal', label: 'Normal Expense' },
-        { value: 'IngresoFijo', label: 'Fixed Income' },
-        { value: 'EgresoFijo', label: 'Fixed Expense' },
-        { value: 'Transfer', label: 'Transfer' },
-    ];
+    // Handle fixedExpenseId prefill: resolve subPocket → pocket → account
+    const fixedExpenseApplied = useRef(false);
+    useEffect(() => {
+      if (fixedExpenseApplied.current || !prefillValues?.fixedExpenseId || pockets.length === 0) return;
+      const subPocket = subPockets.find(sp => sp.id === prefillValues.fixedExpenseId);
+      if (!subPocket) return;
+      const pocket = pockets.find(p => p.id === subPocket.pocketId);
+      if (!pocket) return;
+      fixedExpenseApplied.current = true;
+      setValue('accountId', pocket.accountId);
+      setValue('pocketId', pocket.id);
+      setValue('subPocketId', subPocket.id);
+    }, [prefillValues?.fixedExpenseId, pockets, subPockets, setValue]);
 
-    const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-        e.preventDefault();
-        const formData = new FormData(e.currentTarget);
+    // Expose setAmount for calculator integration
+    useImperativeHandle(ref, () => ({
+      setAmount: (value: string) => setValue('amount', value, { shouldDirty: true }),
+    }));
 
-        // Inject transfer data if in transfer mode
-        if (isTransfer) {
-            formData.append('isTransfer', 'true');
-            formData.append('targetAccountId', targetAccountId);
-            formData.append('targetPocketId', targetPocketId);
-        }
+    // Available target pockets for transfer mode
+    const availableTargetPockets = watchedTargetAccountId
+      ? pockets.filter((p) => p.accountId === watchedTargetAccountId)
+      : [];
 
-        await onSubmit(e);
+    // Template loading
+    const handleTemplateChange = (templateId: string) => {
+      onTemplateSelect?.(templateId);
+      if (!templateId) {
+        setValue('accountId', '');
+        setValue('pocketId', '');
+        setValue('subPocketId', '');
+        setValue('amount', '');
+        setValue('notes', '');
+        setValue('category', '');
+        setValue('tags', []);
+        setValue('type', 'EgresoNormal');
+        return;
+      }
+      const template = movementTemplates.find((t) => t.id === templateId);
+      if (!template) return;
+      setValue('accountId', template.accountId);
+      setValue('pocketId', template.pocketId);
+      setValue('subPocketId', template.subPocketId || '');
+      setValue('type', template.type);
+      setValue('amount', template.defaultAmount ? template.defaultAmount.toString() : '');
+      setValue('notes', template.notes || '');
+    };
+
+    const onFormSubmit = async (data: MovementFormData) => {
+      await onSubmit({ ...data, isTransfer });
     };
 
     return (
-        <form onSubmit={handleSubmit} className="space-y-4">
-                {!initialData && (
-                    <Select
-                        label="Load Template"
-                        value={selectedTemplateId}
-                        onChange={(e) => onTemplateSelect(e.target.value)}
-                        options={[
-                            { value: '', label: 'Start from scratch' },
-                            ...movementTemplates.map(t => ({ value: t.id, label: t.name }))
-                        ]}
-                    />
-                )}
+      <form onSubmit={handleSubmit(onFormSubmit)} className="space-y-4">
+        {!initialData && (
+          <Select
+            label="Load Template"
+            value={selectedTemplateId}
+            onChange={(e) => handleTemplateChange(e.target.value)}
+            options={[
+              { value: '', label: 'Start from scratch' },
+              ...movementTemplates.map(t => ({ value: t.id, label: t.name }))
+            ]}
+          />
+        )}
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <Select
-                        label="Type"
-                        name="type"
-                        required
-                        value={selectedType}
-                        onChange={(e) => {
-                            const value = e.target.value;
-                            if (value === 'Transfer') {
-                                setIsTransfer(true);
-                                setIsFixedExpense(false);
-                                // Clear selections when switching to transfer
-                                setSelectedAccountId('');
-                                setSelectedPocketId('');
-                            } else {
-                                setIsTransfer(false);
-                                const type = value as MovementType;
-                                setSelectedType(type);
-                                const isFixedType = type === 'IngresoFijo' || type === 'EgresoFijo';
-                                setIsFixedExpense(isFixedType);
-                                
-                                // Reset account if it's not valid for the new type selection
-                                if (isFixedType) {
-                                    const hasFixed = pockets.some(p => p.accountId === selectedAccountId && p.type === 'fixed');
-                                    if (!hasFixed) setSelectedAccountId('');
-                                }
-                            }
-                        }}
-                        options={movementTypes}
-                    />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Select
+            label="Type"
+            required
+            value={isTransfer ? 'Transfer' : watchedType}
+            onChange={(e) => {
+              const value = e.target.value;
+              if (value === 'Transfer') {
+                setIsTransfer(true);
+                setValue('accountId', '');
+                setValue('pocketId', '');
+              } else {
+                setIsTransfer(false);
+                const type = value as MovementType;
+                setValue('type', type, { shouldValidate: true });
+                if (isFixedMovement(type)) {
+                  const hasFixed = pockets.some(p => p.accountId === watchedAccountId && p.type === 'fixed');
+                  if (!hasFixed) setValue('accountId', '');
+                }
+              }
+            }}
+            options={MOVEMENT_TYPE_OPTIONS_WITH_TRANSFER}
+            error={errors.type?.message}
+          />
 
-                    <Input
-                        type="date"
-                        label="Date"
-                        name="displayedDate"
-                        required
-                        defaultValue={initialData?.displayedDate ? initialData.displayedDate.split('T')[0] : (defaultValues?.date ? defaultValues.date.split('T')[0] : new Date().toISOString().split('T')[0])}
-                    />
-                </div>
+          <Input
+            type="date"
+            label="Date"
+            required
+            {...register('displayedDate', { required: 'Date is required' })}
+            error={errors.displayedDate?.message}
+          />
+        </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <Select
-                        label={isTransfer ? "Source Account" : "Account"}
-                        name="accountId"
-                        required
-                        value={selectedAccountId}
-                        onChange={(e) => {
-                            setSelectedAccountId(e.target.value);
-                            setSelectedPocketId('');
-                        }}
-                        options={[
-                            { value: '', label: 'Select Account' },
-                            ...filteredAccounts.map(acc => ({ 
-                                value: acc.id, 
-                                label: `${acc.name} (${acc.currency})` 
-                            }))
-                        ]}
-                    />
+        <AccountPocketSelector
+          accountId={watchedAccountId}
+          pocketId={watchedPocketId}
+          subPocketId={watchedSubPocketId}
+          onAccountChange={(id) => {
+            setValue('accountId', id, { shouldValidate: true });
+            setValue('pocketId', '');
+            setValue('subPocketId', '');
+          }}
+          onPocketChange={(id) => {
+            setValue('pocketId', id, { shouldValidate: true });
+            setValue('subPocketId', '');
+          }}
+          onSubPocketChange={(id) => setValue('subPocketId', id)}
+          movementType={watchedType}
+          enforceMovementType
+          showFixedPocketHint
+          showSubPocket={!isTransfer && isDefaultFixedExpense}
+          showAccountCurrency
+          accountLabel={isTransfer ? 'Source Account' : 'Account'}
+          pocketLabel={isTransfer ? 'Source Pocket' : 'Pocket'}
+          required
+        />
+        {errors.accountId && (
+          <p className="text-sm text-red-600 dark:text-red-400">{errors.accountId.message}</p>
+        )}
+        {errors.pocketId && (
+          <p className="text-sm text-red-600 dark:text-red-400">{errors.pocketId.message}</p>
+        )}
 
-                    <Select
-                        label={isTransfer ? "Source Pocket" : "Pocket"}
-                        name="pocketId"
-                        required
-                        value={selectedPocketId}
-                        onChange={(e) => setSelectedPocketId(e.target.value)}
-                        options={[
-                            { value: '', label: 'Select Pocket' },
-                            ...filteredPockets.map(p => ({ value: p.id, label: p.name }))
-                        ]}
-                        disabled={!selectedAccountId}
-                    />
-                </div>
+        {isTransfer && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700">
+            <Select
+              label="Target Account"
+              required
+              value={watchedTargetAccountId}
+              onChange={(e) => {
+                setValue('targetAccountId', e.target.value, { shouldValidate: true });
+                setValue('targetPocketId', '');
+              }}
+              options={[
+                { value: '', label: 'Select Target Account' },
+                ...accounts.map(acc => ({
+                  value: acc.id,
+                  label: `${acc.name} (${acc.currency})`
+                }))
+              ]}
+              error={errors.targetAccountId?.message}
+            />
 
-                {isFixedMove && selectedAccountId && fixedPocket && (
-                    <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-                        <p className="text-sm text-blue-700 dark:text-blue-300">
-                            ℹ️ Fixed expense pocket has been automatically selected: <strong>{fixedPocket.name}</strong>
-                        </p>
-                    </div>
-                )}
+            <Select
+              label="Target Pocket"
+              required
+              value={watch('targetPocketId')}
+              onChange={(e) => setValue('targetPocketId', e.target.value, { shouldValidate: true })}
+              options={[
+                { value: '', label: 'Select Target Pocket' },
+                ...availableTargetPockets
+                  .filter(p => !watchedPocketId || p.id !== watchedPocketId)
+                  .map(p => ({ value: p.id, label: p.name }))
+              ]}
+              disabled={!watchedTargetAccountId}
+              error={errors.targetPocketId?.message}
+            />
+          </div>
+        )}
 
-                {isTransfer && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700">
-                        <Select
-                            label="Target Account"
-                            name="targetAccountId"
-                            required
-                            value={targetAccountId}
-                            onChange={(e) => {
-                                setTargetAccountId(e.target.value);
-                                setTargetPocketId('');
-                            }}
-                            options={[
-                                { value: '', label: 'Select Target Account' },
-                                ...accounts.map(acc => ({ 
-                                    value: acc.id, 
-                                    label: `${acc.name} (${acc.currency})` 
-                                }))
-                            ]}
-                        />
+        <CategorySelector
+          value={watch('category')}
+          onChange={(val) => setValue('category', val)}
+        />
 
-                        <Select
-                            label="Target Pocket"
-                            name="targetPocketId"
-                            required
-                            value={targetPocketId}
-                            onChange={(e) => setTargetPocketId(e.target.value)}
-                            options={[
-                                { value: '', label: 'Select Target Pocket' },
-                                ...availableTargetPockets
-                                    .filter(p => !selectedPocketId || p.id !== selectedPocketId)
-                                    .map(p => ({ value: p.id, label: p.name }))
-                            ]}
-                            disabled={!targetAccountId}
-                        />
-                    </div>
-                )}
+        <TagInput
+          value={watch('tags')}
+          onChange={(tags) => setValue('tags', tags)}
+        />
 
-                {(isFixedExpense || isDefaultFixedExpense) && availableSubPockets.length > 0 && !isTransfer && (
-                    <Select
-                        label="Sub-Pocket (Optional)"
-                        name="subPocketId"
-                        value={selectedSubPocketId}
-                        onChange={(e) => setSelectedSubPocketId(e.target.value)}
-                        options={[
-                            { value: '', label: 'None' },
-                            ...availableSubPockets.map(sp => ({ value: sp.id, label: sp.name }))
-                        ]}
-                    />
-                )}
+        <Input
+          type="number"
+          label="Amount"
+          placeholder={watchedPocketId && pockets.find(p => p.id === watchedPocketId)?.name === 'Shares' ? '0.000000' : '0.00'}
+          step={watchedPocketId && pockets.find(p => p.id === watchedPocketId)?.name === 'Shares' ? '0.000001' : '0.01'}
+          min="0"
+          required
+          {...register('amount', {
+            required: 'Amount is required',
+            min: { value: 0, message: 'Amount must be 0 or greater' },
+          })}
+          error={errors.amount?.message}
+        />
 
-                <Input
-                    type="number"
-                    label="Amount"
-                    name="amount"
-                    placeholder={selectedPocketId && pockets.find(p => p.id === selectedPocketId)?.name === 'Shares' ? '0.000000' : '0.00'}
-                    step={selectedPocketId && pockets.find(p => p.id === selectedPocketId)?.name === 'Shares' ? '0.000001' : '0.01'}
-                    min="0"
-                    required
-                    value={amount}
-                    onChange={(e) => setAmount(e.target.value)}
-                />
+        <Input
+          label="Notes"
+          placeholder={isTransfer ? "Transfer details..." : "What is this for?"}
+          {...register('notes')}
+        />
 
-                <Input
-                    label="Notes"
-                    name="notes"
-                    placeholder={isTransfer ? "Transfer details..." : "What is this for?"}
-                    value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
-                />
+        <div className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            id="isPending"
+            {...register('isPending')}
+            className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+          />
+          <label htmlFor="isPending" className="text-sm text-gray-700 dark:text-gray-300">
+            Mark as Pending (don't apply to balance yet)
+          </label>
+        </div>
 
-                <div className="flex items-center gap-2">
-                    <input
-                        type="checkbox"
-                        id="isPending"
-                        name="isPending"
-                        defaultChecked={initialData?.isPending}
-                        className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
-                    />
-                    <label htmlFor="isPending" className="text-sm text-gray-700 dark:text-gray-300">
-                        Mark as Pending (don't apply to balance yet)
-                    </label>
-                </div>
+        {!initialData && !isTransfer && (
+          <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+            <div className="flex items-center gap-2 mb-2">
+              <input
+                type="checkbox"
+                id="saveAsTemplate"
+                {...register('saveAsTemplate')}
+                className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+              />
+              <label htmlFor="saveAsTemplate" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                Save as Template
+              </label>
+            </div>
 
-                {/* Hidden input to signal transfer mode to parent */}
-                <input type="hidden" name="isTransfer" value={isTransfer.toString()} />
+            {watchedSaveAsTemplate && (
+              <Input
+                label="Template Name"
+                placeholder="e.g., Monthly Rent"
+                required
+                {...register('templateName', {
+                  validate: (val) => !watchedSaveAsTemplate || val.trim().length > 0 || 'Template name is required',
+                })}
+                error={errors.templateName?.message}
+              />
+            )}
+          </div>
+        )}
 
-                {!initialData && !isTransfer && (
-                    <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
-                        <div className="flex items-center gap-2 mb-2">
-                            <input
-                                type="checkbox"
-                                id="saveAsTemplate"
-                                checked={saveAsTemplate}
-                                onChange={(e) => setSaveAsTemplate(e.target.checked)}
-                                className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
-                            />
-                            <label htmlFor="saveAsTemplate" className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                                Save as Template
-                            </label>
-                        </div>
+        {/* Hidden validation for accountId/pocketId/targetAccountId/targetPocketId */}
+        <input type="hidden" {...register('accountId', { required: 'Account is required' })} />
+        <input type="hidden" {...register('pocketId', { required: 'Pocket is required' })} />
+        <input type="hidden" {...register('targetAccountId', {
+          validate: (val) => !isTransfer || val.length > 0 || 'Target account is required',
+        })} />
+        <input type="hidden" {...register('targetPocketId', {
+          validate: (val) => !isTransfer || val.length > 0 || 'Target pocket is required',
+        })} />
 
-                        {saveAsTemplate && (
-                            <Input
-                                label="Template Name"
-                                value={templateName}
-                                onChange={(e) => setTemplateName(e.target.value)}
-                                placeholder="e.g., Monthly Rent"
-                                required={saveAsTemplate}
-                            />
-                        )}
-                    </div>
-                )}
-
-                <div className="flex justify-end gap-2 pt-4">
-                    <Button type="button" variant="secondary" onClick={onCancel}>
-                        Cancel
-                    </Button>
-                    <Button type="submit" variant="primary" loading={isSaving}>
-                        {initialData ? 'Update Movement' : (isTransfer ? 'Transfer Funds' : 'Create Movement')}
-                    </Button>
-                </div>
-        </form>
+        <div className="flex justify-end gap-2 pt-4">
+          <Button type="button" variant="secondary" onClick={onCancel}>
+            Cancel
+          </Button>
+          <Button type="submit" variant="primary" loading={isSaving}>
+            {initialData ? 'Update Movement' : (isTransfer ? 'Transfer Funds' : 'Create Movement')}
+          </Button>
+        </div>
+      </form>
     );
-};
+  }
+);
+
+MovementForm.displayName = 'MovementForm';
 
 export default MovementForm;

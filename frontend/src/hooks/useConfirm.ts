@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useCallback, useRef, useState } from 'react';
 
 interface ConfirmOptions {
   title: string;
@@ -13,6 +13,8 @@ interface ConfirmState extends ConfirmOptions {
   onConfirm: (() => void) | null;
 }
 
+type ConfirmResolver = (value: boolean) => void;
+
 export const useConfirm = () => {
   const [confirmState, setConfirmState] = useState<ConfirmState>({
     isOpen: false,
@@ -24,27 +26,31 @@ export const useConfirm = () => {
     onConfirm: null,
   });
 
+  // Holds the pending Promise's resolver so we can flip it `false` when the
+  // dialog is closed/cancelled. A ref (not state) keeps the value stable
+  // across renders without triggering re-renders when it changes.
+  const resolverRef = useRef<ConfirmResolver | null>(null);
+
   const confirm = useCallback((options: ConfirmOptions): Promise<boolean> => {
     return new Promise((resolve) => {
+      resolverRef.current = resolve;
       setConfirmState({
         isOpen: true,
         ...options,
         onConfirm: () => {
           resolve(true);
+          resolverRef.current = null;
           setConfirmState((prev) => ({ ...prev, isOpen: false }));
         },
       });
-
-      // Store the resolve function to handle cancellation
-      (window as any).__confirmResolve = resolve;
     });
   }, []);
 
   const handleClose = useCallback(() => {
     // Resolve with false when dialog is closed/cancelled
-    if ((window as any).__confirmResolve) {
-      (window as any).__confirmResolve(false);
-      (window as any).__confirmResolve = null;
+    if (resolverRef.current) {
+      resolverRef.current(false);
+      resolverRef.current = null;
     }
     setConfirmState((prev) => ({ ...prev, isOpen: false }));
   }, []);

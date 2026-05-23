@@ -1,317 +1,208 @@
-import { useState, useRef, useEffect } from 'react';
-import { Plus, AlertTriangle, Calendar } from 'lucide-react';
-import { useRemindersQuery, useReminderMutations } from '../../hooks/queries';
-import Modal from '../Modal';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Plus, AlertTriangle, Calendar, List } from 'lucide-react';
+import { useRemindersQuery, useReminderMutations, useSettingsQuery } from '../../hooks/queries';
+import { useReminderActions } from '../../hooks/actions/useReminderActions';
+import Modal from '../ui/Modal';
 import ReminderForm from './ReminderForm';
-import Button from '../Button';
-import Card from '../Card';
+import Button from '../ui/Button';
+import Card from '../ui/Card';
 import MonthSection from './MonthSection';
 import RecurrenceActionModal from './RecurrenceActionModal';
 import MarkAsPaidModal from './MarkAsPaidModal';
-import { useNavigate } from 'react-router-dom';
-import { groupRemindersByMonth, countOverdueReminders, type ReminderWithProjection } from '../../utils/reminderProjections';
+import ReminderCalendarHeatmap from './ReminderCalendarHeatmap';
+import { groupRemindersByMonth, countOverdueReminders } from '../../utils/reminderProjections';
+
+type Tab = 'upcoming' | 'calendar';
 
 const RemindersWidget = () => {
-    const navigate = useNavigate();
     const { data: reminders = [], isLoading } = useRemindersQuery();
-    const { deleteMutation, createMutation, updateMutation, createExceptionMutation, splitMutation } = useReminderMutations();
+    const { data: settings } = useSettingsQuery();
+    const mutations = useReminderMutations();
     const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-    const [isFormOpen, setIsFormOpen] = useState(false);
-    const [editingReminder, setEditingReminder] = useState<any>(null);
-    const [isEditingException, setIsEditingException] = useState(false);
-    const [splitDate, setSplitDate] = useState<string | null>(null);
+    const {
+        isFormOpen,
+        editingReminder,
+        isEditingException,
+        openCreateForm,
+        closeForm,
+        recurrenceModal,
+        closeRecurrenceModal,
+        markAsPaidReminder,
+        closeMarkAsPaid,
+        handlePayNow,
+        handleEdit,
+        handleDelete,
+        handleMarkAsPaid,
+        handleConfirmMarkAsPaid,
+        handleRecurrenceAction,
+        handleCreate,
+        handleUpdate,
+        isSaving,
+    } = useReminderActions({ reminders, mutations });
 
-    const [recurrenceModal, setRecurrenceModal] = useState<{
-        isOpen: boolean;
-        type: 'edit' | 'delete';
-        reminder: ReminderWithProjection | null;
-    }>({ isOpen: false, type: 'edit', reminder: null });
+    const [showPaid, setShowPaid] = useState(false);
+    const [activeTab, setActiveTab] = useState<Tab>('upcoming');
+    const monthGroups = useMemo(
+        () => groupRemindersByMonth(reminders, 1, 2, showPaid),
+        [reminders, showPaid]
+    );
+    const overdueCount = useMemo(
+        () => countOverdueReminders(reminders),
+        [reminders]
+    );
 
-    const [markAsPaidReminder, setMarkAsPaidReminder] = useState<ReminderWithProjection | null>(null);
-
-    // Group reminders by month (1 month back, 2 months ahead)
-    const monthGroups = groupRemindersByMonth(reminders, 1, 2);
-    const overdueCount = countOverdueReminders(reminders);
-
-    // Scroll to current month on initial load
     useEffect(() => {
-        if (scrollContainerRef.current && monthGroups.length > 0) {
+        if (scrollContainerRef.current && monthGroups.length > 0 && activeTab === 'upcoming') {
             const currentMonthElement = scrollContainerRef.current.querySelector('[data-current-month="true"]');
             if (currentMonthElement) {
                 currentMonthElement.scrollIntoView({ block: 'start', behavior: 'auto' });
             }
         }
-    }, [monthGroups.length]);
-
-    const handlePayNow = (reminder: ReminderWithProjection) => {
-        // Navigate to movements page with pre-filled data
-        const params = new URLSearchParams();
-        params.set('action', 'new');
-        params.set('amount', reminder.amount.toString());
-        params.set('notes', reminder.title);
-        params.set('date', reminder.dueDate);
-
-        if (reminder.templateId) params.set('templateId', reminder.templateId);
-        if (reminder.fixedExpenseId) params.set('fixedExpenseId', reminder.fixedExpenseId);
-
-        // Use original reminder ID for projected reminders
-        const reminderId = reminder.originalReminderId || reminder.id;
-        params.set('reminderId', reminderId);
-
-        navigate(`/movements?${params.toString()}`);
-    };
-
-    const handleEdit = (reminder: ReminderWithProjection) => {
-        if (reminder.recurrence.type !== 'once') {
-            setRecurrenceModal({ isOpen: true, type: 'edit', reminder });
-        } else {
-            setEditingReminder(reminder);
-            setIsEditingException(false);
-            setIsFormOpen(true);
-        }
-    };
-
-    const handleDelete = (reminder: ReminderWithProjection) => {
-        if (reminder.recurrence.type !== 'once') {
-            setRecurrenceModal({ isOpen: true, type: 'delete', reminder });
-        } else {
-            if (confirm('Are you sure you want to delete this reminder?')) {
-                deleteMutation.mutate(reminder.id);
-            }
-        }
-    };
-
-    const handleMarkAsPaid = (reminder: ReminderWithProjection) => {
-        setMarkAsPaidReminder(reminder);
-    };
-
-    const handleConfirmMarkAsPaid = async (movementId?: string) => {
-        if (!markAsPaidReminder) return;
-
-        const originalId = markAsPaidReminder.originalReminderId || markAsPaidReminder.id;
-
-        try {
-            if (markAsPaidReminder.recurrence.type === 'once') {
-                await updateMutation.mutateAsync({
-                    id: originalId,
-                    data: {
-                        isPaid: true,
-                        linkedMovementId: movementId
-                    }
-                });
-            } else {
-                // Create exception
-                await createExceptionMutation.mutateAsync({
-                    id: originalId,
-                    data: {
-                        originalDate: markAsPaidReminder.dueDate.split('T')[0],
-                        action: 'modified',
-                        isPaid: true,
-                        linkedMovementId: movementId
-                    }
-                });
-            }
-        } catch (error) {
-            console.error('Failed to mark as paid:', error);
-        } finally {
-            setMarkAsPaidReminder(null);
-        }
-    };
-
-    const handleRecurrenceAction = async (scope: 'this' | 'all' | 'future') => {
-        const { type, reminder } = recurrenceModal;
-        if (!reminder) return;
-
-        setRecurrenceModal(prev => ({ ...prev, isOpen: false }));
-
-        const originalId = reminder.originalReminderId || reminder.id;
-
-        if (type === 'delete') {
-            if (scope === 'this') {
-                // Delete this occurrence only (Create Exception)
-                await createExceptionMutation.mutateAsync({
-                    id: originalId,
-                    data: {
-                        originalDate: reminder.dueDate.split('T')[0],
-                        action: 'deleted'
-                    }
-                });
-            } else if (scope === 'future') {
-                // Delete this and future events (Split Series)
-                if (confirm('Are you sure you want to delete this and all following reminders?')) {
-                    await splitMutation.mutateAsync({
-                        id: originalId,
-                        splitDate: reminder.dueDate
-                    });
-                }
-            } else {
-                // Delete entire series
-                if (confirm('Are you sure you want to delete this recurring reminder series?')) {
-                    await deleteMutation.mutateAsync(originalId);
-                }
-            }
-        } else if (type === 'edit') {
-            if (scope === 'this') {
-                // Edit this occurrence only
-                setEditingReminder(reminder);
-                setIsEditingException(true);
-                setSplitDate(null);
-                setIsFormOpen(true);
-            } else if (scope === 'future') {
-                // Edit this and future events
-                setEditingReminder(reminder);
-                setIsEditingException(false);
-                setSplitDate(reminder.dueDate);
-                setIsFormOpen(true);
-            } else {
-                // Edit entire series
-                const original = reminders.find(r => r.id === originalId);
-                if (original) {
-                    setEditingReminder(original);
-                    setIsEditingException(false);
-                    setSplitDate(null);
-                    setIsFormOpen(true);
-                }
-            }
-        }
-    };
-
-    const handleCreate = async (data: any) => {
-        await createMutation.mutateAsync(data);
-        setIsFormOpen(false);
-    };
-
-    const handleUpdate = async (data: any) => {
-        if (editingReminder) {
-            const originalId = editingReminder.originalReminderId || editingReminder.id;
-
-            if (isEditingException) {
-                // Determine original date (the one we clicked on, NOT the new date in form)
-                // editingReminder.dueDate holds the initial date of the occurrence we clicked.
-
-                await createExceptionMutation.mutateAsync({
-                    id: originalId,
-                    data: {
-                        originalDate: editingReminder.dueDate.split('T')[0],
-                        action: 'modified',
-                        newTitle: data.title,
-                        newAmount: data.amount,
-                        newDate: data.dueDate,
-                    }
-                });
-            } else if (splitDate) {
-                // Split series (Edit This and Future)
-                await splitMutation.mutateAsync({
-                    id: originalId,
-                    splitDate: splitDate,
-                    newDetails: data
-                });
-            } else {
-                await updateMutation.mutateAsync({ id: editingReminder.id, data });
-            }
-            setEditingReminder(null);
-            setSplitDate(null);
-            setIsFormOpen(false);
-        }
-    };
+    }, [monthGroups.length, activeTab]);
 
     if (isLoading) {
-        return <div className="animate-pulse h-48 bg-gray-100 dark:bg-gray-800 rounded-lg"></div>;
+        return <div className="animate-pulse h-48 bg-gray-800 rounded-lg"></div>;
     }
 
     const hasAnyReminders = monthGroups.some(group => group.reminders.length > 0);
 
     return (
-        <div className="h-full flex flex-col">
-            <Card padding="none" className="flex-1 overflow-hidden flex flex-col">
+        <div className="flex flex-col h-full">
+            <Card padding="none" className="overflow-hidden flex flex-col flex-1 min-h-0">
                 {/* Header */}
-                <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-gray-800">
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+                <div className="flex items-center justify-between px-4 py-3 border-b border-gray-700">
+                    <h3 className="text-lg font-semibold text-gray-100 flex items-center gap-2">
                         <Calendar className="w-5 h-5" />
-                        Upcoming Payments
+                        Payments & Calendar
                     </h3>
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                            setEditingReminder(null);
-                            setIsEditingException(false);
-                            setIsFormOpen(true);
-                        }}
-                        className="!p-1.5"
-                    >
-                        <Plus className="w-5 h-5" />
-                    </Button>
+                    <div className="flex items-center gap-1">
+                        {activeTab === 'upcoming' && (
+                            <>
+                                <button
+                                    onClick={() => setShowPaid(!showPaid)}
+                                    className={`text-xs px-2 py-1 rounded-md transition-colors ${
+                                        showPaid
+                                            ? 'bg-blue-500/10 text-blue-400'
+                                            : 'text-gray-400 hover:text-gray-100'
+                                    }`}
+                                    title={showPaid ? 'Hide paid reminders' : 'Show paid reminders'}
+                                >
+                                    {showPaid ? 'Hide paid' : 'Show paid'}
+                                </button>
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={openCreateForm}
+                                    className="!p-1.5"
+                                    aria-label="Add new reminder"
+                                    title="Add new reminder"
+                                >
+                                    <Plus className="w-5 h-5" aria-hidden="true" />
+                                </Button>
+                            </>
+                        )}
+                    </div>
                 </div>
 
-                {/* Overdue Alert Banner */}
-                {overdueCount > 0 && (
-                    <div className="px-4 py-3 bg-red-50 dark:bg-red-900/30 border-b border-red-200 dark:border-red-800 flex items-center gap-2">
-                        <AlertTriangle className="w-5 h-5 text-red-500" />
-                        <span className="text-sm font-medium text-red-700 dark:text-red-300">
-                            You have {overdueCount} overdue payment{overdueCount > 1 ? 's' : ''}
-                        </span>
+                {/* Tabs */}
+                <div className="flex border-b border-gray-700">
+                    <button
+                        onClick={() => setActiveTab('upcoming')}
+                        className={`flex-1 px-4 py-2 text-sm font-medium transition-colors flex items-center justify-center gap-1.5 ${
+                            activeTab === 'upcoming'
+                                ? 'text-blue-400 border-b-2 border-blue-500'
+                                : 'text-gray-400 hover:text-gray-100'
+                        }`}
+                    >
+                        <List className="w-4 h-4" />
+                        Upcoming
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('calendar')}
+                        className={`flex-1 px-4 py-2 text-sm font-medium transition-colors flex items-center justify-center gap-1.5 ${
+                            activeTab === 'calendar'
+                                ? 'text-blue-400 border-b-2 border-blue-500'
+                                : 'text-gray-400 hover:text-gray-100'
+                        }`}
+                    >
+                        <Calendar className="w-4 h-4" />
+                        Calendar
+                    </button>
+                </div>
+
+                {/* Tab Content */}
+                {activeTab === 'upcoming' ? (
+                    <>
+                        {/* Overdue Alert Banner */}
+                        {overdueCount > 0 && (
+                            <div className="px-4 py-3 bg-[#93000a]/20 border-b border-[#ffb4ab]/20 flex items-center gap-2">
+                                <AlertTriangle className="w-5 h-5 text-[#ffb4ab]" aria-hidden="true" />
+                                <span className="text-sm font-medium text-[#ffb4ab]">
+                                    You have {overdueCount} overdue payment{overdueCount > 1 ? 's' : ''}
+                                </span>
+                            </div>
+                        )}
+
+                        {/* Monthly Timeline - scrollable with max height */}
+                        <div
+                            ref={scrollContainerRef}
+                            className="overflow-y-auto flex-1 min-h-0 p-3"
+                        >
+                            {!hasAnyReminders ? (
+                                <div className="flex flex-col items-center justify-center py-8 text-gray-400">
+                                    <Calendar className="w-10 h-10 mb-3 opacity-50" />
+                                    <p className="text-center">No reminders yet</p>
+                                    <p className="text-sm text-center mt-1 opacity-75">
+                                        Click + to add your first payment reminder
+                                    </p>
+                                </div>
+                            ) : (
+                                monthGroups.map(monthGroup => (
+                                    <div
+                                        key={monthGroup.key}
+                                        data-current-month={monthGroup.isCurrentMonth}
+                                    >
+                                        <MonthSection
+                                            monthGroup={monthGroup}
+                                            onPayNow={handlePayNow}
+                                            onEdit={handleEdit}
+                                            onDelete={handleDelete}
+                                            onMarkAsPaid={handleMarkAsPaid}
+                                            advanceDays={settings?.reminderAdvanceDays}
+                                        />
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    </>
+                ) : (
+                    /* Calendar Tab */
+                    <div className="max-h-[500px] overflow-y-auto">
+                        <ReminderCalendarHeatmap reminders={reminders} />
                     </div>
                 )}
-
-                {/* Monthly Timeline */}
-                <div
-                    ref={scrollContainerRef}
-                    className="overflow-y-auto flex-1 p-3"
-                >
-                    {!hasAnyReminders ? (
-                        <div className="flex flex-col items-center justify-center h-full py-8 text-gray-500 dark:text-gray-400">
-                            <Calendar className="w-10 h-10 mb-3 opacity-50" />
-                            <p className="text-center">No reminders yet</p>
-                            <p className="text-sm text-center mt-1 opacity-75">
-                                Click + to add your first payment reminder
-                            </p>
-                        </div>
-                    ) : (
-                        monthGroups.map(monthGroup => (
-                            <div
-                                key={monthGroup.key}
-                                data-current-month={monthGroup.isCurrentMonth}
-                            >
-                                <MonthSection
-                                    monthGroup={monthGroup}
-                                    onPayNow={handlePayNow}
-                                    onEdit={handleEdit}
-                                    onDelete={handleDelete}
-                                    onMarkAsPaid={handleMarkAsPaid}
-                                />
-                            </div>
-                        ))
-                    )}
-                </div>
             </Card>
 
             {/* Modal */}
             <Modal
                 isOpen={isFormOpen}
-                onClose={() => {
-                    setIsFormOpen(false);
-                    setEditingReminder(null);
-                }}
+                onClose={closeForm}
                 title={editingReminder ? (isEditingException ? 'Edit This Occurrence' : 'Edit Reminder') : 'New Reminder'}
                 size="lg"
             >
                 <ReminderForm
-                    initialData={editingReminder}
+                    initialData={editingReminder ?? undefined}
                     onSubmit={editingReminder ? handleUpdate : handleCreate}
-                    onCancel={() => {
-                        setIsFormOpen(false);
-                        setEditingReminder(null);
-                    }}
-                    isSaving={createMutation.isPending || updateMutation.isPending || createExceptionMutation.isPending}
+                    onCancel={closeForm}
+                    isSaving={isSaving}
                 />
             </Modal>
 
             {/* Recurrence Action Modal */}
             <RecurrenceActionModal
                 isOpen={recurrenceModal.isOpen}
-                onClose={() => setRecurrenceModal(prev => ({ ...prev, isOpen: false }))}
+                onClose={closeRecurrenceModal}
                 onAction={handleRecurrenceAction}
                 actionType={recurrenceModal.type}
             />
@@ -319,7 +210,7 @@ const RemindersWidget = () => {
             {/* Mark as Paid Modal */}
             <MarkAsPaidModal
                 isOpen={!!markAsPaidReminder}
-                onClose={() => setMarkAsPaidReminder(null)}
+                onClose={closeMarkAsPaid}
                 onConfirm={handleConfirmMarkAsPaid}
                 reminder={markAsPaidReminder}
             />
@@ -328,4 +219,3 @@ const RemindersWidget = () => {
 };
 
 export default RemindersWidget;
-

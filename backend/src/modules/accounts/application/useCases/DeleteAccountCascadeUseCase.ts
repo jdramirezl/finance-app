@@ -20,7 +20,7 @@ import { NotFoundError } from '../../../../shared/errors/AppError';
  */
 interface IPocketRepository {
   findByAccountId(accountId: string, userId: string): Promise<Array<{ id: string; accountId: string; type: string }>>;
-  delete(pocketId: string, userId: string): Promise<void>;
+  deleteByAccountId(accountId: string, userId: string): Promise<number>;
 }
 
 /**
@@ -30,8 +30,7 @@ interface IPocketRepository {
  * For now, we define the minimal interface needed for cascade delete.
  */
 interface ISubPocketRepository {
-  findByPocketId(pocketId: string, userId: string): Promise<Array<{ id: string; pocketId: string }>>;
-  delete(subPocketId: string, userId: string): Promise<void>;
+  deleteByPocketIds(pocketIds: string[], userId: string): Promise<number>;
 }
 
 /**
@@ -75,42 +74,19 @@ export class DeleteAccountCascadeUseCase {
     // Fetch existing account to verify ownership
     const account = await this.accountRepo.findById(accountId, userId);
 
-    // Verify ownership - repository returns null if not found or not owned by user
     if (!account) {
       throw new NotFoundError('Account not found');
     }
 
-    // Initialize counters
-    let pocketsDeleted = 0;
-    let subPocketsDeleted = 0;
-    let movementsAffected = 0;
-
-    // Get all pockets for this account
+    // 1. Fetch all pockets for this account (1 query)
     const pockets = await this.pocketRepo.findByAccountId(accountId, userId);
+    const pocketIds = pockets.map(p => p.id);
 
-    // Process each pocket
-    for (const pocket of pockets) {
-      // If this is a fixed pocket, delete all sub-pockets first (Requirement 5.4)
-      if (pocket.type === 'fixed') {
-        const subPockets = await this.subPocketRepo.findByPocketId(pocket.id, userId);
-        
-        for (const subPocket of subPockets) {
-          await this.subPocketRepo.delete(subPocket.id, userId);
-          subPocketsDeleted++;
-        }
-      }
-
-      // Delete the pocket (Requirement 5.3)
-      await this.pocketRepo.delete(pocket.id, userId);
-      pocketsDeleted++;
-    }
-
-    // Handle movements (Requirement 5.1 and 5.2)
+    // 2. Handle movements FIRST (before deleting pockets, due to CHECK constraint)
+    let movementsAffected = 0;
     if (dto.deleteMovements) {
-      // Hard delete all movements for this account (Requirement 5.2)
       movementsAffected = await this.movementRepo.deleteByAccountId(accountId, userId);
     } else {
-      // Mark all movements as orphaned (Requirement 5.1)
       movementsAffected = await this.movementRepo.markAsOrphanedByAccountId(
         accountId,
         account.name,
@@ -119,10 +95,15 @@ export class DeleteAccountCascadeUseCase {
       );
     }
 
-    // Delete the account itself
+    // 3. Bulk delete all sub-pockets for those pocket IDs (1 query)
+    const subPocketsDeleted = await this.subPocketRepo.deleteByPocketIds(pocketIds, userId);
+
+    // 4. Bulk delete all pockets for the account (1 query)
+    const pocketsDeleted = await this.pocketRepo.deleteByAccountId(accountId, userId);
+
+    // 5. Delete the account (1 query)
     await this.accountRepo.delete(accountId, userId);
 
-    // Return deletion counts (Requirement 5.5)
     return {
       account: account.name,
       pockets: pocketsDeleted,

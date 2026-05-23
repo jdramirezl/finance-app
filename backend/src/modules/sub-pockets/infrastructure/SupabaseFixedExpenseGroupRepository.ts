@@ -4,8 +4,8 @@
  * Implements IFixedExpenseGroupRepository using Supabase as the data store.
  */
 
-import { injectable } from 'tsyringe';
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { injectable, inject } from 'tsyringe';
+import { SupabaseClient } from '@supabase/supabase-js';
 import type { IFixedExpenseGroupRepository } from './IFixedExpenseGroupRepository';
 import { FixedExpenseGroup } from '../domain/FixedExpenseGroup';
 import { FixedExpenseGroupMapper } from '../application/mappers/FixedExpenseGroupMapper';
@@ -13,28 +13,10 @@ import { DatabaseError } from '../../../shared/errors/AppError';
 
 @injectable()
 export class SupabaseFixedExpenseGroupRepository implements IFixedExpenseGroupRepository {
-  private supabase: SupabaseClient | null;
+  private supabase: SupabaseClient;
 
-  constructor() {
-    const supabaseUrl = process.env.SUPABASE_URL;
-    const supabaseKey = process.env.SUPABASE_SERVICE_KEY;
-
-    // Only throw error in non-test environments
-    if ((!supabaseUrl || !supabaseKey) && process.env.NODE_ENV !== 'test') {
-      throw new Error('Supabase configuration missing: SUPABASE_URL and SUPABASE_SERVICE_KEY required');
-    }
-
-    // Create client only if credentials are available
-    this.supabase = supabaseUrl && supabaseKey
-      ? createClient(supabaseUrl, supabaseKey)
-      : null;
-  }
-
-  private ensureClient(): SupabaseClient {
-    if (!this.supabase) {
-      throw new DatabaseError('Supabase client not configured');
-    }
-    return this.supabase;
+  constructor(@inject('SupabaseClient') supabase: SupabaseClient) {
+    this.supabase = supabase;
   }
 
   /**
@@ -43,7 +25,7 @@ export class SupabaseFixedExpenseGroupRepository implements IFixedExpenseGroupRe
   async save(group: FixedExpenseGroup, userId: string): Promise<void> {
     const data = FixedExpenseGroupMapper.toPersistence(group, userId);
 
-    const { error } = await this.ensureClient()
+    const { error } = await this.supabase
       .from('fixed_expense_groups')
       .insert(data);
 
@@ -56,7 +38,7 @@ export class SupabaseFixedExpenseGroupRepository implements IFixedExpenseGroupRe
    * Find group by ID
    */
   async findById(id: string, userId: string): Promise<FixedExpenseGroup | null> {
-    const { data, error } = await this.ensureClient()
+    const { data, error } = await this.supabase
       .from('fixed_expense_groups')
       .select('*')
       .eq('id', id)
@@ -82,7 +64,7 @@ export class SupabaseFixedExpenseGroupRepository implements IFixedExpenseGroupRe
    * Find all groups for a user
    */
   async findAllByUserId(userId: string): Promise<FixedExpenseGroup[]> {
-    const { data, error } = await this.ensureClient()
+    const { data, error } = await this.supabase
       .from('fixed_expense_groups')
       .select('*')
       .eq('user_id', userId)
@@ -108,7 +90,7 @@ export class SupabaseFixedExpenseGroupRepository implements IFixedExpenseGroupRe
     // Remove id from update data (can't update primary key)
     const { id, ...updateData } = data;
 
-    const { error } = await this.ensureClient()
+    const { error } = await this.supabase
       .from('fixed_expense_groups')
       .update(updateData)
       .eq('id', group.id)
@@ -123,7 +105,7 @@ export class SupabaseFixedExpenseGroupRepository implements IFixedExpenseGroupRe
    * Delete a group
    */
   async delete(id: string, userId: string): Promise<void> {
-    const { error } = await this.ensureClient()
+    const { error } = await this.supabase
       .from('fixed_expense_groups')
       .delete()
       .eq('id', id)
@@ -149,7 +131,7 @@ export class SupabaseFixedExpenseGroupRepository implements IFixedExpenseGroupRe
 
     for (let i = 0; i < ids.length; i++) {
       const id = ids[i];
-      const { error } = await this.ensureClient()
+      const { error } = await this.supabase
         .from('fixed_expense_groups')
         .update({
           display_order: i,

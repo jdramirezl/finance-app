@@ -5,6 +5,7 @@
  */
 
 import type { Currency } from '@shared-backend/types';
+import type { AccountCardDisplaySettings, DateFormatPreference, SnapshotFrequency } from '../../domain/Settings';
 
 /**
  * Response DTO for Settings
@@ -14,6 +15,16 @@ export interface SettingsResponseDTO {
   userId: string;
   primaryCurrency: Currency;
   alphaVantageApiKey?: string;
+  accountCardDisplay?: AccountCardDisplaySettings;
+  snapshotFrequency?: SnapshotFrequency;
+  defaultExpenseAccountId?: string;
+  defaultExpensePocketId?: string;
+  defaultIncomeAccountId?: string;
+  defaultIncomePocketId?: string;
+  dateFormat: string;
+  movementsPerPage: number;
+  reminderAdvanceDays: number;
+  defaultCurrencyForNewAccounts: Currency;
 }
 
 /**
@@ -22,4 +33,14 @@ export interface SettingsResponseDTO {
 export interface UpdateSettingsDTO {
   primaryCurrency?: Currency;
   alphaVantageApiKey?: string;
+  accountCardDisplay?: AccountCardDisplaySettings;
+  snapshotFrequency?: SnapshotFrequency;
+  defaultExpenseAccountId?: string;
+  defaultExpensePocketId?: string;
+  defaultIncomeAccountId?: string;
+  defaultIncomePocketId?: string;
+  dateFormat?: DateFormatPreference;
+  movementsPerPage?: number;
+  reminderAdvanceDays?: number;
+  defaultCurrencyForNewAccounts?: Currency;
 }

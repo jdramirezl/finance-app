@@ -1,13 +1,15 @@
 import { useState } from 'react';
 import { currencyService } from '../../services/currencyService';
-import Button from '../Button';
-import Card from '../Card';
-import Select from '../Select';
+import Button from '../ui/Button';
+import Card from '../ui/Card';
+import Select from '../ui/Select';
 import { Search, RotateCw, ArrowRight } from 'lucide-react';
+import { parseDate } from '../../utils/dateUtils';
+import { CURRENCY_OPTIONS, DEFAULT_CURRENCY } from '../../constants';
 import type { Currency } from '../../types';
 
 const DebugExchangeRate = () => {
-    const [from, setFrom] = useState<Currency>('USD');
+    const [from, setFrom] = useState<Currency>(DEFAULT_CURRENCY);
     const [to, setTo] = useState<Currency>('MXN');
     const [loading, setLoading] = useState(false);
     const [result, setResult] = useState<{
@@ -17,14 +19,6 @@ const DebugExchangeRate = () => {
     } | null>(null);
     const [error, setError] = useState<string | null>(null);
 
-    const currencies: { value: Currency; label: string }[] = [
-        { value: 'USD', label: 'USD' },
-        { value: 'MXN', label: 'MXN' },
-        { value: 'COP', label: 'COP' },
-        { value: 'EUR', label: 'EUR' },
-        { value: 'GBP', label: 'GBP' },
-    ];
-
     const handleSearch = async (e?: React.FormEvent) => {
         e?.preventDefault();
         setLoading(true);
@@ -32,8 +26,8 @@ const DebugExchangeRate = () => {
         try {
             const data = await currencyService.getDebugRate(from, to);
             setResult(data);
-        } catch (err: any) {
-            setError(err.message || 'Failed to fetch rate');
+        } catch (err: unknown) {
+            setError(err instanceof Error ? err.message : 'Failed to fetch rate');
             setResult(null);
         } finally {
             setLoading(false);
@@ -52,22 +46,28 @@ const DebugExchangeRate = () => {
                     label="From"
                     value={from}
                     onChange={e => setFrom(e.target.value as Currency)}
-                    options={currencies}
+                    options={CURRENCY_OPTIONS}
                     className="w-24"
                 />
-                <div className="pb-3 text-gray-400">
+                <div className="pb-3 text-gray-400" aria-hidden="true">
                     <ArrowRight className="w-4 h-4" />
                 </div>
                 <Select
                     label="To"
                     value={to}
                     onChange={e => setTo(e.target.value as Currency)}
-                    options={currencies}
+                    options={CURRENCY_OPTIONS}
                     className="w-24"
                 />
                 <div className="flex-1"></div>
-                <Button type="submit" disabled={loading}>
-                    {loading ? <RotateCw className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+                <Button
+                    type="submit"
+                    disabled={loading}
+                    aria-label={`Look up ${from} to ${to} exchange rate`}
+                >
+                    {loading
+                        ? <RotateCw className="w-4 h-4 animate-spin" aria-hidden="true" />
+                        : <Search className="w-4 h-4" aria-hidden="true" />}
                 </Button>
             </form>
 
@@ -99,7 +99,7 @@ const DebugExchangeRate = () => {
                     <div className="flex justify-between">
                         <span className="text-gray-500">Cached:</span>
                         <span className="font-mono text-gray-700 dark:text-gray-300">
-                            {new Date(result.cachedAt).toLocaleString()}
+                            {parseDate(result.cachedAt).toLocaleString()}
                         </span>
                     </div>
                 </div>

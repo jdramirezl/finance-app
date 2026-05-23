@@ -10,14 +10,14 @@
  * **Feature: backend-migration, Property 24: SubPocket balance calculation**
  * **Validates: Requirements 8.3**
  * 
- * **Feature: backend-migration, Property 25: SubPocket toggle updates enabled flag**
- * **Validates: Requirements 8.4**
- * 
  * **Feature: backend-migration, Property 26: SubPocket reordering updates display order**
  * **Validates: Requirements 8.6**
  * 
  * **Feature: backend-migration, Property 28: Moving sub-pocket updates group reference**
  * **Validates: Requirements 9.2**
+ *
+ * Note: Property 25 (toggle enabled flag) was removed when the enable/disable
+ * toggle feature was dropped — all sub-pockets are now always active.
  */
 
 import fc from 'fast-check';
@@ -330,162 +330,6 @@ describe('SubPocket Property-Based Tests', () => {
     });
   });
 
-  describe('Property 25: SubPocket toggle updates enabled flag', () => {
-    it('should toggle enabled flag from any initial state', () => {
-      fc.assert(
-        fc.property(
-          fc.string({ minLength: 1 }).filter(s => s.trim().length > 0),
-          fc.integer({ min: 1, max: 1000 }),
-          fc.integer({ min: 1, max: 12 }),
-          fc.boolean(), // initial enabled state
-          (name, valueTotal, periodicityMonths, initialEnabled) => {
-            // Create sub-pocket with random initial enabled state
-            const subPocket = new SubPocket(
-              'test-id',
-              'pocket-id',
-              name,
-              valueTotal,
-              periodicityMonths,
-              0,
-              initialEnabled
-            );
-
-            // Toggle enabled
-            subPocket.toggleEnabled();
-
-            // Property: enabled should be opposite of initial state
-            expect(subPocket.enabled).toBe(!initialEnabled);
-          }
-        ),
-        { numRuns: 100 }
-      );
-    });
-
-    it('should toggle back to original state after two toggles', () => {
-      fc.assert(
-        fc.property(
-          fc.string({ minLength: 1 }).filter(s => s.trim().length > 0),
-          fc.integer({ min: 1, max: 1000 }),
-          fc.integer({ min: 1, max: 12 }),
-          fc.boolean(),
-          (name, valueTotal, periodicityMonths, initialEnabled) => {
-            const subPocket = new SubPocket(
-              'test-id',
-              'pocket-id',
-              name,
-              valueTotal,
-              periodicityMonths,
-              0,
-              initialEnabled
-            );
-
-            // Toggle twice
-            subPocket.toggleEnabled();
-            subPocket.toggleEnabled();
-
-            // Property: should return to original state after two toggles
-            expect(subPocket.enabled).toBe(initialEnabled);
-          }
-        ),
-        { numRuns: 100 }
-      );
-    });
-
-    it('should maintain enabled state through multiple toggle cycles', () => {
-      fc.assert(
-        fc.property(
-          fc.string({ minLength: 1 }).filter(s => s.trim().length > 0),
-          fc.integer({ min: 1, max: 1000 }),
-          fc.integer({ min: 1, max: 12 }),
-          fc.boolean(),
-          fc.integer({ min: 1, max: 20 }), // number of toggles
-          (name, valueTotal, periodicityMonths, initialEnabled, toggleCount) => {
-            const subPocket = new SubPocket(
-              'test-id',
-              'pocket-id',
-              name,
-              valueTotal,
-              periodicityMonths,
-              0,
-              initialEnabled
-            );
-
-            // Toggle multiple times
-            for (let i = 0; i < toggleCount; i++) {
-              subPocket.toggleEnabled();
-            }
-
-            // Property: after even number of toggles, should be initial state
-            // after odd number of toggles, should be opposite
-            const expectedEnabled = toggleCount % 2 === 0 ? initialEnabled : !initialEnabled;
-            expect(subPocket.enabled).toBe(expectedEnabled);
-          }
-        ),
-        { numRuns: 100 }
-      );
-    });
-
-    it('should reflect enabled state correctly via isEnabled method', () => {
-      fc.assert(
-        fc.property(
-          fc.string({ minLength: 1 }).filter(s => s.trim().length > 0),
-          fc.integer({ min: 1, max: 1000 }),
-          fc.integer({ min: 1, max: 12 }),
-          fc.boolean(),
-          (name, valueTotal, periodicityMonths, initialEnabled) => {
-            const subPocket = new SubPocket(
-              'test-id',
-              'pocket-id',
-              name,
-              valueTotal,
-              periodicityMonths,
-              0,
-              initialEnabled
-            );
-
-            // Property: isEnabled() should match enabled property
-            expect(subPocket.isEnabled()).toBe(subPocket.enabled);
-
-            // Toggle and check again
-            subPocket.toggleEnabled();
-            expect(subPocket.isEnabled()).toBe(subPocket.enabled);
-          }
-        ),
-        { numRuns: 100 }
-      );
-    });
-
-    it('should allow explicit setting of enabled state', () => {
-      fc.assert(
-        fc.property(
-          fc.string({ minLength: 1 }).filter(s => s.trim().length > 0),
-          fc.integer({ min: 1, max: 1000 }),
-          fc.integer({ min: 1, max: 12 }),
-          fc.boolean(), // initial state
-          fc.boolean(), // target state
-          (name, valueTotal, periodicityMonths, initialEnabled, targetEnabled) => {
-            const subPocket = new SubPocket(
-              'test-id',
-              'pocket-id',
-              name,
-              valueTotal,
-              periodicityMonths,
-              0,
-              initialEnabled
-            );
-
-            // Set enabled explicitly
-            subPocket.setEnabled(targetEnabled);
-
-            // Property: enabled should match target state regardless of initial state
-            expect(subPocket.enabled).toBe(targetEnabled);
-          }
-        ),
-        { numRuns: 100 }
-      );
-    });
-  });
-
   describe('Property 28: Moving sub-pocket updates group reference', () => {
     it('should update groupId to any valid group', () => {
       fc.assert(
@@ -504,7 +348,6 @@ describe('SubPocket Property-Based Tests', () => {
               valueTotal,
               periodicityMonths,
               0,
-              true,
               initialGroupId
             );
 
@@ -535,7 +378,6 @@ describe('SubPocket Property-Based Tests', () => {
               valueTotal,
               periodicityMonths,
               0,
-              true,
               initialGroupId
             );
 
@@ -620,10 +462,9 @@ describe('SubPocket Property-Based Tests', () => {
           fc.integer({ min: 1, max: 1000 }),
           fc.integer({ min: 1, max: 12 }),
           fc.integer({ min: -1000, max: 1000 }), // balance
-          fc.boolean(), // enabled
           fc.option(fc.uuid(), { nil: undefined }), // initial group
           fc.uuid(), // target group
-          (name, valueTotal, periodicityMonths, balance, enabled, initialGroupId, targetGroupId) => {
+          (name, valueTotal, periodicityMonths, balance, initialGroupId, targetGroupId) => {
             const subPocket = new SubPocket(
               'test-id',
               'pocket-id',
@@ -631,7 +472,6 @@ describe('SubPocket Property-Based Tests', () => {
               valueTotal,
               periodicityMonths,
               balance,
-              enabled,
               initialGroupId
             );
 
@@ -640,7 +480,6 @@ describe('SubPocket Property-Based Tests', () => {
             const originalValueTotal = subPocket.valueTotal;
             const originalPeriodicity = subPocket.periodicityMonths;
             const originalBalance = subPocket.balance;
-            const originalEnabled = subPocket.enabled;
 
             // Move to new group
             subPocket.updateGroupId(targetGroupId);
@@ -650,7 +489,6 @@ describe('SubPocket Property-Based Tests', () => {
             expect(subPocket.valueTotal).toBe(originalValueTotal);
             expect(subPocket.periodicityMonths).toBe(originalPeriodicity);
             expect(subPocket.balance).toBe(originalBalance);
-            expect(subPocket.enabled).toBe(originalEnabled);
             expect(subPocket.groupId).toBe(targetGroupId);
           }
         ),
@@ -799,10 +637,9 @@ describe('SubPocket Property-Based Tests', () => {
           fc.integer({ min: 1, max: 1000 }),
           fc.integer({ min: 1, max: 12 }),
           fc.integer({ min: -1000, max: 1000 }), // balance
-          fc.boolean(), // enabled
           fc.option(fc.uuid(), { nil: undefined }), // groupId
           fc.integer({ min: 0, max: 100 }), // new display order
-          (name, valueTotal, periodicityMonths, balance, enabled, groupId, newOrder) => {
+          (name, valueTotal, periodicityMonths, balance, groupId, newOrder) => {
             const subPocket = new SubPocket(
               'test-id',
               'pocket-id',
@@ -810,7 +647,6 @@ describe('SubPocket Property-Based Tests', () => {
               valueTotal,
               periodicityMonths,
               balance,
-              enabled,
               groupId
             );
 
@@ -819,7 +655,6 @@ describe('SubPocket Property-Based Tests', () => {
             const originalValueTotal = subPocket.valueTotal;
             const originalPeriodicity = subPocket.periodicityMonths;
             const originalBalance = subPocket.balance;
-            const originalEnabled = subPocket.enabled;
             const originalGroupId = subPocket.groupId;
 
             // Update display order
@@ -830,7 +665,6 @@ describe('SubPocket Property-Based Tests', () => {
             expect(subPocket.valueTotal).toBe(originalValueTotal);
             expect(subPocket.periodicityMonths).toBe(originalPeriodicity);
             expect(subPocket.balance).toBe(originalBalance);
-            expect(subPocket.enabled).toBe(originalEnabled);
             expect(subPocket.groupId).toBe(originalGroupId);
             expect(subPocket.displayOrder).toBe(newOrder);
           }

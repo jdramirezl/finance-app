@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import type { Account, Pocket, Currency, CDInvestmentAccount, AccountCardDisplayMode } from '../../types';
 import AccountSummaryCard from './AccountSummaryCard';
 import AccountSummaryCardCompact from './AccountSummaryCardCompact';
@@ -5,7 +6,7 @@ import InvestmentCard, { type InvestmentData } from './InvestmentCard';
 import InvestmentCardCompact from './InvestmentCardCompact';
 import CDSummaryCard from './CDSummaryCard';
 import CDSummaryCardCompact from './CDSummaryCardCompact';
-import Card from '../Card';
+import Card from '../ui/Card';
 import { Banknote } from 'lucide-react';
 
 interface CurrencySectionProps {
@@ -21,6 +22,11 @@ interface CurrencySectionProps {
     cdAccountDisplayMode?: AccountCardDisplayMode;
 }
 
+const isCDAccount = (account: Account): account is CDInvestmentAccount =>
+    account.type === 'cd';
+
+const EMPTY_POCKETS: Pocket[] = [];
+
 const CurrencySection = ({
     currency,
     accounts,
@@ -32,32 +38,32 @@ const CurrencySection = ({
     investmentAccountDisplayMode = 'detailed',
     cdAccountDisplayMode = 'detailed',
 }: CurrencySectionProps) => {
-    // Helper to check if account is a CD
-    const isCDAccount = (account: Account): account is CDInvestmentAccount => {
-        // For CD accounts, we only need to check the type since investmentType might not be set correctly
-        const isCD = account.type === 'cd';
-        return isCD;
-    };
+    // Build pockets-by-account map once so each AccountSummaryCard receives a
+    // stable array reference (essential for React.memo to skip re-renders).
+    const pocketsByAccount = useMemo(() => {
+        const map = new Map<string, Pocket[]>();
+        for (const p of pockets) {
+            const list = map.get(p.accountId);
+            if (list) {
+                list.push(p);
+            } else {
+                map.set(p.accountId, [p]);
+            }
+        }
+        return map;
+    }, [pockets]);
 
-    // Sort: CD first, then investment, then others
-    const sortedAccounts = [...accounts].sort((a, b) => {
-        if (isCDAccount(a) && !isCDAccount(b)) return -1;
-        if (!isCDAccount(a) && isCDAccount(b)) return 1;
-        if (a.type === 'investment' && b.type !== 'investment') return -1;
-        if (a.type !== 'investment' && b.type === 'investment') return 1;
-        return 0;
-    });
-
-    console.log('📊 CurrencySection rendering accounts:', {
-        currency,
-        totalAccounts: accounts.length,
-        sortedAccounts: sortedAccounts.map(acc => ({
-            name: acc.name,
-            type: acc.type,
-            investmentType: acc.investmentType,
-            isCD: isCDAccount(acc)
-        }))
-    });
+    // Sort: CD first, then investment, then others. useMemo so we don't redo
+    // the spread+sort on every parent re-render.
+    const sortedAccounts = useMemo(() => {
+        return [...accounts].sort((a, b) => {
+            if (isCDAccount(a) && !isCDAccount(b)) return -1;
+            if (!isCDAccount(a) && isCDAccount(b)) return 1;
+            if (a.type === 'investment' && b.type !== 'investment') return -1;
+            if (a.type !== 'investment' && b.type === 'investment') return 1;
+            return 0;
+        });
+    }, [accounts]);
 
     return (
         <Card>
@@ -69,7 +75,7 @@ const CurrencySection = ({
             </div>
             <div className="space-y-6">
                 {sortedAccounts.map((account) => {
-                    const accountPockets = pockets.filter(p => p.accountId === account.id);
+                    const accountPockets = pocketsByAccount.get(account.id) ?? EMPTY_POCKETS;
 
                     if (isCDAccount(account)) {
                         return cdAccountDisplayMode === 'compact' ? (

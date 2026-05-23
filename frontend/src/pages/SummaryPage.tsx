@@ -1,367 +1,117 @@
-import { useEffect, useState } from 'react';
-import { useAccountsQuery, usePocketsQuery, useSettingsQuery, useSubPocketsQuery, useFixedExpenseGroupsQuery } from '../hooks/queries';
-import { currencyService } from '../services/currencyService';
-import { cdCalculationService } from '../services/cdCalculationService';
-import { investmentService } from '../services/investmentService';
-import type { Currency, Account, CDInvestmentAccount, AccountCardDisplaySettings } from '../types';
-import { useToast } from '../hooks/useToast';
-import { useAutoNetWorthSnapshot } from '../hooks/useAutoNetWorthSnapshot';
-import { SkeletonStats, SkeletonAccountCard, SkeletonList } from '../components/Skeleton';
-import PageHeader from '../components/PageHeader';
-import EmptyState from '../components/EmptyState';
+import { useMemo } from 'react';
 import { Wallet } from 'lucide-react';
 import {
-  TotalsSummary,
-  CurrencySection,
-  FixedExpensesSummary,
-  type InvestmentData
-} from '../components/summary';
-import RemindersWidget from '../components/reminders/RemindersWidget';
+  useAccountsQuery,
+  useFixedExpenseGroupsQuery,
+  usePocketsQuery,
+  useSettingsQuery,
+  useSubPocketsQuery,
+} from '../hooks/queries';
+import { useAutoNetWorthSnapshot } from '../hooks/useAutoNetWorthSnapshot';
+import { useConsolidatedTotal } from '../hooks/useConsolidatedTotal';
+import { useInvestmentPrices } from '../hooks/useInvestmentPrices';
+import { useSlowQuery } from '../hooks/useSlowQuery';
+import { useToast } from '../hooks/useToast';
+import type { AccountCardDisplaySettings } from '../types';
+import EmptyState from '../components/ui/EmptyState';
+import SlowQueryIndicator from '../components/feedback/SlowQueryIndicator';
+import PageHeader from '../components/ui/PageHeader';
+import {
+  SkeletonAccountCard,
+  SkeletonList,
+  SkeletonStats,
+} from '../components/ui/Skeleton';
+import { ErrorBoundary } from '../components/feedback';
+import QueryErrorCard from '../components/feedback/QueryErrorCard';
 import NetWorthTimelineWidget from '../components/net-worth/NetWorthTimelineWidget';
-import FinancialCalendarWidget from '../components/calendar/FinancialCalendarWidget';
-import { SelectionProvider } from '../context/SelectionContext';
+import RemindersWidget from '../components/reminders/RemindersWidget';
+import {
+  CurrencyBreakdownSection,
+  FixedExpensesSummary,
+
+  TotalsSummary,
+} from '../components/summary';
 import FloatingStatsBar from '../components/summary/FloatingStatsBar';
+import { SelectionProvider } from '../contexts/SelectionContext';
+
+const DEFAULT_DISPLAY: AccountCardDisplaySettings = {
+  normal: 'detailed',
+  investment: 'detailed',
+  cd: 'detailed',
+};
 
 const SummaryPage = () => {
-  // TanStack Query hooks
-  const { data: accounts = [], isLoading: accountsLoading } = useAccountsQuery();
-  const { data: pockets = [], isLoading: pocketsLoading } = usePocketsQuery();
-  const { data: settings, isLoading: settingsLoading } = useSettingsQuery();
-  const { data: subPockets = [], isLoading: subPocketsLoading } = useSubPocketsQuery();
-  const { data: fixedExpenseGroups = [] } = useFixedExpenseGroupsQuery();
+  // Data
+  const {
+    data: accounts = [],
+    isLoading: accountsLoading,
+    isError: accountsIsError,
+    error: accountsError,
+    refetch: accountsRefetch,
+  } = useAccountsQuery();
+  const {
+    data: pockets = [],
+    isLoading: pocketsLoading,
+    isError: pocketsIsError,
+    error: pocketsError,
+    refetch: pocketsRefetch,
+  } = usePocketsQuery();
+  const {
+    data: settings,
+    isLoading: settingsLoading,
+    isError: settingsIsError,
+    error: settingsError,
+    refetch: settingsRefetch,
+  } = useSettingsQuery();
+  const {
+    data: subPockets = [],
+    isLoading: subPocketsLoading,
+    isError: subPocketsIsError,
+    error: subPocketsError,
+    refetch: subPocketsRefetch,
+  } = useSubPocketsQuery();
+  const {
+    data: fixedExpenseGroups = [],
+    isError: fixedExpenseGroupsIsError,
+    error: fixedExpenseGroupsError,
+    refetch: fixedExpenseGroupsRefetch,
+  } = useFixedExpenseGroupsQuery();
 
-  // Auto-snapshot on load
-  useAutoNetWorthSnapshot();
-
-  const [investmentData, setInvestmentData] = useState<Map<string, InvestmentData>>(new Map());
-  const [, setLoadingInvestments] = useState(false);
-  const [refreshingPrices, setRefreshingPrices] = useState<Set<string>>(new Set());
-  const [clickCounts, setClickCounts] = useState<Map<string, { count: number; timestamp: number }>>(new Map());
-  const [lastForceRefresh, setLastForceRefresh] = useState<Map<string, number>>(new Map());
   const toast = useToast();
-
-  // Combine loading states
-  const isLoading = accountsLoading || pocketsLoading || settingsLoading || subPocketsLoading;
-  const error = null; // TanStack Query handles errors internally
-
-  // Load investment prices
-  useEffect(() => {
-    const loadInvestmentPrices = async () => {
-      const investmentAccounts = accounts.filter(acc => acc.type === 'investment' && acc.stockSymbol);
-      if (investmentAccounts.length === 0) return;
-
-      setLoadingInvestments(true);
-      const newData = new Map<string, InvestmentData>();
-
-      for (const account of investmentAccounts) {
-        try {
-          // Get fresh values from pocket balances (source of truth)
-          const investedPocket = pockets.find(p => p.accountId === account.id && p.name === 'Invested Money');
-          const sharesPocket = pockets.find(p => p.accountId === account.id && p.name === 'Shares');
-
-          // Use pocket balances as source of truth instead of account fields
-          const montoInvertido = investedPocket?.balance || 0;
-          const shares = sharesPocket?.balance || 0;
-
-          // Create a temporary account object with correct values
-          const accountWithCorrectValues = {
-            ...account,
-            montoInvertido,
-            shares,
-          };
-
-          if (account.stockSymbol) {
-            const data = await investmentService.updateInvestmentAccount(accountWithCorrectValues);
-            // Include the correct values in the data object
-            newData.set(account.id, {
-              ...data,
-              montoInvertido,
-              shares,
-            });
-          }
-        } catch (error) {
-          console.error(`Error loading price for ${account.stockSymbol}:`, error);
-          // Use pocket balances for error case too
-          const investedPocket = pockets.find(p => p.accountId === account.id && p.name === 'Invested Money');
-          const sharesPocket = pockets.find(p => p.accountId === account.id && p.name === 'Shares');
-          const montoInvertido = investedPocket?.balance || 0;
-          const shares = sharesPocket?.balance || 0;
-          newData.set(account.id, {
-            precioActual: 0,
-            totalValue: 0,
-            gainsUSD: -montoInvertido,
-            gainsPct: -100,
-            lastUpdated: null,
-            montoInvertido,
-            shares,
-          });
-        }
-      }
-
-      setInvestmentData(newData);
-      setLoadingInvestments(false);
-    };
-
-    loadInvestmentPrices();
-  }, [accounts, pockets]);
-
-  // Refresh price for a specific investment account with triple-click force refresh
-  const handleRefreshPrice = async (account: Account) => {
-    if (!account.stockSymbol) return;
-
-    const now = Date.now();
-    const CLICK_TIMEOUT = 2000; // 2 seconds window for triple-click
-    const FORCE_REFRESH_COOLDOWN = 60000; // 1 minute cooldown
-
-    // Get current click data for this account
-    const currentClickData = clickCounts.get(account.id);
-    const lastClick = currentClickData?.timestamp || 0;
-    const clickCount = (now - lastClick < CLICK_TIMEOUT) ? (currentClickData?.count || 0) + 1 : 1;
-
-    // Update click count
-    setClickCounts(prev => {
-      const newMap = new Map(prev);
-      newMap.set(account.id, { count: clickCount, timestamp: now });
-      return newMap;
-    });
-
-    // Show progress toasts
-    if (clickCount === 1) {
-      toast.info('2 more clicks to force refresh');
-    } else if (clickCount === 2) {
-      toast.info('1 more click to force refresh');
-    } else if (clickCount >= 3) {
-      // Check cooldown
-      const lastForce = lastForceRefresh.get(account.id) || 0;
-      const timeSinceLastForce = now - lastForce;
-      
-      if (timeSinceLastForce < FORCE_REFRESH_COOLDOWN) {
-        const secondsLeft = Math.ceil((FORCE_REFRESH_COOLDOWN - timeSinceLastForce) / 1000);
-        toast.error(`Please wait ${secondsLeft} seconds before force refreshing again`);
-        // Reset click count
-        setClickCounts(prev => {
-          const newMap = new Map(prev);
-          newMap.delete(account.id);
-          return newMap;
-        });
-        return;
-      }
-
-      // Force refresh!
-      toast.info('Forcing refresh...');
-      setLastForceRefresh(prev => {
-        const newMap = new Map(prev);
-        newMap.set(account.id, now);
-        return newMap;
-      });
-      
-      // Reset click count
-      setClickCounts(prev => {
-        const newMap = new Map(prev);
-        newMap.delete(account.id);
-        return newMap;
-      });
-    }
-
-    setRefreshingPrices(prev => new Set(prev).add(account.id));
-
-    try {
-      // Get fresh values from pocket balances
-      const investedPocket = pockets.find(p => p.accountId === account.id && p.name === 'Invested Money');
-      const sharesPocket = pockets.find(p => p.accountId === account.id && p.name === 'Shares');
-
-      const montoInvertido = investedPocket?.balance || 0;
-      const shares = sharesPocket?.balance || 0;
-
-      const accountWithCorrectValues = {
-        ...account,
-        montoInvertido,
-        shares,
-      };
-
-      // Use force refresh if triple-clicked, otherwise normal refresh
-      const isForceRefresh = clickCount >= 3;
-      const data = isForceRefresh 
-        ? await investmentService.forceRefreshPrice(account.stockSymbol)
-        : await investmentService.getCurrentPrice(account.stockSymbol);
-        
-      const values = investmentService.calculateInvestmentValues(accountWithCorrectValues, data);
-      const lastUpdated = investmentService.getPriceTimestamp(account.stockSymbol);
-
-      setInvestmentData(prev => {
-        const newMap = new Map(prev);
-        newMap.set(account.id, {
-          precioActual: data,
-          ...values,
-          lastUpdated,
-          montoInvertido,
-          shares,
-        });
-        return newMap;
-      });
-
-      toast.success(`Price ${isForceRefresh ? 'force ' : ''}refreshed: ${account.stockSymbol} = ${currencyService.formatCurrency(data, account.currency)}`);
-    } catch (error) {
-      console.error('Error refreshing price:', error);
-      toast.error(error instanceof Error ? error.message : 'Failed to refresh price');
-    } finally {
-      setRefreshingPrices(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(account.id);
-        return newSet;
-      });
-    }
-  };
-
   const primaryCurrency = settings?.primaryCurrency || 'USD';
+  const accountCardDisplay = settings?.accountCardDisplay || DEFAULT_DISPLAY;
 
-  // Get account card display settings with defaults
-  const accountCardDisplay: AccountCardDisplaySettings = settings?.accountCardDisplay || {
-    normal: 'detailed',
-    investment: 'detailed',
-    cd: 'detailed'
-  };
+  // Investment prices and refresh handler
+  const { investmentData, refreshingPrices, handleRefreshPrice } =
+    useInvestmentPrices({ accounts, pockets, toast });
 
-  // Helper to check if account is a CD
-  const isCDAccount = (account: Account): account is CDInvestmentAccount => {
-    // For CD accounts, we only need to check the type since investmentType might not be set correctly
-    const isCD = account.type === 'cd';
-    return isCD;
-  };
+  // Per-currency totals + consolidated total
+  const {
+    accountsByCurrency,
+    sortedCurrencies,
+    totalsByCurrency,
+    consolidatedTotal,
+    isConsolidatedReady,
+  } = useConsolidatedTotal({ accounts, primaryCurrency, investmentData });
 
-  // Helper to get effective balance for any account type
-  const getAccountBalance = (account: Account): number => {
-    if (isCDAccount(account)) {
-      // For CD accounts, use calculated current value
-      try {
-        // Check if account has all required CD fields
-        if (!account.principal || !account.interestRate || !account.maturityDate) {
-          return account.balance || 0;
-        }
+  // Auto-snapshot on load (consumes consolidated total to avoid race condition)
+  useAutoNetWorthSnapshot({ consolidatedTotal, totalsByCurrency, isConsolidatedReady });
 
-        const calculation = cdCalculationService.calculateCurrentValue(account);
-        // Use net value if withholding tax is applied, otherwise use gross value
-        const effectiveBalance = account.withholdingTaxRate && account.withholdingTaxRate > 0 
-          ? calculation.netCurrentValue 
-          : calculation.currentValue;
-        return effectiveBalance;
-      } catch (error) {
-        console.warn('❌ Failed to calculate CD value, falling back to account balance:', error);
-        return account.balance || 0;
-      }
-    }
-    
-    // For stock/ETF investment accounts, use calculated totalValue from investmentData
-    if (account.type === 'investment' && account.stockSymbol) {
-      const data = investmentData.get(account.id);
-      if (data) {
-        return data.totalValue;
-      }
-      return account.balance || 0;
-    }
-    
-    // For normal accounts, use the regular balance
-    return account.balance;
-  };
-
-  // Group accounts by currency
-  const accountsByCurrency = accounts.reduce((acc, account) => {
-    if (!acc[account.currency]) {
-      acc[account.currency] = [];
-    }
-    acc[account.currency].push(account);
-    return acc;
-  }, {} as Record<Currency, Account[]>);
-
-  // Calculate total by currency using effective balance
-  const getTotalByCurrency = (currency: Currency): number => {
-    const currencyAccounts = accountsByCurrency[currency] || [];
-    let total = currencyAccounts.reduce((sum, account) => sum + getAccountBalance(account), 0);
-    return total;
-  };
-
-  // Calculate consolidated total (all currencies converted to primary)
-  const [consolidatedTotal, setConsolidatedTotal] = useState<number>(0);
-
-  useEffect(() => {
-    const calculateTotal = async () => {
-      console.log('💰 ===== CONSOLIDATED TOTAL CALCULATION =====');
-      let total = 0;
-      const validCurrencies = Object.keys(accountsByCurrency).filter(c => c && c.trim());
-      const conversionDetails: Array<{
-        currency: Currency;
-        originalTotal: number;
-        convertedTotal: number;
-        rate: string;
-      }> = [];
-
-      for (const currency of validCurrencies) {
-        const currencyTotal = getTotalByCurrency(currency as Currency);
-        if (currencyTotal && currency) {
-          const converted = await currencyService.convert(
-            currencyTotal,
-            currency as Currency,
-            primaryCurrency
-          );
-          
-          // Calculate conversion rate (1 base currency = X target currency)
-          const rate = currencyTotal !== 0 ? converted / currencyTotal : 0;
-          
-          conversionDetails.push({
-            currency: currency as Currency,
-            originalTotal: currencyTotal,
-            convertedTotal: converted,
-            rate: `1 ${currency} = ${rate.toFixed(4)} ${primaryCurrency}`
-          });
-          
-          total += converted;
-        }
-      }
-      
-      // Log detailed breakdown
-      console.log('📊 Currency Breakdown:');
-      conversionDetails.forEach(detail => {
-        console.log(`  ${detail.currency}: ${currencyService.formatCurrency(detail.originalTotal, detail.currency)} → ${currencyService.formatCurrency(detail.convertedTotal, primaryCurrency)} (${detail.rate})`);
-      });
-      console.log(`\n💵 Final Consolidated Total: ${currencyService.formatCurrency(total, primaryCurrency)}`);
-      console.log('============================================\n');
-      
-      setConsolidatedTotal(total);
-    };
-
-    if (accounts.length > 0) {
-      calculateTotal();
-    }
-  }, [accounts, primaryCurrency, investmentData]);
-
-  // Find all fixed expenses pockets and consolidated sub-pockets
-  const fixedPockets = pockets.filter((p) => p.type === 'fixed');
-  const fixedSubPockets = subPockets.filter(sp => 
-    fixedPockets.some(fp => fp.id === sp.pocketId)
-  );
-
-  // Calculate total money in fixed expenses
-  const totalFixedExpensesMoney = fixedSubPockets.reduce(
-    (sum, sp) => sum + sp.balance,
-    0
-  );
-
-  // Sort accounts: investment first, then by currency
-  const sortedCurrencies = Object.keys(accountsByCurrency).sort((a, b) => {
-    const aHasInvestment = accountsByCurrency[a as Currency].some((acc) => acc.type === 'investment');
-    const bHasInvestment = accountsByCurrency[b as Currency].some((acc) => acc.type === 'investment');
-    if (aHasInvestment && !bHasInvestment) return -1;
-    if (!aHasInvestment && bHasInvestment) return 1;
-    return a.localeCompare(b);
-  });
-
-  // Prepare totals map for TotalsSummary
-  const totalsByCurrency = sortedCurrencies.reduce((acc, currency) => {
-    acc[currency as Currency] = getTotalByCurrency(currency as Currency);
-    return acc;
-  }, {} as Record<Currency, number>);
+  // Fixed expenses derived data
+  const { fixedSubPockets, totalFixedExpensesMoney } = useMemo(() => {
+    const fixedPockets = pockets.filter((p) => p.type === 'fixed');
+    const subs = subPockets.filter((sp) =>
+      fixedPockets.some((fp) => fp.id === sp.pocketId)
+    );
+    const total = subs.reduce((sum, sp) => sum + sp.balance, 0);
+    return { fixedSubPockets: subs, totalFixedExpensesMoney: total };
+  }, [pockets, subPockets]);
 
   // Loading state
+  const isLoading =
+    accountsLoading || pocketsLoading || settingsLoading || subPocketsLoading;
+  const isSlow = useSlowQuery(isLoading);
+
   if (isLoading) {
     return (
       <div className="space-y-6">
@@ -371,25 +121,7 @@ const SummaryPage = () => {
           <SkeletonAccountCard />
         </div>
         <SkeletonList items={4} />
-      </div>
-    );
-  }
-
-  // Error state
-  if (error) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-center">
-          <div className="text-red-600 dark:text-red-400 text-xl mb-4">⚠️</div>
-          <p className="text-gray-900 dark:text-gray-100 font-semibold mb-2">Error Loading Data</p>
-          <p className="text-gray-600 dark:text-gray-400 mb-4">{error}</p>
-          <button
-            onClick={() => window.location.reload()}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-          >
-            Refresh Page
-          </button>
-        </div>
+        {isSlow && <SlowQueryIndicator />}
       </div>
     );
   }
@@ -399,58 +131,76 @@ const SummaryPage = () => {
       <div className="space-y-6">
         <PageHeader title="Summary" />
 
-        {/* Main Summary - Totals by Currency */}
-        <TotalsSummary
-          consolidatedTotal={consolidatedTotal}
-          primaryCurrency={primaryCurrency}
-          totalsByCurrency={totalsByCurrency}
-        />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+          {/* Left column: Total + Accounts */}
+          <div className="space-y-6">
+            <ErrorBoundary>
+              {accountsIsError || settingsIsError ? (
+                <div className="space-y-2">
+                  {accountsIsError && (
+                    <QueryErrorCard title="accounts" error={accountsError} onRetry={() => accountsRefetch()} />
+                  )}
+                  {settingsIsError && (
+                    <QueryErrorCard title="settings" error={settingsError} onRetry={() => settingsRefetch()} />
+                  )}
+                </div>
+              ) : (
+                <TotalsSummary
+                  consolidatedTotal={consolidatedTotal}
+                  primaryCurrency={primaryCurrency}
+                  totalsByCurrency={totalsByCurrency}
+                  isConsolidatedReady={isConsolidatedReady}
+                />
+              )}
+            </ErrorBoundary>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Accounts Section */}
-          <div className="space-y-4">
-            {sortedCurrencies.length === 0 ? (
-              <EmptyState
-                icon={Wallet}
-                title="No accounts yet"
-                description="Create your first account to see your summary."
-              />
-            ) : (
-              <div className="space-y-4">
-                {sortedCurrencies.map((currency) => (
-                  <CurrencySection
-                    key={currency}
-                    currency={currency as Currency}
-                    accounts={accountsByCurrency[currency as Currency]}
-                    pockets={pockets}
-                    investmentData={investmentData}
-                    refreshingPrices={refreshingPrices}
-                    onRefreshPrice={handleRefreshPrice}
-                    normalAccountDisplayMode={accountCardDisplay.normal}
-                    investmentAccountDisplayMode={accountCardDisplay.investment}
-                    cdAccountDisplayMode={accountCardDisplay.cd}
-                  />
-                ))}
-              </div>
-            )}
+            <ErrorBoundary>
+              {accountsIsError || pocketsIsError ? (
+                <div className="space-y-2">
+                  {accountsIsError && (
+                    <QueryErrorCard title="accounts" error={accountsError} onRetry={() => accountsRefetch()} />
+                  )}
+                  {pocketsIsError && (
+                    <QueryErrorCard title="pockets" error={pocketsError} onRetry={() => pocketsRefetch()} />
+                  )}
+                </div>
+              ) : (
+                <CurrencyBreakdownSection
+                  sortedCurrencies={sortedCurrencies}
+                  accountsByCurrency={accountsByCurrency}
+                  pockets={pockets}
+                  investmentData={investmentData}
+                  refreshingPrices={refreshingPrices}
+                  accountCardDisplay={accountCardDisplay}
+                  onRefreshPrice={handleRefreshPrice}
+                />
+              )}
+            </ErrorBoundary>
           </div>
 
-          {/* Right Column */}
+          {/* Right column: Timeline + Widgets */}
           <div className="space-y-6">
-            {/* Financial Calendar */}
-            <FinancialCalendarWidget primaryCurrency={primaryCurrency} />
+            <ErrorBoundary>
+              <NetWorthTimelineWidget />
+            </ErrorBoundary>
 
-            {/* Net Worth Timeline */}
-            <NetWorthTimelineWidget />
+            <ErrorBoundary>
+              <div className="space-y-4 h-[550px]">
+                <RemindersWidget />
+              </div>
+            </ErrorBoundary>
 
-            {/* Reminders Section */}
-            <div className="space-y-4 h-[400px]">
-              <RemindersWidget />
-            </div>
-
-            {/* Fixed Expenses Section */}
-            <div className="space-y-4">
-              {fixedSubPockets.length === 0 ? (
+            <ErrorBoundary>
+              {subPocketsIsError || fixedExpenseGroupsIsError ? (
+                <div className="space-y-2">
+                  {subPocketsIsError && (
+                    <QueryErrorCard title="sub-pockets" error={subPocketsError} onRetry={() => subPocketsRefetch()} />
+                  )}
+                  {fixedExpenseGroupsIsError && (
+                    <QueryErrorCard title="fixed expense groups" error={fixedExpenseGroupsError} onRetry={() => fixedExpenseGroupsRefetch()} />
+                  )}
+                </div>
+              ) : fixedSubPockets.length === 0 ? (
                 <EmptyState
                   icon={Wallet}
                   title="No fixed expenses yet"
@@ -466,9 +216,10 @@ const SummaryPage = () => {
                   primaryCurrency={primaryCurrency}
                 />
               )}
-            </div>
+            </ErrorBoundary>
           </div>
         </div>
+
         <FloatingStatsBar primaryCurrency={primaryCurrency} />
       </div>
     </SelectionProvider>

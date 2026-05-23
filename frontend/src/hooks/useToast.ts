@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { ToastType } from '../components/Toast';
+import type { ToastType } from '../components/feedback';
 
 interface Toast {
   id: string;
@@ -18,14 +18,19 @@ interface ToastStore {
   warning: (message: string, duration?: number) => void;
 }
 
-export const useToast = create<ToastStore>((set) => ({
+const MAX_TOASTS = 3;
+
+export const useToast = create<ToastStore>((set, get) => ({
   toasts: [],
   
   addToast: (message, type = 'info', duration = 5000) => {
+    const { toasts } = get();
+    if (toasts.some((t) => t.message === message && t.type === type)) return;
+
     const id = `toast-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    set((state) => ({
-      toasts: [...state.toasts, { id, message, type, duration }],
-    }));
+    set({
+      toasts: [...toasts, { id, message, type, duration }].slice(-MAX_TOASTS),
+    });
   },
   
   removeToast: (id) => {

@@ -33,14 +33,13 @@ describeIntegration('SupabaseAccountRepository Integration Tests', () => {
 
   // Setup: Create repository and test user ID
   beforeAll(() => {
-    repository = new SupabaseAccountRepository();
-    testUserId = `test-user-${Date.now()}-${Math.random().toString(36).substring(7)}`;
-    
-    // Create Supabase client for cleanup
+    // Create Supabase client for repository and cleanup
     supabase = createClient(
       process.env.SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_KEY!
     );
+    repository = new SupabaseAccountRepository(supabase);
+    testUserId = `test-user-${Date.now()}-${Math.random().toString(36).substring(7)}`;
   });
 
   // Cleanup: Delete all test data after each test

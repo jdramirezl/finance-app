@@ -31,14 +31,12 @@ export class UpdateSettingsUseCase {
    * @throws ValidationError if currency is invalid
    */
   async execute(userId: string, dto: UpdateSettingsDTO): Promise<SettingsResponseDTO> {
-    // Fetch existing settings
     const settings = await this.settingsRepository.findByUserId(userId);
 
     if (!settings) {
       throw new NotFoundError('Settings not found for user');
     }
 
-    // Validate and update primary currency if provided
     if (dto.primaryCurrency !== undefined) {
       const validCurrencies: Currency[] = ['USD', 'MXN', 'COP', 'EUR', 'GBP'];
       if (!validCurrencies.includes(dto.primaryCurrency)) {
@@ -49,15 +47,51 @@ export class UpdateSettingsUseCase {
       settings.updatePrimaryCurrency(dto.primaryCurrency);
     }
 
-    // Update Alpha Vantage API key if provided (including explicit undefined to clear)
     if ('alphaVantageApiKey' in dto) {
       settings.updateAlphaVantageApiKey(dto.alphaVantageApiKey);
     }
 
-    // Save updated settings
+    if (dto.accountCardDisplay !== undefined) {
+      settings.updateAccountCardDisplay(dto.accountCardDisplay);
+    }
+
+    if (dto.snapshotFrequency !== undefined) {
+      settings.updateSnapshotFrequency(dto.snapshotFrequency);
+    }
+
+    if ('defaultExpenseAccountId' in dto || 'defaultExpensePocketId' in dto) {
+      settings.updateDefaultExpenseAccount(
+        dto.defaultExpenseAccountId ?? undefined,
+        dto.defaultExpensePocketId ?? undefined
+      );
+    }
+
+    if ('defaultIncomeAccountId' in dto || 'defaultIncomePocketId' in dto) {
+      settings.updateDefaultIncomeAccount(
+        dto.defaultIncomeAccountId ?? undefined,
+        dto.defaultIncomePocketId ?? undefined
+      );
+    }
+
+    if (dto.dateFormat !== undefined) {
+      settings.updateDateFormat(dto.dateFormat);
+    }
+
+    if (dto.movementsPerPage !== undefined) {
+      settings.updateMovementsPerPage(dto.movementsPerPage);
+    }
+
+    if (dto.reminderAdvanceDays !== undefined) {
+      settings.updateReminderAdvanceDays(dto.reminderAdvanceDays);
+    }
+
+    if (dto.defaultCurrencyForNewAccounts !== undefined) {
+      settings.updateDefaultCurrencyForNewAccounts(dto.defaultCurrencyForNewAccounts);
+    }
+
     await this.settingsRepository.update(settings);
 
-    // Convert to DTO and return
-    return SettingsMapper.toDTO(settings);
+    const updated = await this.settingsRepository.findByUserId(userId);
+    return SettingsMapper.toDTO(updated!);
   }
 }

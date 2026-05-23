@@ -32,6 +32,7 @@ describe('PocketController Integration Tests', () => {
   let mockDeletePocketUseCase: jest.Mocked<DeletePocketUseCase>;
   let mockMigrateFixedPocketUseCase: jest.Mocked<MigrateFixedPocketUseCase>;
   let mockReorderPocketsUseCase: jest.Mocked<ReorderPocketsUseCase>;
+  let mockPocketRepo: { findAllByUserId: jest.Mock };
   
   const testUserId = 'test-user-123';
   const mockAuthMiddleware = (req: any, res: any, next: any) => {
@@ -69,6 +70,10 @@ describe('PocketController Integration Tests', () => {
       execute: jest.fn()
     } as any;
 
+    mockPocketRepo = {
+      findAllByUserId: jest.fn()
+    };
+
     // Create controller with mocked use cases
     const controller = new PocketController(
       mockCreatePocketUseCase,
@@ -77,7 +82,8 @@ describe('PocketController Integration Tests', () => {
       mockUpdatePocketUseCase,
       mockDeletePocketUseCase,
       mockMigrateFixedPocketUseCase,
-      mockReorderPocketsUseCase
+      mockReorderPocketsUseCase,
+      mockPocketRepo as any
     );
 
     // Setup Express app with routes

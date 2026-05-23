@@ -1,10 +1,10 @@
 import { useMemo, Fragment } from 'react';
 import type { Account, SubPocket, FixedExpenseGroup, Pocket, Currency } from '../../types';
 import { currencyService } from '../../services/currencyService';
-import Card from '../Card';
-import ProgressBar from '../ProgressBar';
+import Card from '../ui/Card';
+import ProgressBar from '../ui/ProgressBar';
 import { Wallet } from 'lucide-react';
-import SelectableValue from '../SelectableValue';
+import SelectableValue from '../ui/SelectableValue';
 
 interface FixedExpensesSummaryProps {
     subPockets: SubPocket[];
@@ -72,14 +72,7 @@ const FixedExpensesSummary = ({
                 className="hover:bg-gray-50 dark:hover:bg-gray-700/30"
             >
                 <td className="px-4 py-2 text-sm font-medium text-gray-900 dark:text-gray-100">
-                    <div className="flex items-center gap-2">
-                        <span className={!subPocket.enabled ? 'line-through text-gray-500' : ''}>
-                            {subPocket.name}
-                        </span>
-                        {!subPocket.enabled && (
-                            <span className="text-[10px] bg-gray-100 dark:bg-gray-800 text-gray-500 px-1 rounded">OFF</span>
-                        )}
-                    </div>
+                    {subPocket.name}
                 </td>
                 <td className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300">
                     <SelectableValue id={`fixed-bal-${subPocket.id}`} value={subPocket.balance} currency={currency as Currency}>
@@ -123,7 +116,7 @@ const FixedExpensesSummary = ({
 
             {/* Groups & Expenses grouped by Account */}
             <div className="overflow-x-auto">
-                <table className="w-full">
+                <table className="w-full min-w-[600px]">
                     <thead className="bg-gray-50 dark:bg-gray-700/50 border-b dark:border-gray-600">
                         <tr>
                             <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
@@ -162,11 +155,11 @@ const FixedExpensesSummary = ({
                                                         className="w-2 h-2 rounded-full" 
                                                         style={{ backgroundColor: parentAccount?.color }} 
                                                     />
-                                                    <span className="text-[10px] font-bold uppercase tracking-widest text-blue-600 dark:text-blue-400">
+                                                    <span className="text-[11px] font-bold uppercase tracking-widest text-blue-600 dark:text-blue-400">
                                                         Account: {parentAccount?.name || 'Unknown'} ({currency})
                                                     </span>
                                                 </div>
-                                                <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400">
+                                                <span className="text-[11px] font-bold text-blue-600 dark:text-blue-400">
                                                     Account Total: {currencyService.formatCurrency(accountTotal, currency as Currency)}
                                                 </span>
                                             </div>
@@ -188,11 +181,11 @@ const FixedExpensesSummary = ({
                                                                     className="w-1.5 h-1.5 rounded-full"
                                                                     style={{ backgroundColor: group.color }}
                                                                 />
-                                                                <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">
+                                                                <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">
                                                                     {group.name}
                                                                 </span>
                                                             </div>
-                                                            <span className="text-[10px] font-bold text-gray-400 dark:text-gray-500">
+                                                            <span className="text-[11px] font-bold text-gray-400 dark:text-gray-500">
                                                                 Group Total: {currencyService.formatCurrency(
                                                                     groupExpenses.reduce((sum, sp) => sum + sp.balance, 0), 
                                                                     currency as Currency
@@ -212,10 +205,10 @@ const FixedExpensesSummary = ({
                                             <tr className="bg-gray-50/30 dark:bg-gray-800/20">
                                                 <td colSpan={4} className="px-4 py-1">
                                                     <div className="flex items-center justify-between ml-3.5">
-                                                        <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">
+                                                        <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">
                                                             Default
                                                         </span>
-                                                        <span className="text-[10px] font-bold text-gray-400 dark:text-gray-500">
+                                                        <span className="text-[11px] font-bold text-gray-400 dark:text-gray-500">
                                                             Total: {currencyService.formatCurrency(
                                                                 groupedExpenses.defaultExpenses
                                                                     .filter(sp => sp.pocketId === pocketId)

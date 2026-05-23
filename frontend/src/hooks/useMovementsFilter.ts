@@ -1,8 +1,15 @@
 import { useState, useMemo } from 'react';
 import type { Movement } from '../types';
+import { parseDate, toDateOnly } from '../utils/dateUtils';
+import { MOVEMENT_TYPE_FILTER_ALL, type MovementTypeFilterValue } from '../components/movements/MovementTypeSelect';
 
 export type DateRangeOption = 'all' | '7days' | '30days' | '3months' | '6months' | 'year' | 'custom';
-export type FilterTypeOption = 'all' | 'income' | 'expense' | 'investment';
+/**
+ * Type filter value used by the movements list. Either the "all"
+ * sentinel (no filter applied) or one of the four canonical
+ * `MovementType` values matched exactly.
+ */
+export type FilterTypeOption = MovementTypeFilterValue;
 export type ShowPendingOption = 'all' | 'applied' | 'pending';
 
 interface UseMovementsFilterProps {
@@ -13,7 +20,7 @@ export const useMovementsFilter = ({ movements }: UseMovementsFilterProps) => {
     // Filter State
     const [filterAccount, setFilterAccount] = useState<string>('all');
     const [filterPocket, setFilterPocket] = useState<string>('all');
-    const [filterType, setFilterType] = useState<FilterTypeOption>('all');
+    const [filterType, setFilterType] = useState<FilterTypeOption>(MOVEMENT_TYPE_FILTER_ALL);
     const [filterDateRange, setFilterDateRange] = useState<DateRangeOption>('all');
     const [filterDateFrom, setFilterDateFrom] = useState<string>('');
     const [filterDateTo, setFilterDateTo] = useState<string>('');
@@ -21,6 +28,8 @@ export const useMovementsFilter = ({ movements }: UseMovementsFilterProps) => {
     const [filterMinAmount, setFilterMinAmount] = useState<string>('');
     const [filterMaxAmount, setFilterMaxAmount] = useState<string>('');
     const [showPending, setShowPending] = useState<ShowPendingOption>('all');
+    const [filterCategory, setFilterCategory] = useState<string>('all');
+    const [filterTags, setFilterTags] = useState<string[]>([]);
 
     // Calculate date range based on filter
     const getDateRange = () => {
@@ -34,14 +43,19 @@ export const useMovementsFilter = ({ movements }: UseMovementsFilterProps) => {
         };
 
         if (filterDateRange === 'custom' && filterDateFrom && filterDateTo) {
-            // Ensure we're working with YYYY-MM-DD format
-            const fromDateStr = filterDateFrom.includes('T') ? filterDateFrom.split('T')[0] : filterDateFrom;
-            const toDateStr = filterDateTo.includes('T') ? filterDateTo.split('T')[0] : filterDateTo;
-            
-            // Create dates in LOCAL timezone (not UTC) to match user's perspective
-            const fromDate = new Date(fromDateStr + 'T00:00:00');
-            const toDate = new Date(toDateStr + 'T23:59:59.999');
-            
+            // Normalize to YYYY-MM-DD via toDateOnly so values from either an
+            // input element (already date-only) or a stored ISO string compare
+            // consistently.
+            const fromDateStr = toDateOnly(filterDateFrom);
+            const toDateStr = toDateOnly(filterDateTo);
+
+            // Build local-time bounds so the user's selected day is fully
+            // inclusive in their timezone (and we don't accidentally include
+            // adjacent days in negative offsets).
+            const fromDate = parseDate(fromDateStr);
+            const toDate = parseDate(toDateStr);
+            toDate.setHours(23, 59, 59, 999);
+
             return { from: fromDate, to: toDate };
         }
 
@@ -60,19 +74,14 @@ export const useMovementsFilter = ({ movements }: UseMovementsFilterProps) => {
             // Pocket filter
             if (filterPocket !== 'all' && movement.pocketId !== filterPocket) return false;
 
-            // Type filter (income/expense/investment)
-            if (filterType !== 'all') {
-                const isIncome = movement.type === 'IngresoNormal' || movement.type === 'IngresoFijo';
-                const isExpense = movement.type === 'EgresoNormal' || movement.type === 'EgresoFijo';
-
-                if (filterType === 'income' && !isIncome) return false;
-                if (filterType === 'expense' && !isExpense) return false;
-            }
+            // Type filter — exact MovementType match. The "all" sentinel
+            // skips this check so every type passes through.
+            if (filterType !== MOVEMENT_TYPE_FILTER_ALL && movement.type !== filterType) return false;
 
             // Date range filter
             const dateRange = getDateRange();
             if (dateRange) {
-                const movementDate = new Date(movement.displayedDate);
+                const movementDate = parseDate(movement.displayedDate);
                 if (movementDate < dateRange.from || movementDate > dateRange.to) return false;
             }
 
@@ -87,6 +96,12 @@ export const useMovementsFilter = ({ movements }: UseMovementsFilterProps) => {
             if (filterMinAmount && movement.amount < parseFloat(filterMinAmount)) return false;
             if (filterMaxAmount && movement.amount > parseFloat(filterMaxAmount)) return false;
 
+            // Category filter
+            if (filterCategory !== 'all' && movement.category !== filterCategory) return false;
+
+            // Tags filter (OR logic — movement must have at least one of the selected tags)
+            if (filterTags.length > 0 && !movement.tags?.some(t => filterTags.includes(t))) return false;
+
             return true;
         });
     }, [
@@ -100,7 +115,9 @@ export const useMovementsFilter = ({ movements }: UseMovementsFilterProps) => {
         filterDateTo,
         filterSearch,
         filterMinAmount,
-        filterMaxAmount
+        filterMaxAmount,
+        filterCategory,
+        filterTags
     ]);
 
     return {
@@ -116,6 +133,8 @@ export const useMovementsFilter = ({ movements }: UseMovementsFilterProps) => {
             minAmount: filterMinAmount,
             maxAmount: filterMaxAmount,
             showPending,
+            category: filterCategory,
+            tags: filterTags,
         },
         setFilters: {
             setAccount: setFilterAccount,
@@ -128,6 +147,8 @@ export const useMovementsFilter = ({ movements }: UseMovementsFilterProps) => {
             setMinAmount: setFilterMinAmount,
             setMaxAmount: setFilterMaxAmount,
             setShowPending,
+            setCategory: setFilterCategory,
+            setTags: setFilterTags,
         }
     };
 };

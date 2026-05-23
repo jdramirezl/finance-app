@@ -31,13 +31,13 @@ describeIntegration('SupabaseExchangeRateRepository Integration Tests', () => {
 
   // Setup: Create repository
   beforeAll(() => {
-    repository = new SupabaseExchangeRateRepository();
-    
     // Create Supabase client for cleanup
     supabase = createClient(
       process.env.SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_KEY!
     );
+
+    repository = new SupabaseExchangeRateRepository(supabase);
   });
 
   // Cleanup: Delete all test data after each test

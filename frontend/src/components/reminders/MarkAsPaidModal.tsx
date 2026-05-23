@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import Modal from '../Modal';
-import Button from '../Button';
+import Modal from '../ui/Modal';
+import Button from '../ui/Button';
 import { useMovementsQuery, useAccountsQuery } from '../../hooks/queries';
-import { format, parseISO, isWithinInterval, addDays, subDays } from 'date-fns';
+import { format, isWithinInterval, addDays, subDays } from 'date-fns';
 import { Check, Search, Link as LinkIcon, Wallet } from 'lucide-react';
 import type { ReminderWithProjection } from '../../utils/reminderProjections';
 import { currencyService } from '../../services/currencyService';
+import { parseDate, toDateOnly, formatDisplayDate } from '../../utils/dateUtils';
 
 interface MarkAsPaidModalProps {
     isOpen: boolean;
@@ -21,8 +22,8 @@ const MarkAsPaidModal = ({ isOpen, onClose, onConfirm, reminder }: MarkAsPaidMod
 
     if (!reminder) return null;
 
-    const dueDateStr = reminder.dueDate.split('T')[0];
-    const dueDate = parseISO(dueDateStr);
+    const dueDateStr = toDateOnly(reminder.dueDate);
+    const dueDate = parseDate(dueDateStr);
     const dateRange = {
         start: subDays(dueDate, 15),
         end: addDays(dueDate, 15)
@@ -30,8 +31,7 @@ const MarkAsPaidModal = ({ isOpen, onClose, onConfirm, reminder }: MarkAsPaidMod
 
     const filteredMovements = movements
         .filter(m => {
-            const mDateStr = m.displayedDate.split('T')[0];
-            const mDate = parseISO(mDateStr);
+            const mDate = parseDate(toDateOnly(m.displayedDate));
             try {
                 return isWithinInterval(mDate, dateRange);
             } catch (e) {
@@ -42,7 +42,7 @@ const MarkAsPaidModal = ({ isOpen, onClose, onConfirm, reminder }: MarkAsPaidMod
             m.notes?.toLowerCase().includes(searchTerm.toLowerCase()) ||
             m.amount.toString().includes(searchTerm)
         )
-        .sort((a, b) => new Date(b.displayedDate).getTime() - new Date(a.displayedDate).getTime());
+        .sort((a, b) => parseDate(b.displayedDate).getTime() - parseDate(a.displayedDate).getTime());
 
     return (
         <Modal
@@ -129,20 +129,20 @@ const MarkAsPaidModal = ({ isOpen, onClose, onConfirm, reminder }: MarkAsPaidMod
                                             <div className="font-medium text-gray-900 dark:text-gray-100 flex items-center gap-2 truncate">
                                                 {m.notes || 'No description'}
                                             </div>
-                                            <div className="flex items-center gap-2 mt-0.5 text-[10px] text-gray-500 dark:text-gray-400">
+                                            <div className="flex items-center gap-2 mt-0.5 text-[11px] text-gray-500 dark:text-gray-400">
                                                 <span className="bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded flex items-center gap-1">
                                                     <Wallet className="w-2.5 h-2.5" />
                                                     {account?.name || 'Unknown Account'}
                                                 </span>
                                                 <span>•</span>
-                                                <span>{format(parseISO(m.displayedDate.split('T')[0]), 'MMM dd, yyyy')}</span>
+                                                <span>{formatDisplayDate(m.displayedDate, 'MMM dd, yyyy')}</span>
                                             </div>
                                         </div>
                                         <div className="text-right flex-shrink-0">
                                             <div className={`font-bold ${m.type.includes('Ingreso') ? 'text-green-600 dark:text-green-400' : 'text-gray-900 dark:text-gray-100'}`}>
                                                 {currencyService.formatCurrency(m.amount, account?.currency || 'USD')}
                                             </div>
-                                            <div className="text-[10px] text-blue-600 dark:text-blue-400 font-medium group-hover:underline">
+                                            <div className="text-[11px] text-blue-600 dark:text-blue-400 font-medium group-hover:underline">
                                                 Link this
                                             </div>
                                         </div>

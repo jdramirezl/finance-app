@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import type { Movement } from '../types';
-import { format, parseISO } from 'date-fns';
+import { parseDate, toMonthKey } from '../utils/dateUtils';
 
 export type SortField = 'createdAt' | 'displayedDate' | 'amount' | 'type';
 export type SortOrder = 'asc' | 'desc';
@@ -36,8 +36,7 @@ export const useMovementsSort = ({
     const sortedMovementsByMonth = useMemo(() => {
         const grouped = Array.from(
             movements.reduce((acc, movement) => {
-                const date = parseISO(movement.displayedDate);
-                const monthKey = format(date, 'yyyy-MM');
+                const monthKey = toMonthKey(movement.displayedDate);
                 if (!acc.has(monthKey)) {
                     acc.set(monthKey, []);
                 }
@@ -53,10 +52,10 @@ export const useMovementsSort = ({
 
                 switch (sortField) {
                     case 'createdAt':
-                        comparison = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+                        comparison = parseDate(a.createdAt).getTime() - parseDate(b.createdAt).getTime();
                         break;
                     case 'displayedDate':
-                        comparison = new Date(a.displayedDate).getTime() - new Date(b.displayedDate).getTime();
+                        comparison = parseDate(a.displayedDate).getTime() - parseDate(b.displayedDate).getTime();
                         break;
                     case 'amount':
                         comparison = a.amount - b.amount;
@@ -70,7 +69,7 @@ export const useMovementsSort = ({
 
                 // Tie-breaker: always use createdAt for stability if values are equal
                 if (comparison === 0) {
-                    comparison = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+                    comparison = parseDate(a.createdAt).getTime() - parseDate(b.createdAt).getTime();
                 }
 
                 return sortOrder === 'asc' ? comparison : -comparison;

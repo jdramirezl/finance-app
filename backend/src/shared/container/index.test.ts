@@ -39,7 +39,6 @@ import { GetSubPocketsByPocketUseCase } from '../../modules/sub-pockets/applicat
 import { GetSubPocketsByGroupUseCase } from '../../modules/sub-pockets/application/useCases/GetSubPocketsByGroupUseCase';
 import { UpdateSubPocketUseCase } from '../../modules/sub-pockets/application/useCases/UpdateSubPocketUseCase';
 import { DeleteSubPocketUseCase } from '../../modules/sub-pockets/application/useCases/DeleteSubPocketUseCase';
-import { ToggleSubPocketEnabledUseCase } from '../../modules/sub-pockets/application/useCases/ToggleSubPocketEnabledUseCase';
 import { MoveSubPocketToGroupUseCase } from '../../modules/sub-pockets/application/useCases/MoveSubPocketToGroupUseCase';
 import { ReorderSubPocketsUseCase } from '../../modules/sub-pockets/application/useCases/ReorderSubPocketsUseCase';
 import { SubPocketController } from '../../modules/sub-pockets/presentation/SubPocketController';
@@ -47,7 +46,6 @@ import { CreateFixedExpenseGroupUseCase } from '../../modules/sub-pockets/applic
 import { GetAllGroupsUseCase } from '../../modules/sub-pockets/application/useCases/GetAllGroupsUseCase';
 import { UpdateGroupUseCase } from '../../modules/sub-pockets/application/useCases/UpdateGroupUseCase';
 import { DeleteGroupUseCase } from '../../modules/sub-pockets/application/useCases/DeleteGroupUseCase';
-import { ToggleGroupUseCase } from '../../modules/sub-pockets/application/useCases/ToggleGroupUseCase';
 import { FixedExpenseGroupController } from '../../modules/sub-pockets/presentation/FixedExpenseGroupController';
 import type { IMovementRepository } from '../../modules/movements/infrastructure/IMovementRepository';
 import { CreateMovementUseCase } from '../../modules/movements/application/useCases/CreateMovementUseCase';
@@ -392,12 +390,6 @@ describe('Dependency Injection Container', () => {
       expect(useCase).toHaveProperty('execute');
     });
 
-    it('should register ToggleSubPocketEnabledUseCase with dependencies injected', () => {
-      const useCase = container.resolve(ToggleSubPocketEnabledUseCase);
-      expect(useCase).toBeDefined();
-      expect(useCase).toHaveProperty('execute');
-    });
-
     it('should register MoveSubPocketToGroupUseCase with dependencies injected', () => {
       const useCase = container.resolve(MoveSubPocketToGroupUseCase);
       expect(useCase).toBeDefined();
@@ -419,7 +411,6 @@ describe('Dependency Injection Container', () => {
       expect(controller).toHaveProperty('getByFilter');
       expect(controller).toHaveProperty('update');
       expect(controller).toHaveProperty('delete');
-      expect(controller).toHaveProperty('toggle');
       expect(controller).toHaveProperty('moveToGroup');
       expect(controller).toHaveProperty('reorder');
     });
@@ -431,7 +422,6 @@ describe('Dependency Injection Container', () => {
       expect(typeof controller.getByFilter).toBe('function');
       expect(typeof controller.update).toBe('function');
       expect(typeof controller.delete).toBe('function');
-      expect(typeof controller.toggle).toBe('function');
       expect(typeof controller.moveToGroup).toBe('function');
       expect(typeof controller.reorder).toBe('function');
     });
@@ -473,12 +463,6 @@ describe('Dependency Injection Container', () => {
       expect(useCase).toBeDefined();
       expect(useCase).toHaveProperty('execute');
     });
-
-    it('should register ToggleGroupUseCase with dependencies injected', () => {
-      const useCase = container.resolve(ToggleGroupUseCase);
-      expect(useCase).toBeDefined();
-      expect(useCase).toHaveProperty('execute');
-    });
   });
 
   describe('Fixed Expense Group Module Controller Registration - Task 20.1', () => {
@@ -489,7 +473,6 @@ describe('Dependency Injection Container', () => {
       expect(controller).toHaveProperty('getAll');
       expect(controller).toHaveProperty('update');
       expect(controller).toHaveProperty('delete');
-      expect(controller).toHaveProperty('toggle');
     });
 
     it('should resolve FixedExpenseGroupController with all dependencies properly injected', () => {
@@ -499,7 +482,6 @@ describe('Dependency Injection Container', () => {
       expect(typeof controller.getAll).toBe('function');
       expect(typeof controller.update).toBe('function');
       expect(typeof controller.delete).toBe('function');
-      expect(typeof controller.toggle).toBe('function');
     });
   });
 

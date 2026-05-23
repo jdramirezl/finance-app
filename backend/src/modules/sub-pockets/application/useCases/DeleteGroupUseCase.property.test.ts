@@ -28,6 +28,7 @@ describe('DeleteGroupUseCase - Property Tests', () => {
       findAllByUserId: jest.fn(),
       update: jest.fn(),
       delete: jest.fn(),
+      updateDisplayOrders: jest.fn(),
     };
     mockSubPocketRepository = {
       save: jest.fn(),
@@ -37,9 +38,10 @@ describe('DeleteGroupUseCase - Property Tests', () => {
       findAllByUserId: jest.fn(),
       update: jest.fn(),
       delete: jest.fn(),
+      deleteByPocketIds: jest.fn(),
       updateDisplayOrders: jest.fn(),
-      hasMovements: jest.fn(),
       countMovements: jest.fn(),
+      hasMovements: jest.fn(),
     };
     useCase = new DeleteGroupUseCase(mockGroupRepository, mockSubPocketRepository);
   });
@@ -77,7 +79,6 @@ describe('DeleteGroupUseCase - Property Tests', () => {
                 data.valueTotal,
                 data.periodicityMonths,
                 0,
-                true,
                 groupId // All belong to this group
               )
             );

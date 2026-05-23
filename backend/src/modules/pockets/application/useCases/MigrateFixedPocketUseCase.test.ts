@@ -12,8 +12,7 @@ import { ValidationError, NotFoundError } from '../../../../shared/errors/AppErr
 import type { Currency } from '@shared-backend/types';
 
 interface IMovementRepository {
-  findByPocketId(pocketId: string, userId: string): Promise<Array<{ id: string; pocketId: string; accountId: string }>>;
-  updateAccountId(movementId: string, newAccountId: string, userId: string): Promise<void>;
+  updateAccountIdByPocketId(pocketId: string, newAccountId: string, userId: string): Promise<number>;
 }
 
 interface IPocketRepository {
@@ -23,10 +22,12 @@ interface IPocketRepository {
   findAllByUserId(userId: string): Promise<Pocket[]>;
   existsByNameInAccount(name: string, accountId: string, userId: string): Promise<boolean>;
   existsByNameInAccountExcludingId(name: string, accountId: string, userId: string, excludeId: string): Promise<boolean>;
+  existsFixedPocketInAccount(accountId: string, userId: string): Promise<boolean>;
   existsFixedPocketForUser(userId: string): Promise<boolean>;
   existsFixedPocketForUserExcludingId(userId: string, excludeId: string): Promise<boolean>;
   update(pocket: Pocket, userId: string): Promise<void>;
   delete(id: string, userId: string): Promise<void>;
+  deleteByAccountId(accountId: string, userId: string): Promise<number>;
   updateDisplayOrders(pocketIds: string[], userId: string): Promise<void>;
 }
 
@@ -56,6 +57,7 @@ describe('MigrateFixedPocketUseCase', () => {
     mockPocketRepo = {
       findById: jest.fn(),
       findByAccountId: jest.fn(),
+      existsFixedPocketInAccount: jest.fn().mockResolvedValue(false),
       update: jest.fn(),
     } as any;
 
@@ -65,8 +67,7 @@ describe('MigrateFixedPocketUseCase', () => {
     } as any;
 
     mockMovementRepo = {
-      findByPocketId: jest.fn(),
-      updateAccountId: jest.fn(),
+      updateAccountIdByPocketId: jest.fn(),
     } as any;
 
     useCase = new MigrateFixedPocketUseCase(
@@ -273,17 +274,14 @@ describe('MigrateFixedPocketUseCase', () => {
       mockPocketRepo.findById.mockResolvedValue(fixedPocket);
       mockAccountRepo.findById.mockResolvedValueOnce(sourceAccount);
       mockAccountRepo.findById.mockResolvedValueOnce(targetAccount);
-      mockMovementRepo.findByPocketId.mockResolvedValue(movements);
+      mockMovementRepo.updateAccountIdByPocketId.mockResolvedValue(3);
       mockPocketRepo.findByAccountId.mockResolvedValueOnce(sourcePockets);
       mockPocketRepo.findByAccountId.mockResolvedValueOnce(targetPockets);
 
       const result = await useCase.execute(pocketId, { targetAccountId }, userId);
 
-      // Verify all movements were updated
-      expect(mockMovementRepo.updateAccountId).toHaveBeenCalledTimes(3);
-      expect(mockMovementRepo.updateAccountId).toHaveBeenCalledWith('mov-1', targetAccountId, userId);
-      expect(mockMovementRepo.updateAccountId).toHaveBeenCalledWith('mov-2', targetAccountId, userId);
-      expect(mockMovementRepo.updateAccountId).toHaveBeenCalledWith('mov-3', targetAccountId, userId);
+      // Verify all movements were updated in bulk
+      expect(mockMovementRepo.updateAccountIdByPocketId).toHaveBeenCalledWith(pocketId, targetAccountId, userId);
 
       // Verify pocket was updated
       expect(mockPocketRepo.update).toHaveBeenCalledWith(
@@ -340,13 +338,13 @@ describe('MigrateFixedPocketUseCase', () => {
       mockPocketRepo.findById.mockResolvedValue(fixedPocket);
       mockAccountRepo.findById.mockResolvedValueOnce(sourceAccount);
       mockAccountRepo.findById.mockResolvedValueOnce(targetAccount);
-      mockMovementRepo.findByPocketId.mockResolvedValue([]);
+      mockMovementRepo.updateAccountIdByPocketId.mockResolvedValue(0);
       mockPocketRepo.findByAccountId.mockResolvedValue([]);
 
       const result = await useCase.execute(pocketId, { targetAccountId }, userId);
 
-      // Verify no movement updates were called
-      expect(mockMovementRepo.updateAccountId).not.toHaveBeenCalled();
+      // Verify bulk movement update was still called (returns 0)
+      expect(mockMovementRepo.updateAccountIdByPocketId).toHaveBeenCalledWith(pocketId, targetAccountId, userId);
 
       // Verify pocket was still updated
       expect(mockPocketRepo.update).toHaveBeenCalled();

@@ -30,13 +30,12 @@ describeIntegration('SupabaseStockPriceRepository Integration Tests', () => {
 
   // Setup: Create repository
   beforeAll(() => {
-    repository = new SupabaseStockPriceRepository();
-    
-    // Create Supabase client for cleanup
+    // Create Supabase client for repository and cleanup
     supabase = createClient(
       process.env.SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_KEY!
     );
+    repository = new SupabaseStockPriceRepository(supabase);
   });
 
   // Cleanup: Delete all test data after each test

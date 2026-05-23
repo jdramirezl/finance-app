@@ -17,7 +17,6 @@ import { GetSubPocketsByPocketUseCase } from '../application/useCases/GetSubPock
 import { GetSubPocketsByGroupUseCase } from '../application/useCases/GetSubPocketsByGroupUseCase';
 import { UpdateSubPocketUseCase } from '../application/useCases/UpdateSubPocketUseCase';
 import { DeleteSubPocketUseCase } from '../application/useCases/DeleteSubPocketUseCase';
-import { ToggleSubPocketEnabledUseCase } from '../application/useCases/ToggleSubPocketEnabledUseCase';
 import { MoveSubPocketToGroupUseCase } from '../application/useCases/MoveSubPocketToGroupUseCase';
 import { ReorderSubPocketsUseCase } from '../application/useCases/ReorderSubPocketsUseCase';
 import { ValidationError, ConflictError, NotFoundError } from '../../../shared/errors/AppError';
@@ -30,9 +29,9 @@ describe('SubPocketController Integration Tests', () => {
   let mockGetSubPocketsByGroupUseCase: jest.Mocked<GetSubPocketsByGroupUseCase>;
   let mockUpdateSubPocketUseCase: jest.Mocked<UpdateSubPocketUseCase>;
   let mockDeleteSubPocketUseCase: jest.Mocked<DeleteSubPocketUseCase>;
-  let mockToggleSubPocketEnabledUseCase: jest.Mocked<ToggleSubPocketEnabledUseCase>;
   let mockMoveSubPocketToGroupUseCase: jest.Mocked<MoveSubPocketToGroupUseCase>;
   let mockReorderSubPocketsUseCase: jest.Mocked<ReorderSubPocketsUseCase>;
+  let mockSubPocketRepo: { findAllByUserId: jest.Mock };
   
   const testUserId = 'test-user-123';
   const mockAuthMiddleware = (req: any, _res: any, next: any) => {
@@ -47,9 +46,9 @@ describe('SubPocketController Integration Tests', () => {
     mockGetSubPocketsByGroupUseCase = { execute: jest.fn() } as any;
     mockUpdateSubPocketUseCase = { execute: jest.fn() } as any;
     mockDeleteSubPocketUseCase = { execute: jest.fn() } as any;
-    mockToggleSubPocketEnabledUseCase = { execute: jest.fn() } as any;
     mockMoveSubPocketToGroupUseCase = { execute: jest.fn() } as any;
     mockReorderSubPocketsUseCase = { execute: jest.fn() } as any;
+    mockSubPocketRepo = { findAllByUserId: jest.fn() };
 
     // Create controller with mocked use cases
     const controller = new SubPocketController(
@@ -58,9 +57,9 @@ describe('SubPocketController Integration Tests', () => {
       mockGetSubPocketsByGroupUseCase,
       mockUpdateSubPocketUseCase,
       mockDeleteSubPocketUseCase,
-      mockToggleSubPocketEnabledUseCase,
       mockMoveSubPocketToGroupUseCase,
-      mockReorderSubPocketsUseCase
+      mockReorderSubPocketsUseCase,
+      mockSubPocketRepo as any
     );
 
     // Setup Express app with routes
@@ -73,7 +72,6 @@ describe('SubPocketController Integration Tests', () => {
     router.get('/', (req, res, next) => controller.getByFilter(req, res, next));
     router.put('/:id', (req, res, next) => controller.update(req, res, next));
     router.delete('/:id', (req, res, next) => controller.delete(req, res, next));
-    router.post('/:id/toggle', (req, res, next) => controller.toggle(req, res, next));
     router.post('/:id/move-to-group', (req, res, next) => controller.moveToGroup(req, res, next));
     router.post('/reorder', (req, res, next) => controller.reorder(req, res, next));
     
@@ -97,7 +95,6 @@ describe('SubPocketController Integration Tests', () => {
         valueTotal: 1200,
         periodicityMonths: 1,
         balance: 0,
-        enabled: true,
         monthlyContribution: 1200
       };
 
@@ -156,8 +153,8 @@ describe('SubPocketController Integration Tests', () => {
   describe('GET /api/sub-pockets - Get SubPockets', () => {
     it('should return sub-pockets by pocket ID', async () => {
       const mockSubPockets = [
-        { id: '1', pocketId: 'pocket-123', name: 'Rent', valueTotal: 1200, periodicityMonths: 1, balance: 0, enabled: true, monthlyContribution: 1200 },
-        { id: '2', pocketId: 'pocket-123', name: 'Utilities', valueTotal: 200, periodicityMonths: 1, balance: 0, enabled: true, monthlyContribution: 200 }
+        { id: '1', pocketId: 'pocket-123', name: 'Rent', valueTotal: 1200, periodicityMonths: 1, balance: 0, monthlyContribution: 1200 },
+        { id: '2', pocketId: 'pocket-123', name: 'Utilities', valueTotal: 200, periodicityMonths: 1, balance: 0, monthlyContribution: 200 }
       ];
 
       mockGetSubPocketsByPocketUseCase.execute.mockResolvedValue(mockSubPockets as any);
@@ -173,7 +170,7 @@ describe('SubPocketController Integration Tests', () => {
 
     it('should return sub-pockets by group ID', async () => {
       const mockSubPockets = [
-        { id: '1', pocketId: 'pocket-123', name: 'Rent', groupId: 'group-123', valueTotal: 1200, periodicityMonths: 1, balance: 0, enabled: true, monthlyContribution: 1200 }
+        { id: '1', pocketId: 'pocket-123', name: 'Rent', groupId: 'group-123', valueTotal: 1200, periodicityMonths: 1, balance: 0, monthlyContribution: 1200 }
       ];
 
       mockGetSubPocketsByGroupUseCase.execute.mockResolvedValue(mockSubPockets as any);
@@ -210,7 +207,6 @@ describe('SubPocketController Integration Tests', () => {
         valueTotal: 1300,
         periodicityMonths: 1,
         balance: 0,
-        enabled: true,
         monthlyContribution: 1300
       };
 
@@ -264,30 +260,6 @@ describe('SubPocketController Integration Tests', () => {
     });
   });
 
-  describe('POST /api/sub-pockets/:id/toggle - Toggle SubPocket', () => {
-    it('should toggle sub-pocket enabled status', async () => {
-      const mockResponse = {
-        id: 'subpocket-123',
-        pocketId: 'pocket-123',
-        name: 'Rent',
-        valueTotal: 1200,
-        periodicityMonths: 1,
-        balance: 0,
-        enabled: false,
-        monthlyContribution: 1200
-      };
-
-      mockToggleSubPocketEnabledUseCase.execute.mockResolvedValue(mockResponse as any);
-
-      const response = await request(app)
-        .post('/api/sub-pockets/subpocket-123/toggle');
-
-      expect(response.status).toBe(200);
-      expect(response.body.enabled).toBe(false);
-      expect(mockToggleSubPocketEnabledUseCase.execute).toHaveBeenCalledWith('subpocket-123', testUserId);
-    });
-  });
-
   describe('POST /api/sub-pockets/:id/move-to-group - Move SubPocket', () => {
     it('should move sub-pocket to group', async () => {
       const mockResponse = {
@@ -297,7 +269,6 @@ describe('SubPocketController Integration Tests', () => {
         valueTotal: 1200,
         periodicityMonths: 1,
         balance: 0,
-        enabled: true,
         groupId: 'group-456',
         monthlyContribution: 1200
       };
@@ -321,7 +292,6 @@ describe('SubPocketController Integration Tests', () => {
         valueTotal: 1200,
         periodicityMonths: 1,
         balance: 0,
-        enabled: true,
         groupId: null,
         monthlyContribution: 1200
       };

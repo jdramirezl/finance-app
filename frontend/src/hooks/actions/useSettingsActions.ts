@@ -1,0 +1,236 @@
+import { useState } from 'react';
+import { format } from 'date-fns';
+import { accountService } from '../../services/accountService';
+import { movementService } from '../../services/movementService';
+import { pocketService } from '../../services/pocketService';
+import { subPocketService } from '../../services/subPocketService';
+import type {
+  AccountCardDisplayMode,
+  AccountCardDisplaySettings,
+  Currency,
+  DateFormatPreference,
+  Settings,
+  SnapshotFrequency,
+} from '../../types';
+import type { useToast } from '../useToast';
+import type { useUpdateSettings } from '../queries';
+
+const BUDGET_PLANNING_KEY = 'finance_app_budget_planning';
+
+const readBudgetPlanning = (): unknown => {
+  try {
+    const item = localStorage.getItem(BUDGET_PLANNING_KEY);
+    return item
+      ? JSON.parse(item)
+      : { initialAmount: 0, distributionEntries: [] };
+  } catch {
+    // localStorage unavailable or value not parseable; fall back to empty.
+    return { initialAmount: 0, distributionEntries: [] };
+  }
+};
+
+const DEFAULT_DISPLAY: AccountCardDisplaySettings = {
+  normal: 'detailed',
+  investment: 'detailed',
+  cd: 'detailed',
+};
+
+type AccountKind = keyof AccountCardDisplaySettings;
+
+export interface UseSettingsActionsParams {
+  settings: Settings | undefined;
+  updateMutation: ReturnType<typeof useUpdateSettings>;
+  toast: ReturnType<typeof useToast.getState>;
+}
+
+export interface UseSettingsActionsResult {
+  isExporting: boolean;
+  handleExport: () => Promise<void>;
+  handleCurrencyChange: (currency: Currency) => Promise<void>;
+  handleDisplayChange: (
+    kind: AccountKind,
+    mode: AccountCardDisplayMode
+  ) => Promise<void>;
+  handleSnapshotFrequencyChange: (frequency: SnapshotFrequency) => Promise<void>;
+  handleDefaultExpenseChange: (accountId: string, pocketId: string) => Promise<void>;
+  handleDefaultIncomeChange: (accountId: string, pocketId: string) => Promise<void>;
+  handleDateFormatChange: (format: DateFormatPreference) => Promise<void>;
+  handleMovementsPerPageChange: (count: number) => Promise<void>;
+  handleReminderAdvanceDaysChange: (days: number) => Promise<void>;
+  handleDefaultCurrencyChange: (currency: Currency) => Promise<void>;
+}
+
+/**
+ * Encapsulates the imperative side of the Settings page: dispatching the
+ * settings update mutation for individual fields, and assembling the JSON
+ * backup. Settings are required for the change handlers to do anything; the
+ * page guards on `settings` before rendering, so the no-op branches are
+ * defensive only.
+ */
+export const useSettingsActions = ({
+  settings,
+  updateMutation,
+  toast,
+}: UseSettingsActionsParams): UseSettingsActionsResult => {
+  const [isExporting, setIsExporting] = useState(false);
+
+  const handleExport = async () => {
+    setIsExporting(true);
+    try {
+      const accounts = await accountService.getAllAccounts();
+      const pockets = await pocketService.getAllPockets();
+      const subPockets = await subPocketService.getAllSubPockets();
+      const movements = await movementService.getAllMovements();
+      const budgetPlanning = readBudgetPlanning();
+
+      const exportData = {
+        meta: {
+          version: '1.0',
+          exportDate: new Date().toISOString(),
+          app: 'FinanceApp',
+        },
+        settings,
+        accounts,
+        pockets,
+        subPockets,
+        movements,
+        budgetPlanning,
+      };
+
+      const blob = new Blob([JSON.stringify(exportData, null, 2)], {
+        type: 'application/json',
+      });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `finance_app_backup_${format(new Date(), 'yyyy-MM-dd')}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      toast.success(
+        `Exported ${movements.length} movements and all data successfully`
+      );
+    } catch {
+      toast.error('Failed to export data');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleCurrencyChange = async (currency: Currency) => {
+    if (!settings) return;
+    try {
+      await updateMutation.mutateAsync({ ...settings, primaryCurrency: currency });
+    } catch {
+      // Toast is shown by the mutation's onError handler.
+    }
+  };
+
+  const handleDisplayChange = async (
+    kind: AccountKind,
+    mode: AccountCardDisplayMode
+  ) => {
+    if (!settings) return;
+    try {
+      const current = settings.accountCardDisplay || DEFAULT_DISPLAY;
+      await updateMutation.mutateAsync({
+        ...settings,
+        accountCardDisplay: { ...current, [kind]: mode },
+      });
+      toast.success(`${kind} account display updated to ${mode}`);
+    } catch {
+      // Toast is shown by the mutation's onError handler.
+    }
+  };
+
+  const handleSnapshotFrequencyChange = async (frequency: SnapshotFrequency) => {
+    if (!settings) return;
+    try {
+      await updateMutation.mutateAsync({
+        ...settings,
+        snapshotFrequency: frequency,
+      });
+      toast.success(`Snapshot frequency updated to ${frequency}`);
+    } catch {
+      // Toast is shown by the mutation's onError handler.
+    }
+  };
+
+  const handleDefaultExpenseChange = async (accountId: string, pocketId: string) => {
+    if (!settings) return;
+    try {
+      await updateMutation.mutateAsync({
+        ...settings,
+        defaultExpenseAccountId: accountId || undefined,
+        defaultExpensePocketId: pocketId || undefined,
+      });
+    } catch {
+      // Toast is shown by the mutation's onError handler.
+    }
+  };
+
+  const handleDefaultIncomeChange = async (accountId: string, pocketId: string) => {
+    if (!settings) return;
+    try {
+      await updateMutation.mutateAsync({
+        ...settings,
+        defaultIncomeAccountId: accountId || undefined,
+        defaultIncomePocketId: pocketId || undefined,
+      });
+    } catch {
+      // Toast is shown by the mutation's onError handler.
+    }
+  };
+
+  const handleDateFormatChange = async (format: DateFormatPreference) => {
+    if (!settings) return;
+    try {
+      await updateMutation.mutateAsync({ ...settings, dateFormat: format });
+    } catch {
+      // Toast is shown by the mutation's onError handler.
+    }
+  };
+
+  const handleMovementsPerPageChange = async (count: number) => {
+    if (!settings) return;
+    try {
+      await updateMutation.mutateAsync({ ...settings, movementsPerPage: count });
+    } catch {
+      // Toast is shown by the mutation's onError handler.
+    }
+  };
+
+  const handleReminderAdvanceDaysChange = async (days: number) => {
+    if (!settings) return;
+    try {
+      await updateMutation.mutateAsync({ ...settings, reminderAdvanceDays: days });
+    } catch {
+      // Toast is shown by the mutation's onError handler.
+    }
+  };
+
+  const handleDefaultCurrencyChange = async (currency: Currency) => {
+    if (!settings) return;
+    try {
+      await updateMutation.mutateAsync({ ...settings, defaultCurrencyForNewAccounts: currency });
+    } catch {
+      // Toast is shown by the mutation's onError handler.
+    }
+  };
+
+  return {
+    isExporting,
+    handleExport,
+    handleCurrencyChange,
+    handleDisplayChange,
+    handleSnapshotFrequencyChange,
+    handleDefaultExpenseChange,
+    handleDefaultIncomeChange,
+    handleDateFormatChange,
+    handleMovementsPerPageChange,
+    handleReminderAdvanceDaysChange,
+    handleDefaultCurrencyChange,
+  };
+};

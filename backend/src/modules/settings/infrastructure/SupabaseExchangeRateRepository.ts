@@ -4,8 +4,8 @@
  * Implements IExchangeRateRepository using Supabase as the cache store.
  */
 
-import { injectable } from 'tsyringe';
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { injectable, inject } from 'tsyringe';
+import { SupabaseClient } from '@supabase/supabase-js';
 import type { IExchangeRateRepository } from './IExchangeRateRepository';
 import { ExchangeRate } from '../domain/ExchangeRate';
 import { ExchangeRateMapper } from '../application/mappers/ExchangeRateMapper';
@@ -14,28 +14,10 @@ import type { Currency } from '@shared-backend/types';
 
 @injectable()
 export class SupabaseExchangeRateRepository implements IExchangeRateRepository {
-  private supabase: SupabaseClient | null;
+  private supabase: SupabaseClient;
 
-  constructor() {
-    const supabaseUrl = process.env.SUPABASE_URL;
-    const supabaseKey = process.env.SUPABASE_SERVICE_KEY;
-
-    // Only throw error in non-test environments
-    if ((!supabaseUrl || !supabaseKey) && process.env.NODE_ENV !== 'test') {
-      throw new Error('Supabase configuration missing: SUPABASE_URL and SUPABASE_SERVICE_KEY required');
-    }
-
-    // Create client only if credentials are available
-    this.supabase = supabaseUrl && supabaseKey 
-      ? createClient(supabaseUrl, supabaseKey)
-      : null;
-  }
-
-  private ensureClient(): SupabaseClient {
-    if (!this.supabase) {
-      throw new DatabaseError('Supabase client not configured');
-    }
-    return this.supabase;
+  constructor(@inject('SupabaseClient') supabase: SupabaseClient) {
+    this.supabase = supabase;
   }
 
   /**
@@ -46,7 +28,7 @@ export class SupabaseExchangeRateRepository implements IExchangeRateRepository {
     fromCurrency: Currency,
     toCurrency: Currency
   ): Promise<ExchangeRate | null> {
-    const { data, error } = await this.ensureClient()
+    const { data, error } = await this.supabase
       .from('exchange_rates')
       .select('*')
       .eq('base_currency', fromCurrency)
@@ -77,13 +59,14 @@ export class SupabaseExchangeRateRepository implements IExchangeRateRepository {
 
   /**
    * Save exchange rate to cache
-   * Uses upsert to handle both insert and update
+   * Uses upsert to handle both insert and update.
+   * Also records the rate in exchange_rate_history (with 1-hour dedup).
    */
   async saveRate(exchangeRate: ExchangeRate): Promise<void> {
     const data = ExchangeRateMapper.toPersistence(exchangeRate);
     
     // Use upsert to handle both insert and update
-    const { error } = await this.ensureClient()
+    const { error } = await this.supabase
       .from('exchange_rates')
       .upsert(data, {
         onConflict: 'base_currency,target_currency',
@@ -92,6 +75,47 @@ export class SupabaseExchangeRateRepository implements IExchangeRateRepository {
 
     if (error) {
       throw new DatabaseError(`Failed to save exchange rate: ${error.message}`);
+    }
+
+    // Record in history (fire-and-forget, dedup by 1 hour)
+    await this.recordHistory(
+      exchangeRate.fromCurrency,
+      exchangeRate.toCurrency,
+      exchangeRate.rate
+    );
+  }
+
+  /**
+   * Insert a row into exchange_rate_history if the last recorded rate
+   * for this pair is older than 1 hour.
+   */
+  private async recordHistory(
+    baseCurrency: string,
+    targetCurrency: string,
+    rate: number
+  ): Promise<void> {
+    try {
+      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+
+      // Check if a recent record exists
+      const { data: recent } = await this.supabase
+        .from('exchange_rate_history')
+        .select('id')
+        .eq('base_currency', baseCurrency)
+        .eq('target_currency', targetCurrency)
+        .gte('recorded_at', oneHourAgo)
+        .limit(1);
+
+      if (recent && recent.length > 0) return;
+
+      await this.supabase.from('exchange_rate_history').insert({
+        base_currency: baseCurrency,
+        target_currency: targetCurrency,
+        rate,
+      });
+    } catch {
+      // Non-critical — don't fail the main save operation
+      console.warn('Failed to record exchange rate history');
     }
   }
 
@@ -103,7 +127,7 @@ export class SupabaseExchangeRateRepository implements IExchangeRateRepository {
     const expirationDate = new Date();
     expirationDate.setHours(expirationDate.getHours() - 24);
 
-    const { data, error } = await this.ensureClient()
+    const { data, error } = await this.supabase
       .from('exchange_rates')
       .delete()
       .lt('last_updated', expirationDate.toISOString())

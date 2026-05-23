@@ -34,6 +34,8 @@ describe('Movement Filtering Property-Based Tests', () => {
   const createMockRepoWithMovements = (movements: Movement[]) => {
     const mockRepo: jest.Mocked<IMovementRepository> = {
       save: jest.fn().mockResolvedValue(undefined),
+      createTransferAtomic: jest.fn().mockResolvedValue({ expense: null as any, income: null as any }),
+      batchCreate: jest.fn().mockResolvedValue([]),
       findById: jest.fn().mockResolvedValue(null),
       findAll: jest.fn().mockImplementation(async (userId, filters) => {
         let filtered = movements;
@@ -90,6 +92,8 @@ describe('Movement Filtering Property-Based Tests', () => {
       markAsOrphanedByPocketId: jest.fn().mockResolvedValue(0),
       updateAccountIdByPocketId: jest.fn().mockResolvedValue(0),
       count: jest.fn().mockResolvedValue(0),
+        sumExpensesByPeriod: jest.fn().mockResolvedValue([]),
+      getDistinctYears: jest.fn().mockResolvedValue([]),
     };
 
     return mockRepo;
@@ -334,15 +338,11 @@ describe('Movement Filtering Property-Based Tests', () => {
 
             // All returned movements should be in the specified month
             expect(
-              result.movements.every(m => {
+              result.data.every((m: { displayedDate: string }) => {
                 const date = new Date(m.displayedDate);
                 return date.getFullYear() === year && date.getMonth() + 1 === month;
               })
             ).toBe(true);
-
-            // Result should include year and month
-            expect(result.year).toBe(year);
-            expect(result.month).toBe(month);
           }
         ),
         { numRuns: 100 }

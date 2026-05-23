@@ -40,7 +40,7 @@ describe('CreatePocketUseCase Property-Based Tests', () => {
           fc.constantFrom(...validCurrencies),
           fc.constantFrom(...validPocketTypes).filter(t => t === 'normal'), // Only normal for this test
           fc.string({ minLength: 1, maxLength: 20 }), // userId
-          fc.string({ minLength: 1, maxLength: 20 }), // accountId
+          fc.string({ minLength: 1, maxLength: 20 }).filter(s => s.trim().length > 0), // accountId
           validHexColor(),
           async (pocketName: string, currency: Currency, pocketType: 'normal' | 'fixed', userId: string, accountId: string, color: string) => {
             // Create a normal account
@@ -74,8 +74,10 @@ describe('CreatePocketUseCase Property-Based Tests', () => {
               existsByNameInAccountExcludingId: jest.fn().mockResolvedValue(false),
               existsFixedPocketForUser: jest.fn().mockResolvedValue(false),
               existsFixedPocketForUserExcludingId: jest.fn().mockResolvedValue(false),
+              existsFixedPocketInAccount: jest.fn().mockResolvedValue(false),
               update: jest.fn().mockResolvedValue(undefined),
               delete: jest.fn().mockResolvedValue(undefined),
+              deleteByAccountId: jest.fn().mockResolvedValue(0),
               updateDisplayOrders: jest.fn().mockResolvedValue(undefined),
             };
 
@@ -154,8 +156,10 @@ describe('CreatePocketUseCase Property-Based Tests', () => {
               existsByNameInAccountExcludingId: jest.fn().mockResolvedValue(false),
               existsFixedPocketForUser: jest.fn().mockResolvedValue(false),
               existsFixedPocketForUserExcludingId: jest.fn().mockResolvedValue(false),
+              existsFixedPocketInAccount: jest.fn().mockResolvedValue(false),
               update: jest.fn().mockResolvedValue(undefined),
               delete: jest.fn().mockResolvedValue(undefined),
+              deleteByAccountId: jest.fn().mockResolvedValue(0),
               updateDisplayOrders: jest.fn().mockResolvedValue(undefined),
             };
 
@@ -228,8 +232,10 @@ describe('CreatePocketUseCase Property-Based Tests', () => {
               existsByNameInAccountExcludingId: jest.fn().mockResolvedValue(false),
               existsFixedPocketForUser: jest.fn().mockResolvedValue(false),
               existsFixedPocketForUserExcludingId: jest.fn().mockResolvedValue(false),
+              existsFixedPocketInAccount: jest.fn().mockResolvedValue(false),
               update: jest.fn().mockResolvedValue(undefined),
               delete: jest.fn().mockResolvedValue(undefined),
+              deleteByAccountId: jest.fn().mockResolvedValue(0),
               updateDisplayOrders: jest.fn().mockResolvedValue(undefined),
             };
 
@@ -306,8 +312,10 @@ describe('CreatePocketUseCase Property-Based Tests', () => {
               existsByNameInAccountExcludingId: jest.fn().mockResolvedValue(false),
               existsFixedPocketForUser: jest.fn().mockResolvedValue(false),
               existsFixedPocketForUserExcludingId: jest.fn().mockResolvedValue(false),
+              existsFixedPocketInAccount: jest.fn().mockResolvedValue(false),
               update: jest.fn().mockResolvedValue(undefined),
               delete: jest.fn().mockResolvedValue(undefined),
+              deleteByAccountId: jest.fn().mockResolvedValue(0),
               updateDisplayOrders: jest.fn().mockResolvedValue(undefined),
             };
 
@@ -379,8 +387,10 @@ describe('CreatePocketUseCase Property-Based Tests', () => {
               existsByNameInAccountExcludingId: jest.fn().mockResolvedValue(false),
               existsFixedPocketForUser: jest.fn().mockResolvedValue(false),
               existsFixedPocketForUserExcludingId: jest.fn().mockResolvedValue(false),
+              existsFixedPocketInAccount: jest.fn().mockResolvedValue(false),
               update: jest.fn().mockResolvedValue(undefined),
               delete: jest.fn().mockResolvedValue(undefined),
+              deleteByAccountId: jest.fn().mockResolvedValue(0),
               updateDisplayOrders: jest.fn().mockResolvedValue(undefined),
             };
 
@@ -472,8 +482,10 @@ describe('CreatePocketUseCase Property-Based Tests', () => {
               // Fixed pocket already exists for this user
               existsFixedPocketForUser: jest.fn().mockResolvedValue(true),
               existsFixedPocketForUserExcludingId: jest.fn().mockResolvedValue(false),
+              existsFixedPocketInAccount: jest.fn().mockResolvedValue(true),
               update: jest.fn().mockResolvedValue(undefined),
               delete: jest.fn().mockResolvedValue(undefined),
+              deleteByAccountId: jest.fn().mockResolvedValue(0),
               updateDisplayOrders: jest.fn().mockResolvedValue(undefined),
             };
 
@@ -489,10 +501,10 @@ describe('CreatePocketUseCase Property-Based Tests', () => {
 
             // Should fail because user already has a fixed pocket
             await expect(useCase.execute(dto, userId)).rejects.toThrow(ConflictError);
-            await expect(useCase.execute(dto, userId)).rejects.toThrow('Only one fixed pocket is allowed per user');
+            await expect(useCase.execute(dto, userId)).rejects.toThrow('Only one fixed pocket is allowed per account');
 
-            // Verify that existsFixedPocketForUser was called
-            expect(mockPocketRepo.existsFixedPocketForUser).toHaveBeenCalledWith(userId);
+            // Verify that existsFixedPocketInAccount was called
+            expect(mockPocketRepo.existsFixedPocketInAccount).toHaveBeenCalledWith(accountId2, userId);
 
             // Verify that save was NOT called since uniqueness check failed
             expect(mockPocketRepo.save).not.toHaveBeenCalled();
@@ -543,8 +555,10 @@ describe('CreatePocketUseCase Property-Based Tests', () => {
               // No fixed pocket exists yet
               existsFixedPocketForUser: jest.fn().mockResolvedValue(false),
               existsFixedPocketForUserExcludingId: jest.fn().mockResolvedValue(false),
+              existsFixedPocketInAccount: jest.fn().mockResolvedValue(false),
               update: jest.fn().mockResolvedValue(undefined),
               delete: jest.fn().mockResolvedValue(undefined),
+              deleteByAccountId: jest.fn().mockResolvedValue(0),
               updateDisplayOrders: jest.fn().mockResolvedValue(undefined),
             };
 
@@ -564,7 +578,7 @@ describe('CreatePocketUseCase Property-Based Tests', () => {
             expect(result.type).toBe('fixed');
             expect(result.accountId).toBe(accountId);
             expect(mockPocketRepo.save).toHaveBeenCalled();
-            expect(mockPocketRepo.existsFixedPocketForUser).toHaveBeenCalledWith(userId);
+            expect(mockPocketRepo.existsFixedPocketInAccount).toHaveBeenCalledWith(accountId, userId);
           }
         ),
         { numRuns: 100 }
@@ -635,8 +649,12 @@ describe('CreatePocketUseCase Property-Based Tests', () => {
                 return userId === userId1;
               }),
               existsFixedPocketForUserExcludingId: jest.fn().mockResolvedValue(false),
+              existsFixedPocketInAccount: jest.fn().mockImplementation(async (accountId: string, uid: string) => {
+                return uid === userId1;
+              }),
               update: jest.fn().mockResolvedValue(undefined),
               delete: jest.fn().mockResolvedValue(undefined),
+              deleteByAccountId: jest.fn().mockResolvedValue(0),
               updateDisplayOrders: jest.fn().mockResolvedValue(undefined),
             };
 
@@ -727,8 +745,10 @@ describe('CreatePocketUseCase Property-Based Tests', () => {
               // Fixed pocket exists after first creation
               existsFixedPocketForUser: jest.fn().mockResolvedValue(true),
               existsFixedPocketForUserExcludingId: jest.fn().mockResolvedValue(false),
+              existsFixedPocketInAccount: jest.fn().mockResolvedValue(true),
               update: jest.fn().mockResolvedValue(undefined),
               delete: jest.fn().mockResolvedValue(undefined),
+              deleteByAccountId: jest.fn().mockResolvedValue(0),
               updateDisplayOrders: jest.fn().mockResolvedValue(undefined),
             };
 
@@ -745,7 +765,7 @@ describe('CreatePocketUseCase Property-Based Tests', () => {
 
               // All attempts should fail because user already has a fixed pocket
               await expect(useCase.execute(dto, userId)).rejects.toThrow(ConflictError);
-              await expect(useCase.execute(dto, userId)).rejects.toThrow('Only one fixed pocket is allowed per user');
+              await expect(useCase.execute(dto, userId)).rejects.toThrow('Only one fixed pocket is allowed per account');
             }
 
             // Verify that save was never called
@@ -797,8 +817,10 @@ describe('CreatePocketUseCase Property-Based Tests', () => {
               // Fixed pocket exists, but we're creating a normal pocket
               existsFixedPocketForUser: jest.fn().mockResolvedValue(true),
               existsFixedPocketForUserExcludingId: jest.fn().mockResolvedValue(false),
+              existsFixedPocketInAccount: jest.fn().mockResolvedValue(true),
               update: jest.fn().mockResolvedValue(undefined),
               delete: jest.fn().mockResolvedValue(undefined),
+              deleteByAccountId: jest.fn().mockResolvedValue(0),
               updateDisplayOrders: jest.fn().mockResolvedValue(undefined),
             };
 

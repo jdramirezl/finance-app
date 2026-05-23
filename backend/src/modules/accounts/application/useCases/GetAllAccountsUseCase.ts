@@ -11,21 +11,14 @@
 
 import { injectable, inject } from 'tsyringe';
 import type { IAccountRepository } from '../../infrastructure/IAccountRepository';
+import type { IPocketRepository } from '../../../pockets/infrastructure/IPocketRepository';
 import type { AccountResponseDTO } from '../dtos/AccountDTO';
 import { AccountMapper } from '../mappers/AccountMapper';
 import { AccountDomainService } from '../../domain/AccountDomainService';
 
 /**
- * Pocket repository interface (will be implemented in Phase 2)
- * For now, we define the minimal interface needed
- */
-interface IPocketRepository {
-  findByAccountId(accountId: string, userId: string): Promise<Array<{ id: string; accountId: string; balance: number }>>;
-}
-
-/**
- * Stock price service interface (will be implemented in Phase 5)
- * For now, we define the minimal interface needed
+ * Stock price service interface
+ * Matches GetCurrentStockPriceUseCase.execute() signature
  */
 interface IStockPriceService {
   execute(symbol: string): Promise<{ symbol: string; price: number; lastUpdated: Date }>;
@@ -54,6 +47,20 @@ export class GetAllAccountsUseCase {
     // Fetch all accounts for user (Requirement 4.4)
     const accounts = await this.accountRepo.findAllByUserId(userId);
 
+    // Batch-fetch all pockets for the user in ONE query (avoids N+1)
+    const allPockets = await this.pocketRepo.findAllByUserId(userId);
+
+    // Group pockets by accountId in memory
+    const pocketsByAccountId = new Map<string, typeof allPockets>();
+    for (const pocket of allPockets) {
+      const group = pocketsByAccountId.get(pocket.accountId);
+      if (group) {
+        group.push(pocket);
+      } else {
+        pocketsByAccountId.set(pocket.accountId, [pocket]);
+      }
+    }
+
     // Calculate balances for each account
     const accountsWithBalances = await Promise.all(
       accounts.map(async (account) => {
@@ -72,8 +79,8 @@ export class GetAllAccountsUseCase {
             }
           }
         } else {
-          // For normal accounts: calculate balance from pockets
-          const pockets = await this.pocketRepo.findByAccountId(account.id, userId);
+          // For normal accounts: use pre-fetched pockets grouped by accountId
+          const pockets = pocketsByAccountId.get(account.id) || [];
           this.domainService.updateAccountBalance(account, pockets);
         }
 

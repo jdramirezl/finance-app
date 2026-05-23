@@ -35,13 +35,6 @@ export class GetPocketByIdUseCase {
       throw new NotFoundError('Pocket not found');
     }
 
-    // TODO: Calculate balance when Movement and SubPocket modules are implemented
-    // For now, pocket will have its stored balance value
-    // In Phase 3 & 4, we'll:
-    // 1. Fetch movements for normal pockets
-    // 2. Fetch sub-pockets for fixed pockets
-    // 3. Use PocketDomainService to calculate balance
-
     // Convert to DTO and return
     return PocketMapper.toDTO(pocket);
   }

@@ -1,37 +1,21 @@
-import { injectable } from 'tsyringe';
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { injectable, inject } from 'tsyringe';
+import { SupabaseClient } from '@supabase/supabase-js';
 import { Reminder } from '../domain/Reminder';
 import { CreateReminderDTO, UpdateReminderDTO } from '../application/dtos/ReminderDTO';
 import { CreateExceptionDTO, ReminderException } from '../domain/ReminderException';
-import { IReminderRepository } from '../interfaces/IReminderRepository';
+import { IReminderRepository } from './IReminderRepository';
 import { DatabaseError } from '../../../shared/errors/AppError';
 
 @injectable()
 export class SupabaseReminderRepository implements IReminderRepository {
-    private supabase: SupabaseClient | null;
+    private supabase: SupabaseClient;
 
-    constructor() {
-        const supabaseUrl = process.env.SUPABASE_URL;
-        const supabaseKey = process.env.SUPABASE_SERVICE_KEY;
-
-        if ((!supabaseUrl || !supabaseKey) && process.env.NODE_ENV !== 'test') {
-            throw new Error('Supabase configuration missing: SUPABASE_URL and SUPABASE_SERVICE_KEY required');
-        }
-
-        this.supabase = supabaseUrl && supabaseKey
-            ? createClient(supabaseUrl, supabaseKey)
-            : null;
-    }
-
-    private ensureClient(): SupabaseClient {
-        if (!this.supabase) {
-            throw new DatabaseError('Supabase client not configured');
-        }
-        return this.supabase;
+    constructor(@inject('SupabaseClient') supabase: SupabaseClient) {
+        this.supabase = supabase;
     }
 
     async findAll(userId: string): Promise<Reminder[]> {
-        const { data, error } = await this.ensureClient()
+        const { data, error } = await this.supabase
             .from('reminders')
             .select('*, reminder_exceptions(*)')
             .eq('user_id', userId)
@@ -43,7 +27,7 @@ export class SupabaseReminderRepository implements IReminderRepository {
     }
 
     async findById(id: string): Promise<Reminder | null> {
-        const { data, error } = await this.ensureClient()
+        const { data, error } = await this.supabase
             .from('reminders')
             .select('*, reminder_exceptions(*)')
             .eq('id', id)
@@ -54,7 +38,7 @@ export class SupabaseReminderRepository implements IReminderRepository {
     }
 
     async create(userId: string, data: CreateReminderDTO): Promise<Reminder> {
-        const { data: created, error } = await this.ensureClient()
+        const { data: created, error } = await this.supabase
             .from('reminders')
             .insert({
                 user_id: userId,
@@ -96,7 +80,7 @@ export class SupabaseReminderRepository implements IReminderRepository {
         if (data.templateId !== undefined) updateData.template_id = data.templateId;
         updateData.updated_at = new Date().toISOString();
 
-        const { data: updated, error } = await this.ensureClient()
+        const { data: updated, error } = await this.supabase
             .from('reminders')
             .update(updateData)
             .eq('id', id)
@@ -108,7 +92,7 @@ export class SupabaseReminderRepository implements IReminderRepository {
     }
 
     async delete(id: string): Promise<void> {
-        const { error } = await this.ensureClient()
+        const { error } = await this.supabase
             .from('reminders')
             .delete()
             .eq('id', id);
@@ -129,16 +113,13 @@ export class SupabaseReminderRepository implements IReminderRepository {
         if (data.isPaid !== undefined) insertData.is_paid = data.isPaid;
         if (data.linkedMovementId !== undefined) insertData.linked_movement_id = data.linkedMovementId;
 
-        const { data: created, error } = await this.ensureClient()
+        const { data: created, error } = await this.supabase
             .from('reminder_exceptions')
             .upsert(insertData, { onConflict: 'reminder_id,original_date' })
             .select()
             .single();
 
-        if (error) {
-            console.error('❌ Supabase error in createException:', error);
-            throw new Error(error.message);
-        }
+        if (error) throw new Error(error.message);
         
         if (!created) {
             throw new Error('Failed to create reminder exception: No data returned');
@@ -148,7 +129,7 @@ export class SupabaseReminderRepository implements IReminderRepository {
     }
 
     async findByLinkedMovementId(movementId: string): Promise<Reminder | null> {
-        const { data, error } = await this.ensureClient()
+        const { data, error } = await this.supabase
             .from('reminders')
             .select('*')
             .eq('linked_movement_id', movementId)

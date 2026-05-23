@@ -1,13 +1,18 @@
+import { useMemo } from 'react';
 import { Filter, X } from 'lucide-react';
-import Button from '../Button';
-import Input from '../Input';
-import Select from '../Select';
+import Button from '../ui/Button';
+import Input from '../ui/Input';
+import Select from '../ui/Select';
+import MovementTypeSelect, { MOVEMENT_TYPE_FILTER_ALL } from './MovementTypeSelect';
 import { useAccountsQuery, usePocketsQuery } from '../../hooks/queries';
+import { PREDEFINED_CATEGORIES } from '../../constants/categories';
 import type { DateRangeOption, FilterTypeOption, ShowPendingOption } from '../../hooks/useMovementsFilter';
+import type { Movement } from '../../types';
 
 interface MovementFiltersProps {
     showFilters: boolean;
     setShowFilters: (show: boolean) => void;
+    movements: Movement[];
     filters: {
         account: string;
         pocket: string;
@@ -19,6 +24,8 @@ interface MovementFiltersProps {
         minAmount: string;
         maxAmount: string;
         showPending: ShowPendingOption;
+        category: string;
+        tags: string[];
     };
     setFilters: {
         setAccount: (value: string) => void;
@@ -31,18 +38,45 @@ interface MovementFiltersProps {
         setMinAmount: (value: string) => void;
         setMaxAmount: (value: string) => void;
         setShowPending: (value: ShowPendingOption) => void;
+        setCategory: (value: string) => void;
+        setTags: (value: string[]) => void;
     };
 }
 
-const MovementFilters = ({ showFilters, setShowFilters, filters, setFilters }: MovementFiltersProps) => {
+const MovementFilters = ({ showFilters, setShowFilters, movements, filters, setFilters }: MovementFiltersProps) => {
     const { data: accounts = [] } = useAccountsQuery();
     const { data: pockets = [] } = usePocketsQuery();
 
+    // Collect unique categories from current movements (includes custom ones not in predefined list)
+    const categoryOptions = useMemo(() => {
+        const custom = new Set<string>();
+        for (const m of movements) {
+            if (m.category && !PREDEFINED_CATEGORIES.includes(m.category as typeof PREDEFINED_CATEGORIES[number])) {
+                custom.add(m.category);
+            }
+        }
+        return [
+            { value: 'all', label: 'All Categories' },
+            ...PREDEFINED_CATEGORIES.map(c => ({ value: c, label: c })),
+            ...[...custom].sort().map(c => ({ value: c, label: c })),
+        ];
+    }, [movements]);
+
+    // Collect unique tags from current movements
+    const availableTags = useMemo(() => {
+        const tagSet = new Set<string>();
+        for (const m of movements) {
+            if (m.tags) {
+                for (const t of m.tags) tagSet.add(t);
+            }
+        }
+        return [...tagSet].sort();
+    }, [movements]);
 
     const clearFilters = () => {
         setFilters.setAccount('all');
         setFilters.setPocket('all');
-        setFilters.setType('all');
+        setFilters.setType(MOVEMENT_TYPE_FILTER_ALL);
         setFilters.setDateRange('all');
         setFilters.setDateFrom('');
         setFilters.setDateTo('');
@@ -50,17 +84,21 @@ const MovementFilters = ({ showFilters, setShowFilters, filters, setFilters }: M
         setFilters.setMinAmount('');
         setFilters.setMaxAmount('');
         setFilters.setShowPending('all');
+        setFilters.setCategory('all');
+        setFilters.setTags([]);
     };
 
     const activeFiltersCount = [
         filters.account !== 'all',
         filters.pocket !== 'all',
-        filters.type !== 'all',
+        filters.type !== MOVEMENT_TYPE_FILTER_ALL,
         filters.dateRange !== 'all',
         filters.search !== '',
         filters.minAmount !== '',
         filters.maxAmount !== '',
         filters.showPending !== 'all',
+        filters.category !== 'all',
+        filters.tags.length > 0,
     ].filter(Boolean).length;
 
     return (
@@ -71,6 +109,7 @@ const MovementFilters = ({ showFilters, setShowFilters, filters, setFilters }: M
                         placeholder="Search movements..."
                         value={filters.search}
                         onChange={(e) => setFilters.setSearch(e.target.value)}
+                        aria-label="Search movements"
                     />
                 </div>
                 <div className="flex gap-2">
@@ -78,8 +117,9 @@ const MovementFilters = ({ showFilters, setShowFilters, filters, setFilters }: M
                         variant="secondary"
                         onClick={() => setShowFilters(!showFilters)}
                         className={showFilters || activeFiltersCount > 0 ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800' : ''}
+                        aria-expanded={showFilters}
                     >
-                        <Filter className="w-5 h-5" />
+                        <Filter className="w-5 h-5" aria-hidden="true" />
                         Filters
                         {activeFiltersCount > 0 && (
                             <span className="ml-2 bg-blue-100 dark:bg-blue-800 text-blue-700 dark:text-blue-200 text-xs px-2 py-0.5 rounded-full">
@@ -92,8 +132,10 @@ const MovementFilters = ({ showFilters, setShowFilters, filters, setFilters }: M
                             variant="ghost"
                             onClick={clearFilters}
                             className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                            aria-label="Clear all filters"
+                            title="Clear all filters"
                         >
-                            <X className="w-5 h-5" />
+                            <X className="w-5 h-5" aria-hidden="true" />
                         </Button>
                     )}
                 </div>
@@ -128,31 +170,27 @@ const MovementFilters = ({ showFilters, setShowFilters, filters, setFilters }: M
                         onChange={(e) => setFilters.setPocket(e.target.value)}
                         options={[
                             { value: 'all', label: 'All Pockets' },
-                            ...accounts.map(acc => {
+                            ...accounts.flatMap(acc => {
                                 const accountPockets = pockets.filter(p =>
                                     (filters.account === 'all' || p.accountId === filters.account) &&
                                     p.accountId === acc.id
                                 );
 
-                                if (accountPockets.length === 0) return null;
+                                if (accountPockets.length === 0) return [];
 
-                                return {
+                                return [{
                                     label: acc.name,
                                     options: accountPockets.map(p => ({ value: p.id, label: p.name }))
-                                };
-                            }).filter(group => group !== null) as any
+                                }];
+                            })
                         ]}
                     />
 
-                    <Select
+                    <MovementTypeSelect
                         label="Type"
+                        includeAll
                         value={filters.type}
-                        onChange={(e) => setFilters.setType(e.target.value as FilterTypeOption)}
-                        options={[
-                            { value: 'all', label: 'All Types' },
-                            { value: 'income', label: 'Income' },
-                            { value: 'expense', label: 'Expense' },
-                        ]}
+                        onChange={setFilters.setType}
                     />
 
                     <Select
@@ -227,6 +265,46 @@ const MovementFilters = ({ showFilters, setShowFilters, filters, setFilters }: M
                             />
                         </div>
                     </div>
+
+                    <Select
+                        label="Category"
+                        value={filters.category}
+                        onChange={(e) => setFilters.setCategory(e.target.value)}
+                        options={categoryOptions}
+                    />
+
+                    {availableTags.length > 0 && (
+                        <div className="space-y-1">
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                Tags
+                            </label>
+                            <div className="flex flex-wrap gap-1.5 p-2 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 min-h-[44px]">
+                                {availableTags.map(tag => {
+                                    const selected = filters.tags.includes(tag);
+                                    return (
+                                        <button
+                                            key={tag}
+                                            type="button"
+                                            onClick={() => {
+                                                setFilters.setTags(
+                                                    selected
+                                                        ? filters.tags.filter(t => t !== tag)
+                                                        : [...filters.tags, tag]
+                                                );
+                                            }}
+                                            className={`px-2 py-0.5 text-xs rounded-full border transition-colors ${
+                                                selected
+                                                    ? 'bg-blue-100 dark:bg-blue-900/40 border-blue-300 dark:border-blue-700 text-blue-700 dark:text-blue-300'
+                                                    : 'bg-gray-100 dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
+                                            }`}
+                                        >
+                                            {tag}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
                 </div>
             )}
         </div>

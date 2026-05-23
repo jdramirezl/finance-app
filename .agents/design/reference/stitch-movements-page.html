@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Movements | CapitalFlow</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .glass-card {
+            background: rgba(26, 29, 39, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .glass-card-header {
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        }
+        .teal-gradient-bg {
+            background: linear-gradient(135deg, #06b6d4 0%, #22d3ee 100%);
+        }
+        .cyan-glow:hover {
+            box-shadow: 0 0 15px rgba(6, 182, 212, 0.4);
+        }
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.1);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+        .pending-row {
+            border: 1px dashed rgba(134, 147, 151, 0.4);
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "primary-fixed": "#acedff",
+                        "on-tertiary": "#4b2800",
+                        "on-tertiary-container": "#5b3200",
+                        "surface-container": "#1b2122",
+                        "on-surface": "#dee3e6",
+                        "on-secondary-fixed": "#001a42",
+                        "secondary-fixed-dim": "#adc6ff",
+                        "tertiary-container": "#e89337",
+                        "inverse-surface": "#dee3e6",
+                        "background": "#0e1416",
+                        "on-tertiary-fixed-variant": "#6a3b00",
+                        "error-container": "#93000a",
+                        "surface-tint": "#4cd7f6",
+                        "surface-dim": "#0e1416",
+                        "on-primary-fixed-variant": "#004e5c",
+                        "on-background": "#dee3e6",
+                        "on-error": "#690005",
+                        "on-secondary": "#002e6a",
+                        "on-tertiary-fixed": "#2d1600",
+                        "surface-bright": "#343a3c",
+                        "on-primary-fixed": "#001f26",
+                        "on-surface-variant": "#bcc9cd",
+                        "tertiary": "#ffb873",
+                        "tertiary-fixed": "#ffdcbf",
+                        "secondary-container": "#0566d9",
+                        "surface-container-lowest": "#090f11",
+                        "surface-variant": "#303638",
+                        "secondary-fixed": "#d8e2ff",
+                        "tertiary-fixed-dim": "#ffb873",
+                        "surface-container-highest": "#303638",
+                        "surface-container-high": "#252b2d",
+                        "secondary": "#adc6ff",
+                        "primary-container": "#06b6d4",
+                        "on-primary": "#003640",
+                        "surface-container-low": "#171d1e",
+                        "surface": "#0e1416",
+                        "inverse-on-surface": "#2b3133",
+                        "on-primary-container": "#00424f",
+                        "error": "#ffb4ab",
+                        "primary": "#4cd7f6",
+                        "on-secondary-fixed-variant": "#004395",
+                        "on-secondary-container": "#e6ecff",
+                        "outline": "#869397",
+                        "inverse-primary": "#00687a",
+                        "on-error-container": "#ffdad6",
+                        "primary-fixed-dim": "#4cd7f6",
+                        "outline-variant": "#3d494c"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "base-unit": "4px",
+                        "card-padding": "20px",
+                        "margin-desktop": "32px",
+                        "margin-mobile": "16px",
+                        "gutter": "16px"
+                    },
+                    "fontFamily": {
+                        "body-lg": ["Inter"],
+                        "headline-md": ["Inter"],
+                        "headline-xl": ["Inter"],
+                        "headline-lg": ["Inter"],
+                        "data-sm": ["JetBrains Mono"],
+                        "body-md": ["Inter"],
+                        "data-md": ["JetBrains Mono"],
+                        "data-lg": ["JetBrains Mono"],
+                        "label-caps": ["Inter"]
+                    },
+                    "fontSize": {
+                        "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                        "headline-md": ["20px", {"lineHeight": "28px", "fontWeight": "600"}],
+                        "headline-xl": ["36px", {"lineHeight": "44px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                        "headline-lg": ["24px", {"lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                        "data-sm": ["12px", {"lineHeight": "16px", "fontWeight": "500"}],
+                        "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                        "data-md": ["14px", {"lineHeight": "20px", "fontWeight": "500"}],
+                        "data-lg": ["18px", {"lineHeight": "24px", "fontWeight": "600"}],
+                        "label-caps": ["11px", {"lineHeight": "16px", "letterSpacing": "0.06em", "fontWeight": "700"}]
+                    }
+                },
+            },
+        }
+    </script>
+</head>
+<body class="bg-background text-on-surface font-body-md selection:bg-primary selection:text-on-primary">
+<!-- Desktop Sidebar -->
+<aside class="fixed left-0 top-0 h-screen w-[260px] hidden lg:flex flex-col bg-surface-container/80 backdrop-blur-xl border-r border-white/10 shadow-2xl z-40">
+<div class="flex flex-col h-full py-8">
+<div class="px-6 mb-10">
+<h1 class="font-headline-xl text-headline-xl font-bold bg-gradient-to-r from-primary-container to-primary bg-clip-text text-transparent">CapitalFlow</h1>
+<p class="text-on-surface-variant text-[10px] uppercase tracking-widest mt-1">Institutional Grade</p>
+</div>
+<nav class="flex-1 space-y-1">
+<a class="flex items-center gap-4 px-6 py-3 text-on-surface-variant hover:text-primary transition-colors hover:bg-white/5" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span class="font-body-md text-body-md">Summary</span>
+</a>
+<a class="flex items-center gap-4 px-6 py-3 text-on-surface-variant hover:text-primary transition-colors hover:bg-white/5" href="#">
+<span class="material-symbols-outlined">account_balance</span>
+<span class="font-body-md text-body-md">Accounts</span>
+</a>
+<a class="flex items-center gap-4 px-6 py-3 text-on-surface-variant hover:text-primary transition-colors hover:bg-white/5" href="#">
+<span class="material-symbols-outlined">receipt_long</span>
+<span class="font-body-md text-body-md">Fixed Expenses</span>
+</a>
+<a class="flex items-center gap-4 px-6 py-3 text-on-surface-variant hover:text-primary transition-colors hover:bg-white/5" href="#">
+<span class="material-symbols-outlined">savings</span>
+<span class="font-body-md text-body-md">Budget</span>
+</a>
+<!-- Active -->
+<a class="flex items-center gap-4 px-6 py-3 border-l-4 border-primary bg-primary/10 text-primary font-bold active:scale-95 transition-transform duration-150" href="#">
+<span class="material-symbols-outlined">swap_horiz</span>
+<span class="font-body-md text-body-md">Movements</span>
+</a>
+<a class="flex items-center gap-4 px-6 py-3 text-on-surface-variant hover:text-primary transition-colors hover:bg-white/5" href="#">
+<span class="material-symbols-outlined">layers</span>
+<span class="font-body-md text-body-md">Templates</span>
+</a>
+<a class="flex items-center gap-4 px-6 py-3 text-on-surface-variant hover:text-primary transition-colors hover:bg-white/5" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span class="font-body-md text-body-md">Settings</span>
+</a>
+</nav>
+<div class="px-6 mt-auto space-y-4">
+<div class="flex items-center gap-3 p-3 rounded-lg bg-surface-container-high">
+<div class="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-sm">person</span>
+</div>
+<div class="flex-1 overflow-hidden">
+<p class="text-xs font-bold truncate">Alex Chen</p>
+<p class="text-[10px] text-on-surface-variant truncate">Premium Account</p>
+</div>
+</div>
+<div class="flex justify-between text-on-surface-variant">
+<button class="hover:text-primary"><span class="material-symbols-outlined">dark_mode</span></button>
+<button class="hover:text-primary"><span class="material-symbols-outlined">help</span></button>
+</div>
+</div>
+</div>
+</aside>
+<!-- Mobile Header -->
+<header class="fixed top-0 w-full lg:hidden z-50 bg-surface-dim/80 backdrop-blur-md border-b border-white/5 flex justify-between items-center h-16 px-4">
+<h1 class="font-headline-lg-mobile text-headline-lg-mobile font-black text-primary">CapitalFlow</h1>
+<div class="flex gap-4">
+<span class="material-symbols-outlined text-on-surface-variant">notifications</span>
+<span class="material-symbols-outlined text-on-surface-variant">account_circle</span>
+</div>
+</header>
+<!-- Main Content Area -->
+<main class="lg:ml-[260px] min-h-screen pt-20 lg:pt-8 pb-32 lg:pb-8 px-4 lg:px-8 max-w-[1600px] mx-auto">
+<!-- Header Actions -->
+<div class="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-8">
+<div>
+<nav class="flex items-center gap-2 text-xs text-on-surface-variant mb-2">
+<span>Finances</span>
+<span class="material-symbols-outlined text-[12px]">chevron_right</span>
+<span class="text-primary font-medium">Movements</span>
+</nav>
+<h2 class="font-headline-xl text-headline-xl text-on-surface">Movements</h2>
+</div>
+<div class="flex gap-3">
+<button class="flex items-center gap-2 px-4 py-2 bg-surface-container-high text-on-surface rounded-lg font-medium hover:bg-surface-container-highest transition-all" onclick="togglePanel()">
+<span class="material-symbols-outlined text-lg">library_add</span>
+                    Batch Add
+                </button>
+<button class="flex items-center gap-2 px-6 py-2 teal-gradient-bg text-background rounded-lg font-bold cyan-glow transition-all" onclick="togglePanel()">
+<span class="material-symbols-outlined text-lg">add</span>
+                    Add Movement
+                </button>
+</div>
+</div>
+<!-- Quick Add Strip -->
+<div class="glass-card rounded-xl p-4 mb-6 shadow-sm">
+<div class="flex flex-wrap items-center gap-4">
+<div class="flex-1 min-w-[180px]">
+<div class="relative">
+<span class="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant font-data-md">$</span>
+<input class="w-full bg-surface-container-lowest border border-outline-variant focus:border-primary rounded px-8 py-2 font-data-md text-on-surface outline-none transition-all" placeholder="0.00" type="text"/>
+</div>
+</div>
+<div class="flex bg-surface-container-lowest p-1 rounded-lg border border-outline-variant">
+<button class="px-4 py-1.5 rounded bg-error-container text-white text-xs font-bold">Expense</button>
+<button class="px-4 py-1.5 rounded hover:bg-white/5 text-on-surface-variant text-xs font-bold">Income</button>
+<button class="px-4 py-1.5 rounded hover:bg-white/5 text-on-surface-variant text-xs font-bold">Transfer</button>
+</div>
+<select class="bg-surface-container-lowest border border-outline-variant rounded px-4 py-2 font-body-md text-on-surface outline-none">
+<option>Main Wallet</option>
+<option>Savings Vault</option>
+<option>Business Account</option>
+</select>
+<select class="bg-surface-container-lowest border border-outline-variant rounded px-4 py-2 font-body-md text-on-surface outline-none">
+<option>Personal Pocket</option>
+<option>Investment Pocket</option>
+</select>
+<button class="w-10 h-10 flex items-center justify-center rounded-lg bg-primary/20 text-primary hover:bg-primary/30 transition-all">
+<span class="material-symbols-outlined">send</span>
+</button>
+</div>
+</div>
+<!-- Filters Bar -->
+<div class="flex flex-wrap items-center gap-3 mb-6">
+<div class="flex-1 min-w-[240px] relative">
+<span class="absolute left-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-on-surface-variant text-lg">search</span>
+<input class="w-full bg-surface-container-low border-none rounded-lg pl-10 pr-4 py-2 text-sm focus:ring-1 focus:ring-primary outline-none" placeholder="Search transactions..." type="text"/>
+</div>
+<button class="flex items-center gap-2 px-3 py-2 bg-surface-container-low rounded-lg text-sm text-on-surface hover:bg-surface-variant">
+<span class="material-symbols-outlined text-lg">calendar_today</span>
+                Last 30 Days
+            </button>
+<button class="flex items-center gap-2 px-3 py-2 bg-surface-container-low rounded-lg text-sm text-on-surface hover:bg-surface-variant">
+<span class="material-symbols-outlined text-lg">filter_alt</span>
+                More Filters
+            </button>
+<div class="h-6 w-[1px] bg-white/10 mx-2"></div>
+<label class="flex items-center gap-2 cursor-pointer group">
+<div class="relative w-10 h-5 bg-surface-container-highest rounded-full transition-colors group-hover:bg-outline-variant">
+<div class="absolute left-1 top-1 w-3 h-3 bg-on-surface-variant rounded-full transition-transform" id="pendingToggleThumb"></div>
+</div>
+<span class="text-xs font-medium text-on-surface-variant">Pending only</span>
+<input class="hidden" onchange="document.getElementById('pendingToggleThumb').classList.toggle('translate-x-5'); document.getElementById('pendingToggleThumb').classList.toggle('bg-primary')" type="checkbox"/>
+</label>
+</div>
+<!-- Table View -->
+<div class="glass-card rounded-xl overflow-hidden shadow-2xl">
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse min-w-[1000px]">
+<thead>
+<tr class="bg-surface-container-high/50 text-on-surface-variant">
+<th class="px-6 py-4 font-label-caps text-label-caps uppercase tracking-widest border-b border-white/5">Date</th>
+<th class="px-6 py-4 font-label-caps text-label-caps uppercase tracking-widest border-b border-white/5">Movement</th>
+<th class="px-6 py-4 font-label-caps text-label-caps uppercase tracking-widest border-b border-white/5">Account -&gt; Pocket</th>
+<th class="px-6 py-4 font-label-caps text-label-caps uppercase tracking-widest border-b border-white/5">Category</th>
+<th class="px-6 py-4 font-label-caps text-label-caps uppercase tracking-widest border-b border-white/5">Amount</th>
+<th class="px-6 py-4 font-label-caps text-label-caps uppercase tracking-widest border-b border-white/5"></th>
+</tr>
+</thead>
+<tbody class="divide-y divide-white/5">
+<!-- Pending Movement -->
+<tr class="pending-row bg-primary/5 hover:bg-primary/10 transition-colors group">
+<td class="px-6 py-4">
+<p class="font-data-sm text-data-sm text-primary">OCT 24</p>
+<p class="text-[10px] text-primary/70 uppercase">In 2 days</p>
+</td>
+<td class="px-6 py-4">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded bg-primary/20 flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-lg">bolt</span>
+</div>
+<div>
+<p class="font-bold text-sm">Monthly Subscription: Cloud</p>
+<p class="text-[11px] text-on-surface-variant truncate max-w-[200px]">AWS usage for October production environment</p>
+</div>
+</div>
+</td>
+<td class="px-6 py-4">
+<p class="text-xs font-medium">Business Account</p>
+<p class="text-[11px] text-on-surface-variant">Cloud Infrastructure</p>
+</td>
+<td class="px-6 py-4">
+<span class="px-2 py-1 bg-surface-container-highest text-[10px] rounded font-bold uppercase text-on-surface-variant">Infrastructure</span>
+</td>
+<td class="px-6 py-4 font-data-md text-data-md text-on-surface">
+<span class="bg-transparent border border-transparent group-hover:border-white/10 px-1 py-0.5 rounded cursor-edit">-$1,420.00</span>
+</td>
+<td class="px-6 py-4 text-right">
+<button class="text-on-surface-variant hover:text-primary transition-colors">
+<span class="material-symbols-outlined">more_vert</span>
+</button>
+</td>
+</tr>
+<!-- Standard Movements -->
+<tr class="hover:bg-white/5 transition-colors group">
+<td class="px-6 py-4">
+<p class="font-data-sm text-data-sm">OCT 22</p>
+<p class="text-[10px] text-on-surface-variant uppercase">2:45 PM</p>
+</td>
+<td class="px-6 py-4">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded bg-tertiary-container/20 flex items-center justify-center text-tertiary">
+<span class="material-symbols-outlined text-lg">shopping_cart</span>
+</div>
+<div>
+<p class="font-bold text-sm">Hardware Procurement</p>
+<p class="text-[11px] text-on-surface-variant">MacBook Pro 16" M3 Max</p>
+</div>
+</div>
+</td>
+<td class="px-6 py-4">
+<p class="text-xs font-medium">Main Wallet</p>
+<p class="text-[11px] text-on-surface-variant">Equipment Fund</p>
+</td>
+<td class="px-6 py-4">
+<div class="flex flex-wrap gap-1">
+<span class="px-2 py-1 bg-surface-container-highest text-[10px] rounded font-bold uppercase text-on-surface-variant">Tech</span>
+<span class="px-2 py-1 bg-surface-container-highest text-[10px] rounded font-bold uppercase text-on-surface-variant">Assets</span>
+</div>
+</td>
+<td class="px-6 py-4 font-data-md text-data-md text-error">-$4,299.00</td>
+<td class="px-6 py-4 text-right">
+<button class="text-on-surface-variant hover:text-primary transition-colors">
+<span class="material-symbols-outlined">more_vert</span>
+</button>
+</td>
+</tr>
+<tr class="hover:bg-white/5 transition-colors group">
+<td class="px-6 py-4">
+<p class="font-data-sm text-data-sm">OCT 21</p>
+<p class="text-[10px] text-on-surface-variant uppercase">09:12 AM</p>
+</td>
+<td class="px-6 py-4">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded bg-primary-container/20 flex items-center justify-center text-primary-container">
+<span class="material-symbols-outlined text-lg">account_balance_wallet</span>
+</div>
+<div>
+<p class="font-bold text-sm">Dividend Payout</p>
+<p class="text-[11px] text-on-surface-variant">SPY Q3 Quarterly Dividends</p>
+</div>
+</div>
+</td>
+<td class="px-6 py-4">
+<p class="text-xs font-medium">Investment Vault</p>
+<p class="text-[11px] text-on-surface-variant">Passive Income</p>
+</td>
+<td class="px-6 py-4">
+<span class="px-2 py-1 bg-surface-container-highest text-[10px] rounded font-bold uppercase text-on-surface-variant">Investing</span>
+</td>
+<td class="px-6 py-4 font-data-md text-data-md text-primary-container">+$845.22</td>
+<td class="px-6 py-4 text-right">
+<button class="text-on-surface-variant hover:text-primary transition-colors">
+<span class="material-symbols-outlined">more_vert</span>
+</button>
+</td>
+</tr>
+<tr class="hover:bg-white/5 transition-colors group">
+<td class="px-6 py-4">
+<p class="font-data-sm text-data-sm">OCT 20</p>
+<p class="text-[10px] text-on-surface-variant uppercase">6:30 PM</p>
+</td>
+<td class="px-6 py-4">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded bg-secondary/20 flex items-center justify-center text-secondary">
+<span class="material-symbols-outlined text-lg">restaurant</span>
+</div>
+<div>
+<p class="font-bold text-sm">Client Lunch</p>
+<p class="text-[11px] text-on-surface-variant">L'Oiseau Blanc Paris</p>
+</div>
+</div>
+</td>
+<td class="px-6 py-4">
+<p class="text-xs font-medium">Main Wallet</p>
+<p class="text-[11px] text-on-surface-variant">Business Travel</p>
+</td>
+<td class="px-6 py-4">
+<span class="px-2 py-1 bg-surface-container-highest text-[10px] rounded font-bold uppercase text-on-surface-variant">Dining</span>
+</td>
+<td class="px-6 py-4 font-data-md text-data-md text-error">-$210.50</td>
+<td class="px-6 py-4 text-right">
+<button class="text-on-surface-variant hover:text-primary transition-colors">
+<span class="material-symbols-outlined">more_vert</span>
+</button>
+</td>
+</tr>
+<!-- Repeat for density -->
+<tr class="hover:bg-white/5 transition-colors group">
+<td class="px-6 py-4">
+<p class="font-data-sm text-data-sm">OCT 19</p>
+<p class="text-[10px] text-on-surface-variant uppercase">10:00 PM</p>
+</td>
+<td class="px-6 py-4">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded bg-outline/20 flex items-center justify-center text-outline">
+<span class="material-symbols-outlined text-lg">sync_alt</span>
+</div>
+<div>
+<p class="font-bold text-sm">Internal Sweep</p>
+<p class="text-[11px] text-on-surface-variant">Transfer to High-Yield Savings</p>
+</div>
+</div>
+</td>
+<td class="px-6 py-4">
+<p class="text-xs font-medium">Main -&gt; Savings</p>
+<p class="text-[11px] text-on-surface-variant">Treasury Management</p>
+</td>
+<td class="px-6 py-4">
+<span class="px-2 py-1 bg-surface-container-highest text-[10px] rounded font-bold uppercase text-on-surface-variant">Transfer</span>
+</td>
+<td class="px-6 py-4 font-data-md text-data-md text-on-surface">-$10,000.00</td>
+<td class="px-6 py-4 text-right">
+<button class="text-on-surface-variant hover:text-primary transition-colors">
+<span class="material-symbols-outlined">more_vert</span>
+</button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="p-4 bg-surface-container-high/30 flex justify-between items-center">
+<span class="text-xs text-on-surface-variant">Showing 1-25 of 1,248 movements</span>
+<div class="flex gap-2">
+<button class="w-8 h-8 flex items-center justify-center rounded border border-white/5 hover:bg-white/5"><span class="material-symbols-outlined text-sm">chevron_left</span></button>
+<button class="w-8 h-8 flex items-center justify-center rounded bg-primary text-background font-bold text-xs">1</button>
+<button class="w-8 h-8 flex items-center justify-center rounded border border-white/5 hover:bg-white/5 text-xs">2</button>
+<button class="w-8 h-8 flex items-center justify-center rounded border border-white/5 hover:bg-white/5 text-xs">3</button>
+<button class="w-8 h-8 flex items-center justify-center rounded border border-white/5 hover:bg-white/5"><span class="material-symbols-outlined text-sm">chevron_right</span></button>
+</div>
+</div>
+</div>
+</main>
+<!-- Mobile Bottom Nav -->
+<nav class="fixed bottom-0 w-full lg:hidden z-50 bg-surface-container-highest/90 backdrop-blur-2xl border-t border-white/10 rounded-t-xl flex justify-around items-center h-20 pb-safe px-4 shadow-[0_-10px_20px_rgba(0,0,0,0.4)]">
+<a class="flex flex-col items-center justify-center text-on-surface-variant active:scale-90 transition-transform" href="#">
+<span class="material-symbols-outlined">home</span>
+<span class="font-label-caps text-label-caps uppercase">Home</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant active:scale-90 transition-transform" href="#">
+<span class="material-symbols-outlined">account_balance_wallet</span>
+<span class="font-label-caps text-label-caps uppercase">Wallets</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant active:scale-90 transition-transform" href="#">
+<span class="material-symbols-outlined">query_stats</span>
+<span class="font-label-caps text-label-caps uppercase">Stats</span>
+</a>
+<!-- Active -->
+<a class="flex flex-col items-center justify-center text-primary active:scale-90 transition-transform" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">history</span>
+<span class="font-label-caps text-label-caps uppercase">Logs</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant active:scale-90 transition-transform" href="#">
+<span class="material-symbols-outlined">menu</span>
+<span class="font-label-caps text-label-caps uppercase">More</span>
+</a>
+</nav>
+<!-- Slide-in Panel (Add Movement) -->
+<div class="fixed inset-y-0 right-0 w-full max-w-md bg-surface-container-low shadow-2xl z-[60] translate-x-full transition-transform duration-300 ease-in-out flex flex-col border-l border-white/10" id="sidePanel">
+<div class="flex items-center justify-between p-6 glass-card-header">
+<h3 class="font-headline-lg text-headline-lg text-on-surface">New Movement</h3>
+<button class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-white/5" onclick="togglePanel()">
+<span class="material-symbols-outlined">close</span>
+</button>
+</div>
+<div class="flex-1 overflow-y-auto p-6 space-y-6">
+<!-- Type Selector -->
+<div class="space-y-2">
+<label class="text-xs font-bold uppercase tracking-widest text-on-surface-variant">Movement Type</label>
+<div class="grid grid-cols-3 gap-2">
+<button class="flex flex-col items-center justify-center py-4 bg-error-container/20 border border-error-container text-error rounded-xl transition-all">
+<span class="material-symbols-outlined mb-1">remove_circle</span>
+<span class="text-xs font-bold">Expense</span>
+</button>
+<button class="flex flex-col items-center justify-center py-4 bg-surface-container-high border border-white/5 text-on-surface-variant rounded-xl hover:border-primary transition-all">
+<span class="material-symbols-outlined mb-1">add_circle</span>
+<span class="text-xs font-bold">Income</span>
+</button>
+<button class="flex flex-col items-center justify-center py-4 bg-surface-container-high border border-white/5 text-on-surface-variant rounded-xl hover:border-primary transition-all">
+<span class="material-symbols-outlined mb-1">sync_alt</span>
+<span class="text-xs font-bold">Transfer</span>
+</button>
+</div>
+</div>
+<!-- Amount Input -->
+<div class="space-y-2">
+<label class="text-xs font-bold uppercase tracking-widest text-on-surface-variant">Amount</label>
+<div class="relative bg-surface-container-lowest rounded-xl p-4 border border-white/10">
+<div class="flex items-center justify-between">
+<span class="font-data-lg text-data-lg text-primary">USD</span>
+<input class="bg-transparent text-right font-data-lg text-data-lg text-on-surface outline-none border-none focus:ring-0 w-full" type="text" value="0.00"/>
+</div>
+</div>
+<!-- Quick Calc -->
+<div class="flex gap-2">
+<button class="flex-1 py-2 bg-surface-container-highest rounded text-xs font-data-md">+10% VAT</button>
+<button class="flex-1 py-2 bg-surface-container-highest rounded text-xs font-data-md">Convert</button>
+<button class="flex-1 py-2 bg-surface-container-highest rounded text-xs font-data-md">Divide (2)</button>
+</div>
+</div>
+<!-- Account & Pocket -->
+<div class="grid grid-cols-2 gap-4">
+<div class="space-y-2">
+<label class="text-xs font-bold uppercase tracking-widest text-on-surface-variant">Account</label>
+<select class="w-full bg-surface-container-lowest border border-white/10 rounded-lg p-3 text-sm focus:border-primary outline-none">
+<option>Main Wallet</option>
+<option>Business Account</option>
+</select>
+</div>
+<div class="space-y-2">
+<label class="text-xs font-bold uppercase tracking-widest text-on-surface-variant">Pocket</label>
+<select class="w-full bg-surface-container-lowest border border-white/10 rounded-lg p-3 text-sm focus:border-primary outline-none">
+<option>General</option>
+<option>Investments</option>
+</select>
+</div>
+</div>
+<!-- Category Grid -->
+<div class="space-y-2">
+<label class="text-xs font-bold uppercase tracking-widest text-on-surface-variant">Category</label>
+<div class="grid grid-cols-4 gap-2">
+<button class="flex flex-col items-center p-2 rounded-lg bg-surface-container-high hover:bg-primary/20 hover:text-primary transition-all">
+<span class="material-symbols-outlined text-lg">restaurant</span>
+<span class="text-[10px] mt-1">Food</span>
+</button>
+<button class="flex flex-col items-center p-2 rounded-lg bg-surface-container-high hover:bg-primary/20 hover:text-primary transition-all">
+<span class="material-symbols-outlined text-lg">shopping_bag</span>
+<span class="text-[10px] mt-1">Shop</span>
+</button>
+<button class="flex flex-col items-center p-2 rounded-lg bg-surface-container-high hover:bg-primary/20 hover:text-primary transition-all">
+<span class="material-symbols-outlined text-lg">directions_car</span>
+<span class="text-[10px] mt-1">Trans</span>
+</button>
+<button class="flex flex-col items-center p-2 rounded-lg border border-primary/50 text-primary bg-primary/10">
+<span class="material-symbols-outlined text-lg">bolt</span>
+<span class="text-[10px] mt-1">Bills</span>
+</button>
+</div>
+</div>
+<!-- Notes & Tags -->
+<div class="space-y-4 pt-2">
+<div class="space-y-2">
+<label class="text-xs font-bold uppercase tracking-widest text-on-surface-variant">Notes</label>
+<textarea class="w-full bg-surface-container-lowest border border-white/10 rounded-lg p-3 text-sm outline-none focus:border-primary" placeholder="Add a description..." rows="2"></textarea>
+</div>
+<div class="flex items-center justify-between p-4 bg-surface-container-highest/40 rounded-xl">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-on-surface-variant">schedule</span>
+<span class="text-xs font-medium">Mark as Pending</span>
+</div>
+<label class="relative inline-flex items-center cursor-pointer">
+<input class="sr-only peer" type="checkbox"/>
+<div class="w-11 h-6 bg-surface-container-low rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+</label>
+</div>
+</div>
+</div>
+<div class="p-6 border-t border-white/10 flex gap-4">
+<button class="flex-1 py-3 rounded-lg bg-surface-container-high text-sm font-bold hover:bg-surface-container-highest transition-colors" onclick="togglePanel()">Discard</button>
+<button class="flex-[2] py-3 rounded-lg teal-gradient-bg text-background text-sm font-bold cyan-glow transition-all">Confirm Movement</button>
+</div>
+</div>
+<div class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[55] opacity-0 pointer-events-none transition-opacity duration-300" id="panelOverlay" onclick="togglePanel()"></div>
+<script>
+        function togglePanel() {
+            const panel = document.getElementById('sidePanel');
+            const overlay = document.getElementById('panelOverlay');
+            const isOpen = panel.classList.contains('translate-x-0');
+
+            if (isOpen) {
+                panel.classList.remove('translate-x-0');
+                panel.classList.add('translate-x-full');
+                overlay.classList.remove('opacity-100');
+                overlay.classList.add('opacity-0');
+                overlay.style.pointerEvents = 'none';
+            } else {
+                panel.classList.remove('translate-x-full');
+                panel.classList.add('translate-x-0');
+                overlay.classList.remove('opacity-0');
+                overlay.classList.add('opacity-100');
+                overlay.style.pointerEvents = 'auto';
+            }
+        }
+
+        // Simple Hover Interaction for rows
+        document.querySelectorAll('tr').forEach(row => {
+            row.addEventListener('mouseenter', () => {
+                row.style.backdropFilter = 'brightness(1.2)';
+            });
+            row.addEventListener('mouseleave', () => {
+                row.style.backdropFilter = 'none';
+            });
+        });
+    </script>
+</body></html>

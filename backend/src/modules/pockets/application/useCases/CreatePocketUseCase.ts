@@ -85,7 +85,8 @@ export class CreatePocketUseCase {
       dto.name.trim(),
       dto.type,
       0, // Initial balance
-      currency // Use derived currency
+      currency, // Use derived currency
+      0 // displayOrder — NOT NULL constraint requires a value
     );
 
     // Persist pocket

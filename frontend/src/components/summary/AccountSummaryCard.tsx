@@ -1,42 +1,52 @@
+import { memo, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { Account, Pocket } from '../../types';
 import { currencyService } from '../../services/currencyService';
 import { Wallet, CreditCard, Banknote, PiggyBank, Lock } from 'lucide-react';
-import SelectableValue from '../SelectableValue';
+import SelectableValue from '../ui/SelectableValue';
 
 interface AccountSummaryCardProps {
     account: Account;
     pockets: Pocket[];
 }
 
+/**
+ * Renders one account's detailed summary card on the summary page.
+ * Memoized so changes elsewhere on the summary page (refreshing one
+ * investment's price, fetching exchange rates, etc.) don't trigger a
+ * re-render of every account card.
+ *
+ * Parents must memoize the `pockets` array per account (for example via a
+ * `Map<accountId, Pocket[]>` built once with useMemo) so the array
+ * reference stays stable when its contents haven't changed.
+ */
 const AccountSummaryCard = ({ account, pockets }: AccountSummaryCardProps) => {
     const navigate = useNavigate();
 
     const handleAccountClick = () => {
         navigate(`/accounts?id=${account.id}`);
     };
-    
+
     // Get account type icon
     const getAccountIcon = () => {
         switch (account.type) {
             case 'normal':
-                // Check for specific account subtypes based on name patterns
                 if (account.name.toLowerCase().includes('checking')) {
-                    return <CreditCard className="w-4 h-4 text-blue-600 dark:text-blue-400" />;
+                    return <CreditCard className="w-4 h-4 text-blue-600 dark:text-blue-400" aria-hidden="true" />;
                 }
                 if (account.name.toLowerCase().includes('savings')) {
-                    return <PiggyBank className="w-4 h-4 text-green-600 dark:text-green-400" />;
+                    return <PiggyBank className="w-4 h-4 text-green-600 dark:text-green-400" aria-hidden="true" />;
                 }
                 if (account.name.toLowerCase().includes('cash')) {
-                    return <Banknote className="w-4 h-4 text-amber-600 dark:text-amber-400" />;
+                    return <Banknote className="w-4 h-4 text-amber-600 dark:text-amber-400" aria-hidden="true" />;
                 }
-                return <Wallet className="w-4 h-4 text-gray-600 dark:text-gray-400" />;
+                return <Wallet className="w-4 h-4 text-gray-600 dark:text-gray-400" aria-hidden="true" />;
             case 'investment':
-                return <Wallet className="w-4 h-4 text-purple-600 dark:text-purple-400" />;
+                return <Wallet className="w-4 h-4 text-purple-600 dark:text-purple-400" aria-hidden="true" />;
             case 'cd':
-                return <Wallet className="w-4 h-4 text-amber-600 dark:text-amber-400" />;
+                return <Wallet className="w-4 h-4 text-amber-600 dark:text-amber-400" aria-hidden="true" />;
             default:
-                return <Wallet className="w-4 h-4 text-gray-600 dark:text-gray-400" />;
+                return <Wallet className="w-4 h-4 text-gray-600 dark:text-gray-400" aria-hidden="true" />;
         }
     };
 
@@ -44,7 +54,6 @@ const AccountSummaryCard = ({ account, pockets }: AccountSummaryCardProps) => {
     const getAccountTypeLabel = () => {
         switch (account.type) {
             case 'normal':
-                // Check for specific account subtypes based on name patterns
                 if (account.name.toLowerCase().includes('checking')) {
                     return 'Checking Account';
                 }
@@ -64,18 +73,24 @@ const AccountSummaryCard = ({ account, pockets }: AccountSummaryCardProps) => {
         }
     };
 
-    // Calculate pocket distribution for visual representation
+    // Calculate pocket distribution for visual representation. Memoized so
+    // re-renders triggered by props that don't change `pockets`/`balance`
+    // skip this O(n) loop.
     const totalBalance = account.balance;
-    const pocketPercentages = pockets.map(pocket => ({
-        ...pocket,
-        percentage: totalBalance > 0 ? (pocket.balance / totalBalance) * 100 : 0
-    }));
+    const pocketPercentages = useMemo(
+        () =>
+            pockets.map((pocket) => ({
+                ...pocket,
+                percentage: totalBalance > 0 ? (pocket.balance / totalBalance) * 100 : 0,
+            })),
+        [pockets, totalBalance]
+    );
 
     return (
         <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4 border-l-4" style={{ borderColor: account.color }}>
             {/* Header */}
             <div className="flex items-center justify-between mb-3">
-                <div 
+                <div
                     className="flex items-center gap-3 cursor-pointer group"
                     onClick={handleAccountClick}
                     title="View Account Details"
@@ -127,10 +142,10 @@ const AccountSummaryCard = ({ account, pockets }: AccountSummaryCardProps) => {
                                     className="h-full transition-all duration-300"
                                     style={{
                                         width: `${pocket.percentage}%`,
-                                        backgroundColor: index === 0 ? account.color : 
-                                                       index === 1 ? `${account.color}80` :
-                                                       index === 2 ? `${account.color}60` :
-                                                       `${account.color}40`
+                                        backgroundColor: index === 0 ? account.color :
+                                            index === 1 ? `${account.color}80` :
+                                                index === 2 ? `${account.color}60` :
+                                                    `${account.color}40`
                                     }}
                                     title={`${pocket.name}: ${pocket.percentage.toFixed(1)}%`}
                                 />
@@ -148,10 +163,10 @@ const AccountSummaryCard = ({ account, pockets }: AccountSummaryCardProps) => {
                             <div
                                 className="w-3 h-3 rounded-full"
                                 style={{
-                                    backgroundColor: index === 0 ? account.color : 
-                                                   index === 1 ? `${account.color}80` :
-                                                   index === 2 ? `${account.color}60` :
-                                                   `${account.color}40`
+                                    backgroundColor: index === 0 ? account.color :
+                                        index === 1 ? `${account.color}80` :
+                                            index === 2 ? `${account.color}60` :
+                                                `${account.color}40`
                                 }}
                             />
                             <div>
@@ -161,7 +176,7 @@ const AccountSummaryCard = ({ account, pockets }: AccountSummaryCardProps) => {
                                     </span>
                                     {pocket.type === 'fixed' && (
                                         <div className="flex items-center gap-1">
-                                            <Lock className="w-3 h-3 text-blue-600 dark:text-blue-400" />
+                                            <Lock className="w-3 h-3 text-blue-600 dark:text-blue-400" aria-hidden="true" />
                                             <span className="text-xs font-medium px-1.5 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded">
                                                 Fixed
                                             </span>
@@ -189,4 +204,4 @@ const AccountSummaryCard = ({ account, pockets }: AccountSummaryCardProps) => {
     );
 };
 
-export default AccountSummaryCard;
+export default memo(AccountSummaryCard);

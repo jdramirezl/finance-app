@@ -2,6 +2,7 @@ import { apiClient as api } from './apiClient';
 
 export type RecurrenceType = 'once' | 'daily' | 'weekly' | 'monthly' | 'yearly' | 'custom';
 export type RecurrenceEndType = 'never' | 'after' | 'on_date';
+export type RecurrencePeriod = Exclude<RecurrenceType, 'once' | 'custom'>;
 
 export interface RecurrenceConfig {
     type: RecurrenceType;
@@ -10,6 +11,9 @@ export interface RecurrenceConfig {
     endType: RecurrenceEndType;
     endCount?: number;
     endDate?: string;
+    // For custom recurrence: the unit that `interval` is measured in
+    // (e.g. interval=3, customPeriod='weekly' = "every 3 weeks")
+    customPeriod?: RecurrencePeriod;
 }
 
 export interface ReminderException {
@@ -80,12 +84,12 @@ export const reminderService = {
     },
 
     create: async (data: CreateReminderDTO): Promise<Reminder> => {
-        const response = await api.post<Reminder>('/api/reminders', data);
+        const response = await api.post<Reminder>('/api/reminders', { ...data });
         return response;
     },
 
     update: async (id: string, data: UpdateReminderDTO): Promise<Reminder> => {
-        const response = await api.put<Reminder>(`/api/reminders/${id}`, data);
+        const response = await api.put<Reminder>(`/api/reminders/${id}`, { ...data });
         return response;
     },
 
@@ -103,8 +107,12 @@ export const reminderService = {
         return response;
     },
 
-    splitSeries: async (id: string, splitDate: string, newDetails?: CreateReminderDTO): Promise<any> => {
-        const response = await api.post(`/api/reminders/${id}/split`, { splitDate, newDetails });
+    splitSeries: async (id: string, splitDate: string, newDetails?: CreateReminderDTO): Promise<Reminder> => {
+        const payload: Record<string, unknown> = { splitDate };
+        if (newDetails !== undefined) {
+            payload.newDetails = newDetails as unknown as Record<string, unknown>;
+        }
+        const response = await api.post<Reminder>(`/api/reminders/${id}/split`, payload);
         return response;
     }
 };

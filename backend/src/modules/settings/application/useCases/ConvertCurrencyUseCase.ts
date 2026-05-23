@@ -36,9 +36,8 @@ export class ConvertCurrencyUseCase {
       throw new ValidationError('Amount must be a valid number');
     }
 
-    if (dto.amount < 0) {
-      throw new ValidationError('Amount cannot be negative');
-    }
+    // Negative amounts are valid — accounts can have negative balances
+    // The conversion just applies the rate to whatever amount is given
 
     // Special case: same currency
     if (dto.fromCurrency === dto.toCurrency) {

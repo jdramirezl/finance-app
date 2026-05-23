@@ -11,6 +11,8 @@ import { Router } from 'express';
 import { container } from 'tsyringe';
 import { SettingsController } from './SettingsController';
 import { authMiddleware } from '../../../shared/middleware/authMiddleware';
+import { validateBody } from '../../../shared/middleware/validate';
+import { updateSettingsSchema } from './schemas';
 
 const router = Router();
 
@@ -41,6 +43,6 @@ router.get('/', (req, res, next) => controller.get(req, res, next));
  * 
  * Requirements: 14.2, 14.3
  */
-router.put('/', (req, res, next) => controller.update(req, res, next));
+router.put('/', validateBody(updateSettingsSchema), (req, res, next) => controller.update(req, res, next));
 
 export default router;

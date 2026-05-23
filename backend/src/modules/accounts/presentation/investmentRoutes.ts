@@ -11,6 +11,8 @@ import { Router } from 'express';
 import { container } from 'tsyringe';
 import { InvestmentController } from './InvestmentController';
 import { authMiddleware } from '../../../shared/middleware/authMiddleware';
+import { validateBody } from '../../../shared/middleware/validate';
+import { updateInvestmentSchema } from '../../settings/presentation/schemas';
 
 const router = Router();
 
@@ -51,6 +53,6 @@ router.get('/:accountId/price', (req, res, next) => controller.getPrice(req, res
  * 
  * Requirements: 13.6
  */
-router.post('/:accountId/update', (req, res, next) => controller.updateInvestment(req, res, next));
+router.post('/:accountId/update', validateBody(updateInvestmentSchema), (req, res, next) => controller.updateInvestment(req, res, next));
 
 export default router;

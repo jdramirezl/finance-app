@@ -21,10 +21,12 @@ describe('GetPocketByIdUseCase', () => {
       findAllByUserId: jest.fn(),
       existsByNameInAccount: jest.fn(),
       existsByNameInAccountExcludingId: jest.fn(),
+      existsFixedPocketInAccount: jest.fn(),
       existsFixedPocketForUser: jest.fn(),
       existsFixedPocketForUserExcludingId: jest.fn(),
       update: jest.fn(),
       delete: jest.fn(),
+      deleteByAccountId: jest.fn(),
       updateDisplayOrders: jest.fn(),
     };
 

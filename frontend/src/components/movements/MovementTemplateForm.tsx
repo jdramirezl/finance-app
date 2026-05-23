@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
-import { useAccountsQuery, usePocketsQuery, useSubPocketsQuery } from '../../hooks/queries';
-import Button from '../Button';
-import Input from '../Input';
-import Select from '../Select';
+import { useState } from 'react';
+import Button from '../ui/Button';
+import Input from '../ui/Input';
+import Select from '../ui/Select';
+import AccountPocketSelector from './AccountPocketSelector';
+import { MOVEMENT_TYPES } from '../../constants/movementTypes';
 import type { MovementTemplate, MovementType } from '../../types';
 
 interface MovementTemplateFormProps {
@@ -26,10 +27,6 @@ const MovementTemplateForm = ({
     onCancel,
     isSaving,
 }: MovementTemplateFormProps) => {
-    const { data: accounts = [] } = useAccountsQuery();
-    const { data: pockets = [] } = usePocketsQuery();
-    const { data: subPockets = [] } = useSubPocketsQuery();
-
     const [name, setName] = useState(initialData?.name || '');
     const [type, setType] = useState<MovementType>(initialData?.type || 'EgresoNormal');
     const [accountId, setAccountId] = useState(initialData?.accountId || '');
@@ -37,31 +34,6 @@ const MovementTemplateForm = ({
     const [subPocketId, setSubPocketId] = useState(initialData?.subPocketId || '');
     const [defaultAmount, setDefaultAmount] = useState(initialData?.defaultAmount?.toString() || '');
     const [notes, setNotes] = useState(initialData?.notes || '');
-
-    // Reset pocket when account changes
-    useEffect(() => {
-        if (accountId && initialData?.accountId !== accountId) {
-            setPocketId('');
-            setSubPocketId('');
-        }
-    }, [accountId, initialData]);
-
-    const availablePockets = accountId
-        ? pockets.filter(p => p.accountId === accountId)
-        : [];
-
-    const isFixedExpense = type === 'IngresoFijo' || type === 'EgresoFijo';
-    const fixedPocket = availablePockets.find((p) => p.type === 'fixed');
-    const availableSubPockets = fixedPocket && isFixedExpense
-        ? subPockets.filter(sp => sp.pocketId === fixedPocket.id)
-        : [];
-
-    const movementTypes: { value: MovementType; label: string }[] = [
-        { value: 'IngresoNormal', label: 'Normal Income' },
-        { value: 'EgresoNormal', label: 'Normal Expense' },
-        { value: 'IngresoFijo', label: 'Fixed Income' },
-        { value: 'EgresoFijo', label: 'Fixed Expense' },
-    ];
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -91,7 +63,7 @@ const MovementTemplateForm = ({
                     label="Type"
                     value={type}
                     onChange={(e) => setType(e.target.value as MovementType)}
-                    options={movementTypes}
+                    options={MOVEMENT_TYPES}
                     required
                 />
 
@@ -106,42 +78,17 @@ const MovementTemplateForm = ({
                 />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Select
-                    label="Account"
-                    value={accountId}
-                    onChange={(e) => setAccountId(e.target.value)}
-                    options={[
-                        { value: '', label: 'Select Account' },
-                        ...accounts.map(acc => ({ value: acc.id, label: acc.name }))
-                    ]}
-                    required
-                />
-
-                <Select
-                    label="Pocket"
-                    value={pocketId}
-                    onChange={(e) => setPocketId(e.target.value)}
-                    options={[
-                        { value: '', label: 'Select Pocket' },
-                        ...availablePockets.map(p => ({ value: p.id, label: p.name }))
-                    ]}
-                    disabled={!accountId}
-                    required
-                />
-            </div>
-
-            {isFixedExpense && availableSubPockets.length > 0 && (
-                <Select
-                    label="Sub-Pocket (Optional)"
-                    value={subPocketId}
-                    onChange={(e) => setSubPocketId(e.target.value)}
-                    options={[
-                        { value: '', label: 'None' },
-                        ...availableSubPockets.map(sp => ({ value: sp.id, label: sp.name }))
-                    ]}
-                />
-            )}
+            <AccountPocketSelector
+                accountId={accountId}
+                pocketId={pocketId}
+                subPocketId={subPocketId}
+                onAccountChange={setAccountId}
+                onPocketChange={setPocketId}
+                onSubPocketChange={setSubPocketId}
+                movementType={type}
+                showSubPocket
+                required
+            />
 
             <Input
                 label="Notes (Optional)"

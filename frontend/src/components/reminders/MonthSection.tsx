@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import type { MonthGroup, ReminderWithProjection } from '../../utils/reminderProjections';
 import ReminderCard from './ReminderCard';
 
@@ -7,9 +8,10 @@ interface MonthSectionProps {
     onEdit: (reminder: ReminderWithProjection) => void;
     onDelete: (reminder: ReminderWithProjection) => void;
     onMarkAsPaid: (reminder: ReminderWithProjection) => void;
+    advanceDays?: number;
 }
 
-const MonthSection = ({ monthGroup, onPayNow, onEdit, onDelete, onMarkAsPaid }: MonthSectionProps) => {
+const MonthSection = ({ monthGroup, onPayNow, onEdit, onDelete, onMarkAsPaid, advanceDays }: MonthSectionProps) => {
     const { label, reminders, isCurrentMonth, isPastMonth } = monthGroup;
 
     if (reminders.length === 0) {
@@ -22,24 +24,24 @@ const MonthSection = ({ monthGroup, onPayNow, onEdit, onDelete, onMarkAsPaid }: 
             <div className={`
                 sticky top-0 z-10 py-2 px-3 mb-2 rounded-lg
                 ${isCurrentMonth
-                    ? 'bg-blue-100 dark:bg-blue-900/40 border border-blue-200 dark:border-blue-800'
+                    ? 'bg-blue-500/10 border border-blue-500/20'
                     : isPastMonth
-                        ? 'bg-gray-100 dark:bg-gray-800/60'
-                        : 'bg-gray-50 dark:bg-gray-800/40'
+                        ? 'bg-gray-700/60'
+                        : 'bg-gray-800/40'
                 }
             `}>
                 <h3 className={`
                     text-sm font-semibold uppercase tracking-wide
                     ${isCurrentMonth
-                        ? 'text-blue-700 dark:text-blue-300'
+                        ? 'text-blue-400'
                         : isPastMonth
-                            ? 'text-gray-500 dark:text-gray-400'
-                            : 'text-gray-600 dark:text-gray-400'
+                            ? 'text-gray-400'
+                            : 'text-gray-400'
                     }
                 `}>
                     {label}
                     {isCurrentMonth && (
-                        <span className="ml-2 text-xs font-normal normal-case text-blue-600 dark:text-blue-400">
+                        <span className="ml-2 text-xs font-normal normal-case text-blue-400/70">
                             (Current)
                         </span>
                     )}
@@ -50,12 +52,13 @@ const MonthSection = ({ monthGroup, onPayNow, onEdit, onDelete, onMarkAsPaid }: 
             <div className="space-y-2 px-1">
                 {reminders.map(reminder => (
                     <ReminderCard
-                        key={reminder.id}
+                        key={`${reminder.id}-${reminder.dueDate}`}
                         reminder={reminder}
                         onPayNow={onPayNow}
                         onEdit={onEdit}
                         onDelete={onDelete}
                         onMarkAsPaid={onMarkAsPaid}
+                        advanceDays={advanceDays}
                     />
                 ))}
             </div>
@@ -63,4 +66,4 @@ const MonthSection = ({ monthGroup, onPayNow, onEdit, onDelete, onMarkAsPaid }: 
     );
 };
 
-export default MonthSection;
+export default memo(MonthSection);

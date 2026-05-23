@@ -13,7 +13,7 @@ import type { IMovementRepository } from '../../infrastructure/IMovementReposito
 import type { IAccountRepository } from '../../../accounts/infrastructure/IAccountRepository';
 import type { IPocketRepository } from '../../../pockets/infrastructure/IPocketRepository';
 import type { ISubPocketRepository } from '../../../sub-pockets/infrastructure/ISubPocketRepository';
-import type { IReminderRepository } from '../../../reminders/interfaces/IReminderRepository';
+import type { IReminderRepository } from '../../../reminders/infrastructure/IReminderRepository';
 import { NotFoundError } from '../../../../shared/errors/AppError';
 
 @injectable()

@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import type { User, Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
+import { queryClient } from '../lib/queryClient';
 
 interface AuthContextType {
   user: User | null;
@@ -29,10 +30,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     // Listen for auth changes
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange((event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
+
+      if (event === 'SIGNED_OUT') {
+        queryClient.clear();
+      }
     });
 
     return () => subscription.unsubscribe();
@@ -54,9 +59,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             user_id: data.user.id,
             primary_currency: 'USD',
           });
-        } catch (settingsError) {
-          // Settings creation failed, but signup succeeded
-          console.warn('Failed to create settings:', settingsError);
+        } catch {
+          // Settings creation is best-effort — signup itself succeeded.
         }
       }
       

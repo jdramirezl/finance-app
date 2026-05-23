@@ -33,16 +33,19 @@ describe('Movement Entity', () => {
       expect(movement.isOrphaned).toBe(false);
     });
 
-    it('should throw error for non-positive amount', () => {
-      expect(() => new Movement(
+    it('should allow zero amount', () => {
+      const movement = new Movement(
         validMovementData.id,
         validMovementData.type,
         validMovementData.accountId,
         validMovementData.pocketId,
         0,
         validMovementData.displayedDate
-      )).toThrow('Movement amount must be positive');
+      );
+      expect(movement.amount).toBe(0);
+    });
 
+    it('should throw error for negative amount', () => {
       expect(() => new Movement(
         validMovementData.id,
         validMovementData.type,
@@ -50,7 +53,7 @@ describe('Movement Entity', () => {
         validMovementData.pocketId,
         -50,
         validMovementData.displayedDate
-      )).toThrow('Movement amount must be positive');
+      )).toThrow('Movement amount cannot be negative');
     });
 
     it('should throw error for invalid type', () => {
@@ -97,8 +100,8 @@ describe('Movement Entity', () => {
       )).toThrow('Movement must have a valid displayed date');
     });
 
-    it('should throw error for orphaned movement without orphaned data', () => {
-      expect(() => new Movement(
+    it('should set defaults for orphaned movement without orphaned data', () => {
+      const movement = new Movement(
         validMovementData.id,
         validMovementData.type,
         validMovementData.accountId,
@@ -109,7 +112,10 @@ describe('Movement Entity', () => {
         undefined,
         false,
         true // isOrphaned = true
-      )).toThrow('Orphaned movements must have orphaned account name');
+      );
+      expect(movement.orphanedAccountName).toBe('Unknown');
+      expect(movement.orphanedAccountCurrency).toBe('USD');
+      expect(movement.orphanedPocketName).toBe('Unknown');
     });
   });
 
@@ -246,7 +252,7 @@ describe('Movement Entity', () => {
         validMovementData.displayedDate
       );
 
-      expect(() => movement.update(undefined, -50)).toThrow('Movement amount must be positive');
+      expect(() => movement.update(undefined, -50)).toThrow('Movement amount cannot be negative');
     });
   });
 

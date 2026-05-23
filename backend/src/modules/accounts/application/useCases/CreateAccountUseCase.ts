@@ -77,7 +77,7 @@ export class CreateAccountUseCase {
       dto.stockSymbol?.trim(),
       undefined, // montoInvertido
       undefined, // shares
-      undefined, // displayOrder
+      0, // displayOrder — NOT NULL constraint requires a value
       // CD-specific fields
       dto.investmentType,
       dto.principal,
@@ -92,9 +92,6 @@ export class CreateAccountUseCase {
 
     // Persist account
     await this.accountRepo.save(account, userId);
-
-    // TODO: For investment accounts, create default pockets (will be implemented in Phase 2)
-    // Investment accounts should have default pockets created automatically
 
     // Return DTO
     return AccountMapper.toDTO(account);

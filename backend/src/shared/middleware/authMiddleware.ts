@@ -7,8 +7,9 @@
  */
 
 import { Request, Response, NextFunction } from 'express';
-import { createClient } from '@supabase/supabase-js';
+import { SupabaseClient } from '@supabase/supabase-js';
 import { UnauthorizedError } from '../errors/AppError';
+import { getSupabaseClient } from '../infrastructure/supabaseClient';
 
 // Extend Express Request type to include user
 declare global {
@@ -21,20 +22,6 @@ declare global {
     }
   }
 }
-
-// Create Supabase client for token verification
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_KEY;
-
-// Only throw error in non-test environments
-if ((!supabaseUrl || !supabaseKey) && process.env.NODE_ENV !== 'test') {
-  throw new Error('Supabase configuration missing: SUPABASE_URL and SUPABASE_SERVICE_KEY required');
-}
-
-// Create client only if credentials are available
-const supabase = supabaseUrl && supabaseKey 
-  ? createClient(supabaseUrl, supabaseKey)
-  : null;
 
 /**
  * Authentication middleware
@@ -50,8 +37,10 @@ export async function authMiddleware(
   next: NextFunction
 ): Promise<void> {
   try {
-    // Check if Supabase client is available
-    if (!supabase) {
+    let supabase: SupabaseClient;
+    try {
+      supabase = getSupabaseClient();
+    } catch {
       throw new UnauthorizedError('Authentication service not configured');
     }
 

@@ -1,36 +1,51 @@
 /**
  * API Client for Backend Communication
- * 
- * Provides a centralized way to communicate with the Express backend.
- * Handles authentication, error handling, and request/response formatting.
+ *
+ * Centralized fetch-based client for the Express backend. Attaches a
+ * Supabase JWT to every request, parses JSON responses, and converts
+ * any failure into a typed AppError carrying the originating HTTP
+ * status (or 0 for network/runtime errors).
  */
 
 import { supabase } from '../lib/supabase';
+import { AppError } from '../errors/AppError';
+
+type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE';
+
+type ErrorBody = {
+  message?: string;
+};
+
+type RequestContext = {
+  method: HttpMethod;
+  path: string;
+  payloadSize?: number;
+};
 
 class ApiClient {
-  private baseURL: string;
+  private readonly baseURL: string;
 
   constructor() {
     this.baseURL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
   }
 
   /**
-   * Get authentication token from Supabase
+   * Get authentication token from Supabase.
    */
   private async getAuthToken(): Promise<string | null> {
     const { data: { session } } = await supabase.auth.getSession();
-    return session?.access_token || null;
+    return session?.access_token ?? null;
   }
 
   /**
-   * Build headers with authentication
+   * Build headers with authentication.
    */
-  private async buildHeaders(): Promise<HeadersInit> {
-    const token = await this.getAuthToken();
-    const headers: HeadersInit = {
+  private async buildHeaders(): Promise<Record<string, string>> {
+    const headers: Record<string, string> = {
       'Content-Type': 'application/json',
     };
 
+    const token = await this.getAuthToken();
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
     }
@@ -39,139 +54,153 @@ class ApiClient {
   }
 
   /**
-   * Handle API errors
+   * Translate an unknown thrown value into a typed AppError.
+   *
+   * - AppError: re-thrown as-is so the original status code and server
+   *   message survive.
+   * - TypeError: fetch raises this for network-level failures (DNS
+   *   failure, offline, CORS rejection). Mapped to status 0.
+   * - Error: every other runtime failure is wrapped with status 0 to
+   *   keep callers exclusively dealing with AppError.
+   * - unknown: stringified into an AppError as a last resort.
    */
-  private handleError(error: any, context?: { method: string; path: string; payloadSize?: number }): never {
-    let errorMessage = 'Unknown error';
-    
-    if (error.response) {
-      // Server responded with error
-      errorMessage = error.response.data?.message || `Server error (${error.response.status})`;
-    } else if (error.request) {
-      // Request made but no response
-      errorMessage = 'No response from server';
-    } else {
-      // Something else happened
-      errorMessage = error.message || 'Unknown error';
+  private handleError(error: unknown, context: RequestContext): never {
+    const prefix = `${context.method} ${context.path}`;
+
+    if (error instanceof AppError) {
+      throw error;
     }
 
-    if (context) {
-      console.error(`❌ API ${context.method} ${context.path} failed:`, errorMessage, context.payloadSize ? `(payload: ${context.payloadSize} bytes)` : '');
+    if (error instanceof TypeError) {
+      throw new AppError(0, `${prefix} failed: network error — unable to reach server`);
     }
-    
-    throw new Error(errorMessage);
+
+    if (error instanceof Error) {
+      throw new AppError(0, `${prefix} failed: ${error.message}`);
+    }
+
+    throw new AppError(0, `${prefix} failed: ${String(error)}`);
   }
 
   /**
-   * GET request
+   * Handle a successful (2xx) response by parsing the body.
+   */
+  private async parseSuccess<T>(response: Response): Promise<T> {
+    if (response.status === 204) return undefined as T;
+    return (await response.json()) as T;
+  }
+
+  /**
+   * Issue a fetch request and unwrap the JSON body, raising AppError
+   * for any non-2xx status or transport failure.
+   *
+   * On 401, attempts a single token refresh. If refresh succeeds the
+   * request is retried transparently. If refresh fails, a custom
+   * `auth:session-expired` event is dispatched and a never-resolving
+   * promise is returned to suppress downstream error toasts (the modal
+   * handles the UX).
+   */
+  private async request<T>(
+    method: HttpMethod,
+    path: string,
+    data?: Record<string, unknown>,
+  ): Promise<T> {
+    const body = data !== undefined ? JSON.stringify(data) : undefined;
+    const context: RequestContext = {
+      method,
+      path,
+      payloadSize: body !== undefined ? body.length : undefined,
+    };
+
+    if (!navigator.onLine) {
+      throw new AppError(0, `Cannot ${method} ${path}: you are offline`);
+    }
+
+    try {
+      const headers = await this.buildHeaders();
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30_000);
+
+      const response = await fetch(`${this.baseURL}${path}`, {
+        method,
+        headers,
+        body,
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+
+      if (response.ok) return this.parseSuccess<T>(response);
+
+      // 401 — attempt one silent token refresh before failing.
+      if (response.status === 401) {
+        const { data: refreshData, error: refreshError } =
+          await supabase.auth.refreshSession();
+
+        if (!refreshError && refreshData.session) {
+          const retryHeaders: Record<string, string> = {
+            ...headers,
+            Authorization: `Bearer ${refreshData.session.access_token}`,
+          };
+          const retryResponse = await fetch(`${this.baseURL}${path}`, {
+            method,
+            headers: retryHeaders,
+            body,
+          });
+          if (retryResponse.ok) return this.parseSuccess<T>(retryResponse);
+        }
+
+        // Refresh failed or retry still 401 — session is dead.
+        window.dispatchEvent(new CustomEvent('auth:session-expired'));
+        // Return a never-resolving promise: the session-expired modal
+        // will redirect to /login, so there's no point in propagating
+        // the error to mutation onError handlers (which would show a toast).
+        return new Promise<T>(() => {});
+      }
+
+      const errorBody = (await response.json().catch(() => ({}))) as ErrorBody;
+      const serverMessage = errorBody.message ?? response.statusText;
+      throw new AppError(
+        response.status,
+        `${method} ${path} failed: ${serverMessage}`,
+      );
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        throw new AppError(0, `${method} ${path} timed out after 30s`);
+      }
+      return this.handleError(error, context);
+    }
+  }
+
+  /**
+   * GET request.
    */
   async get<T>(path: string): Promise<T> {
-    try {
-      const headers = await this.buildHeaders();
-      const response = await fetch(`${this.baseURL}${path}`, {
-        method: 'GET',
-        headers,
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || `HTTP ${response.status}`);
-      }
-
-      return await response.json();
-    } catch (error) {
-      return this.handleError(error, { method: 'GET', path });
-    }
+    return this.request<T>('GET', path);
   }
 
   /**
-   * POST request
+   * POST request.
    */
-  async post<T>(path: string, data?: any): Promise<T> {
-    try {
-      const headers = await this.buildHeaders();
-      const response = await fetch(`${this.baseURL}${path}`, {
-        method: 'POST',
-        headers,
-        body: data ? JSON.stringify(data) : undefined,
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || `HTTP ${response.status}`);
-      }
-
-      // 204 No Content responses have no body
-      if (response.status === 204) {
-        return undefined as T;
-      }
-
-      return await response.json();
-    } catch (error) {
-      return this.handleError(error, { 
-        method: 'POST', 
-        path, 
-        payloadSize: data ? JSON.stringify(data).length : 0 
-      });
-    }
+  async post<T>(path: string, data?: Record<string, unknown>): Promise<T> {
+    return this.request<T>('POST', path, data);
   }
 
   /**
-   * PUT request
+   * PUT request.
    */
-  async put<T>(path: string, data?: any): Promise<T> {
-    try {
-      const headers = await this.buildHeaders();
-      const response = await fetch(`${this.baseURL}${path}`, {
-        method: 'PUT',
-        headers,
-        body: data ? JSON.stringify(data) : undefined,
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || `HTTP ${response.status}`);
-      }
-
-      return await response.json();
-    } catch (error) {
-      return this.handleError(error, { 
-        method: 'PUT', 
-        path, 
-        payloadSize: data ? JSON.stringify(data).length : 0 
-      });
-    }
+  async put<T>(path: string, data?: Record<string, unknown>): Promise<T> {
+    return this.request<T>('PUT', path, data);
   }
 
   /**
-   * DELETE request
+   * DELETE request.
    */
   async delete<T>(path: string): Promise<T> {
-    try {
-      const headers = await this.buildHeaders();
-      const response = await fetch(`${this.baseURL}${path}`, {
-        method: 'DELETE',
-        headers,
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || `HTTP ${response.status}`);
-      }
-
-      // 204 No Content responses have no body
-      if (response.status === 204) {
-        return undefined as T;
-      }
-
-      return await response.json();
-    } catch (error) {
-      return this.handleError(error, { method: 'DELETE', path });
-    }
+    return this.request<T>('DELETE', path);
   }
 
   /**
-   * Health check
+   * Health check.
    */
   async healthCheck(): Promise<{ status: string; timestamp: string; uptime: number }> {
     return this.get('/health');
@@ -179,8 +208,15 @@ class ApiClient {
 }
 
 export const apiClient = new ApiClient();
+export type { ApiClient };
 
-// Expose to window for debugging (development only)
+// Expose to window for debugging in development only.
+declare global {
+  interface Window {
+    apiClient?: ApiClient;
+  }
+}
+
 if (import.meta.env.DEV) {
-  (window as any).apiClient = apiClient;
+  window.apiClient = apiClient;
 }

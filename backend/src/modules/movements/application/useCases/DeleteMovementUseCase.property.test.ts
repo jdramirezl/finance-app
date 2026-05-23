@@ -16,6 +16,7 @@ import type { IMovementRepository } from '../../infrastructure/IMovementReposito
 import type { IAccountRepository } from '../../../accounts/infrastructure/IAccountRepository';
 import type { IPocketRepository } from '../../../pockets/infrastructure/IPocketRepository';
 import type { ISubPocketRepository } from '../../../sub-pockets/infrastructure/ISubPocketRepository';
+import type { IReminderRepository } from '../../../reminders/infrastructure/IReminderRepository';
 import type { MovementType } from '@shared-backend/types';
 
 describe('DeleteMovementUseCase Property-Based Tests', () => {
@@ -29,6 +30,8 @@ describe('DeleteMovementUseCase Property-Based Tests', () => {
 
     const mockMovementRepo: jest.Mocked<IMovementRepository> = {
       save: jest.fn().mockResolvedValue(undefined),
+      createTransferAtomic: jest.fn().mockResolvedValue({ expense: movementToDelete, income: movementToDelete }),
+      batchCreate: jest.fn().mockResolvedValue([]),
       findById: jest.fn().mockResolvedValue(movementToDelete),
       findAll: jest.fn().mockResolvedValue(remainingMovements),
       findByAccountId: jest.fn().mockResolvedValue(remainingMovements),
@@ -47,6 +50,8 @@ describe('DeleteMovementUseCase Property-Based Tests', () => {
       markAsOrphanedByPocketId: jest.fn().mockResolvedValue(0),
       updateAccountIdByPocketId: jest.fn().mockResolvedValue(0),
       count: jest.fn().mockResolvedValue(remainingMovements.length),
+      sumExpensesByPeriod: jest.fn().mockResolvedValue([]),
+      getDistinctYears: jest.fn().mockResolvedValue([]),
     };
 
     const mockAccountRepo: jest.Mocked<IAccountRepository> = {
@@ -67,10 +72,12 @@ describe('DeleteMovementUseCase Property-Based Tests', () => {
       findAllByUserId: jest.fn().mockResolvedValue([mockPocket]),
       existsByNameInAccount: jest.fn().mockResolvedValue(false),
       existsByNameInAccountExcludingId: jest.fn().mockResolvedValue(false),
+      existsFixedPocketInAccount: jest.fn().mockResolvedValue(false),
       existsFixedPocketForUser: jest.fn().mockResolvedValue(false),
       existsFixedPocketForUserExcludingId: jest.fn().mockResolvedValue(false),
       update: jest.fn().mockResolvedValue(undefined),
       delete: jest.fn().mockResolvedValue(undefined),
+      deleteByAccountId: jest.fn().mockResolvedValue(0),
       updateDisplayOrders: jest.fn().mockResolvedValue(undefined),
     };
 
@@ -82,12 +89,23 @@ describe('DeleteMovementUseCase Property-Based Tests', () => {
       findAllByUserId: jest.fn().mockResolvedValue([mockSubPocket]),
       update: jest.fn().mockResolvedValue(undefined),
       delete: jest.fn().mockResolvedValue(undefined),
+      deleteByPocketIds: jest.fn().mockResolvedValue(0),
       updateDisplayOrders: jest.fn().mockResolvedValue(undefined),
       countMovements: jest.fn().mockResolvedValue(remainingMovements.length),
       hasMovements: jest.fn().mockResolvedValue(remainingMovements.length > 0),
     };
 
-    return { mockMovementRepo, mockAccountRepo, mockPocketRepo, mockSubPocketRepo };
+    const mockReminderRepo: jest.Mocked<IReminderRepository> = {
+      findAll: jest.fn().mockResolvedValue([]),
+      findById: jest.fn().mockResolvedValue(null),
+      create: jest.fn().mockResolvedValue(null as any),
+      update: jest.fn().mockResolvedValue(null as any),
+      delete: jest.fn().mockResolvedValue(undefined),
+      findByLinkedMovementId: jest.fn().mockResolvedValue(null),
+      createException: jest.fn().mockResolvedValue(null as any),
+    };
+
+    return { mockMovementRepo, mockAccountRepo, mockPocketRepo, mockSubPocketRepo, mockReminderRepo };
   };
 
   describe('Property 36: Movement deletion recalculates balances', () => {
@@ -114,12 +132,13 @@ describe('DeleteMovementUseCase Property-Based Tests', () => {
               isPending
             );
 
-            const { mockMovementRepo, mockAccountRepo, mockPocketRepo, mockSubPocketRepo } = createMockRepos(movementToDelete);
+            const { mockMovementRepo, mockAccountRepo, mockPocketRepo, mockSubPocketRepo, mockReminderRepo } = createMockRepos(movementToDelete);
             const useCase = new DeleteMovementUseCase(
               mockMovementRepo,
               mockAccountRepo,
               mockPocketRepo,
-              mockSubPocketRepo
+              mockSubPocketRepo,
+              mockReminderRepo
             );
 
             await useCase.execute('mov-1', 'user-1');
@@ -159,12 +178,13 @@ describe('DeleteMovementUseCase Property-Based Tests', () => {
               isPending
             );
 
-            const { mockMovementRepo, mockAccountRepo, mockPocketRepo, mockSubPocketRepo } = createMockRepos(movementToDelete);
+            const { mockMovementRepo, mockAccountRepo, mockPocketRepo, mockSubPocketRepo, mockReminderRepo } = createMockRepos(movementToDelete);
             const useCase = new DeleteMovementUseCase(
               mockMovementRepo,
               mockAccountRepo,
               mockPocketRepo,
-              mockSubPocketRepo
+              mockSubPocketRepo,
+              mockReminderRepo
             );
 
             await useCase.execute('mov-1', 'user-1');
@@ -204,12 +224,13 @@ describe('DeleteMovementUseCase Property-Based Tests', () => {
               false // Not pending
             );
 
-            const { mockMovementRepo, mockAccountRepo, mockPocketRepo, mockSubPocketRepo } = createMockRepos(movementToDelete);
+            const { mockMovementRepo, mockAccountRepo, mockPocketRepo, mockSubPocketRepo, mockReminderRepo } = createMockRepos(movementToDelete);
             const useCase = new DeleteMovementUseCase(
               mockMovementRepo,
               mockAccountRepo,
               mockPocketRepo,
-              mockSubPocketRepo
+              mockSubPocketRepo,
+              mockReminderRepo
             );
 
             await useCase.execute('mov-1', 'user-1');
@@ -246,12 +267,13 @@ describe('DeleteMovementUseCase Property-Based Tests', () => {
               false // Not pending
             );
 
-            const { mockMovementRepo, mockAccountRepo, mockPocketRepo, mockSubPocketRepo } = createMockRepos(movementToDelete);
+            const { mockMovementRepo, mockAccountRepo, mockPocketRepo, mockSubPocketRepo, mockReminderRepo } = createMockRepos(movementToDelete);
             const useCase = new DeleteMovementUseCase(
               mockMovementRepo,
               mockAccountRepo,
               mockPocketRepo,
-              mockSubPocketRepo
+              mockSubPocketRepo,
+              mockReminderRepo
             );
 
             await useCase.execute('mov-1', 'user-1');
@@ -288,12 +310,13 @@ describe('DeleteMovementUseCase Property-Based Tests', () => {
               true // Pending
             );
 
-            const { mockMovementRepo, mockAccountRepo, mockPocketRepo, mockSubPocketRepo } = createMockRepos(movementToDelete);
+            const { mockMovementRepo, mockAccountRepo, mockPocketRepo, mockSubPocketRepo, mockReminderRepo } = createMockRepos(movementToDelete);
             const useCase = new DeleteMovementUseCase(
               mockMovementRepo,
               mockAccountRepo,
               mockPocketRepo,
-              mockSubPocketRepo
+              mockSubPocketRepo,
+              mockReminderRepo
             );
 
             await useCase.execute('mov-1', 'user-1');
@@ -308,7 +331,7 @@ describe('DeleteMovementUseCase Property-Based Tests', () => {
       );
     });
 
-    it('should recalculate balances even when deleting orphaned movement', async () => {
+    it('should skip balance recalculation when deleting orphaned movement', async () => {
       await fc.assert(
         fc.asyncProperty(
           fc.constantFrom(...validMovementTypes),
@@ -334,20 +357,22 @@ describe('DeleteMovementUseCase Property-Based Tests', () => {
               'Old Pocket'
             );
 
-            const { mockMovementRepo, mockAccountRepo, mockPocketRepo, mockSubPocketRepo } = createMockRepos(movementToDelete);
+            const { mockMovementRepo, mockAccountRepo, mockPocketRepo, mockSubPocketRepo, mockReminderRepo } = createMockRepos(movementToDelete);
             const useCase = new DeleteMovementUseCase(
               mockMovementRepo,
               mockAccountRepo,
               mockPocketRepo,
-              mockSubPocketRepo
+              mockSubPocketRepo,
+              mockReminderRepo
             );
 
             await useCase.execute('mov-1', 'user-1');
 
-            // Verify deletion and balance recalculation
+            // Verify deletion occurred
             expect(mockMovementRepo.delete).toHaveBeenCalledWith('mov-1', 'user-1');
-            expect(mockAccountRepo.update).toHaveBeenCalled();
-            expect(mockPocketRepo.update).toHaveBeenCalled();
+            // Verify balance recalculation was NOT triggered for orphaned movements
+            expect(mockAccountRepo.update).not.toHaveBeenCalled();
+            expect(mockPocketRepo.update).not.toHaveBeenCalled();
           }
         ),
         { numRuns: 100 }

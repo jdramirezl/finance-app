@@ -11,6 +11,8 @@ import { Router } from 'express';
 import { container } from 'tsyringe';
 import { CurrencyController } from './CurrencyController';
 import { authMiddleware } from '../../../shared/middleware/authMiddleware';
+import { validateBody } from '../../../shared/middleware/validate';
+import { convertCurrencySchema, convertBatchSchema } from './schemas';
 
 const router = Router();
 
@@ -42,6 +44,19 @@ router.get('/rates', (req, res, next) => controller.getRate(req, res, next));
  * 
  * Requirements: 15.3, 15.4
  */
-router.post('/convert', (req, res, next) => controller.convert(req, res, next));
+router.post('/convert', validateBody(convertCurrencySchema), (req, res, next) => controller.convert(req, res, next));
+
+/**
+ * POST /api/currency/convert-batch
+ * Convert multiple currency amounts in a single request.
+ *
+ * Body: { conversions: Array<{ amount: number, from: Currency, to: Currency }> }
+ * Response: 200 + { results: Array<{ amount, convertedAmount, rate, from, to }> }
+ * Errors: 400 (validation)
+ *
+ * Reduces the number of round trips required to consolidate balances across
+ * currencies (e.g. for the dashboard total or net-worth snapshot).
+ */
+router.post('/convert-batch', validateBody(convertBatchSchema), (req, res, next) => controller.convertBatch(req, res, next));
 
 export default router;

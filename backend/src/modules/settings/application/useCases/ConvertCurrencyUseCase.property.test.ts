@@ -274,36 +274,20 @@ describe('ConvertCurrencyUseCase Property-Based Tests', () => {
       );
     });
 
-    it('should reject negative amounts', async () => {
-      await fc.assert(
-        fc.asyncProperty(
-          fc.constantFrom(...validCurrencies),
-          fc.constantFrom(...validCurrencies),
-          fc.double({ min: -10000, max: -0.01, noNaN: true }), // negative amount
-          async (fromCurrency: Currency, toCurrency: Currency, negativeAmount: number) => {
-            // Create mock GetExchangeRateUseCase
-            const mockGetExchangeRate = {
-              execute: jest.fn(),
-            } as unknown as GetExchangeRateUseCase;
+    it('should accept negative amounts (accounts can have negative balances)', async () => {
+      const mockGetExchangeRate = {
+        execute: jest.fn().mockResolvedValue({ rate: 20.0 }),
+      } as unknown as GetExchangeRateUseCase;
 
-            const useCase = new ConvertCurrencyUseCase(mockGetExchangeRate);
+      const useCase = new ConvertCurrencyUseCase(mockGetExchangeRate);
 
-            const dto: ConvertCurrencyDTO = {
-              amount: negativeAmount,
-              fromCurrency,
-              toCurrency,
-            };
+      const result = await useCase.execute({
+        amount: -500,
+        fromCurrency: 'USD' as Currency,
+        toCurrency: 'MXN' as Currency,
+      });
 
-            // Should throw ValidationError
-            await expect(useCase.execute(dto)).rejects.toThrow(ValidationError);
-            await expect(useCase.execute(dto)).rejects.toThrow('Amount cannot be negative');
-
-            // Should not call GetExchangeRateUseCase
-            expect(mockGetExchangeRate.execute).not.toHaveBeenCalled();
-          }
-        ),
-        { numRuns: 100 }
-      );
+      expect(result.convertedAmount).toBe(-10000); // -500 * 20
     });
 
     it('should reject invalid amounts (NaN)', async () => {

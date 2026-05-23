@@ -6,10 +6,14 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { netWorthSnapshotService, type CreateSnapshotDTO } from '../../services/netWorthSnapshotService';
 import { useToast } from '../useToast';
 
+const errorMessage = (error: unknown, fallback: string): string =>
+    error instanceof Error && error.message ? error.message : fallback;
+
 export const useNetWorthSnapshotsQuery = () => {
     return useQuery({
         queryKey: ['netWorthSnapshots'],
         queryFn: netWorthSnapshotService.getAll,
+        staleTime: 1000 * 60 * 10, // 10 minutes - snapshots are daily at most
     });
 };
 
@@ -30,20 +34,20 @@ export const useNetWorthSnapshotMutations = () => {
             queryClient.invalidateQueries({ queryKey: ['netWorthSnapshots'] });
             toast.success('Snapshot created');
         },
-        onError: (error: any) => {
-            toast.error(error.response?.data?.error || 'Failed to create snapshot');
+        onError: (error) => {
+            toast.error(errorMessage(error, 'Failed to create snapshot'));
         },
     });
 
     const updateMutation = useMutation({
-        mutationFn: ({ id, data }: { id: string, data: Partial<CreateSnapshotDTO> }) => 
+        mutationFn: ({ id, data }: { id: string, data: Partial<CreateSnapshotDTO> }) =>
             netWorthSnapshotService.update(id, data),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['netWorthSnapshots'] });
             toast.success('Snapshot updated');
         },
-        onError: (error: any) => {
-            toast.error(error.response?.data?.error || 'Failed to update snapshot');
+        onError: (error) => {
+            toast.error(errorMessage(error, 'Failed to update snapshot'));
         },
     });
 
@@ -53,8 +57,8 @@ export const useNetWorthSnapshotMutations = () => {
             queryClient.invalidateQueries({ queryKey: ['netWorthSnapshots'] });
             toast.success('Snapshot deleted');
         },
-        onError: (error: any) => {
-            toast.error(error.response?.data?.error || 'Failed to delete snapshot');
+        onError: (error) => {
+            toast.error(errorMessage(error, 'Failed to delete snapshot'));
         },
     });
 

@@ -8,6 +8,7 @@ export const usePocketsQuery = () => {
     return useQuery({
         queryKey: ['pockets'],
         queryFn: () => pocketService.getAllPockets(),
+        staleTime: 1000 * 60 * 10, // 10 minutes - pockets change infrequently
     });
 };
 
@@ -19,5 +20,6 @@ export const usePocketsByAccountQuery = (accountId: string) => {
         queryKey: ['pockets', 'account', accountId],
         queryFn: () => pocketService.getPocketsByAccount(accountId),
         enabled: !!accountId,
+        staleTime: 1000 * 60 * 10, // 10 minutes - pockets change infrequently
     });
 };

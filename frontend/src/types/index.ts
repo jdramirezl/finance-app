@@ -1,5 +1,9 @@
-// Currency types
-export type Currency = 'USD' | 'MXN' | 'COP' | 'EUR' | 'GBP';
+// Currency types — re-exported from the constants module so that
+// `constants/currencies.ts` remains the single source of truth. Existing
+// `import type { Currency } from '../types'` consumers continue to work.
+export type { Currency } from '../constants/currencies';
+
+import type { Currency } from '../constants/currencies';
 
 // Pocket types
 export type PocketType = 'normal' | 'fixed';
@@ -71,7 +75,6 @@ export interface SubPocket {
   valueTotal: number; // Total amount to save
   periodicityMonths: number; // How many months to divide
   balance: number; // Current balance
-  enabled: boolean; // For toggling in budget planning
   groupId?: string; // References fixed_expense_groups, NULL = Default group
   displayOrder?: number; // For drag & drop reordering
 }
@@ -93,6 +96,8 @@ export interface Movement {
   orphanedAccountName?: string; // Original account name (for matching + display)
   orphanedAccountCurrency?: string; // Original account currency (for matching)
   orphanedPocketName?: string; // Original pocket name (for matching + display)
+  category?: string;
+  tags?: string[];
 }
 
 // Investment-specific properties (extends Account)
@@ -181,6 +186,14 @@ export interface CDCalculationResult {
 // Settings
 export type SnapshotFrequency = 'daily' | 'weekly' | 'monthly' | 'manual';
 export type AccountCardDisplayMode = 'compact' | 'detailed';
+export type DateFormatPreference = 'MMM d, yyyy' | 'dd/MM/yyyy' | 'MM/dd/yyyy' | 'yyyy-MM-dd';
+
+export const DATE_FORMAT_OPTIONS: { value: DateFormatPreference; label: string }[] = [
+  { value: 'MMM d, yyyy', label: 'Jan 1, 2025' },
+  { value: 'dd/MM/yyyy', label: '01/01/2025' },
+  { value: 'MM/dd/yyyy', label: '01/01/2025 (US)' },
+  { value: 'yyyy-MM-dd', label: '2025-01-01 (ISO)' },
+];
 
 export interface AccountCardDisplaySettings {
   normal: AccountCardDisplayMode;
@@ -190,8 +203,15 @@ export interface AccountCardDisplaySettings {
 
 export interface Settings {
   primaryCurrency: Currency;
-  alphaVantageApiKey?: string; // API key for stock prices
-  snapshotFrequency?: SnapshotFrequency; // How often to take net worth snapshots
-  accountCardDisplay?: AccountCardDisplaySettings; // Display mode for account cards on summary page
+  alphaVantageApiKey?: string;
+  snapshotFrequency?: SnapshotFrequency;
+  accountCardDisplay?: AccountCardDisplaySettings;
+  defaultExpenseAccountId?: string;
+  defaultExpensePocketId?: string;
+  defaultIncomeAccountId?: string;
+  defaultIncomePocketId?: string;
+  dateFormat: DateFormatPreference;
+  movementsPerPage: number;
+  reminderAdvanceDays: number;
+  defaultCurrencyForNewAccounts: Currency;
 }
-

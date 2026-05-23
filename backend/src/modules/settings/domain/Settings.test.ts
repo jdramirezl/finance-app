@@ -142,11 +142,15 @@ describe('Settings Entity', () => {
       
       const json = settings.toJSON();
       
-      expect(json).toEqual({
+      expect(json).toMatchObject({
         id: 'settings-1',
         userId: 'user-1',
         primaryCurrency: 'USD',
         alphaVantageApiKey: 'api-key',
+        dateFormat: 'MMM d, yyyy',
+        movementsPerPage: 50,
+        reminderAdvanceDays: 7,
+        defaultCurrencyForNewAccounts: 'USD',
       });
     });
 
@@ -155,12 +159,117 @@ describe('Settings Entity', () => {
       
       const json = settings.toJSON();
       
-      expect(json).toEqual({
+      expect(json).toMatchObject({
         id: 'settings-1',
         userId: 'user-1',
         primaryCurrency: 'EUR',
         alphaVantageApiKey: undefined,
       });
+    });
+  });
+
+  describe('dateFormat', () => {
+    it('should default to MMM d, yyyy', () => {
+      const settings = new Settings('s-1', 'u-1', 'USD');
+      expect(settings.dateFormat).toBe('MMM d, yyyy');
+    });
+
+    it('should accept valid date formats', () => {
+      const formats = ['MMM d, yyyy', 'dd/MM/yyyy', 'MM/dd/yyyy', 'yyyy-MM-dd'] as const;
+      formats.forEach(fmt => {
+        const settings = new Settings('s-1', 'u-1', 'USD', undefined, undefined, undefined, undefined, undefined, undefined, undefined, fmt);
+        expect(settings.dateFormat).toBe(fmt);
+      });
+    });
+
+    it('should reject invalid date format', () => {
+      expect(() => new Settings('s-1', 'u-1', 'USD', undefined, undefined, undefined, undefined, undefined, undefined, undefined, 'INVALID' as any))
+        .toThrow('Invalid date format');
+    });
+
+    it('should update date format', () => {
+      const settings = new Settings('s-1', 'u-1', 'USD');
+      settings.updateDateFormat('yyyy-MM-dd');
+      expect(settings.dateFormat).toBe('yyyy-MM-dd');
+    });
+  });
+
+  describe('movementsPerPage', () => {
+    it('should default to 50', () => {
+      const settings = new Settings('s-1', 'u-1', 'USD');
+      expect(settings.movementsPerPage).toBe(50);
+    });
+
+    it('should reject values below 10', () => {
+      expect(() => new Settings('s-1', 'u-1', 'USD', undefined, undefined, undefined, undefined, undefined, undefined, undefined, 'MMM d, yyyy', 5))
+        .toThrow('Movements per page must be between 10 and 200');
+    });
+
+    it('should reject values above 200', () => {
+      expect(() => new Settings('s-1', 'u-1', 'USD', undefined, undefined, undefined, undefined, undefined, undefined, undefined, 'MMM d, yyyy', 201))
+        .toThrow('Movements per page must be between 10 and 200');
+    });
+
+    it('should accept boundary values', () => {
+      const s10 = new Settings('s-1', 'u-1', 'USD', undefined, undefined, undefined, undefined, undefined, undefined, undefined, 'MMM d, yyyy', 10);
+      expect(s10.movementsPerPage).toBe(10);
+      const s200 = new Settings('s-1', 'u-1', 'USD', undefined, undefined, undefined, undefined, undefined, undefined, undefined, 'MMM d, yyyy', 200);
+      expect(s200.movementsPerPage).toBe(200);
+    });
+
+    it('should update movementsPerPage', () => {
+      const settings = new Settings('s-1', 'u-1', 'USD');
+      settings.updateMovementsPerPage(100);
+      expect(settings.movementsPerPage).toBe(100);
+    });
+  });
+
+  describe('reminderAdvanceDays', () => {
+    it('should default to 7', () => {
+      const settings = new Settings('s-1', 'u-1', 'USD');
+      expect(settings.reminderAdvanceDays).toBe(7);
+    });
+
+    it('should reject values below 1', () => {
+      expect(() => new Settings('s-1', 'u-1', 'USD', undefined, undefined, undefined, undefined, undefined, undefined, undefined, 'MMM d, yyyy', 50, 0))
+        .toThrow('Reminder advance days must be between 1 and 30');
+    });
+
+    it('should reject values above 30', () => {
+      expect(() => new Settings('s-1', 'u-1', 'USD', undefined, undefined, undefined, undefined, undefined, undefined, undefined, 'MMM d, yyyy', 50, 31))
+        .toThrow('Reminder advance days must be between 1 and 30');
+    });
+
+    it('should update reminderAdvanceDays', () => {
+      const settings = new Settings('s-1', 'u-1', 'USD');
+      settings.updateReminderAdvanceDays(14);
+      expect(settings.reminderAdvanceDays).toBe(14);
+    });
+  });
+
+  describe('defaultCurrencyForNewAccounts', () => {
+    it('should default to USD', () => {
+      const settings = new Settings('s-1', 'u-1', 'USD');
+      expect(settings.defaultCurrencyForNewAccounts).toBe('USD');
+    });
+
+    it('should reject invalid currency', () => {
+      expect(() => new Settings('s-1', 'u-1', 'USD', undefined, undefined, undefined, undefined, undefined, undefined, undefined, 'MMM d, yyyy', 50, 7, 'INVALID' as any))
+        .toThrow('Invalid default currency for new accounts');
+    });
+
+    it('should accept all valid currencies', () => {
+      const currencies: Currency[] = ['USD', 'MXN', 'COP', 'EUR', 'GBP'];
+      currencies.forEach(c => {
+        const settings = new Settings('s-1', 'u-1', 'USD', undefined, undefined, undefined, undefined, undefined, undefined, undefined, 'MMM d, yyyy', 50, 7, c);
+        expect(settings.defaultCurrencyForNewAccounts).toBe(c);
+      });
+    });
+
+    it('should update defaultCurrencyForNewAccounts', () => {
+      const settings = new Settings('s-1', 'u-1', 'USD');
+      settings.updateDefaultCurrencyForNewAccounts('EUR');
+      expect(settings.defaultCurrencyForNewAccounts).toBe('EUR');
     });
   });
 });

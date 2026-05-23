@@ -11,6 +11,8 @@ import { Router } from 'express';
 import { container } from 'tsyringe';
 import { MovementController } from './MovementController';
 import { authMiddleware } from '../../../shared/middleware/authMiddleware';
+import { validateBody } from '../../../shared/middleware/validate';
+import { createMovementSchema, updateMovementSchema, createTransferSchema, batchMovementSchema, markOrphanedSchema, updateAccountForPocketSchema } from './schemas';
 
 const router = Router();
 
@@ -30,7 +32,16 @@ router.use(authMiddleware);
  * 
  * Requirements: 10.1, 10.2, 10.3, 10.4
  */
-router.post('/', (req, res, next) => controller.create(req, res, next));
+router.post('/', validateBody(createMovementSchema), (req, res, next) => controller.create(req, res, next));
+
+/**
+ * POST /api/movements/batch
+ * Atomically create multiple movements
+ * 
+ * Body: { movements: BatchMovementParams[] }
+ * Response: 201 + MovementResponseDTO[]
+ */
+router.post('/batch', validateBody(batchMovementSchema), (req, res, next) => controller.batchCreate(req, res, next));
 
 /**
  * POST /api/movements/transfer
@@ -39,24 +50,31 @@ router.post('/', (req, res, next) => controller.create(req, res, next));
  * Body: CreateTransferDTO
  * Response: 201 + { expense: Movement, income: Movement }
  */
-router.post('/transfer', (req, res, next) => controller.createTransfer(req, res, next));
+router.post('/transfer', validateBody(createTransferSchema), (req, res, next) => controller.createTransfer(req, res, next));
 
 /**
  * GET /api/movements
- * Get movements with filters
- * 
- * Query params: 
- *   - accountId (optional) - filter by account
- *   - pocketId (optional) - filter by pocket
- *   - month (optional) - filter by month (YYYY-MM format)
- *   - year (optional) - filter by year
- *   - pending (optional) - filter by pending status (true/false)
- * 
- * At least one filter parameter is required
- * 
- * Response: 200 + MovementResponseDTO[]
- * Errors: 400 (missing filters), 404 (not found)
- * 
+ * Get movements with optional filters and pagination.
+ *
+ * Query params (all optional):
+ *   - accountId: filter by account
+ *   - pocketId:  filter by pocket
+ *   - year + month: return movements for that month
+ *   - pending:   filter by pending status (true/false)
+ *   - category:  filter by exact category match (e.g. "Food")
+ *   - tags:      comma-separated tags, OR logic (e.g. "vacation,work")
+ *   - page:      1-based page number (default 1, no-filter branch only)
+ *   - limit:     page size (default 50, max 200, no-filter branch only)
+ *
+ * Response shape depends on which filter (if any) was provided:
+ *   - accountId  -> 200 + MovementResponseDTO[]
+ *   - pocketId   -> 200 + MovementResponseDTO[]
+ *   - year+month -> 200 + PaginatedMovementsDTO
+ *   - no filter  -> 200 + PaginatedMovementsDTO
+ *                   { data, total, page, limit, hasMore }
+ *
+ * Errors: 400 (invalid pagination), 404 (not found)
+ *
  * Requirements: 10.5
  */
 router.get('/', (req, res, next) => controller.getAll(req, res, next));
@@ -82,6 +100,22 @@ router.get('/pending', (req, res, next) => controller.getPending(req, res, next)
 router.get('/orphaned', (req, res, next) => controller.getOrphaned(req, res, next));
 
 /**
+ * GET /api/movements/spending-summary
+ * Get spending totals by period with per-currency breakdown
+ *
+ * Response: 200 + SpendingSummaryDTO
+ */
+router.get('/spending-summary', (req, res, next) => controller.getSpendingSummary(req, res, next));
+
+/**
+ * GET /api/movements/years
+ * Get distinct years that have movements with count per year
+ *
+ * Response: 200 + { years: { year: number; count: number }[] }
+ */
+router.get('/years', (req, res, next) => controller.getYears(req, res, next));
+
+/**
  * POST /api/movements/restore-orphaned
  * Restore orphaned movements
  * 
@@ -90,6 +124,40 @@ router.get('/orphaned', (req, res, next) => controller.getOrphaned(req, res, nex
  * Requirements: 12.2, 12.3, 12.4, 12.5
  */
 router.post('/restore-orphaned', (req, res, next) => controller.restoreOrphaned(req, res, next));
+
+/**
+ * DELETE /api/movements/by-account/:accountId
+ * Bulk-delete every movement for an account
+ *
+ * Response: 200 + { count: number }
+ */
+router.delete('/by-account/:accountId', (req, res, next) => controller.deleteByAccount(req, res, next));
+
+/**
+ * DELETE /api/movements/by-pocket/:pocketId
+ * Bulk-delete every movement for a pocket
+ *
+ * Response: 200 + { count: number }
+ */
+router.delete('/by-pocket/:pocketId', (req, res, next) => controller.deleteByPocket(req, res, next));
+
+/**
+ * POST /api/movements/mark-orphaned
+ * Mark every movement attached to an account or pocket as orphaned
+ *
+ * Body: { entityId: string, entityType: 'account' | 'pocket' }
+ * Response: 200 + { count: number }
+ */
+router.post('/mark-orphaned', validateBody(markOrphanedSchema), (req, res, next) => controller.markOrphaned(req, res, next));
+
+/**
+ * POST /api/movements/update-account
+ * Bulk-update the account_id for every movement in a pocket
+ *
+ * Body: { pocketId: string, newAccountId: string }
+ * Response: 200 + { count: number }
+ */
+router.post('/update-account', validateBody(updateAccountForPocketSchema), (req, res, next) => controller.updateAccountForPocket(req, res, next));
 
 /**
  * PUT /api/movements/:id
@@ -101,7 +169,7 @@ router.post('/restore-orphaned', (req, res, next) => controller.restoreOrphaned(
  * 
  * Requirements: 10.6
  */
-router.put('/:id', (req, res, next) => controller.update(req, res, next));
+router.put('/:id', validateBody(updateMovementSchema), (req, res, next) => controller.update(req, res, next));
 
 /**
  * DELETE /api/movements/:id

@@ -13,6 +13,10 @@ import type { SubPocketResponseDTO } from '../dtos/SubPocketDTO';
 
 /**
  * Database row structure from Supabase sub_pockets table
+ *
+ * Note: The `enabled` column still exists in the database but is no longer
+ * used by the domain model. It is omitted from reads and writes here so the
+ * domain remains pure; the column will be dropped in a future migration.
  */
 interface SubPocketPersistence {
   id: string;
@@ -22,7 +26,6 @@ interface SubPocketPersistence {
   value_total: number;
   periodicity_months: number;
   balance: number;
-  enabled: boolean;
   group_id: string | null;
   display_order: number | null;
   created_at?: string;
@@ -49,7 +52,6 @@ export class SubPocketMapper {
       value_total: subPocket.valueTotal,
       periodicity_months: subPocket.periodicityMonths,
       balance: subPocket.balance,
-      enabled: subPocket.enabled,
       group_id: subPocket.groupId ?? null,
       display_order: subPocket.displayOrder ?? null,
     };
@@ -72,7 +74,6 @@ export class SubPocketMapper {
       row.value_total,
       row.periodicity_months,
       row.balance,
-      row.enabled,
       row.group_id ?? undefined,
       row.display_order ?? undefined
     );
@@ -95,7 +96,6 @@ export class SubPocketMapper {
       valueTotal: subPocket.valueTotal,
       periodicityMonths: subPocket.periodicityMonths,
       balance: subPocket.balance,
-      enabled: subPocket.enabled,
       groupId: subPocket.groupId,
       displayOrder: subPocket.displayOrder,
       monthlyContribution: subPocket.monthlyContribution,

@@ -1,12 +1,13 @@
 import { addDays, addWeeks, addMonths, addYears, startOfMonth, endOfMonth, isBefore, isAfter, parseISO, format } from 'date-fns';
 import type { Reminder, RecurrenceConfig } from '../services/reminderService';
+import { parseDate, toDateOnly } from './dateUtils';
 
 export interface ProjectedReminder extends Reminder {
     isProjected: boolean;
     originalReminderId: string;
 }
 
-export type ReminderWithProjection = Reminder & { isProjected?: boolean; originalReminderId?: string };
+export type ReminderWithProjection = Reminder & { isProjected?: boolean; originalReminderId?: string; isNextActionable?: boolean };
 
 /**
  * Generate projected occurrences for a recurring reminder within a date range
@@ -149,7 +150,8 @@ export interface MonthGroup {
 export function groupRemindersByMonth(
     reminders: Reminder[],
     monthsBack: number = 1,
-    monthsAhead: number = 2
+    monthsAhead: number = 2,
+    showPaid: boolean = false
 ): MonthGroup[] {
     const now = new Date();
     const currentYear = now.getFullYear();
@@ -161,7 +163,7 @@ export function groupRemindersByMonth(
     reminders.forEach(reminder => {
         // Handle Base Reminder
         const baseDateISO = reminder.dueDate;
-        const baseDateStr = baseDateISO.split('T')[0]; // Normalize to YYYY-MM-DD
+        const baseDateStr = toDateOnly(baseDateISO); // Normalize to YYYY-MM-DD
         const baseException = reminder.exceptions?.find(e => e.originalDate === baseDateStr);
 
         if (baseException) {
@@ -189,13 +191,37 @@ export function groupRemindersByMonth(
         }
     });
 
+    // Mark the first unpaid occurrence per series as "next actionable"
+    const seriesMap = new Map<string, ReminderWithProjection[]>();
+    allReminders.forEach(r => {
+        const seriesId = (r as ProjectedReminder).originalReminderId || r.id;
+        if (!seriesMap.has(seriesId)) seriesMap.set(seriesId, []);
+        seriesMap.get(seriesId)!.push(r);
+    });
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    seriesMap.forEach(occurrences => {
+        const firstUnpaid = occurrences
+            .filter(r => !r.isPaid)
+            .sort((a, b) => parseISO(a.dueDate).getTime() - parseISO(b.dueDate).getTime())[0];
+        if (firstUnpaid) {
+            firstUnpaid.isNextActionable = true;
+        }
+    });
+
+    // Filter out paid occurrences older than 1 month
+    // Hide paid reminders by default (user can toggle visibility)
+    const filteredReminders = showPaid ? allReminders : allReminders.filter(r => !r.isPaid);
+
     // Create month buckets
     const months: MonthGroup[] = [];
     let startMonth = addMonths(startOfMonth(now), -monthsBack);
     const endMonth = addMonths(endOfMonth(now), monthsAhead);
 
     // Ensure we include any month that has an overdue reminder
-    allReminders.forEach(r => {
+    filteredReminders.forEach(r => {
         if (getReminderStatus(r) === 'overdue') {
             const rMonth = startOfMonth(parseISO(r.dueDate));
             if (isBefore(rMonth, startMonth)) {
@@ -228,7 +254,7 @@ export function groupRemindersByMonth(
     }
 
     // Assign reminders to months
-    allReminders.forEach(reminder => {
+    filteredReminders.forEach(reminder => {
         const reminderDate = parseISO(reminder.dueDate);
         const reminderKey = format(reminderDate, 'yyyy-MM');
 
@@ -241,7 +267,7 @@ export function groupRemindersByMonth(
     // Sort reminders within each month by date
     months.forEach(month => {
         month.reminders.sort((a, b) =>
-            new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()
+            parseDate(a.dueDate).getTime() - parseDate(b.dueDate).getTime()
         );
     });
 
@@ -251,15 +277,16 @@ export function groupRemindersByMonth(
 export type ReminderStatus = 'overdue' | 'today' | 'this-week' | 'upcoming' | 'paid' | 'projected';
 
 /**
- * Determine the status of a reminder for styling purposes
+ * Determine the status of a reminder for styling purposes.
+ * When isNextActionable is true, a projected occurrence gets temporal
+ * styling (today/this-week/upcoming) instead of being classified as 'projected'.
  */
-export function getReminderStatus(reminder: ReminderWithProjection): ReminderStatus {
+export function getReminderStatus(reminder: ReminderWithProjection, advanceDays: number = 7): ReminderStatus {
     if (reminder.isPaid) return 'paid';
 
     const now = new Date();
     const dueDate = parseISO(reminder.dueDate);
 
-    // Check if overdue (past due date and not today)
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const dueDateNormalized = new Date(dueDate);
@@ -269,15 +296,17 @@ export function getReminderStatus(reminder: ReminderWithProjection): ReminderSta
         return 'overdue';
     }
 
-    if (reminder.isProjected) return 'projected';
+    // Future projected occurrences that are NOT the next actionable → informational only
+    if (reminder.isProjected && !reminder.isNextActionable) {
+        return 'projected';
+    }
 
     if (dueDateNormalized.getTime() === today.getTime()) {
         return 'today';
     }
 
-    // Check if due within 7 days
-    const weekFromNow = addDays(now, 7);
-    if (isBefore(dueDate, weekFromNow)) {
+    const advanceWindow = addDays(now, advanceDays);
+    if (isBefore(dueDate, advanceWindow)) {
         return 'this-week';
     }
 

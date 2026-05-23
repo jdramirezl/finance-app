@@ -2,9 +2,9 @@ import { useNavigate } from 'react-router-dom';
 import type { Account } from '../../types';
 import { currencyService } from '../../services/currencyService';
 import { TrendingUp, RefreshCw } from 'lucide-react';
-import Button from '../Button';
+import Button from '../ui/Button';
 import { formatDistanceToNow } from 'date-fns';
-import SelectableValue from '../SelectableValue';
+import SelectableValue from '../ui/SelectableValue';
 
 export interface InvestmentData {
     precioActual: number;
@@ -39,6 +39,7 @@ const InvestmentCardCompact = ({
     // Use corrected values from data if available, otherwise fall back to account
     const montoInvertido = data?.montoInvertido ?? account.montoInvertido ?? 0;
     const shares = data?.shares ?? account.shares ?? 0;
+    const refreshLabel = `Refresh ${stockSymbol} share price`;
 
     return (
         <div className="border-l-4 pl-4" style={{ borderColor: account.color }}>
@@ -46,7 +47,16 @@ const InvestmentCardCompact = ({
                 <div 
                     className="flex items-center gap-2 cursor-pointer group"
                     onClick={handleAccountClick}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            handleAccountClick();
+                        }
+                    }}
                     title="View Account Details"
+                    aria-label={`View ${account.name} account details`}
                 >
                     <div
                         className="w-3 h-3 rounded-full transition-transform group-hover:scale-125"
@@ -55,7 +65,7 @@ const InvestmentCardCompact = ({
                     <span className="font-semibold text-lg text-gray-900 dark:text-gray-100 group-hover:text-purple-600 dark:group-hover:text-purple-400">
                         {account.name}
                     </span>
-                    <TrendingUp className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                    <TrendingUp className="w-4 h-4 text-purple-600 dark:text-purple-400" aria-hidden="true" />
                 </div>
                 <span className="font-mono text-lg font-semibold text-gray-900 dark:text-gray-100">
                     <SelectableValue id={`inv-total-${account.id}`} value={data?.totalValue ?? account.balance} currency={account.currency}>
@@ -82,8 +92,10 @@ const InvestmentCardCompact = ({
                                 loading={isRefreshing}
                                 disabled={isRefreshing}
                                 className="ml-2"
+                                aria-label={refreshLabel}
+                                title={refreshLabel}
                             >
-                                <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                                <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} aria-hidden="true" />
                             </Button>
                         </div>
 

@@ -65,7 +65,6 @@ export const mockSubPockets: SubPocket[] = [
         valueTotal: 1200,
         periodicityMonths: 12,
         balance: 100,
-        enabled: true,
     },
     {
         id: 'subpocket-2',
@@ -74,7 +73,6 @@ export const mockSubPockets: SubPocket[] = [
         valueTotal: 2400,
         periodicityMonths: 12,
         balance: 300,
-        enabled: true,
     },
     {
         id: 'subpocket-3',
@@ -83,7 +81,6 @@ export const mockSubPockets: SubPocket[] = [
         valueTotal: 600,
         periodicityMonths: 6,
         balance: 0,
-        enabled: false,
     },
 ];
 

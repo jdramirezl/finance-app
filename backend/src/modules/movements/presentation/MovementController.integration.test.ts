@@ -14,6 +14,7 @@ import express from 'express';
 import type { CreateMovementDTO, UpdateMovementDTO } from '../application/dtos/MovementDTO';
 import { MovementController } from './MovementController';
 import { CreateMovementUseCase } from '../application/useCases/CreateMovementUseCase';
+import { GetAllMovementsUseCase } from '../application/useCases/GetAllMovementsUseCase';
 import { GetMovementsByAccountUseCase } from '../application/useCases/GetMovementsByAccountUseCase';
 import { GetMovementsByPocketUseCase } from '../application/useCases/GetMovementsByPocketUseCase';
 import { GetMovementsByMonthUseCase } from '../application/useCases/GetMovementsByMonthUseCase';
@@ -24,12 +25,21 @@ import { DeleteMovementUseCase } from '../application/useCases/DeleteMovementUse
 import { ApplyPendingMovementUseCase } from '../application/useCases/ApplyPendingMovementUseCase';
 import { MarkAsPendingUseCase } from '../application/useCases/MarkAsPendingUseCase';
 import { RestoreOrphanedMovementsUseCase } from '../application/useCases/RestoreOrphanedMovementsUseCase';
+import { CreateTransferUseCase } from '../application/useCases/CreateTransferUseCase';
+import { GetSpendingSummaryUseCase } from '../application/useCases/GetSpendingSummaryUseCase';
+import { GetMovementYearsUseCase } from '../application/useCases/GetMovementYearsUseCase';
+import { DeleteMovementsByAccountUseCase } from '../application/useCases/DeleteMovementsByAccountUseCase';
+import { DeleteMovementsByPocketUseCase } from '../application/useCases/DeleteMovementsByPocketUseCase';
+import { MarkMovementsAsOrphanedUseCase } from '../application/useCases/MarkMovementsAsOrphanedUseCase';
+import { UpdateMovementsAccountForPocketUseCase } from '../application/useCases/UpdateMovementsAccountForPocketUseCase';
+import type { IMovementRepository } from '../infrastructure/IMovementRepository';
 import { ValidationError, NotFoundError } from '../../../shared/errors/AppError';
 import { errorHandler } from '../../../shared/middleware/errorHandler';
 
 describe('MovementController Integration Tests', () => {
   let app: express.Application;
   let mockCreateMovementUseCase: jest.Mocked<CreateMovementUseCase>;
+  let mockGetAllMovementsUseCase: jest.Mocked<GetAllMovementsUseCase>;
   let mockGetMovementsByAccountUseCase: jest.Mocked<GetMovementsByAccountUseCase>;
   let mockGetMovementsByPocketUseCase: jest.Mocked<GetMovementsByPocketUseCase>;
   let mockGetMovementsByMonthUseCase: jest.Mocked<GetMovementsByMonthUseCase>;
@@ -40,6 +50,14 @@ describe('MovementController Integration Tests', () => {
   let mockApplyPendingMovementUseCase: jest.Mocked<ApplyPendingMovementUseCase>;
   let mockMarkAsPendingUseCase: jest.Mocked<MarkAsPendingUseCase>;
   let mockRestoreOrphanedMovementsUseCase: jest.Mocked<RestoreOrphanedMovementsUseCase>;
+  let mockCreateTransferUseCase: jest.Mocked<CreateTransferUseCase>;
+  let mockGetSpendingSummaryUseCase: jest.Mocked<GetSpendingSummaryUseCase>;
+  let mockGetMovementYearsUseCase: jest.Mocked<GetMovementYearsUseCase>;
+  let mockDeleteMovementsByAccountUseCase: jest.Mocked<DeleteMovementsByAccountUseCase>;
+  let mockDeleteMovementsByPocketUseCase: jest.Mocked<DeleteMovementsByPocketUseCase>;
+  let mockMarkMovementsAsOrphanedUseCase: jest.Mocked<MarkMovementsAsOrphanedUseCase>;
+  let mockUpdateMovementsAccountForPocketUseCase: jest.Mocked<UpdateMovementsAccountForPocketUseCase>;
+  let mockMovementRepo: jest.Mocked<IMovementRepository>;
   
   const testUserId = 'test-user-123';
   const mockAuthMiddleware = (req: any, _res: any, next: any) => {
@@ -50,6 +68,10 @@ describe('MovementController Integration Tests', () => {
   beforeEach(() => {
     // Create mock use cases
     mockCreateMovementUseCase = {
+      execute: jest.fn()
+    } as any;
+    
+    mockGetAllMovementsUseCase = {
       execute: jest.fn()
     } as any;
     
@@ -93,9 +115,62 @@ describe('MovementController Integration Tests', () => {
       execute: jest.fn()
     } as any;
 
+    mockCreateTransferUseCase = {
+      execute: jest.fn()
+    } as any;
+
+    mockGetSpendingSummaryUseCase = {
+      execute: jest.fn()
+    } as any;
+
+    mockGetMovementYearsUseCase = {
+      execute: jest.fn()
+    } as any;
+
+    mockDeleteMovementsByAccountUseCase = {
+      execute: jest.fn()
+    } as any;
+
+    mockDeleteMovementsByPocketUseCase = {
+      execute: jest.fn()
+    } as any;
+
+    mockMarkMovementsAsOrphanedUseCase = {
+      execute: jest.fn()
+    } as any;
+
+    mockUpdateMovementsAccountForPocketUseCase = {
+      execute: jest.fn()
+    } as any;
+
+    mockMovementRepo = {
+      save: jest.fn(),
+      createTransferAtomic: jest.fn(),
+      batchCreate: jest.fn(),
+      findById: jest.fn(),
+      findAll: jest.fn(),
+      findByAccountId: jest.fn(),
+      findByPocketId: jest.fn(),
+      findBySubPocketId: jest.fn(),
+      findByMonth: jest.fn(),
+      findPending: jest.fn(),
+      findOrphaned: jest.fn(),
+      findOrphanedByAccount: jest.fn(),
+      findOrphanedByAccountAndPocket: jest.fn(),
+      update: jest.fn(),
+      delete: jest.fn(),
+      deleteByAccountId: jest.fn(),
+      deleteByPocketId: jest.fn(),
+      markAsOrphanedByAccountId: jest.fn(),
+      markAsOrphanedByPocketId: jest.fn(),
+      updateAccountIdByPocketId: jest.fn(),
+      count: jest.fn(),
+    } as any;
+
     // Create controller with mocked use cases
     const controller = new MovementController(
       mockCreateMovementUseCase,
+      mockGetAllMovementsUseCase,
       mockGetMovementsByAccountUseCase,
       mockGetMovementsByPocketUseCase,
       mockGetMovementsByMonthUseCase,
@@ -105,7 +180,15 @@ describe('MovementController Integration Tests', () => {
       mockDeleteMovementUseCase,
       mockApplyPendingMovementUseCase,
       mockMarkAsPendingUseCase,
-      mockRestoreOrphanedMovementsUseCase
+      mockRestoreOrphanedMovementsUseCase,
+      mockCreateTransferUseCase,
+      mockGetSpendingSummaryUseCase,
+      mockGetMovementYearsUseCase,
+      mockDeleteMovementsByAccountUseCase,
+      mockDeleteMovementsByPocketUseCase,
+      mockMarkMovementsAsOrphanedUseCase,
+      mockUpdateMovementsAccountForPocketUseCase,
+      mockMovementRepo
     );
 
     // Setup Express app with routes
@@ -244,7 +327,8 @@ describe('MovementController Integration Tests', () => {
       expect(mockGetMovementsByAccountUseCase.execute).toHaveBeenCalledWith(
         'account-123',
         testUserId,
-        { isPending: undefined, year: undefined, month: undefined }
+        { isPending: undefined, year: undefined, month: undefined },
+        { limit: undefined, offset: undefined }
       );
     });
 
@@ -276,7 +360,8 @@ describe('MovementController Integration Tests', () => {
       expect(mockGetMovementsByPocketUseCase.execute).toHaveBeenCalledWith(
         'pocket-456',
         testUserId,
-        { isPending: undefined, year: undefined, month: undefined }
+        { isPending: undefined, year: undefined, month: undefined },
+        { limit: undefined, offset: undefined }
       );
     });
 
@@ -316,14 +401,21 @@ describe('MovementController Integration Tests', () => {
       );
     });
 
-    it('should return 400 when no filter is provided', async () => {
+    it('should return all movements when no filter is provided', async () => {
+      // Arrange
+      const mockResult = { movements: [], total: 0, page: 1, limit: 50 };
+      mockGetAllMovementsUseCase.execute.mockResolvedValue(mockResult as any);
+
       // Act
       const response = await request(app)
         .get('/api/movements');
 
       // Assert
-      expect(response.status).toBe(400);
-      expect(response.body.error).toContain('At least one filter parameter is required');
+      expect(response.status).toBe(200);
+      expect(mockGetAllMovementsUseCase.execute).toHaveBeenCalledWith(
+        testUserId,
+        { page: undefined, limit: undefined }
+      );
     });
 
     it('should filter by pending status', async () => {
@@ -354,7 +446,8 @@ describe('MovementController Integration Tests', () => {
       expect(mockGetMovementsByAccountUseCase.execute).toHaveBeenCalledWith(
         'account-123',
         testUserId,
-        { isPending: true, year: undefined, month: undefined }
+        { isPending: true, year: undefined, month: undefined },
+        { limit: undefined, offset: undefined }
       );
     });
   });

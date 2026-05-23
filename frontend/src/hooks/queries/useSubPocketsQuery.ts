@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { SupabaseStorageService } from '../../services/supabaseStorageService';
+import { subPocketService } from '../../services/subPocketService';
 
 /**
  * Query hook for fetching all sub-pockets
@@ -7,6 +7,7 @@ import { SupabaseStorageService } from '../../services/supabaseStorageService';
 export const useSubPocketsQuery = () => {
     return useQuery({
         queryKey: ['subPockets'],
-        queryFn: () => SupabaseStorageService.getSubPockets(),
+        queryFn: () => subPocketService.getAllSubPockets(),
+        staleTime: 1000 * 60 * 10, // 10 minutes - sub-pockets change infrequently
     });
 };
