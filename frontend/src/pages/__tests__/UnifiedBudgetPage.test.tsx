@@ -334,18 +334,25 @@ describe('UnifiedBudgetPage', () => {
     expect(screen.getByPlaceholderText('0.00')).toBeInTheDocument();
   });
 
-  it('renders the scenario tabs with default tabs when no scenarios persisted', () => {
+  it('renders the scenario tabs empty-state hint when no scenarios persisted', () => {
     render(<UnifiedBudgetPage />);
 
+    // Empty state shows a hint and the create button — no fake default tabs.
     expect(
-      screen.getByRole('button', { name: /normal month/i }),
+      screen.getByText(/create your first scenario/i),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole('button', { name: /^holiday$/i }),
+      screen.getByRole('button', { name: /add scenario/i }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole('button', { name: /crisis mode/i }),
-    ).toBeInTheDocument();
+      screen.queryByRole('button', { name: /normal month/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /^holiday$/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /crisis mode/i }),
+    ).not.toBeInTheDocument();
   });
 
   it('renders distribution entries provided by persistence', () => {

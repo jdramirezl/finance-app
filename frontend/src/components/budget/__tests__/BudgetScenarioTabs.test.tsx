@@ -3,10 +3,30 @@ import { render, screen } from '../../../test/testUtils';
 import userEvent from '@testing-library/user-event';
 import BudgetScenarioTabs from '../BudgetScenarioTabs';
 import type { PlanningScenario } from '../ScenarioForm';
+import type { SubPocket } from '../../../types';
+
+const makeSubPocket = (overrides: Partial<SubPocket>): SubPocket => ({
+  id: 'sp-default',
+  pocketId: 'pocket-fixed',
+  name: 'Default Expense',
+  valueTotal: 1200,
+  periodicityMonths: 12,
+  balance: 0,
+  enabled: true,
+  ...overrides,
+});
 
 const mockScenarios: PlanningScenario[] = [
-  { id: 's1', name: 'Vacation', expenseIds: ['exp-1'] },
-  { id: 's2', name: 'Tight Budget', expenseIds: [] },
+  { id: 's1', name: 'Vacation', expenseIds: ['exp-1', 'exp-2'] },
+  { id: 's2', name: 'Tight Budget', expenseIds: ['exp-3'] },
+];
+
+// 1200 / 12 = 100 per month, two enabled expenses → 200/mo for s1.
+// Single 600/12 = 50/mo for s2.
+const mockSubPockets: SubPocket[] = [
+  makeSubPocket({ id: 'exp-1', valueTotal: 1200, periodicityMonths: 12 }),
+  makeSubPocket({ id: 'exp-2', valueTotal: 1200, periodicityMonths: 12 }),
+  makeSubPocket({ id: 'exp-3', valueTotal: 600, periodicityMonths: 12 }),
 ];
 
 const defaultProps = {
@@ -22,61 +42,112 @@ describe('BudgetScenarioTabs', () => {
   });
 
   describe('with no scenarios', () => {
-    it('renders the three default tabs', () => {
+    it('renders the empty-state hint instead of fake default tabs', () => {
       render(<BudgetScenarioTabs {...defaultProps} />);
 
       expect(
-        screen.getByRole('button', { name: 'Normal Month' }),
+        screen.getByText('Create your first scenario'),
       ).toBeInTheDocument();
+      // No fake default tabs should leak through.
       expect(
-        screen.getByRole('button', { name: 'Holiday' }),
-      ).toBeInTheDocument();
+        screen.queryByRole('button', { name: 'Normal Month' }),
+      ).not.toBeInTheDocument();
       expect(
-        screen.getByRole('button', { name: 'Crisis Mode' }),
-      ).toBeInTheDocument();
+        screen.queryByRole('button', { name: 'Holiday' }),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole('button', { name: 'Crisis Mode' }),
+      ).not.toBeInTheDocument();
     });
 
-    it('calls onToggle with the default tab id when a default tab is clicked', async () => {
-      const onToggle = vi.fn();
+    it('renders the add scenario button and calls onCreate when clicked', async () => {
+      const onCreate = vi.fn();
       const user = userEvent.setup();
-      render(<BudgetScenarioTabs {...defaultProps} onToggle={onToggle} />);
+      render(<BudgetScenarioTabs {...defaultProps} onCreate={onCreate} />);
 
-      await user.click(screen.getByRole('button', { name: 'Holiday' }));
+      await user.click(screen.getByRole('button', { name: 'Add scenario' }));
 
-      expect(onToggle).toHaveBeenCalledWith('__holiday');
+      expect(onCreate).toHaveBeenCalledTimes(1);
     });
   });
 
   describe('with scenarios', () => {
-    it('renders one tab per scenario instead of defaults', () => {
-      render(<BudgetScenarioTabs {...defaultProps} scenarios={mockScenarios} />);
+    it('renders one tab per scenario', () => {
+      render(
+        <BudgetScenarioTabs
+          {...defaultProps}
+          scenarios={mockScenarios}
+          fixedSubPockets={mockSubPockets}
+        />,
+      );
 
-      expect(
-        screen.getByRole('button', { name: 'Vacation' }),
-      ).toBeInTheDocument();
-      expect(
-        screen.getByRole('button', { name: 'Tight Budget' }),
-      ).toBeInTheDocument();
-      // Default tabs should not appear when scenarios are provided
-      expect(
-        screen.queryByRole('button', { name: 'Normal Month' }),
-      ).not.toBeInTheDocument();
+      expect(screen.getByText('Vacation')).toBeInTheDocument();
+      expect(screen.getByText('Tight Budget')).toBeInTheDocument();
     });
 
-    it('calls onToggle with the scenario id when a scenario tab is clicked', async () => {
+    it('calls onToggle with the scenario id when a tab is clicked', async () => {
       const onToggle = vi.fn();
       const user = userEvent.setup();
       render(
         <BudgetScenarioTabs
           {...defaultProps}
           scenarios={mockScenarios}
+          fixedSubPockets={mockSubPockets}
           onToggle={onToggle}
         />,
       );
 
-      await user.click(screen.getByRole('button', { name: 'Vacation' }));
+      await user.click(screen.getByText('Vacation'));
 
       expect(onToggle).toHaveBeenCalledWith('s1');
+    });
+
+    it('shows the monthly total as the sum of enabled scenario expenses', () => {
+      render(
+        <BudgetScenarioTabs
+          {...defaultProps}
+          scenarios={mockScenarios}
+          fixedSubPockets={mockSubPockets}
+        />,
+      );
+
+      // Vacation: exp-1 (100/mo) + exp-2 (100/mo) = $200/mo
+      expect(screen.getByText('$200/mo')).toBeInTheDocument();
+      // Tight Budget: exp-3 (50/mo) = $50/mo
+      expect(screen.getByText('$50/mo')).toBeInTheDocument();
+    });
+
+    it('excludes disabled expenses from the monthly total', () => {
+      const disabledSubPockets: SubPocket[] = [
+        makeSubPocket({ id: 'exp-1', valueTotal: 1200, periodicityMonths: 12 }),
+        makeSubPocket({
+          id: 'exp-2',
+          valueTotal: 1200,
+          periodicityMonths: 12,
+          enabled: false,
+        }),
+        makeSubPocket({ id: 'exp-3', valueTotal: 600, periodicityMonths: 12 }),
+      ];
+
+      render(
+        <BudgetScenarioTabs
+          {...defaultProps}
+          scenarios={mockScenarios}
+          fixedSubPockets={disabledSubPockets}
+        />,
+      );
+
+      // Vacation only counts exp-1 (enabled) → $100/mo
+      expect(screen.getByText('$100/mo')).toBeInTheDocument();
+    });
+
+    it('shows $0/mo when no fixedSubPockets are provided', () => {
+      render(
+        <BudgetScenarioTabs {...defaultProps} scenarios={mockScenarios} />,
+      );
+
+      const zeroTotals = screen.getAllByText('$0/mo');
+      expect(zeroTotals).toHaveLength(2);
     });
 
     it('applies active styling only to tabs whose id is in activeIds', () => {
@@ -84,50 +155,109 @@ describe('BudgetScenarioTabs', () => {
         <BudgetScenarioTabs
           {...defaultProps}
           scenarios={mockScenarios}
+          fixedSubPockets={mockSubPockets}
           activeIds={['s1']}
         />,
       );
 
-      const activeTab = screen.getByRole('button', { name: 'Vacation' });
-      const inactiveTab = screen.getByRole('button', { name: 'Tight Budget' });
+      const activeWrapper = screen.getByText('Vacation').closest('div.group');
+      const inactiveWrapper = screen
+        .getByText('Tight Budget')
+        .closest('div.group');
 
-      expect(activeTab.className).toMatch(/bg-blue-500\/10/);
-      expect(activeTab.className).toMatch(/text-blue-400/);
-      expect(inactiveTab.className).not.toMatch(/bg-blue-500\/10/);
+      expect(activeWrapper?.className).toMatch(/bg-blue-500\/10/);
+      expect(activeWrapper?.className).toMatch(/border-blue-500\/30/);
+      expect(inactiveWrapper?.className).not.toMatch(/bg-blue-500\/10/);
+    });
+
+    it('calls onEdit with the scenario when the edit icon is clicked', async () => {
+      const onEdit = vi.fn();
+      const user = userEvent.setup();
+      render(
+        <BudgetScenarioTabs
+          {...defaultProps}
+          scenarios={mockScenarios}
+          fixedSubPockets={mockSubPockets}
+          onEdit={onEdit}
+        />,
+      );
+
+      await user.click(screen.getByRole('button', { name: 'Edit Vacation' }));
+
+      expect(onEdit).toHaveBeenCalledWith(mockScenarios[0]);
+    });
+
+    it('calls onDelete with the scenario id when the delete icon is clicked', async () => {
+      const onDelete = vi.fn();
+      const user = userEvent.setup();
+      render(
+        <BudgetScenarioTabs
+          {...defaultProps}
+          scenarios={mockScenarios}
+          fixedSubPockets={mockSubPockets}
+          onDelete={onDelete}
+        />,
+      );
+
+      await user.click(
+        screen.getByRole('button', { name: 'Delete Vacation' }),
+      );
+
+      expect(onDelete).toHaveBeenCalledWith('s1');
+    });
+
+    it('does not toggle when an action icon is clicked', async () => {
+      const onToggle = vi.fn();
+      const onEdit = vi.fn();
+      const user = userEvent.setup();
+      render(
+        <BudgetScenarioTabs
+          {...defaultProps}
+          scenarios={mockScenarios}
+          fixedSubPockets={mockSubPockets}
+          onToggle={onToggle}
+          onEdit={onEdit}
+        />,
+      );
+
+      await user.click(screen.getByRole('button', { name: 'Edit Vacation' }));
+
+      expect(onEdit).toHaveBeenCalledTimes(1);
+      expect(onToggle).not.toHaveBeenCalled();
+    });
+
+    it('omits action icons when onEdit and onDelete are not provided', () => {
+      render(
+        <BudgetScenarioTabs
+          {...defaultProps}
+          scenarios={mockScenarios}
+          fixedSubPockets={mockSubPockets}
+        />,
+      );
+
+      expect(
+        screen.queryByRole('button', { name: 'Edit Vacation' }),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole('button', { name: 'Delete Vacation' }),
+      ).not.toBeInTheDocument();
     });
   });
 
-  it('renders the add scenario button with title', () => {
-    render(<BudgetScenarioTabs {...defaultProps} />);
-
-    expect(screen.getByTitle('Add scenario')).toBeInTheDocument();
-  });
-
-  it('calls onCreate when the add scenario button is clicked', async () => {
-    const onCreate = vi.fn();
-    const user = userEvent.setup();
-    render(<BudgetScenarioTabs {...defaultProps} onCreate={onCreate} />);
-
-    await user.click(screen.getByTitle('Add scenario'));
-
-    expect(onCreate).toHaveBeenCalledTimes(1);
-  });
-
-  it('does not call onToggle when the add scenario button is clicked', async () => {
-    const onToggle = vi.fn();
+  it('renders the add scenario button when scenarios exist', async () => {
     const onCreate = vi.fn();
     const user = userEvent.setup();
     render(
       <BudgetScenarioTabs
         {...defaultProps}
-        onToggle={onToggle}
+        scenarios={mockScenarios}
+        fixedSubPockets={mockSubPockets}
         onCreate={onCreate}
       />,
     );
 
-    await user.click(screen.getByTitle('Add scenario'));
+    await user.click(screen.getByRole('button', { name: 'Add scenario' }));
 
-    expect(onToggle).not.toHaveBeenCalled();
     expect(onCreate).toHaveBeenCalledTimes(1);
   });
 });

@@ -16,7 +16,6 @@ import { useBudgetPersistence } from '../hooks/useBudgetPersistence';
 import { useToast } from '../hooks/useToast';
 import { useConfirmDialog } from '../contexts/ConfirmDialogContext';
 import type {
-  Account,
   Currency,
   FixedExpenseGroup,
   SubPocket,
@@ -42,7 +41,7 @@ import {
 import {
   FixedExpenseForm,
   FixedExpenseGroupForm,
-  FixedExpensesList,
+  StitchExpensesList,
 } from '../components/fixed-expenses';
 import ScenarioForm, {
   type PlanningScenario,
@@ -117,14 +116,6 @@ const UnifiedBudgetPage = () => {
     () => subPockets.filter((sp) => fixedPockets.some((fp) => fp.id === sp.pocketId)),
     [subPockets, fixedPockets],
   );
-  const pocketAccountMap = useMemo(() => {
-    const map = new Map<string, Account>();
-    fixedPockets.forEach((fp) => {
-      const account = accounts.find((a) => a.id === fp.accountId);
-      if (account) map.set(fp.id, account);
-    });
-    return map;
-  }, [fixedPockets, accounts]);
 
   const primaryCurrency = settings?.primaryCurrency || 'USD';
   const budgetCurrency = (fixedPockets[0]?.currency || primaryCurrency) as Currency;
@@ -181,7 +172,7 @@ const UnifiedBudgetPage = () => {
     defaultPocketId,
   });
 
-  // Stable action handlers passed into memoized FixedExpensesList children.
+  // Stable action handlers passed into memoized StitchExpensesList children.
   const handleEditGroup = useCallback((group: FixedExpenseGroup) => {
     setEditingGroup(group);
     setShowGroupForm(true);
@@ -197,28 +188,33 @@ const UnifiedBudgetPage = () => {
     [fixedExpenseActions],
   );
   const handleDeleteExpense = useCallback(
-    (id: string) => {
-      void fixedExpenseActions.handleDeleteSubPocket(id);
+    (sp: SubPocket) => {
+      void fixedExpenseActions.handleDeleteSubPocket(sp.id);
     },
     [fixedExpenseActions],
   );
   const handleToggleExpense = useCallback(
-    (id: string) => {
-      void fixedExpenseActions.handleToggleSubPocket(id);
+    (sp: SubPocket) => {
+      void fixedExpenseActions.handleToggleSubPocket(sp.id);
     },
     [fixedExpenseActions],
   );
-  const handleMoveToGroup = useCallback(
-    (subPocketId: string, groupId: string) => {
-      void fixedExpenseActions.handleMoveToGroup(subPocketId, groupId);
-    },
-    [fixedExpenseActions],
-  );
+  // Stitch group toggle is a single button: derive the new enabled state
+  // from the group's current sub-pockets ("all enabled" → disable all,
+  // otherwise enable all). Default ungrouped expenses (no `groupId`) are
+  // folded into a group named "Default" by the list, so include them when
+  // computing the toggle for that group.
   const handleToggleGroup = useCallback(
-    (groupId: string, enabled: boolean) => {
-      void fixedExpenseActions.handleToggleGroup(groupId, enabled);
+    (group: FixedExpenseGroup) => {
+      const groupExpenses = fixedSubPockets.filter((sp) => {
+        if (sp.groupId) return sp.groupId === group.id;
+        return group.name === 'Default';
+      });
+      if (groupExpenses.length === 0) return;
+      const allEnabled = groupExpenses.every((sp) => sp.enabled);
+      void fixedExpenseActions.handleToggleGroup(group.id, !allEnabled);
     },
-    [fixedExpenseActions],
+    [fixedExpenseActions, fixedSubPockets],
   );
 
   const closeScenarioForm = () => {
@@ -302,16 +298,14 @@ const UnifiedBudgetPage = () => {
               currency={budgetCurrency}
             />
 
-            <FixedExpensesList
+            <StitchExpensesList
               groups={fixedExpenseGroups}
               fixedSubPockets={fixedSubPockets}
-              pocketAccountMap={pocketAccountMap}
               currency={budgetCurrency}
               collapsedGroups={fixedExpenseActions.collapsedGroups}
               togglingGroupId={fixedExpenseActions.togglingGroupId}
               deletingId={fixedExpenseActions.deletingId}
               togglingId={fixedExpenseActions.togglingId}
-              onReorderGroups={fixedExpenseActions.handleReorderGroups}
               onToggleCollapse={fixedExpenseActions.toggleGroupCollapse}
               onToggleGroup={handleToggleGroup}
               onEditGroup={handleEditGroup}
@@ -319,7 +313,6 @@ const UnifiedBudgetPage = () => {
               onEditExpense={handleEditExpense}
               onDeleteExpense={handleDeleteExpense}
               onToggleExpense={handleToggleExpense}
-              onMoveToGroup={handleMoveToGroup}
             />
           </div>
 
@@ -354,10 +347,18 @@ const UnifiedBudgetPage = () => {
             <BudgetScenarioTabs
               scenarios={scenarios}
               activeIds={activeScenarioIdsArray}
+              fixedSubPockets={fixedSubPockets}
               onToggle={budgetActions.toggleScenario}
               onCreate={() => {
                 setEditingScenario(null);
                 setShowScenarioForm(true);
+              }}
+              onEdit={(scenario) => {
+                setEditingScenario(scenario);
+                setShowScenarioForm(true);
+              }}
+              onDelete={(id) => {
+                void budgetActions.deleteScenario(id);
               }}
             />
 
