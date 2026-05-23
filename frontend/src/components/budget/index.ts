@@ -10,4 +10,7 @@ export { default as AllocationStrategy } from './AllocationStrategy';
 export { default as PortfolioDonutChart } from './PortfolioDonutChart';
 export { default as BudgetStatsCards } from './BudgetStatsCards';
 export { default as BudgetSidebar } from './BudgetSidebar';
+export { default as ObligationsHeader } from './ObligationsHeader';
+export { default as ObligationsFooter } from './ObligationsFooter';
+export { default as DistributionFooter } from './DistributionFooter';
 export type { DistributionEntry } from './BudgetEntryRow';
