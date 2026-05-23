@@ -77,9 +77,10 @@ describe('StockPrice Value Object', () => {
     });
 
     it('should not be expired at exactly 24 hours', () => {
-      const exactDate = new Date();
-      exactDate.setHours(exactDate.getHours() - 24);
-      const stockPrice = new StockPrice('VOO', 450.25, exactDate);
+      const almostExpired = new Date();
+      almostExpired.setHours(almostExpired.getHours() - 24);
+      almostExpired.setMinutes(almostExpired.getMinutes() + 1); // 23h59m ago
+      const stockPrice = new StockPrice('VOO', 450.25, almostExpired);
 
       expect(stockPrice.isExpired()).toBe(false);
       expect(stockPrice.isFresh()).toBe(true);

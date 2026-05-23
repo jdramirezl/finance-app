@@ -17,6 +17,7 @@ export default defineConfig({
     globals: true,
     environment: 'jsdom',
     setupFiles: './src/test/setup.ts',
+    exclude: ['node_modules/**', 'e2e/**'],
     env: {
       VITE_SUPABASE_URL: 'http://localhost:54321',
       VITE_SUPABASE_ANON_KEY: 'test-key',
@@ -27,6 +28,7 @@ export default defineConfig({
       exclude: [
         'node_modules/',
         'src/test/',
+        'e2e/**',
         '**/*.d.ts',
         '**/*.config.*',
         '**/mockData',
