@@ -30,6 +30,7 @@ import AllocationStrategy, {
   ALLOCATION_COLORS,
 } from '../components/budget/AllocationStrategy';
 import {
+  BudgetCurrencySelector,
   BudgetIncomeCard,
   BudgetScenarioTabs,
   DistributionFooter,
@@ -91,6 +92,8 @@ const UnifiedBudgetPage = () => {
     setScenarios,
     defaultAccountId,
     defaultPocketId,
+    budgetCurrency: persistedBudgetCurrency,
+    setBudgetCurrency,
   } = useBudgetPersistence();
 
   // --- Modal state owned by the page ------------------------------------
@@ -118,7 +121,7 @@ const UnifiedBudgetPage = () => {
   );
 
   const primaryCurrency = settings?.primaryCurrency || 'USD';
-  const budgetCurrency = (fixedPockets[0]?.currency || primaryCurrency) as Currency;
+  const budgetCurrency = (persistedBudgetCurrency || fixedPockets[0]?.currency || primaryCurrency) as Currency;
 
   const totalCount = fixedSubPockets.length;
 
@@ -261,6 +264,13 @@ const UnifiedBudgetPage = () => {
               totalMonthly={totalFixedExpensesMonthly}
               currency={budgetCurrency}
             />
+            <div className="mt-3">
+              <BudgetCurrencySelector
+                value={persistedBudgetCurrency}
+                onChange={setBudgetCurrency}
+                inferredCurrency={(fixedPockets[0]?.currency || primaryCurrency) as string}
+              />
+            </div>
           </div>
 
           <div className="flex-1 lg:overflow-y-auto p-4 space-y-4">
@@ -339,6 +349,9 @@ const UnifiedBudgetPage = () => {
               currency={budgetCurrency}
               totalPercentage={totalPercentage}
               onEntriesChange={setDistributionEntries}
+              showConversion={budgetActions.showConversion}
+              convertedAmounts={budgetActions.convertedAmounts}
+              primaryCurrency={primaryCurrency}
             />
 
             <PortfolioDonutChart
