@@ -5,8 +5,6 @@ import {
   FileText,
   Folder,
   Loader2,
-  ToggleLeft,
-  ToggleRight,
   Trash2,
 } from 'lucide-react';
 import type { FixedExpenseGroup, SubPocket } from '../../types';
@@ -24,24 +22,20 @@ export interface StitchGroupCardProps {
   isDefaultGroup?: boolean;
   isCollapsed: boolean;
   onToggleCollapse: () => void;
-  onToggleGroup: () => void;
   onEditGroup: () => void;
   onDeleteGroup: () => void;
   onEditExpense: (expense: SubPocket) => void;
   onDeleteExpense: (expense: SubPocket) => void;
-  onToggleExpense: (expense: SubPocket) => void;
-  isTogglingGroup?: boolean;
   deletingExpenseId?: string | null;
-  togglingExpenseId?: string | null;
 }
 
 /**
  * Stitch-style fixed-expense group card.
  *
  * Replaces the legacy `FixedExpenseGroupCard` drag-and-drop layout with a
- * minimal collapsible card that exposes group + per-row hover actions and
- * a checkbox to toggle individual expenses. The rest of the CRUD behaviour
- * is preserved — only the visual layout changes.
+ * minimal collapsible card that exposes group + per-row hover actions.
+ * The rest of the CRUD behaviour is preserved — only the visual layout
+ * changes.
  *
  * Per-action callbacks are pre-bound to this group/expense by the parent
  * list, which keeps this component a pure presentational unit.
@@ -53,36 +47,20 @@ const StitchGroupCard = ({
   isDefaultGroup = false,
   isCollapsed,
   onToggleCollapse,
-  onToggleGroup,
   onEditGroup,
   onDeleteGroup,
   onEditExpense,
   onDeleteExpense,
-  onToggleExpense,
-  isTogglingGroup = false,
   deletingExpenseId = null,
-  togglingExpenseId = null,
 }: StitchGroupCardProps) => {
-  // Group total = sum of monthly contributions for ENABLED expenses. Match the
-  // existing legacy card so downstream totals keep the same shape.
-  const { groupTotal, enabledCount, allEnabled } = useMemo(() => {
+  // Group total = sum of monthly contributions for all expenses.
+  const { groupTotal } = useMemo(() => {
     let total = 0;
-    let enabled = 0;
     for (const sp of expenses) {
-      if (!sp.enabled) continue;
-      enabled += 1;
       total += calculateSimpleMonthlyContribution(sp.valueTotal, sp.periodicityMonths);
     }
-    return {
-      groupTotal: total,
-      enabledCount: enabled,
-      allEnabled: expenses.length > 0 && enabled === expenses.length,
-    };
+    return { groupTotal: total };
   }, [expenses]);
-
-  const groupToggleLabel = allEnabled
-    ? `Disable all expenses in ${group.name}`
-    : `Enable all expenses in ${group.name}`;
 
   return (
     <div className="group bg-gray-800 rounded-xl border border-gray-700 overflow-hidden">
@@ -100,33 +78,13 @@ const StitchGroupCard = ({
           </span>
           <span className="font-medium text-gray-100 truncate">{group.name}</span>
           <span className="text-xs text-gray-400 flex-shrink-0">
-            {enabledCount}/{expenses.length}
+            {expenses.length} items
           </span>
         </button>
 
         <div className="flex items-center gap-3 flex-shrink-0">
-          {/* Hover-revealed group actions: toggle-all, edit, delete */}
+          {/* Hover-revealed group actions: edit, delete */}
           <div className="opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity flex gap-1">
-            <button
-              type="button"
-              onClick={onToggleGroup}
-              disabled={isTogglingGroup || expenses.length === 0}
-              aria-label={groupToggleLabel}
-              title={groupToggleLabel}
-              className="p-1.5 rounded-md text-gray-300 hover:bg-gray-700 hover:text-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              {isTogglingGroup ? (
-                <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
-              ) : allEnabled ? (
-                <ToggleRight
-                  className="w-4 h-4 text-green-400"
-                  aria-hidden="true"
-                />
-              ) : (
-                <ToggleLeft className="w-4 h-4" aria-hidden="true" />
-              )}
-            </button>
-
             {!isDefaultGroup && (
               <>
                 <button
@@ -185,28 +143,18 @@ const StitchGroupCard = ({
                 expense.periodicityMonths,
               );
               const isDeleting = deletingExpenseId === expense.id;
-              const isToggling = togglingExpenseId === expense.id;
-              const expenseToggleLabel = expense.enabled
-                ? `Disable ${expense.name}`
-                : `Enable ${expense.name}`;
 
               return (
                 <div
                   key={expense.id}
-                  className={`group/row flex items-center justify-between p-2 rounded-lg hover:bg-gray-700/30 transition-colors ${
-                    expense.enabled ? '' : 'opacity-50'
-                  }`}
+                  className="group/row flex items-center justify-between p-2 rounded-lg hover:bg-gray-700/30 transition-colors"
                 >
                   <div className="flex items-center gap-3 flex-1 min-w-0">
                     <FileText
                       className="w-4 h-4 text-gray-500 flex-shrink-0"
                       aria-hidden="true"
                     />
-                    <span
-                      className={`text-gray-200 truncate ${
-                        expense.enabled ? '' : 'line-through'
-                      }`}
-                    >
+                    <span className="text-gray-200 truncate">
                       {expense.name}
                     </span>
                   </div>
@@ -246,16 +194,6 @@ const StitchGroupCard = ({
                       amount={monthlyAmount}
                       currency={currency}
                       className="font-mono text-sm text-gray-100 tabular-nums"
-                    />
-
-                    <input
-                      type="checkbox"
-                      checked={expense.enabled}
-                      disabled={isToggling}
-                      onChange={() => onToggleExpense(expense)}
-                      aria-label={expenseToggleLabel}
-                      title={expenseToggleLabel}
-                      className="w-4 h-4 rounded border-gray-600 bg-gray-700 text-blue-500 focus:ring-blue-500 focus:ring-offset-gray-800 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                     />
                   </div>
                 </div>
