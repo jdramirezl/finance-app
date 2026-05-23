@@ -27,7 +27,6 @@ const subPocketEnabled: SubPocket = {
   valueTotal: 1200,
   periodicityMonths: 12,
   balance: 100,
-  enabled: true,
   groupId: 'grp-1',
 };
 
@@ -38,7 +37,6 @@ const subPocketDisabled: SubPocket = {
   valueTotal: 600,
   periodicityMonths: 12,
   balance: 0,
-  enabled: false,
   groupId: 'grp-1',
 };
 
@@ -146,7 +144,7 @@ describe('FixedExpenseGroupCard', () => {
         <FixedExpenseGroupCard
           {...makeProps({
             onToggleGroup,
-            subPockets: [subPocketEnabled, { ...subPocketDisabled, enabled: true }],
+            subPockets: [subPocketEnabled, { ...subPocketDisabled }],
           })}
         />
       );

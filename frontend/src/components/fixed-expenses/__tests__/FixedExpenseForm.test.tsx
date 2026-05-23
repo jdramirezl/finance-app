@@ -105,7 +105,6 @@ describe('FixedExpenseForm', () => {
         valueTotal: 1200,
         periodicityMonths: 12,
         balance: 0,
-        enabled: true,
       };
       render(<FixedExpenseForm {...baseProps} initialData={initial} />);
 
@@ -237,7 +236,6 @@ describe('FixedExpenseForm', () => {
         valueTotal: 1200,
         periodicityMonths: 12,
         balance: 0,
-        enabled: true,
       };
       render(<FixedExpenseForm {...baseProps} initialData={initial} />);
 

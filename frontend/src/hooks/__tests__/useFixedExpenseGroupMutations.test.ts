@@ -53,7 +53,10 @@ const createWrapper = (): WrapperFixture => {
             mutations: { retry: false },
         },
     });
-    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
+    // Cast through `unknown` because vitest's typed `MockInstance` for the
+    // generic `invalidateQueries` overload is not assignable to the base
+    // `MockInstance` shape declared on `WrapperFixture`.
+    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries') as unknown as ReturnType<typeof vi.spyOn>;
     const wrapper = ({ children }: { children: ReactNode }) =>
         createElement(QueryClientProvider, { client: queryClient }, children);
     return { wrapper, invalidateSpy };

@@ -163,7 +163,9 @@ describe('LiquidityConsumptionCard', () => {
     } as unknown as ReturnType<typeof useSpendingSummaryQuery>);
 
     mockConvertBatch.mockResolvedValue([
-      { amount: 200, from: 'MXN', to: 'USD', convertedAmount: 11, rate: 0.055 },
+      // `BatchConversionResult` only carries the converted amount and rate;
+      // the input fields (amount/from/to) live on the request side.
+      { convertedAmount: 11, rate: 0.055 },
     ]);
 
     render(<LiquidityConsumptionCard primaryCurrency="USD" />);

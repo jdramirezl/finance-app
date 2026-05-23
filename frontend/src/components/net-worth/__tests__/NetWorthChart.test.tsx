@@ -72,9 +72,14 @@ vi.mock('recharts', () => {
       dotEl = (dot as (p: unknown) => ReactNode)(sampleProps);
     } else if (isValidElement(dot)) {
       // Cloning preserves the original component's defaults (e.g. `r`,
-      // `strokeWidth`) while injecting the runtime payload.
-      const Cloned = dot.type as React.ComponentType<unknown>;
-      dotEl = createElement(Cloned, { ...dot.props, ...sampleProps });
+      // `strokeWidth`) while injecting the runtime payload. The component
+      // type is `any` because we pass arbitrary runtime payload props that
+      // have no static relationship to the original component's signature.
+      const Cloned = dot.type as React.ComponentType<any>;
+      // Newer @types/react widen `ReactElement.props` to `unknown`, so we
+      // cast to a spreadable record before merging in the synthetic props.
+      const dotProps = dot.props as Record<string, unknown>;
+      dotEl = createElement(Cloned, { ...dotProps, ...sampleProps });
     }
 
     return createElement(

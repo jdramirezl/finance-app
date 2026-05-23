@@ -1,11 +1,9 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '../../../test/testUtils';
 import userEvent from '@testing-library/user-event';
 import TagInput from '../TagInput';
 
 describe('TagInput', () => {
-  const defaultProps = { value: [] as string[], onChange: vi.fn() };
-
   it('renders existing tags as chips', () => {
     render(<TagInput value={['food', 'rent']} onChange={vi.fn()} />);
 

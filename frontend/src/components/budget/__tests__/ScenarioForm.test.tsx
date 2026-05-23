@@ -29,7 +29,6 @@ const mockSubPockets: SubPocket[] = [
     valueTotal: 1200,
     periodicityMonths: 12,
     balance: 0,
-    enabled: true,
     groupId: 'g1',
   },
   {
@@ -39,7 +38,6 @@ const mockSubPockets: SubPocket[] = [
     valueTotal: 2400,
     periodicityMonths: 12,
     balance: 0,
-    enabled: true,
     groupId: 'g1',
   },
   {
@@ -49,7 +47,6 @@ const mockSubPockets: SubPocket[] = [
     valueTotal: 600,
     periodicityMonths: 12,
     balance: 0,
-    enabled: true,
     groupId: 'g2',
   },
   {
@@ -59,7 +56,6 @@ const mockSubPockets: SubPocket[] = [
     valueTotal: 360,
     periodicityMonths: 12,
     balance: 0,
-    enabled: true,
     // no groupId — should appear in the "Default" group
   },
 ];

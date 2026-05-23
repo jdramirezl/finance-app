@@ -42,6 +42,7 @@ const baseFormData: MovementFormData = {
   saveAsTemplate: false,
   templateName: '',
   category: '',
+  tags: [],
 };
 
 describe('useMovementSubmit — reminder linking', () => {
@@ -65,12 +66,15 @@ describe('useMovementSubmit — reminder linking', () => {
       setError: vi.fn(),
       toast: { success: vi.fn(), error: vi.fn(), warning: vi.fn(), info: vi.fn() } as any,
       mutations: {
-        createMovement,
+        // Strict typing on `UseMutationResult` requires a full mutation
+        // surface. The minimal `{ mutateAsync, isPending }` mocks are
+        // sufficient for the code paths exercised here, so cast away.
+        createMovement: createMovement as any,
         createTransfer: { mutateAsync: vi.fn(), isPending: false } as any,
         updateMovement: { mutateAsync: vi.fn(), isPending: false } as any,
         createMovementTemplate: { mutateAsync: vi.fn(), isPending: false } as any,
-        markAsPaidMutation,
-        createExceptionMutation,
+        markAsPaidMutation: markAsPaidMutation as any,
+        createExceptionMutation: createExceptionMutation as any,
       },
     };
     return renderHook(() => useMovementSubmit(params));

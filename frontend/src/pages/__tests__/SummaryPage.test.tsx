@@ -153,7 +153,6 @@ const sampleSubPocket: SubPocket = {
   valueTotal: 1200,
   periodicityMonths: 12,
   balance: 100,
-  enabled: true,
 };
 
 // Minimal TanStack-Query envelope. SummaryPage only reads

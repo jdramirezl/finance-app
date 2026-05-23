@@ -178,7 +178,6 @@ const subPockets: SubPocket[] = [
     valueTotal: 1200,
     periodicityMonths: 12,
     balance: 100,
-    enabled: true,
     groupId: 'group-default',
   },
 ];
@@ -205,14 +204,10 @@ const buildFixedActions = (
   overrides: Partial<FixedActionsShape> = {},
 ): FixedActionsShape => ({
   handleDeleteSubPocket: vi.fn(),
-  handleToggleSubPocket: vi.fn(),
   handleMoveToGroup: vi.fn(),
   deletingId: null,
-  togglingId: null,
   handleDeleteGroup: vi.fn(),
-  handleToggleGroup: vi.fn(),
   handleReorderGroups: vi.fn(),
-  togglingGroupId: null,
   collapsedGroups: new Set<string>(),
   toggleGroupCollapse: vi.fn(),
   batchForm: {
@@ -270,6 +265,8 @@ const buildPersistence = (
   setDefaultAccountId: vi.fn(),
   defaultPocketId: '',
   setDefaultPocketId: vi.fn(),
+  budgetCurrency: '',
+  setBudgetCurrency: vi.fn(),
   ...overrides,
 });
 

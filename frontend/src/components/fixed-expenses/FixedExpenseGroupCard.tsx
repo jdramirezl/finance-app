@@ -1,6 +1,6 @@
 import { memo, useMemo } from 'react';
 import type { FixedExpenseGroup, SubPocket, Account } from '../../types';
-import { ChevronDown, ChevronRight, Edit2, Trash2, ToggleLeft, ToggleRight } from 'lucide-react';
+import { ChevronDown, ChevronRight, Edit2, Trash2, ToggleRight } from 'lucide-react';
 import Button from '../ui/Button';
 import AnimatedProgressBar from '../ui/AnimatedProgressBar';
 import CurrencyAmount from '../ui/CurrencyAmount';
@@ -58,31 +58,27 @@ const FixedExpenseGroupCard = ({
   togglingId,
   pocketAccountMap,
 }: FixedExpenseGroupCardProps) => {
-  // Group-level aggregates: filter+reduce twice over the same list. Memoized
+  // Group-level aggregates: reduce over the sub-pocket list once. Memoized
   // so we don't redo the math on every parent re-render.
-  const { enabledCount, totalMonthlyExpected, totalMonthlyActual } = useMemo(() => {
-    let enabled = 0;
+  const { totalMonthlyExpected, totalMonthlyActual } = useMemo(() => {
     let expected = 0;
     let actual = 0;
     for (const sp of subPockets) {
-      if (!sp.enabled) continue;
-      enabled += 1;
       expected += calculateSimpleMonthlyContribution(sp.valueTotal, sp.periodicityMonths);
       actual += calculateAporteMensual(sp.valueTotal, sp.periodicityMonths, sp.balance);
     }
     return {
-      enabledCount: enabled,
       totalMonthlyExpected: expected,
       totalMonthlyActual: actual,
     };
   }, [subPockets]);
 
-  const allEnabled = subPockets.length > 0 && enabledCount === subPockets.length;
-  const someEnabled = enabledCount > 0 && enabledCount < subPockets.length;
-
-  const groupToggleLabel = allEnabled
-    ? `Disable all expenses in ${group.name}`
-    : `Enable all expenses in ${group.name}`;
+  // The per-pocket `enabled` toggle has been removed from the data model.
+  // The group toggle is kept for callers that still rely on the prop, but
+  // there is no longer a meaningful "all enabled" / "some enabled" split,
+  // so the button always renders in the active state.
+  const allEnabled = subPockets.length > 0;
+  const groupToggleLabel = `Toggle expenses in ${group.name}`;
 
   return (
     <div
@@ -112,7 +108,7 @@ const FixedExpenseGroupCard = ({
                   {group.name}
                 </h3>
                 <span className="text-sm text-gray-500 dark:text-gray-400">
-                  ({enabledCount}/{subPockets.length} enabled)
+                  ({subPockets.length} expenses)
                 </span>
               </div>
               <div className="flex items-center gap-4 text-sm">
@@ -146,9 +142,7 @@ const FixedExpenseGroupCard = ({
               disabled={isToggling || subPockets.length === 0}
               className={`p-2 ${allEnabled
                 ? 'text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/30'
-                : someEnabled
-                  ? 'text-yellow-600 dark:text-yellow-400 hover:bg-yellow-50 dark:hover:bg-yellow-900/30'
-                  : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+                : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
                 }`}
               title={groupToggleLabel}
               aria-label={groupToggleLabel}
@@ -156,7 +150,7 @@ const FixedExpenseGroupCard = ({
               {allEnabled ? (
                 <ToggleRight className="w-5 h-5" aria-hidden="true" />
               ) : (
-                <ToggleLeft className="w-5 h-5" aria-hidden="true" />
+                <ToggleRight className="w-5 h-5 opacity-40" aria-hidden="true" />
               )}
             </Button>
 
@@ -206,21 +200,18 @@ const FixedExpenseGroupCard = ({
               const isDeleting = deletingId === subPocket.id;
               const isTogglingExpense = togglingId === subPocket.id;
               const account = pocketAccountMap?.get(subPocket.pocketId);
-              const expenseToggleLabel = subPocket.enabled
-                ? `Disable ${subPocket.name}`
-                : `Enable ${subPocket.name}`;
+              const expenseToggleLabel = `Toggle ${subPocket.name}`;
 
               return (
                 <div
                   key={subPocket.id}
-                  className={`p-4 hover:bg-gradient-to-r hover:from-gray-50 hover:to-transparent dark:hover:from-gray-800/50 dark:hover:to-transparent transition-all duration-200 ${!subPocket.enabled ? 'opacity-50' : ''
-                    } last:rounded-b-xl`}
+                  className="p-4 hover:bg-gradient-to-r hover:from-gray-50 hover:to-transparent dark:hover:from-gray-800/50 dark:hover:to-transparent transition-all duration-200 last:rounded-b-xl"
                 >
                   <div className="flex items-center justify-between gap-4">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-2 mb-2">
                         <div className="flex items-center gap-2">
-                          <h4 className={`font-medium text-gray-900 dark:text-gray-100 ${!subPocket.enabled ? 'line-through' : ''}`}>
+                          <h4 className="font-medium text-gray-900 dark:text-gray-100">
                             {subPocket.name}
                           </h4>
                           {account && (
@@ -233,11 +224,6 @@ const FixedExpenseGroupCard = ({
                               }}
                             >
                               {account.name}
-                            </span>
-                          )}
-                          {!subPocket.enabled && (
-                            <span className="px-2 py-0.5 text-xs font-medium bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded">
-                              Disabled
                             </span>
                           )}
                         </div>
@@ -319,18 +305,11 @@ const FixedExpenseGroupCard = ({
                         onClick={() => onToggleExpense(subPocket.id)}
                         loading={isTogglingExpense}
                         disabled={isTogglingExpense}
-                        className={`p-2 ${subPocket.enabled
-                          ? 'text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/30'
-                          : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
-                          }`}
+                        className="p-2 text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/30"
                         title={expenseToggleLabel}
                         aria-label={expenseToggleLabel}
                       >
-                        {subPocket.enabled ? (
-                          <ToggleRight className="w-5 h-5" aria-hidden="true" />
-                        ) : (
-                          <ToggleLeft className="w-5 h-5" aria-hidden="true" />
-                        )}
+                        <ToggleRight className="w-5 h-5" aria-hidden="true" />
                       </Button>
 
                       <Button

@@ -13,7 +13,6 @@ const subPockets: SubPocket[] = [
     valueTotal: 60,
     periodicityMonths: 12,
     balance: 0,
-    enabled: true,
     groupId: 'grp-1',
   },
 ];

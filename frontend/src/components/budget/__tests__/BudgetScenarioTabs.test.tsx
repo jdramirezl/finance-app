@@ -12,7 +12,6 @@ const makeSubPocket = (overrides: Partial<SubPocket>): SubPocket => ({
   valueTotal: 1200,
   periodicityMonths: 12,
   balance: 0,
-  enabled: true,
   ...overrides,
 });
 
@@ -127,7 +126,6 @@ describe('BudgetScenarioTabs', () => {
           id: 'exp-2',
           valueTotal: 1200,
           periodicityMonths: 12,
-          enabled: false,
         }),
         makeSubPocket({ id: 'exp-3', valueTotal: 600, periodicityMonths: 12 }),
       ];

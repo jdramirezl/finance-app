@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '../../../test/testUtils';
 import CapitalBreakdown from '../CapitalBreakdown';
-import type { Account, Pocket } from '../../../types';
+import type { Account } from '../../../types';
 
 vi.mock('../../../services/currencyService', () => ({
   currencyService: {
@@ -19,14 +19,11 @@ vi.mock('../../../services/currencyService', () => ({
 
 const makeAccount = (overrides: Partial<Account> = {}): Account => ({
   id: 'acc-1',
-  userId: 'user-1',
   name: 'Savings',
   currency: 'USD',
   balance: 1000,
   type: 'normal',
   color: '#000',
-  createdAt: '2024-01-01',
-  updatedAt: '2024-01-01',
   ...overrides,
 });
 

@@ -95,7 +95,6 @@ const internet: SubPocket = {
   valueTotal: 600,
   periodicityMonths: 12,
   balance: 50,
-  enabled: true,
   groupId: 'grp-bills',
 };
 
@@ -106,7 +105,6 @@ const electricity: SubPocket = {
   valueTotal: 1200,
   periodicityMonths: 12,
   balance: 100,
-  enabled: true,
   groupId: 'grp-bills',
 };
 
@@ -117,7 +115,6 @@ const ungrouped: SubPocket = {
   valueTotal: 240,
   periodicityMonths: 12,
   balance: 20,
-  enabled: false,
   // groupId intentionally omitted to land in the Default bucket.
 };
 

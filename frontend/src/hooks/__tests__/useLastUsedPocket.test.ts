@@ -1,3 +1,4 @@
+import { describe, it, expect, beforeEach } from 'vitest';
 import { resolveLastUsedPocket, useLastUsedPocket } from '../../store/useLastUsedPocket';
 import type { Account, Pocket, Settings } from '../../types';
 
@@ -17,6 +18,10 @@ const settingsWithDefaults: Settings = {
   defaultExpensePocketId: 'pkt2',
   defaultIncomeAccountId: 'acc2',
   defaultIncomePocketId: 'pkt2',
+  dateFormat: 'MMM d, yyyy',
+  movementsPerPage: 25,
+  reminderAdvanceDays: 3,
+  defaultCurrencyForNewAccounts: 'USD',
 };
 
 describe('resolveLastUsedPocket', () => {
@@ -58,6 +63,10 @@ describe('resolveLastUsedPocket', () => {
       primaryCurrency: 'USD',
       defaultExpenseAccountId: 'deleted-acc',
       defaultExpensePocketId: 'deleted-pkt',
+      dateFormat: 'MMM d, yyyy',
+      movementsPerPage: 25,
+      reminderAdvanceDays: 3,
+      defaultCurrencyForNewAccounts: 'USD',
     };
 
     const result = resolveLastUsedPocket('expense', accounts, pockets, badSettings);
@@ -78,6 +87,10 @@ describe('resolveLastUsedPocket', () => {
       defaultExpensePocketId: 'pkt1',
       defaultIncomeAccountId: 'acc2',
       defaultIncomePocketId: 'pkt2',
+      dateFormat: 'MMM d, yyyy',
+      movementsPerPage: 25,
+      reminderAdvanceDays: 3,
+      defaultCurrencyForNewAccounts: 'USD',
     };
 
     const result = resolveLastUsedPocket('income', accounts, pockets, settings);
