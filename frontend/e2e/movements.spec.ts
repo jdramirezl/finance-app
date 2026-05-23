@@ -7,7 +7,7 @@ let testPocketId: string;
 let targetAccountId: string;
 let targetPocketId: string;
 
-test.describe('Movement CRUD + Transfer', () => {
+test.describe.serial('Movement CRUD + Transfer', () => {
   test.beforeAll(async () => {
     if (!hasTestCredentials()) return;
     await deleteTestData();
