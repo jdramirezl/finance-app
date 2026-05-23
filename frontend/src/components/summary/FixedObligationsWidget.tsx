@@ -47,14 +47,7 @@ const FixedObligationsWidget = ({ subPockets, groups, primaryCurrency = 'USD' }:
     return (
       <tr key={sp.id} className="hover:bg-gray-700/30">
         <td className="px-3 py-1.5 text-sm text-gray-100">
-          <div className="flex items-center gap-1.5">
-            <span className={!sp.enabled ? 'line-through text-gray-400' : ''}>
-              {sp.name}
-            </span>
-            {!sp.enabled && (
-              <span className="text-[10px] bg-gray-700 text-gray-400 px-1 rounded">OFF</span>
-            )}
-          </div>
+          {sp.name}
         </td>
         <td className="px-3 py-1.5 text-xs text-gray-400">
           {currencyService.formatCurrency(sp.balance, primaryCurrency)}

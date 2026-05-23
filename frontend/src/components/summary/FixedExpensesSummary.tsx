@@ -72,14 +72,7 @@ const FixedExpensesSummary = ({
                 className="hover:bg-gray-50 dark:hover:bg-gray-700/30"
             >
                 <td className="px-4 py-2 text-sm font-medium text-gray-900 dark:text-gray-100">
-                    <div className="flex items-center gap-2">
-                        <span className={!subPocket.enabled ? 'line-through text-gray-500' : ''}>
-                            {subPocket.name}
-                        </span>
-                        {!subPocket.enabled && (
-                            <span className="text-[11px] bg-gray-100 dark:bg-gray-800 text-gray-500 px-1 rounded">OFF</span>
-                        )}
-                    </div>
+                    {subPocket.name}
                 </td>
                 <td className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300">
                     <SelectableValue id={`fixed-bal-${subPocket.id}`} value={subPocket.balance} currency={currency as Currency}>
