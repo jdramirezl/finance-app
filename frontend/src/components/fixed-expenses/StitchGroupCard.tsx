@@ -218,7 +218,7 @@ const StitchGroupCard = ({
                             <div
                               role="menu"
                               aria-label={`Move ${expense.name} to`}
-                              className="absolute right-0 top-full mt-1 z-20 min-w-[160px] bg-gray-800 border border-gray-700 rounded-md shadow-lg py-1"
+                              className="absolute right-0 bottom-full mb-1 z-20 min-w-[160px] bg-gray-800 border border-gray-700 rounded-md shadow-lg py-1"
                             >
                               {availableGroups.length === 0 && (
                                 <div className="px-3 py-1.5 text-xs text-gray-500">
