@@ -6,7 +6,6 @@ import {
   FileText,
   Home,
   Settings,
-  Target,
   TrendingUp,
   Wallet,
 } from 'lucide-react';
@@ -29,8 +28,7 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { path: '/summary', label: 'Summary', icon: Home },
   { path: '/accounts', label: 'Accounts', icon: Wallet },
-  { path: '/fixed-expenses', label: 'Fixed Expenses', icon: Target },
-  { path: '/budget-planning', label: 'Budget', icon: Calendar },
+  { path: '/budget', label: 'Budget', icon: Calendar },
   { path: '/movements', label: 'Movements', icon: TrendingUp },
   { path: '/templates', label: 'Templates', icon: FileText },
   { path: '/settings', label: 'Settings', icon: Settings },
@@ -42,7 +40,7 @@ const BOTTOM_NAV_ITEMS: NavItem[] = [
   { path: '/summary', label: 'Home', icon: Home },
   { path: '/movements', label: 'Movements', icon: TrendingUp },
   { path: '/accounts', label: 'Accounts', icon: Wallet },
-  { path: '/budget-planning', label: 'Budget', icon: Calendar },
+  { path: '/budget', label: 'Budget', icon: Calendar },
 ];
 
 interface LayoutProps {

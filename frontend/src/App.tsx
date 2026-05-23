@@ -12,8 +12,7 @@ const LoginPage = lazy(() => import('./pages/LoginPage'));
 const SignUpPage = lazy(() => import('./pages/SignUpPage'));
 const SummaryPage = lazy(() => import('./pages/SummaryPage'));
 const AccountsPage = lazy(() => import('./pages/AccountsPage'));
-const FixedExpensesPage = lazy(() => import('./pages/FixedExpensesPage'));
-const BudgetPlanningPage = lazy(() => import('./pages/BudgetPlanningPage'));
+const UnifiedBudgetPage = lazy(() => import('./pages/UnifiedBudgetPage'));
 const MovementsPage = lazy(() => import('./pages/MovementsPage'));
 const TemplatesPage = lazy(() => import('./pages/TemplatesPage'));
 const SettingsPage = lazy(() => import('./pages/SettingsPage'));
@@ -67,12 +66,17 @@ function App() {
                               element={guard(<AccountsPage />)}
                             />
                             <Route
+                              path="/budget"
+                              element={guard(<UnifiedBudgetPage />)}
+                            />
+                            {/* Legacy paths — redirect to the unified page. */}
+                            <Route
                               path="/fixed-expenses"
-                              element={guard(<FixedExpensesPage />)}
+                              element={<Navigate to="/budget" replace />}
                             />
                             <Route
                               path="/budget-planning"
-                              element={guard(<BudgetPlanningPage />)}
+                              element={<Navigate to="/budget" replace />}
                             />
                             <Route
                               path="/movements"

@@ -1,5 +1,5 @@
-import { useCallback, useMemo } from 'react';
-import { Plus, Zap } from 'lucide-react';
+import { useCallback } from 'react';
+import { Plus } from 'lucide-react';
 import type { DistributionEntry } from './BudgetEntryRow';
 import AllocationSliderRow from './AllocationSliderRow';
 
@@ -14,8 +14,17 @@ interface AllocationStrategyProps {
   currency: string;
   totalPercentage: number;
   onEntriesChange: (entries: DistributionEntry[]) => void;
-  onGenerateMovements: () => void;
-  generateDisabled: boolean;
+  /**
+   * Optional. The unified budget page renders the Generate Movements
+   * button inside `DistributionFooter`, so this component no longer
+   * needs to invoke it. Kept optional for backwards compatibility.
+   */
+  onGenerateMovements?: () => void;
+  /**
+   * Optional. See `onGenerateMovements` — the footer owns the disabled
+   * state on the unified page.
+   */
+  generateDisabled?: boolean;
 }
 
 const AllocationStrategy = ({
@@ -24,8 +33,6 @@ const AllocationStrategy = ({
   currency,
   totalPercentage,
   onEntriesChange,
-  onGenerateMovements,
-  generateDisabled,
 }: AllocationStrategyProps) => {
   const calcAmount = useCallback(
     (pct: number) => (distributable > 0 ? (distributable * pct) / 100 : 0),
@@ -107,16 +114,6 @@ const AllocationStrategy = ({
           ))}
         </div>
       )}
-
-      {/* Generate Movements button */}
-      <button
-        onClick={onGenerateMovements}
-        disabled={generateDisabled}
-        className="w-full mt-8 py-4 rounded-xl bg-gradient-to-r from-[#06b6d4] to-[#22d3ee] text-white font-bold text-lg shadow-lg shadow-blue-500/20 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:hover:scale-100"
-      >
-        <Zap className="w-5 h-5" />
-        Generate Movements
-      </button>
     </div>
   );
 };

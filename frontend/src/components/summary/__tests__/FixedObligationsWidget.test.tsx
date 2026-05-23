@@ -65,7 +65,7 @@ describe('FixedObligationsWidget', () => {
     expect(screen.getByRole('button', { name: /view all/i })).toBeInTheDocument();
   });
 
-  it('navigates to the fixed-expenses page when VIEW ALL is clicked', async () => {
+  it('navigates to the budget page when VIEW ALL is clicked', async () => {
     const user = userEvent.setup();
     render(
       <FixedObligationsWidget
@@ -76,7 +76,7 @@ describe('FixedObligationsWidget', () => {
     );
 
     await user.click(screen.getByRole('button', { name: /view all/i }));
-    expect(mockNavigate).toHaveBeenCalledWith('/fixed-expenses');
+    expect(mockNavigate).toHaveBeenCalledWith('/budget');
   });
 
   it('renders monthly totals as the sum of contributed and target amounts', () => {

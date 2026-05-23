@@ -78,7 +78,7 @@ const FixedObligationsWidget = ({ subPockets, groups, primaryCurrency = 'USD' }:
           Fixed Expenses
         </h3>
         <button
-          onClick={() => navigate('/fixed-expenses')}
+          onClick={() => navigate('/budget')}
           className="text-[10px] font-bold uppercase tracking-wider text-blue-400 hover:underline"
         >
           VIEW ALL
