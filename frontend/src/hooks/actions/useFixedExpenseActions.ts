@@ -36,16 +36,12 @@ export interface UseFixedExpenseActionsParams {
 export interface UseFixedExpenseActionsResult {
   // Sub-pocket actions
   handleDeleteSubPocket: (id: string) => Promise<void>;
-  handleToggleSubPocket: (id: string) => Promise<void>;
   handleMoveToGroup: (subPocketId: string, groupId: string) => Promise<void>;
   deletingId: string | null;
-  togglingId: string | null;
 
   // Group actions
   handleDeleteGroup: (group: FixedExpenseGroup) => Promise<void>;
-  handleToggleGroup: (groupId: string, enabled: boolean) => Promise<void>;
   handleReorderGroups: (groups: FixedExpenseGroup[]) => Promise<void>;
-  togglingGroupId: string | null;
 
   // Collapse state
   collapsedGroups: Set<string>;
@@ -57,9 +53,9 @@ export interface UseFixedExpenseActionsResult {
 }
 
 /**
- * Encapsulates all CRUD flows on the Fixed Expenses page: sub-pocket
- * delete/toggle/move, group delete/toggle/reorder, expand/collapse state,
- * and the batch movement form populated from enabled fixed expenses.
+ * Encapsulates CRUD flows on the Fixed Expenses page: sub-pocket
+ * delete/move, group delete/reorder, expand/collapse state, and the
+ * batch movement form populated from fixed expenses.
  */
 export const useFixedExpenseActions = ({
   accounts,
@@ -72,14 +68,10 @@ export const useFixedExpenseActions = ({
   confirm,
 }: UseFixedExpenseActionsParams): UseFixedExpenseActionsResult => {
   const { createMovement } = movementMutations;
-  const { deleteFixedExpenseGroup, toggleFixedExpenseGroup, reorderFixedExpenseGroups } =
-    groupMutations;
-  const { deleteSubPocket, toggleSubPocketEnabled, moveSubPocketToGroup } =
-    subPocketMutations;
+  const { deleteFixedExpenseGroup, reorderFixedExpenseGroups } = groupMutations;
+  const { deleteSubPocket, moveSubPocketToGroup } = subPocketMutations;
 
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [togglingId, setTogglingId] = useState<string | null>(null);
-  const [togglingGroupId, setTogglingGroupId] = useState<string | null>(null);
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
 
   const [batchOpen, setBatchOpen] = useState(false);
@@ -104,18 +96,6 @@ export const useFixedExpenseActions = ({
       // Toast is shown by the mutation's onError handler.
     } finally {
       setDeletingId(null);
-    }
-  };
-
-  const handleToggleSubPocket = async (id: string) => {
-    setTogglingId(id);
-    try {
-      await toggleSubPocketEnabled.mutateAsync(id);
-      toast.success('Fixed expense status updated!');
-    } catch {
-      // Toast is shown by the mutation's onError handler.
-    } finally {
-      setTogglingId(null);
     }
   };
 
@@ -146,18 +126,6 @@ export const useFixedExpenseActions = ({
     }
   };
 
-  const handleToggleGroup = async (groupId: string, enabled: boolean) => {
-    setTogglingGroupId(groupId);
-    try {
-      await toggleFixedExpenseGroup.mutateAsync({ id: groupId, enabled });
-      toast.success(`Group ${enabled ? 'enabled' : 'disabled'} successfully!`);
-    } catch {
-      // Toast is shown by the mutation's onError handler.
-    } finally {
-      setTogglingGroupId(null);
-    }
-  };
-
   const handleReorderGroups = async (groups: FixedExpenseGroup[]) => {
     const ids = groups.map((g) => g.id);
     try {
@@ -181,13 +149,12 @@ export const useFixedExpenseActions = ({
       toast.error('No fixed expenses accounts found');
       return;
     }
-    const enabled = fixedSubPockets.filter((sp) => sp.enabled);
-    if (enabled.length === 0) {
-      toast.error('No enabled fixed expenses found');
+    if (fixedSubPockets.length === 0) {
+      toast.error('No fixed expenses found');
       return;
     }
 
-    const rows: BatchMovementRow[] = enabled.map((sp) => {
+    const rows: BatchMovementRow[] = fixedSubPockets.map((sp) => {
       const parent = fixedPockets.find((fp) => fp.id === sp.pocketId);
       const account = parent ? accounts.find((a) => a.id === parent.accountId) : null;
       return {
@@ -233,14 +200,10 @@ export const useFixedExpenseActions = ({
 
   return {
     handleDeleteSubPocket,
-    handleToggleSubPocket,
     handleMoveToGroup,
     deletingId,
-    togglingId,
     handleDeleteGroup,
-    handleToggleGroup,
     handleReorderGroups,
-    togglingGroupId,
     collapsedGroups,
     toggleGroupCollapse,
     batchForm: {
