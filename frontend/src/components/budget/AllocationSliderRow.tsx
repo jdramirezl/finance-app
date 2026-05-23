@@ -9,6 +9,7 @@ interface AllocationSliderRowProps {
   distributable: number;
   currency: string;
   onPercentageChange: (id: string, percentage: number) => void;
+  onNameChange: (id: string, name: string) => void;
   onDelete: (id: string) => void;
 }
 
@@ -24,6 +25,7 @@ const AllocationSliderRow = ({
   distributable,
   currency,
   onPercentageChange,
+  onNameChange,
   onDelete,
 }: AllocationSliderRowProps) => {
   const [editingPct, setEditingPct] = useState(false);
@@ -78,9 +80,16 @@ const AllocationSliderRow = ({
   return (
     <div className="group">
       <div className="flex justify-between items-end mb-3">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 min-w-0 flex-1">
           <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
-          <span className="text-sm font-semibold text-gray-100">{entry.name || 'Unnamed'}</span>
+          <input
+            type="text"
+            value={entry.name}
+            onChange={(e) => onNameChange(entry.id, e.target.value)}
+            placeholder="Unnamed"
+            aria-label="Allocation name"
+            className="flex-1 min-w-0 bg-transparent border-b border-transparent hover:border-gray-700 focus:border-blue-400 outline-none text-sm font-semibold text-gray-100 placeholder:italic placeholder:text-gray-500 px-1 py-0.5 transition-colors"
+          />
         </div>
         <div className="flex items-baseline gap-4">
           {editingPct ? (

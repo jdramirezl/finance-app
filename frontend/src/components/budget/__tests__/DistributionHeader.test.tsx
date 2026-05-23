@@ -60,4 +60,47 @@ describe('DistributionHeader', () => {
     expect(badge.className).toMatch(/bg-red-500\/20/);
     expect(badge.className).toMatch(/text-red-400/);
   });
+
+  it('does not show conversion hint when primaryCurrency matches currency', () => {
+    render(
+      <DistributionHeader
+        {...defaultProps}
+        primaryCurrency="USD"
+        convertedDistributable={1500.5}
+      />,
+    );
+
+    expect(screen.queryByText(/^≈/)).not.toBeInTheDocument();
+  });
+
+  it('does not show conversion hint when convertedDistributable is undefined', () => {
+    render(
+      <DistributionHeader
+        {...defaultProps}
+        currency="MXN"
+        primaryCurrency="USD"
+      />,
+    );
+
+    expect(screen.queryByText(/^≈/)).not.toBeInTheDocument();
+  });
+
+  it('shows subtle "≈ <converted> <primary>" hint when currency differs from primaryCurrency', () => {
+    render(
+      <DistributionHeader
+        {...defaultProps}
+        distributable={18260}
+        currency="MXN"
+        primaryCurrency="USD"
+        convertedDistributable={1000}
+      />,
+    );
+
+    // formatCurrency(1000, 'USD') -> "$1,000.00"; the suffix carries the
+    // primary currency code so users can tell the conversion target.
+    const hint = screen.getByText(/≈\s*\$1,000\.00\s*USD/);
+    expect(hint).toBeInTheDocument();
+    expect(hint.className).toMatch(/text-xs/);
+    expect(hint.className).toMatch(/text-gray-500/);
+  });
 });

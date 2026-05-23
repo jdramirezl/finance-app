@@ -5,6 +5,18 @@ export interface DistributionHeaderProps {
   currency: string;
   /** Total allocated percentage across all distribution entries (0-100+). */
   totalPercentage: number;
+  /**
+   * User's primary currency from settings. When set and different from
+   * `currency`, a conversion hint is shown below the main amount.
+   */
+  primaryCurrency?: string;
+  /**
+   * `distributable` converted into `primaryCurrency`. Rendered as a subtle
+   * "≈ $X,XXX PRIMARY" line beneath the main amount when present and
+   * `currency !== primaryCurrency`. Undefined while the async conversion
+   * is in flight or when no conversion is needed.
+   */
+  convertedDistributable?: number;
 }
 
 interface BadgeStyle {
@@ -53,8 +65,14 @@ const DistributionHeader = ({
   distributable,
   currency,
   totalPercentage,
+  primaryCurrency,
+  convertedDistributable,
 }: DistributionHeaderProps) => {
   const badge = getBadgeStyle(totalPercentage);
+  const showConversion =
+    primaryCurrency !== undefined &&
+    primaryCurrency !== currency &&
+    convertedDistributable !== undefined;
 
   return (
     <div className="flex items-start justify-between gap-4">
@@ -66,9 +84,17 @@ const DistributionHeader = ({
       </div>
 
       <div className="flex flex-col items-end gap-2">
-        <span className="text-2xl font-bold text-blue-400">
-          {formatCurrency(distributable, currency)}
-        </span>
+        <div className="flex flex-col items-end">
+          <span className="text-2xl font-bold text-blue-400">
+            {formatCurrency(distributable, currency)}
+          </span>
+          {showConversion && (
+            <span className="text-xs text-gray-500 mt-0.5">
+              ≈ {formatCurrency(convertedDistributable, primaryCurrency)}{' '}
+              {primaryCurrency}
+            </span>
+          )}
+        </div>
         <span
           className={`px-2 py-0.5 rounded-full text-xs font-medium ${badge.className}`}
         >

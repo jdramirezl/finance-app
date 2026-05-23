@@ -11,6 +11,7 @@ describe('AllocationSliderRow', () => {
     distributable: 1000,
     currency: 'USD',
     onPercentageChange: vi.fn(),
+    onNameChange: vi.fn(),
     onDelete: vi.fn(),
   };
 
@@ -112,5 +113,23 @@ describe('AllocationSliderRow', () => {
     const slider = screen.getByRole('slider');
     fireEvent.change(slider, { target: { value: '60' } });
     expect(defaultProps.onPercentageChange).toHaveBeenCalledWith('e1', 60);
+  });
+
+  it('renders the entry name in an editable input', () => {
+    render(<AllocationSliderRow {...defaultProps} />);
+    const input = screen.getByLabelText(/allocation name/i) as HTMLInputElement;
+    expect(input).toBeInTheDocument();
+    expect(input.value).toBe('Savings');
+  });
+
+  it('typing in the name input calls onNameChange', async () => {
+    const user = userEvent.setup();
+    render(<AllocationSliderRow {...defaultProps} />);
+    const input = screen.getByLabelText(/allocation name/i);
+    // userEvent.type fires one onChange per character; verify the final
+    // call carries the appended character so the parent can rebuild the
+    // name reactively.
+    await user.type(input, '!');
+    expect(defaultProps.onNameChange).toHaveBeenCalledWith('e1', 'Savings!');
   });
 });

@@ -238,6 +238,7 @@ const buildBudgetActions = (
   remaining: 0,
   showConversion: false,
   convertedAmounts: new Map<string, number>(),
+  convertedRemaining: undefined,
   activeScenarioIds: new Set<string>(),
   toggleScenario: vi.fn(),
   saveScenario: vi.fn(),
@@ -370,11 +371,11 @@ describe('UnifiedBudgetPage', () => {
 
     render(<UnifiedBudgetPage />);
 
-    // Each entry surfaces its name through a <span> rendered inside
-    // AllocationSliderRow — locating by text keeps us decoupled from the
-    // surrounding label/aria structure.
-    expect(screen.getByText('Savings')).toBeInTheDocument();
-    expect(screen.getByText('Investments')).toBeInTheDocument();
+    // Each entry surfaces its name through an editable <input> rendered
+    // inside AllocationSliderRow. Locating by display value keeps the
+    // assertion decoupled from the surrounding label/aria structure.
+    expect(screen.getByDisplayValue('Savings')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('Investments')).toBeInTheDocument();
   });
 
   it('shows skeleton placeholders while settings or groups are loading', () => {

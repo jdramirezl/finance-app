@@ -40,6 +40,13 @@ export interface UseBudgetActionsResult {
   remaining: number;
   showConversion: boolean;
   convertedAmounts: Map<string, number>;
+  /**
+   * `remaining` converted into the user's primary currency. Undefined
+   * when no conversion is needed (`!showConversion`) or while the async
+   * conversion is in flight. Used by `DistributionHeader` to render a
+   * subtle "≈ $X,XXX PRIMARY" hint beneath the distributable total.
+   */
+  convertedRemaining: number | undefined;
   // Scenario state + handlers
   activeScenarioIds: Set<string>;
   toggleScenario: (id: string) => void;
@@ -79,6 +86,9 @@ export const useBudgetActions = ({
   const [batchRows, setBatchRows] = useState<BatchMovementRow[]>([]);
   const [convertedAmounts, setConvertedAmounts] = useState<Map<string, number>>(
     new Map()
+  );
+  const [convertedRemaining, setConvertedRemaining] = useState<number | undefined>(
+    undefined
   );
 
   const showConversion = primaryCurrency !== budgetCurrency;
@@ -151,6 +161,43 @@ export const useBudgetActions = ({
     primaryCurrency,
     calculateEntryAmount,
   ]);
+
+  // Convert the remaining (distributable) into primary currency for the
+  // header hint. Kept separate from the per-entry effect so it still runs
+  // when there are no distribution entries yet.
+  useEffect(() => {
+    let cancelled = false;
+
+    const updateConvertedRemaining = async () => {
+      if (!showConversion) {
+        if (!cancelled) setConvertedRemaining(undefined);
+        return;
+      }
+      if (remaining <= 0) {
+        if (!cancelled) setConvertedRemaining(0);
+        return;
+      }
+
+      try {
+        const converted = await currencyService.convert(
+          remaining,
+          budgetCurrency,
+          primaryCurrency
+        );
+        if (!cancelled) setConvertedRemaining(converted);
+      } catch {
+        // Conversion failed; clear the hint so the header simply shows
+        // the source amount until a successful conversion arrives.
+        if (!cancelled) setConvertedRemaining(undefined);
+      }
+    };
+
+    updateConvertedRemaining();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [showConversion, remaining, budgetCurrency, primaryCurrency]);
 
   const toggleScenario = (id: string) => {
     setActiveScenarioIds((prev) => {
@@ -259,6 +306,7 @@ export const useBudgetActions = ({
     remaining,
     showConversion,
     convertedAmounts,
+    convertedRemaining,
     activeScenarioIds,
     toggleScenario,
     saveScenario,

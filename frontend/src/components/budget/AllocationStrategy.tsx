@@ -46,6 +46,13 @@ const AllocationStrategy = ({
     [entries, onEntriesChange]
   );
 
+  const handleNameChange = useCallback(
+    (id: string, name: string) => {
+      onEntriesChange(entries.map((e) => (e.id === id ? { ...e, name } : e)));
+    },
+    [entries, onEntriesChange]
+  );
+
   const handleDelete = useCallback(
     (id: string) => {
       onEntriesChange(entries.filter((e) => e.id !== id));
@@ -109,6 +116,7 @@ const AllocationStrategy = ({
               distributable={distributable}
               currency={currency}
               onPercentageChange={handlePercentageChange}
+              onNameChange={handleNameChange}
               onDelete={handleDelete}
             />
           ))}
