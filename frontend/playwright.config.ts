@@ -7,6 +7,7 @@ const storageStatePath = path.resolve(__dirname, 'e2e/.auth/storage-state.json')
 
 export default defineConfig({
   testDir: './e2e',
+  timeout: 60000,
   baseURL: 'http://localhost:5173',
   globalSetup: './e2e/global-setup.ts',
   use: {
