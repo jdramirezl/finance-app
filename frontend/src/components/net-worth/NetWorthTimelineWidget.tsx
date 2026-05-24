@@ -2,10 +2,17 @@
  * Net Worth Timeline Widget
  *
  * Top-level orchestrator for the net-worth timeline card. Owns the query
- * subscriptions and the per-card UI controls (view mode, date range,
+ * subscriptions and the per-card UI controls (view mode, range chips,
  * variation toggle). Data shaping is delegated to `useNetWorthChartData`,
- * chart rendering to `NetWorthChart`, and the click-to-edit/delete flow
- * to `NetWorthEditModal`.
+ * chart rendering to `NetWorthChart`/`NetWorthEChart`, and the
+ * click-to-edit/delete flow to `NetWorthEditModal`.
+ *
+ * Wave 4 changed the range controls from buttons that filtered the
+ * dataset (`30d / 6m / 1y / All Time`) to chips that programmatically
+ * drive the ECharts dataZoom slider (`1Y / 2Y / All / Custom`). The
+ * widget now always fetches the full snapshot history and computes the
+ * dataZoom start/end percentages from the active range so the user can
+ * still see (and zoom out to) older data via the minimap.
  */
 
 import { useMemo, useRef, useState } from 'react';
@@ -17,27 +24,118 @@ import {
 import { useSettingsQuery } from '../../hooks/queries';
 import {
     useNetWorthChartData,
-    type NetWorthDateRange,
     type NetWorthViewMode,
 } from '../../hooks/useNetWorthChartData';
 import Card from '../ui/Card';
-import Button from '../ui/Button';
 import CurrencyAmount from '../ui/CurrencyAmount';
 import NetWorthChart from './NetWorthChart';
 import NetWorthEChart from './NetWorthEChart';
 import NetWorthEditModal, {
     type NetWorthEditModalHandle,
 } from './NetWorthEditModal';
+import NetWorthRangeControls, {
+    type NetWorthRange,
+} from './NetWorthRangeControls';
 import ExchangeRateTrend from './ExchangeRateTrend';
 
 type WidgetTab = NetWorthViewMode | 'rates';
+
+/**
+ * Approximate number of monthly snapshots covered by each preset. Used
+ * by the index-based fallback when computing the dataZoom window for
+ * `1y` / `2y`. Time-based math always wins when the data spans an
+ * actual time range; this constant only matters for sparse datasets
+ * where index ≈ time.
+ */
+const POINTS_PER_YEAR = 12;
+
+interface ZoomRange {
+    start: number;
+    end: number;
+}
+
+const FULL_RANGE: ZoomRange = { start: 0, end: 100 };
+
+/**
+ * Compute the dataZoom slider percentages for the given range against
+ * the chart data. Percentages map to the x-axis (time) extent: 0% =
+ * earliest snapshot, 100% = latest snapshot.
+ *
+ * - `all`: show everything.
+ * - `1y` / `2y`: pick the timestamp of the snapshot N positions from the
+ *   end (12 / 24) and convert that to a percentage of the time range.
+ *   Index-based selection matches the user-visible promise ("last year"
+ *   ≈ "the last 12 monthly snapshots") while still expressing the
+ *   answer in the time-based percentages dataZoom expects.
+ * - `custom`: convert the YYYY-MM From/To strings to timestamps (first
+ *   day of From, last instant of To) and project them onto the data
+ *   extent. Out-of-range pickers clamp to [0, 100] so the slider never
+ *   exceeds the data extent.
+ */
+export const calculateZoomRange = (
+    timestamps: number[],
+    range: NetWorthRange,
+    customFrom?: string,
+    customTo?: string,
+): ZoomRange => {
+    if (timestamps.length === 0) return FULL_RANGE;
+    if (range === 'all') return FULL_RANGE;
+
+    const min = timestamps[0];
+    const max = timestamps[timestamps.length - 1];
+    const span = max - min;
+    if (span === 0) return FULL_RANGE;
+
+    const pctOf = (ts: number) => ((ts - min) / span) * 100;
+
+    if (range === '1y' || range === '2y') {
+        const window = range === '1y' ? POINTS_PER_YEAR : POINTS_PER_YEAR * 2;
+        const idx = Math.max(0, timestamps.length - window);
+        return { start: pctOf(timestamps[idx]), end: 100 };
+    }
+
+    if (range === 'custom') {
+        if (!customFrom || !customTo) return FULL_RANGE;
+
+        // `YYYY-MM` from `<input type="month">`. Use UTC to avoid the
+        // selected month sliding across the local-time boundary on
+        // hosts whose timezone offset would put 'YYYY-MM-01' into the
+        // previous month.
+        const [fromYear, fromMonth] = customFrom.split('-').map(Number);
+        const [toYear, toMonth] = customTo.split('-').map(Number);
+        if (
+            !Number.isFinite(fromYear) ||
+            !Number.isFinite(fromMonth) ||
+            !Number.isFinite(toYear) ||
+            !Number.isFinite(toMonth)
+        ) {
+            return FULL_RANGE;
+        }
+        const fromTs = Date.UTC(fromYear, fromMonth - 1, 1);
+        // Last instant of To-month: first instant of next month minus 1 ms.
+        const toTs = Date.UTC(toYear, toMonth, 1) - 1;
+        if (toTs <= fromTs) return FULL_RANGE;
+
+        return {
+            start: Math.max(0, Math.min(100, pctOf(fromTs))),
+            end: Math.max(0, Math.min(100, pctOf(toTs))),
+        };
+    }
+
+    return FULL_RANGE;
+};
 
 const NetWorthTimelineWidget = () => {
     const { data: snapshots = [], isLoading } = useNetWorthSnapshotsQuery();
     const { data: settings } = useSettingsQuery();
 
     const [viewMode, setViewMode] = useState<WidgetTab>('total');
-    const [dateRange, setDateRange] = useState<NetWorthDateRange>('6m');
+    // The chips drive the chart's dataZoom slider rather than filtering
+    // the snapshot list, so the data hook always asks for the full
+    // history. `activeRange` is purely a view/zoom concern.
+    const [activeRange, setActiveRange] = useState<NetWorthRange>('1y');
+    const [customFrom, setCustomFrom] = useState<string>('');
+    const [customTo, setCustomTo] = useState<string>('');
     const [showVariation, setShowVariation] = useState(false);
 
     const editModalRef = useRef<NetWorthEditModalHandle>(null);
@@ -47,7 +145,10 @@ const NetWorthTimelineWidget = () => {
     const { chartData, currencies, tooltipFormatter } = useNetWorthChartData({
         snapshots,
         primaryCurrency,
-        dateRange,
+        // Always fetch the full range; visual scoping is handled by the
+        // chips + dataZoom in total mode and by the natural time axis in
+        // breakdown mode.
+        dateRange: 'all',
         viewMode: viewMode === 'rates' ? 'total' : viewMode,
         showVariation,
     });
@@ -85,6 +186,34 @@ const NetWorthTimelineWidget = () => {
             })),
         [chartData],
     );
+
+    // Compute zoom percentages from the EChart data so the dataZoom
+    // window matches what the chart is actually rendering. Memoized on
+    // the inputs that affect the result so unchanged chip selections
+    // keep dispatching identical values (which is a no-op on the
+    // chart) instead of fresh objects that would re-trigger the
+    // chart's effect.
+    const zoomRange = useMemo(() => {
+        const timestamps = echartData.map((d) =>
+            new Date(d.fullDate).getTime(),
+        );
+        return calculateZoomRange(timestamps, activeRange, customFrom, customTo);
+    }, [echartData, activeRange, customFrom, customTo]);
+
+    const handleRangeChange = (
+        range: NetWorthRange,
+        from?: string,
+        to?: string,
+    ) => {
+        setActiveRange(range);
+        if (range === 'custom') {
+            // Defensive: NetWorthRangeControls only emits `custom` once
+            // both inputs are set, but storing whatever it gives us is
+            // safer than asserting non-null here.
+            setCustomFrom(from ?? '');
+            setCustomTo(to ?? '');
+        }
+    };
 
     if (isLoading) {
         return (
@@ -162,26 +291,12 @@ const NetWorthTimelineWidget = () => {
                 ) : (
                 <>
                 <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
-                    <div className="flex gap-2">
-                        {(['30d', '6m', '1y', 'all'] as NetWorthDateRange[]).map(
-                            (range) => (
-                                <Button
-                                    key={range}
-                                    variant={dateRange === range ? 'primary' : 'ghost'}
-                                    size="sm"
-                                    onClick={() => setDateRange(range)}
-                                >
-                                    {range === '30d'
-                                        ? '30 Days'
-                                        : range === '6m'
-                                          ? '6 Months'
-                                          : range === '1y'
-                                            ? '1 Year'
-                                            : 'All Time'}
-                                </Button>
-                            ),
-                        )}
-                    </div>
+                    <NetWorthRangeControls
+                        activeRange={activeRange}
+                        onRangeChange={handleRangeChange}
+                        initialCustomFrom={customFrom}
+                        initialCustomTo={customTo}
+                    />
 
                     <label className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 cursor-pointer select-none">
                         <input
@@ -194,11 +309,6 @@ const NetWorthTimelineWidget = () => {
                     </label>
                 </div>
 
-                {/* Instruction */}
-                <p className="text-xs text-gray-500 dark:text-gray-400 mb-2 text-center">
-                    💡 Click any point on the chart to edit or delete that snapshot
-                </p>
-
                 {/* Chart */}
                 {viewMode === 'total' ? (
                     <NetWorthEChart
@@ -206,6 +316,8 @@ const NetWorthTimelineWidget = () => {
                         primaryCurrency={primaryCurrency}
                         showVariation={showVariation}
                         onPointClick={handlePointClick}
+                        dataZoomStart={zoomRange.start}
+                        dataZoomEnd={zoomRange.end}
                     />
                 ) : (
                     <NetWorthChart

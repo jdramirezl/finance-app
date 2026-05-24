@@ -1,23 +1,27 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createElement, forwardRef, useImperativeHandle, type Ref } from 'react';
-import { render, screen } from '../../../test/testUtils';
+import { render, screen, fireEvent } from '../../../test/testUtils';
 import userEvent from '@testing-library/user-event';
-import NetWorthTimelineWidget from '../NetWorthTimelineWidget';
+import NetWorthTimelineWidget, {
+  calculateZoomRange,
+} from '../NetWorthTimelineWidget';
 import type { NetWorthSnapshot } from '../../../services/netWorthSnapshotService';
 import type { NetWorthEditModalHandle } from '../NetWorthEditModal';
 
 /**
  * Tests for {@link NetWorthTimelineWidget}. The widget is a lightweight
- * orchestrator: it owns view-mode/date-range/variation state, hands the
- * shaping work to `useNetWorthChartData`, delegates rendering to
- * `NetWorthChart`/`ExchangeRateTrend`, and routes chart clicks into the
- * imperative edit modal.
+ * orchestrator: it owns the view-mode + range chip + variation state,
+ * hands the shaping work to `useNetWorthChartData`, delegates rendering
+ * to `NetWorthChart`/`NetWorthEChart`/`ExchangeRateTrend`, and routes
+ * chart clicks into the imperative edit modal. Wave 4 swapped the
+ * date-range buttons for chip-based controls that drive the chart's
+ * dataZoom rather than filtering the dataset, so these tests assert on
+ * the chip wiring and the dataZoomStart/End props handed to the
+ * underlying ECharts component.
  *
  * The hooks and child components are mocked so each test focuses on the
- * orchestration logic — what props the chart hook is called with, what
- * the tabs/controls switch, and how clicks resolve a snapshot for the
- * modal — instead of re-testing the chart and modal internals (which
- * have their own suites).
+ * orchestration logic instead of re-testing the chart and modal
+ * internals (which have their own suites).
  */
 
 const mocks = vi.hoisted(() => ({
@@ -68,12 +72,16 @@ vi.mock('../NetWorthEChart', () => {
   // for breakdown mode. Both mocks share the same testid so existing
   // tests that only assert "the chart is rendered" continue to work
   // regardless of which view is active. The `data-chart-impl` attr
-  // distinguishes them for branch-coverage tests.
+  // distinguishes them for branch-coverage tests, and key dataZoom
+  // props are surfaced on `data-*` attrs so the prop-wiring tests
+  // don't have to dig into mock-call argument arrays.
   const Mock = (props: {
     onPointClick: (datum: {
       snapshotId: string;
       fullDate: string;
     }) => void;
+    dataZoomStart?: number;
+    dataZoomEnd?: number;
   }) => {
     mocks.chartProps(props);
     mocks.echartProps(props);
@@ -82,6 +90,10 @@ vi.mock('../NetWorthEChart', () => {
       {
         'data-testid': 'net-worth-chart-mock',
         'data-chart-impl': 'echarts',
+        'data-zoom-start':
+          props.dataZoomStart != null ? String(props.dataZoomStart) : '',
+        'data-zoom-end':
+          props.dataZoomEnd != null ? String(props.dataZoomEnd) : '',
         type: 'button',
         onClick: () =>
           props.onPointClick({
@@ -138,6 +150,31 @@ const lastChartDataParams = () => {
   return calls.at(-1)?.[0] as Record<string, unknown> | undefined;
 };
 
+const lastEChartProps = () => {
+  const calls = mocks.echartProps.mock.calls;
+  return calls.at(-1)?.[0] as
+    | { dataZoomStart?: number; dataZoomEnd?: number }
+    | undefined;
+};
+
+/**
+ * Build a 24-snapshot history spread one month apart. Used by the
+ * range-chip tests so the index-based zoom math (last 12 / last 24)
+ * has enough data to produce non-trivial percentages.
+ */
+const buildMonthlyChartData = (count: number) =>
+  Array.from({ length: count }, (_, i) => {
+    const month = String((i % 12) + 1).padStart(2, '0');
+    const year = 2024 + Math.floor(i / 12);
+    const fullDate = `${year}-${month}-01`;
+    return {
+      date: `Mon ${i + 1}`,
+      fullDate,
+      snapshotId: `s${i + 1}`,
+      total: 100 + i,
+    };
+  });
+
 describe('NetWorthTimelineWidget', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -188,7 +225,7 @@ describe('NetWorthTimelineWidget', () => {
     expect(screen.queryByTestId('net-worth-chart-mock')).not.toBeInTheDocument();
   });
 
-  it('renders the header, mode tabs, date range buttons, variation toggle and chart by default', () => {
+  it('renders the header, mode tabs, range chips, variation toggle and chart by default', () => {
     render(<NetWorthTimelineWidget />);
 
     expect(
@@ -197,12 +234,38 @@ describe('NetWorthTimelineWidget', () => {
     expect(screen.getByRole('button', { name: /^total$/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /by currency/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /^rates$/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /30 days/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /6 months/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /1 year/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /all time/i })).toBeInTheDocument();
+    // The new chips replaced the old date-range buttons.
+    expect(screen.getByRole('button', { name: '1Y' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '2Y' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'All' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Custom' })).toBeInTheDocument();
     expect(screen.getByLabelText(/show variation/i)).toBeInTheDocument();
     expect(screen.getByTestId('net-worth-chart-mock')).toBeInTheDocument();
+  });
+
+  it('does not render the legacy click-to-edit instruction text', () => {
+    render(<NetWorthTimelineWidget />);
+
+    // Instruction text was removed in Wave 4 — the click-to-edit
+    // affordance is still wired through the chart's onPointClick.
+    expect(
+      screen.queryByText(/click any point on the chart/i),
+    ).not.toBeInTheDocument();
+  });
+
+  it('always asks the data hook for the full snapshot history regardless of selected chip', async () => {
+    const user = userEvent.setup();
+    render(<NetWorthTimelineWidget />);
+
+    expect(lastChartDataParams()).toEqual(
+      expect.objectContaining({ dateRange: 'all' }),
+    );
+
+    await user.click(screen.getByRole('button', { name: '2Y' }));
+
+    expect(lastChartDataParams()).toEqual(
+      expect.objectContaining({ dateRange: 'all' }),
+    );
   });
 
   it('shows the rates panel and hides the chart controls when Rates tab is active', async () => {
@@ -215,7 +278,7 @@ describe('NetWorthTimelineWidget', () => {
     expect(screen.queryByTestId('net-worth-chart-mock')).not.toBeInTheDocument();
     expect(screen.queryByLabelText(/show variation/i)).not.toBeInTheDocument();
     expect(
-      screen.queryByRole('button', { name: /6 months/i }),
+      screen.queryByRole('button', { name: '1Y' }),
     ).not.toBeInTheDocument();
   });
 
@@ -230,15 +293,83 @@ describe('NetWorthTimelineWidget', () => {
     );
   });
 
-  it('forwards the selected date range to useNetWorthChartData', async () => {
+  it('forwards dataZoomStart/End to the EChart for the active range chip', async () => {
+    // 24 monthly snapshots = enough range for meaningful 1Y / 2Y math.
+    mocks.useNetWorthChartData.mockReturnValue({
+      chartData: buildMonthlyChartData(24),
+      currencies: ['USD'],
+      tooltipFormatter: vi.fn(),
+    });
+
     const user = userEvent.setup();
     render(<NetWorthTimelineWidget />);
 
-    await user.click(screen.getByRole('button', { name: /1 year/i }));
+    // Default chip is `1Y` -> last 12 of 24 points -> roughly mid-range.
+    const onMount = lastEChartProps();
+    expect(onMount?.dataZoomStart).toBeGreaterThan(40);
+    expect(onMount?.dataZoomStart).toBeLessThan(60);
+    expect(onMount?.dataZoomEnd).toBe(100);
 
-    expect(lastChartDataParams()).toEqual(
-      expect.objectContaining({ dateRange: '1y' }),
-    );
+    await user.click(screen.getByRole('button', { name: 'All' }));
+    expect(lastEChartProps()).toMatchObject({
+      dataZoomStart: 0,
+      dataZoomEnd: 100,
+    });
+
+    await user.click(screen.getByRole('button', { name: '2Y' }));
+    // Last 24 of 24 points -> full range.
+    expect(lastEChartProps()).toMatchObject({
+      dataZoomStart: 0,
+      dataZoomEnd: 100,
+    });
+  });
+
+  it('opens the custom date popover when the Custom chip is clicked', async () => {
+    const user = userEvent.setup();
+    render(<NetWorthTimelineWidget />);
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Custom' }));
+
+    expect(
+      screen.getByRole('dialog', { name: /custom date range/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText('From')).toBeInTheDocument();
+    expect(screen.getByLabelText('To')).toBeInTheDocument();
+  });
+
+  it('applies a custom date range and forwards the resulting zoom percentages', async () => {
+    mocks.useNetWorthChartData.mockReturnValue({
+      chartData: buildMonthlyChartData(24),
+      currencies: ['USD'],
+      tooltipFormatter: vi.fn(),
+    });
+
+    const user = userEvent.setup();
+    render(<NetWorthTimelineWidget />);
+
+    await user.click(screen.getByRole('button', { name: 'Custom' }));
+
+    // fireEvent.change drives React's controlled-input update path —
+    // userEvent.type doesn't reliably set `<input type="month">` values
+    // in jsdom.
+    fireEvent.change(screen.getByLabelText('From'), {
+      target: { value: '2025-01' },
+    });
+    fireEvent.change(screen.getByLabelText('To'), {
+      target: { value: '2025-06' },
+    });
+
+    await user.click(screen.getByRole('button', { name: 'Apply' }));
+
+    // After Apply, the popover closes and the chart receives a
+    // narrowed zoom window inside the data extent.
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    const props = lastEChartProps();
+    expect(props?.dataZoomStart).toBeGreaterThan(0);
+    expect(props?.dataZoomEnd).toBeLessThan(100);
+    expect(props?.dataZoomStart).toBeLessThan(props?.dataZoomEnd ?? 0);
   });
 
   it('toggles the showVariation flag when the variation checkbox is clicked', async () => {
@@ -369,5 +500,90 @@ describe('NetWorthTimelineWidget', () => {
         showVariation: true,
       }),
     );
+  });
+});
+
+describe('calculateZoomRange', () => {
+  // Pure helper exposed by the widget so the percentage math can be
+  // exercised independently of the rendering pipeline.
+
+  const monthlyTimestamps = (count: number): number[] =>
+    Array.from({ length: count }, (_, i) =>
+      Date.UTC(2024, i, 1, 0, 0, 0),
+    );
+
+  it('returns the full range for empty data', () => {
+    expect(calculateZoomRange([], '1y')).toEqual({ start: 0, end: 100 });
+  });
+
+  it('returns the full range for the "all" preset', () => {
+    expect(calculateZoomRange(monthlyTimestamps(24), 'all')).toEqual({
+      start: 0,
+      end: 100,
+    });
+  });
+
+  it('returns the full range when the time span is zero (single point)', () => {
+    expect(calculateZoomRange([Date.UTC(2025, 0, 1)], '1y')).toEqual({
+      start: 0,
+      end: 100,
+    });
+  });
+
+  it('zooms to the last 12 points for the "1y" preset on a 24-point dataset', () => {
+    const result = calculateZoomRange(monthlyTimestamps(24), '1y');
+    expect(result.end).toBe(100);
+    // Start should land somewhere mid-range — the 12th of 24 points.
+    expect(result.start).toBeGreaterThan(40);
+    expect(result.start).toBeLessThan(60);
+  });
+
+  it('zooms to the last 24 points for the "2y" preset on a 24-point dataset', () => {
+    expect(calculateZoomRange(monthlyTimestamps(24), '2y')).toEqual({
+      start: 0,
+      end: 100,
+    });
+  });
+
+  it('clamps the "1y" window to the full range when fewer than 12 points exist', () => {
+    expect(calculateZoomRange(monthlyTimestamps(6), '1y')).toEqual({
+      start: 0,
+      end: 100,
+    });
+  });
+
+  it('returns the full range for "custom" without both From and To set', () => {
+    const ts = monthlyTimestamps(24);
+    expect(calculateZoomRange(ts, 'custom', '2024-06')).toEqual({
+      start: 0,
+      end: 100,
+    });
+    expect(calculateZoomRange(ts, 'custom', undefined, '2024-12')).toEqual({
+      start: 0,
+      end: 100,
+    });
+  });
+
+  it('produces a narrowed range for a valid custom From/To inside the data extent', () => {
+    const ts = monthlyTimestamps(24); // Jan 2024 .. Dec 2025
+    const result = calculateZoomRange(ts, 'custom', '2025-01', '2025-06');
+    expect(result.start).toBeGreaterThan(0);
+    expect(result.end).toBeLessThan(100);
+    expect(result.start).toBeLessThan(result.end);
+  });
+
+  it('clamps custom From/To percentages outside the data extent to [0, 100]', () => {
+    const ts = monthlyTimestamps(24); // Jan 2024 .. Dec 2025
+    const result = calculateZoomRange(ts, 'custom', '2020-01', '2030-12');
+    expect(result.start).toBe(0);
+    expect(result.end).toBe(100);
+  });
+
+  it('returns the full range when From >= To', () => {
+    const ts = monthlyTimestamps(24);
+    expect(calculateZoomRange(ts, 'custom', '2025-06', '2025-01')).toEqual({
+      start: 0,
+      end: 100,
+    });
   });
 });
