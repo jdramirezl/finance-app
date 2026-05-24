@@ -26,6 +26,8 @@ const mocks = vi.hoisted(() => ({
   useNetWorthChartData: vi.fn(),
   modalOpen: vi.fn(),
   chartProps: vi.fn(),
+  rechartProps: vi.fn(),
+  echartProps: vi.fn(),
 }));
 
 vi.mock('../../../hooks/queries/useNetWorthSnapshotQueries', () => ({
@@ -45,13 +47,47 @@ vi.mock('../NetWorthChart', () => {
     onPointClick: (datum: { snapshotId: string; fullDate: string }) => void;
   }) => {
     mocks.chartProps(props);
+    mocks.rechartProps(props);
     return createElement(
       'button',
       {
         'data-testid': 'net-worth-chart-mock',
+        'data-chart-impl': 'recharts',
         type: 'button',
         onClick: () =>
           props.onPointClick({ snapshotId: 's1', fullDate: '2026-01-01' }),
+      },
+      'chart',
+    );
+  };
+  return { default: Mock };
+});
+
+vi.mock('../NetWorthEChart', () => {
+  // The widget renders NetWorthEChart for total mode and NetWorthChart
+  // for breakdown mode. Both mocks share the same testid so existing
+  // tests that only assert "the chart is rendered" continue to work
+  // regardless of which view is active. The `data-chart-impl` attr
+  // distinguishes them for branch-coverage tests.
+  const Mock = (props: {
+    onPointClick: (datum: {
+      snapshotId: string;
+      fullDate: string;
+    }) => void;
+  }) => {
+    mocks.chartProps(props);
+    mocks.echartProps(props);
+    return createElement(
+      'button',
+      {
+        'data-testid': 'net-worth-chart-mock',
+        'data-chart-impl': 'echarts',
+        type: 'button',
+        onClick: () =>
+          props.onPointClick({
+            snapshotId: 's1',
+            fullDate: '2026-01-01',
+          }),
       },
       'chart',
     );
@@ -287,6 +323,51 @@ describe('NetWorthTimelineWidget', () => {
 
     expect(lastChartDataParams()).toEqual(
       expect.objectContaining({ primaryCurrency: 'USD' }),
+    );
+  });
+
+  it('renders the ECharts implementation in total mode (not Recharts)', () => {
+    render(<NetWorthTimelineWidget />);
+
+    const chart = screen.getByTestId('net-worth-chart-mock');
+    expect(chart).toHaveAttribute('data-chart-impl', 'echarts');
+    expect(mocks.echartProps).toHaveBeenCalled();
+    expect(mocks.rechartProps).not.toHaveBeenCalled();
+  });
+
+  it('renders the Recharts implementation in breakdown mode (not ECharts)', async () => {
+    const user = userEvent.setup();
+    render(<NetWorthTimelineWidget />);
+
+    await user.click(screen.getByRole('button', { name: /by currency/i }));
+
+    const chart = screen.getByTestId('net-worth-chart-mock');
+    expect(chart).toHaveAttribute('data-chart-impl', 'recharts');
+    expect(mocks.rechartProps).toHaveBeenCalled();
+  });
+
+  it('forwards primaryCurrency and showVariation to NetWorthEChart in total mode', async () => {
+    mocks.useSettingsQuery.mockReturnValue({
+      data: { primaryCurrency: 'COP' },
+    });
+    const user = userEvent.setup();
+    render(<NetWorthTimelineWidget />);
+
+    // Default state: showVariation off
+    expect(mocks.echartProps).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        primaryCurrency: 'COP',
+        showVariation: false,
+      }),
+    );
+
+    await user.click(screen.getByLabelText(/show variation/i));
+
+    expect(mocks.echartProps).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        primaryCurrency: 'COP',
+        showVariation: true,
+      }),
     );
   });
 });

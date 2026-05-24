@@ -8,7 +8,7 @@
  * to `NetWorthEditModal`.
  */
 
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { TrendingUp } from 'lucide-react';
 
 import {
@@ -17,7 +17,6 @@ import {
 import { useSettingsQuery } from '../../hooks/queries';
 import {
     useNetWorthChartData,
-    type NetWorthChartDatum,
     type NetWorthDateRange,
     type NetWorthViewMode,
 } from '../../hooks/useNetWorthChartData';
@@ -25,6 +24,7 @@ import Card from '../ui/Card';
 import Button from '../ui/Button';
 import CurrencyAmount from '../ui/CurrencyAmount';
 import NetWorthChart from './NetWorthChart';
+import NetWorthEChart from './NetWorthEChart';
 import NetWorthEditModal, {
     type NetWorthEditModalHandle,
 } from './NetWorthEditModal';
@@ -55,7 +55,13 @@ const NetWorthTimelineWidget = () => {
     // Resolve the snapshot the user clicked. Prefer matching by id (the
     // canonical identifier) and fall back to the snapshot date string so
     // the click still works for legacy datums that didn't carry an id.
-    const handlePointClick = (datum: NetWorthChartDatum) => {
+    // Accepts the minimal shape both chart implementations share so we
+    // can wire the same handler to NetWorthChart (Recharts) and
+    // NetWorthEChart (ECharts) without a type squeeze on the call site.
+    const handlePointClick = (datum: {
+        snapshotId: string;
+        fullDate: string;
+    }) => {
         const snapshotId = datum.snapshotId;
         const snapshot =
             snapshots.find((s) => s.id === snapshotId) ||
@@ -65,6 +71,20 @@ const NetWorthTimelineWidget = () => {
             editModalRef.current?.open(snapshot);
         }
     };
+
+    // Memoize the EChart data adapter so the option's useMemo dependency
+    // (NetWorthEChart memoizes its option keyed on `data`) doesn't get
+    // invalidated by a fresh array reference on every parent render.
+    const echartData = useMemo(
+        () =>
+            chartData.map((d) => ({
+                date: d.fullDate,
+                total: d.total ?? 0,
+                snapshotId: d.snapshotId,
+                fullDate: d.fullDate,
+            })),
+        [chartData],
+    );
 
     if (isLoading) {
         return (
@@ -180,15 +200,24 @@ const NetWorthTimelineWidget = () => {
                 </p>
 
                 {/* Chart */}
-                <NetWorthChart
-                    chartData={chartData}
-                    currencies={currencies}
-                    viewMode={viewMode as NetWorthViewMode}
-                    showVariation={showVariation}
-                    primaryCurrency={primaryCurrency}
-                    tooltipFormatter={tooltipFormatter}
-                    onPointClick={handlePointClick}
-                />
+                {viewMode === 'total' ? (
+                    <NetWorthEChart
+                        data={echartData}
+                        primaryCurrency={primaryCurrency}
+                        showVariation={showVariation}
+                        onPointClick={handlePointClick}
+                    />
+                ) : (
+                    <NetWorthChart
+                        chartData={chartData}
+                        currencies={currencies}
+                        viewMode={viewMode as NetWorthViewMode}
+                        showVariation={showVariation}
+                        primaryCurrency={primaryCurrency}
+                        tooltipFormatter={tooltipFormatter}
+                        onPointClick={handlePointClick}
+                    />
+                )}
 
                 {/* Latest Value */}
                 {latestDatum && viewMode === 'total' && (
