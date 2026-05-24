@@ -55,13 +55,20 @@ test.describe.serial('Account Management', () => {
     // defaultValues hydration.
     const nameInput = dialog.getByLabel('Account Name');
     await expect(nameInput).toHaveValue(TEST_ACCOUNT_NAME);
+    await nameInput.focus();
+    await nameInput.fill('');
     await nameInput.fill(TEST_ACCOUNT_RENAMED);
-    await dialog.getByRole('button', { name: 'Update Account' }).click();
+    await expect(nameInput).toHaveValue(TEST_ACCOUNT_RENAMED);
+    const updateBtn = dialog.getByRole('button', { name: 'Update Account' });
+    await expect(updateBtn).toBeEnabled();
+    await updateBtn.click();
 
     // Wait for the modal to close, then for the renamed account to
     // surface in the list (cache invalidation happens after the
     // mutation resolves).
     await expect(dialog).toBeHidden({ timeout: 5000 });
+    await page.reload();
+    await page.waitForLoadState('networkidle');
     await expect(page.getByText(TEST_ACCOUNT_RENAMED).first()).toBeVisible({ timeout: 10000 });
   });
 
