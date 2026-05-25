@@ -1075,6 +1075,7 @@ const NetWorthEChart = ({
             ref={chartRef}
             echarts={echarts}
             option={option}
+            notMerge={true}
             style={{ height, width: '100%' }}
             onEvents={onEvents}
             opts={{ renderer: 'canvas' }}
