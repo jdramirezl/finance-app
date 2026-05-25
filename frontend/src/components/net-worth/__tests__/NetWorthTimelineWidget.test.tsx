@@ -205,7 +205,6 @@ describe('NetWorthTimelineWidget', () => {
         },
       ],
       currencies: ['USD'],
-      tooltipFormatter: vi.fn(),
     });
   });
 
@@ -308,7 +307,6 @@ describe('NetWorthTimelineWidget', () => {
     mocks.useNetWorthChartData.mockReturnValue({
       chartData: buildMonthlyChartData(24),
       currencies: ['USD'],
-      tooltipFormatter: vi.fn(),
     });
 
     const user = userEvent.setup();
@@ -353,7 +351,6 @@ describe('NetWorthTimelineWidget', () => {
     mocks.useNetWorthChartData.mockReturnValue({
       chartData: buildMonthlyChartData(24),
       currencies: ['USD'],
-      tooltipFormatter: vi.fn(),
     });
 
     const user = userEvent.setup();
@@ -501,7 +498,6 @@ describe('NetWorthTimelineWidget', () => {
         },
       ],
       currencies: ['USD', 'MXN'],
-      tooltipFormatter: vi.fn(),
     });
 
     const user = userEvent.setup();
