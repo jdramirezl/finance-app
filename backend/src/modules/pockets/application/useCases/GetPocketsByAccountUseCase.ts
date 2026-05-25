@@ -26,15 +26,21 @@ export class GetPocketsByAccountUseCase {
     this.domainService = new PocketDomainService();
   }
 
-  async execute(accountId: string, userId: string): Promise<PocketResponseDTO[]> {
+  async execute(
+    accountId: string,
+    userId: string,
+    includeArchived: boolean = false
+  ): Promise<PocketResponseDTO[]> {
     // Verify account exists and belongs to user
     const account = await this.accountRepo.findById(accountId, userId);
     if (!account) {
       throw new NotFoundError('Account not found');
     }
 
-    // Fetch pockets for the account
-    const pockets = await this.pocketRepo.findByAccountId(accountId, userId);
+    // Fetch pockets for the account, optionally including archived ones.
+    // The default (false) preserves the pre-archive contract for every
+    // existing caller; only opt-in callers see archived rows.
+    const pockets = await this.pocketRepo.findByAccountId(accountId, userId, includeArchived);
 
     // Sort by display order (nulls last)
     const sortedPockets = pockets.sort((a, b) => {

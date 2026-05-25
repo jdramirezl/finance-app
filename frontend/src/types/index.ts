@@ -44,6 +44,10 @@ export interface Account {
   withholdingTaxRate?: number; // Retención en la fuente (percentage of gains withheld by bank)
   cdCreatedAt?: string; // ISO date string when CD was opened
   displayOrder?: number; // For drag & drop reordering
+  // Soft-delete (archive) timestamp. When non-null the account is archived
+  // and excluded from default listings; the API still returns it via
+  // `?include_archived=true` so the UI can offer restore / permanent delete.
+  archivedAt?: string | null; // ISO date string or null
 }
 
 // Pocket interface
@@ -55,6 +59,10 @@ export interface Pocket {
   readonly balance: number; // Calculated by backend triggers
   currency: Currency; // Inherited from account
   displayOrder?: number; // For drag & drop reordering
+  // Soft-delete (archive) timestamp. Mirrors `Account.archivedAt`. When the
+  // parent account is archived the backend cascades the archive to its
+  // pockets; either field being non-null hides the row from default views.
+  archivedAt?: string | null; // ISO date string or null
 }
 
 // Fixed Expense Group interface

@@ -27,7 +27,7 @@ const defaultProps = {
   isSelected: false,
   onSelect: vi.fn(),
   onEdit: vi.fn(),
-  onDelete: vi.fn(),
+  onArchive: vi.fn(),
 };
 
 describe('AccountCard', () => {
@@ -116,22 +116,22 @@ describe('AccountCard', () => {
     const onSelect = vi.fn();
     render(<AccountCard {...defaultProps} onEdit={onEdit} onSelect={onSelect} />);
 
-    await user.click(screen.getByRole('button', { name: /edit/i }));
+    await user.click(screen.getByRole('button', { name: /^edit$/i }));
 
     expect(onEdit).toHaveBeenCalledTimes(1);
     expect(onEdit).toHaveBeenCalledWith(baseAccount);
   });
 
-  it('calls onDelete with the account id when the Delete button is clicked', async () => {
+  it('calls onArchive with the account id when the Archive button is clicked', async () => {
     const user = userEvent.setup();
-    const onDelete = vi.fn();
+    const onArchive = vi.fn();
     const onSelect = vi.fn();
-    render(<AccountCard {...defaultProps} onDelete={onDelete} onSelect={onSelect} />);
+    render(<AccountCard {...defaultProps} onArchive={onArchive} onSelect={onSelect} />);
 
-    await user.click(screen.getByRole('button', { name: /delete/i }));
+    await user.click(screen.getByRole('button', { name: /^archive$/i }));
 
-    expect(onDelete).toHaveBeenCalledTimes(1);
-    expect(onDelete).toHaveBeenCalledWith('acc1');
+    expect(onArchive).toHaveBeenCalledTimes(1);
+    expect(onArchive).toHaveBeenCalledWith('acc1');
   });
 
   it('does not propagate clicks on the action buttons up to the card', async () => {
@@ -140,17 +140,17 @@ describe('AccountCard', () => {
     const onEdit = vi.fn();
     render(<AccountCard {...defaultProps} onSelect={onSelect} onEdit={onEdit} />);
 
-    await user.click(screen.getByRole('button', { name: /edit/i }));
+    await user.click(screen.getByRole('button', { name: /^edit$/i }));
 
     expect(onEdit).toHaveBeenCalledTimes(1);
     // Clicking the Edit button must NOT bubble up and trigger onSelect.
     expect(onSelect).not.toHaveBeenCalled();
   });
 
-  it('shows the loading state on the delete button when isDeleting is true', () => {
-    render(<AccountCard {...defaultProps} isDeleting />);
+  it('shows the loading state on the archive button when isArchiving is true', () => {
+    render(<AccountCard {...defaultProps} isArchiving />);
 
-    expect(screen.getByRole('button', { name: /delete/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /^archive$/i })).toBeDisabled();
   });
 
   it('renders the account color swatch with the account color', () => {

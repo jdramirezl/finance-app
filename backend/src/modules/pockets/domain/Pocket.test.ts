@@ -210,6 +210,7 @@ describe('Pocket Entity', () => {
         balance: 1000,
         currency: 'USD',
         displayOrder: 1,
+        archivedAt: null,
       });
     });
 
@@ -225,6 +226,7 @@ describe('Pocket Entity', () => {
         balance: -500,
         currency: 'MXN',
         displayOrder: 0,
+        archivedAt: null,
       });
     });
 
@@ -260,6 +262,61 @@ describe('Pocket Entity', () => {
     it('should support GBP currency', () => {
       const pocket = new Pocket('id', 'account-id', 'Test', 'normal', 0, 'GBP');
       expect(pocket.currency).toBe('GBP');
+    });
+  });
+
+  describe('Archive', () => {
+    it('should default archivedAt to null', () => {
+      const pocket = new Pocket('id', 'account-id', 'Test', 'normal', 0, 'USD');
+      expect(pocket.archivedAt).toBeNull();
+      expect(pocket.isArchived()).toBe(false);
+    });
+
+    it('should accept archivedAt in constructor', () => {
+      const archivedDate = new Date('2025-01-15T00:00:00Z');
+      const pocket = new Pocket(
+        'id', 'account-id', 'Test', 'normal', 0, 'USD', undefined, archivedDate
+      );
+      expect(pocket.archivedAt).toBe(archivedDate);
+      expect(pocket.isArchived()).toBe(true);
+    });
+
+    it('should accept explicit null archivedAt in constructor', () => {
+      const pocket = new Pocket(
+        'id', 'account-id', 'Test', 'normal', 0, 'USD', undefined, null
+      );
+      expect(pocket.archivedAt).toBeNull();
+      expect(pocket.isArchived()).toBe(false);
+    });
+
+    it('should archive an active pocket', () => {
+      const pocket = new Pocket('id', 'account-id', 'Test', 'normal', 0, 'USD');
+      expect(pocket.isArchived()).toBe(false);
+
+      pocket.archive();
+
+      expect(pocket.isArchived()).toBe(true);
+      expect(pocket.archivedAt).toBeInstanceOf(Date);
+    });
+
+    it('should unarchive an archived pocket', () => {
+      const pocket = new Pocket('id', 'account-id', 'Test', 'normal', 0, 'USD');
+      pocket.archive();
+      expect(pocket.isArchived()).toBe(true);
+
+      pocket.unarchive();
+
+      expect(pocket.isArchived()).toBe(false);
+      expect(pocket.archivedAt).toBeNull();
+    });
+
+    it('should serialize archivedAt in JSON when archived', () => {
+      const pocket = new Pocket('id', 'account-id', 'Test', 'normal', 0, 'USD');
+      pocket.archive();
+
+      const json = pocket.toJSON();
+
+      expect(json.archivedAt).toBeInstanceOf(Date);
     });
   });
 });

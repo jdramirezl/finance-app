@@ -38,17 +38,24 @@ export class GetAllAccountsUseCase {
 
   /**
    * Execute the use case
-   * 
+   *
    * @param userId - User ID from authentication
    * @param skipInvestmentPrices - Optional flag to skip fetching investment prices (for performance)
+   * @param includeArchived - Optional flag to include soft-archived accounts and their pockets
    * @returns Array of accounts with calculated balances, sorted by display order
    */
-  async execute(userId: string, skipInvestmentPrices: boolean = false): Promise<AccountResponseDTO[]> {
-    // Fetch all accounts for user (Requirement 4.4)
-    const accounts = await this.accountRepo.findAllByUserId(userId);
+  async execute(
+    userId: string,
+    skipInvestmentPrices: boolean = false,
+    includeArchived: boolean = false
+  ): Promise<AccountResponseDTO[]> {
+    // Fetch accounts (active by default, archived included on request)
+    const accounts = await this.accountRepo.findAllByUserId(userId, includeArchived);
 
-    // Batch-fetch all pockets for the user in ONE query (avoids N+1)
-    const allPockets = await this.pocketRepo.findAllByUserId(userId);
+    // Batch-fetch pockets for the user in ONE query (avoids N+1).
+    // When archived accounts are included, we also need their archived pockets
+    // so balances reflect the historical state of the archived account.
+    const allPockets = await this.pocketRepo.findAllByUserId(userId, includeArchived);
 
     // Group pockets by accountId in memory
     const pocketsByAccountId = new Map<string, typeof allPockets>();

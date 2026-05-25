@@ -35,6 +35,7 @@ describe('PocketMapper', () => {
         balance: 500.50,
         currency: 'USD',
         display_order: 0,
+        archived_at: null,
       });
     });
 
@@ -60,6 +61,7 @@ describe('PocketMapper', () => {
         balance: -150.00,
         currency: 'MXN',
         display_order: 1,
+        archived_at: null,
       });
     });
 
@@ -141,6 +143,7 @@ describe('PocketMapper', () => {
         balance: 300.00,
         currency: 'USD',
         display_order: 3,
+        archived_at: null,
         created_at: '2024-01-01T00:00:00Z',
         updated_at: '2024-01-02T00:00:00Z',
       };
@@ -167,6 +170,7 @@ describe('PocketMapper', () => {
         balance: -500.00,
         currency: 'EUR',
         display_order: 0,
+        archived_at: null,
         created_at: '2024-01-01T00:00:00Z',
         updated_at: '2024-01-02T00:00:00Z',
       };
@@ -189,6 +193,7 @@ describe('PocketMapper', () => {
         balance: 0,
         currency: 'GBP',
         display_order: null,
+        archived_at: null,
       };
 
       const pocket = PocketMapper.toDomain(row);
@@ -206,6 +211,7 @@ describe('PocketMapper', () => {
         balance: 1000.00,
         currency: 'COP',
         display_order: 5,
+        archived_at: null,
       };
 
       // Should not throw validation error
@@ -225,6 +231,7 @@ describe('PocketMapper', () => {
           balance: 100.00,
           currency: currency,
           display_order: 0,
+          archived_at: null,
         };
 
         const pocket = PocketMapper.toDomain(row);
@@ -255,6 +262,7 @@ describe('PocketMapper', () => {
         balance: 200.00,
         currency: 'USD',
         displayOrder: 2,
+        archivedAt: null,
       });
     });
 
@@ -279,6 +287,7 @@ describe('PocketMapper', () => {
         balance: -300.00,
         currency: 'MXN',
         displayOrder: 0,
+        archivedAt: null,
       });
     });
 
@@ -371,6 +380,7 @@ describe('PocketMapper', () => {
           balance: 100.00,
           currency: 'USD',
           display_order: 0,
+          archived_at: null,
         },
         {
           id: 'pocket-2',
@@ -381,6 +391,7 @@ describe('PocketMapper', () => {
           balance: 200.00,
           currency: 'EUR',
           display_order: 1,
+          archived_at: null,
         },
       ];
 
@@ -411,6 +422,7 @@ describe('PocketMapper', () => {
           balance: 500.00,
           currency: 'MXN',
           display_order: 3,
+          archived_at: null,
         },
       ];
 

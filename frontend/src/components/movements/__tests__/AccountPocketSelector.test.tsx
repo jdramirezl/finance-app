@@ -3,13 +3,13 @@ import { render, screen } from '../../../test/testUtils';
 import userEvent from '@testing-library/user-event';
 import AccountPocketSelector from '../AccountPocketSelector';
 
-const mockAccounts = [
+const baseAccounts = [
   { id: 'acc1', name: 'Checking', color: '#000', currency: 'USD', balance: 1000, type: 'normal' as const },
   { id: 'acc2', name: 'Savings', color: '#111', currency: 'MXN', balance: 5000, type: 'normal' as const },
   { id: 'acc3', name: 'NoFixed', color: '#222', currency: 'USD', balance: 200, type: 'normal' as const },
 ];
 
-const mockPockets = [
+const basePockets = [
   { id: 'pkt1', name: 'Daily', accountId: 'acc1', balance: 500, type: 'normal' as const, currency: 'USD' as const },
   { id: 'pkt1f', name: 'Fixed Pocket', accountId: 'acc1', balance: 200, type: 'fixed' as const, currency: 'USD' as const },
   { id: 'pkt2', name: 'Reserve', accountId: 'acc2', balance: 3000, type: 'normal' as const, currency: 'MXN' as const },
@@ -22,15 +22,27 @@ const mockSubPockets = [
   { id: 'sp2', pocketId: 'pkt1f', name: 'Insurance', valueTotal: 2400, periodicityMonths: 12, balance: 0, enabled: true },
 ];
 
+// Mutable state so individual tests can inject archived rows without
+// tearing down the module-level mock setup. `beforeEach` resets to the
+// canonical fixtures.
+let accountsState: Array<typeof baseAccounts[number] & { archivedAt?: string | null }> = [
+  ...baseAccounts,
+];
+let pocketsState: Array<typeof basePockets[number] & { archivedAt?: string | null }> = [
+  ...basePockets,
+];
+
 vi.mock('../../../hooks/queries', () => ({
-  useAccountsQuery: () => ({ data: mockAccounts }),
-  usePocketsQuery: () => ({ data: mockPockets }),
+  useAccountsQuery: () => ({ data: accountsState }),
+  usePocketsQuery: () => ({ data: pocketsState }),
   useSubPocketsQuery: () => ({ data: mockSubPockets }),
 }));
 
 describe('AccountPocketSelector', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    accountsState = [...baseAccounts];
+    pocketsState = [...basePockets];
   });
 
   it('renders Account and Pocket selects with placeholder options', () => {
@@ -361,5 +373,96 @@ describe('AccountPocketSelector', () => {
 
     expect(screen.getByLabelText(/Account/)).toBeDisabled();
     expect(screen.getByLabelText(/Pocket/)).toBeDisabled();
+  });
+
+  it('omits archived accounts from the account list', () => {
+    // The backend already excludes archived rows from the default
+    // listing, but the selector also filters defensively so a future
+    // query swap or stale cache entry can't surface a soft-deleted
+    // account as a valid choice for a new movement.
+    accountsState = [
+      ...baseAccounts,
+      {
+        id: 'acc-archived',
+        name: 'Archived Account',
+        color: '#999',
+        currency: 'USD' as const,
+        balance: 0,
+        type: 'normal' as const,
+        archivedAt: '2024-01-01T00:00:00.000Z',
+      },
+    ];
+
+    render(
+      <AccountPocketSelector
+        accountId=""
+        pocketId=""
+        onAccountChange={vi.fn()}
+        onPocketChange={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole('option', { name: 'Checking' })).toBeInTheDocument();
+    expect(
+      screen.queryByRole('option', { name: 'Archived Account' }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('omits archived pockets from the pocket list', () => {
+    pocketsState = [
+      ...basePockets,
+      {
+        id: 'pkt1-archived',
+        name: 'Archived Pocket',
+        accountId: 'acc1',
+        balance: 0,
+        type: 'normal' as const,
+        currency: 'USD' as const,
+        archivedAt: '2024-01-01T00:00:00.000Z',
+      },
+    ];
+
+    render(
+      <AccountPocketSelector
+        accountId="acc1"
+        pocketId=""
+        onAccountChange={vi.fn()}
+        onPocketChange={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole('option', { name: 'Daily' })).toBeInTheDocument();
+    expect(
+      screen.queryByRole('option', { name: 'Archived Pocket' }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('does not auto-select an archived fixed pocket in smart mode', () => {
+    // Replace the active fixed pocket on acc1 with an archived one. The
+    // smart-mode auto-select effect must treat the archived row as if it
+    // didn't exist, so the account loses its fixed pocket and gets
+    // cleared (mirrors the "account without a fixed pocket" branch).
+    pocketsState = basePockets.map((p) =>
+      p.id === 'pkt1f' ? { ...p, archivedAt: '2024-01-01T00:00:00.000Z' } : p,
+    );
+
+    const onAccountChange = vi.fn();
+    const onPocketChange = vi.fn();
+
+    render(
+      <AccountPocketSelector
+        accountId="acc1"
+        pocketId=""
+        onAccountChange={onAccountChange}
+        onPocketChange={onPocketChange}
+        movementType="EgresoFijo"
+        enforceMovementType
+      />,
+    );
+
+    expect(onPocketChange).not.toHaveBeenCalledWith('pkt1f');
+    // Same fall-through as the live "no fixed pocket on this account" test
+    expect(onAccountChange).toHaveBeenCalledWith('');
+    expect(onPocketChange).toHaveBeenCalledWith('');
   });
 });

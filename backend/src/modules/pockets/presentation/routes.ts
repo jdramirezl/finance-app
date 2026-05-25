@@ -36,12 +36,16 @@ router.post('/', validateBody(createPocketSchema), (req, res, next) => controlle
 
 /**
  * GET /api/pockets
- * Get pockets by account
- * 
- * Query params: accountId (required)
+ * Get pockets — either for a single account or for the whole user.
+ *
+ * Query params:
+ *   accountId         (optional) - scope to a single account
+ *   include_archived  (optional) - include soft-archived pockets when "true";
+ *                                  honoured on both the per-account and
+ *                                  all-pockets branches
  * Response: 200 + PocketResponseDTO[]
- * Errors: 400 (missing accountId), 404 (account not found)
- * 
+ * Errors: 404 (account not found, only when accountId is supplied)
+ *
  * Requirements: 6.4
  */
 router.get('/', (req, res, next) => controller.getByAccount(req, res, next));
@@ -103,5 +107,23 @@ router.post('/:id/migrate', validateBody(migratePocketSchema), (req, res, next) 
  * Requirements: 6.6
  */
 router.post('/reorder', validateBody(reorderPocketsSchema), (req, res, next) => controller.reorder(req, res, next));
+
+/**
+ * PATCH /api/pockets/:id/archive
+ * Soft-delete (archive) a pocket.
+ *
+ * Response: 204
+ * Errors: 404 (not found)
+ */
+router.patch('/:id/archive', (req, res, next) => controller.archive(req, res, next));
+
+/**
+ * PATCH /api/pockets/:id/unarchive
+ * Restore a previously archived pocket.
+ *
+ * Response: 204
+ * Errors: 404 (not found)
+ */
+router.patch('/:id/unarchive', (req, res, next) => controller.unarchive(req, res, next));
 
 export default router;

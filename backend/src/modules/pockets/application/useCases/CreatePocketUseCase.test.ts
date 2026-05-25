@@ -31,6 +31,8 @@ describe('CreatePocketUseCase', () => {
       update: jest.fn(),
       delete: jest.fn(),
       deleteByAccountId: jest.fn(),
+      archive: jest.fn(),
+      unarchive: jest.fn(),
       updateDisplayOrders: jest.fn(),
     } as any;
 
@@ -42,6 +44,8 @@ describe('CreatePocketUseCase', () => {
       existsByNameAndCurrencyExcludingId: jest.fn(),
       update: jest.fn(),
       delete: jest.fn(),
+      archive: jest.fn(),
+      unarchive: jest.fn(),
       updateDisplayOrders: jest.fn(),
     } as any;
 

@@ -13,6 +13,22 @@ export const useAccountsQuery = () => {
 };
 
 /**
+ * Query hook for fetching all accounts including archived (soft-deleted) ones.
+ *
+ * Backed by a distinct query key so it caches independently from the default
+ * `['accounts']` query — pages that need to surface archived accounts (for
+ * restore/permanent-delete actions) can opt in without polluting the cache
+ * used by everything else.
+ */
+export const useAccountsWithArchived = () => {
+    return useQuery({
+        queryKey: ['accounts', 'include-archived'],
+        queryFn: () => accountService.getAllAccounts(true),
+        staleTime: 1000 * 60 * 10, // 10 minutes - accounts change infrequently
+    });
+};
+
+/**
  * Query hook for fetching a single account by ID
  */
 export const useAccountQuery = (accountId: string) => {

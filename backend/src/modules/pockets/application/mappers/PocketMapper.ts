@@ -24,6 +24,7 @@ interface PocketPersistence {
   balance: number;
   currency: string;
   display_order: number | null;
+  archived_at: string | null;
   created_at?: string;
   updated_at?: string;
 }
@@ -49,6 +50,7 @@ export class PocketMapper {
       balance: pocket.balance,
       currency: pocket.currency,
       display_order: pocket.displayOrder ?? null,
+      archived_at: pocket.archivedAt?.toISOString() ?? null,
     };
   }
 
@@ -69,7 +71,8 @@ export class PocketMapper {
       row.type as PocketType,
       row.balance,
       row.currency as Currency,
-      row.display_order ?? undefined
+      row.display_order ?? undefined,
+      row.archived_at ? new Date(row.archived_at) : null
     );
   }
 
@@ -91,6 +94,7 @@ export class PocketMapper {
       balance: pocket.balance,
       currency: pocket.currency,
       displayOrder: pocket.displayOrder,
+      archivedAt: pocket.archivedAt?.toISOString() ?? null,
     };
   }
 

@@ -79,6 +79,8 @@ describe('GetAllAccountsUseCase Property-Based Tests', () => {
               existsByNameAndCurrencyExcludingId: jest.fn().mockResolvedValue(false),
               update: jest.fn().mockResolvedValue(undefined),
               delete: jest.fn().mockResolvedValue(undefined),
+              archive: jest.fn().mockResolvedValue(undefined),
+              unarchive: jest.fn().mockResolvedValue(undefined),
               updateDisplayOrders: jest.fn().mockResolvedValue(undefined),
             };
 
@@ -104,7 +106,7 @@ describe('GetAllAccountsUseCase Property-Based Tests', () => {
             expect(result[0].balance).toBeCloseTo(expectedBalance, 5);
             
             // Verify that pockets were fetched for the user
-            expect(mockPocketRepo.findAllByUserId).toHaveBeenCalledWith(userId);
+            expect(mockPocketRepo.findAllByUserId).toHaveBeenCalledWith(userId, false);
           }
         ),
         { numRuns: 100 }
@@ -142,6 +144,8 @@ describe('GetAllAccountsUseCase Property-Based Tests', () => {
               existsByNameAndCurrencyExcludingId: jest.fn().mockResolvedValue(false),
               update: jest.fn().mockResolvedValue(undefined),
               delete: jest.fn().mockResolvedValue(undefined),
+              archive: jest.fn().mockResolvedValue(undefined),
+              unarchive: jest.fn().mockResolvedValue(undefined),
               updateDisplayOrders: jest.fn().mockResolvedValue(undefined),
             };
 
@@ -232,6 +236,8 @@ describe('GetAllAccountsUseCase Property-Based Tests', () => {
               existsByNameAndCurrencyExcludingId: jest.fn().mockResolvedValue(false),
               update: jest.fn().mockResolvedValue(undefined),
               delete: jest.fn().mockResolvedValue(undefined),
+              archive: jest.fn().mockResolvedValue(undefined),
+              unarchive: jest.fn().mockResolvedValue(undefined),
               updateDisplayOrders: jest.fn().mockResolvedValue(undefined),
             };
 
@@ -325,6 +331,8 @@ describe('GetAllAccountsUseCase Property-Based Tests', () => {
               existsByNameAndCurrencyExcludingId: jest.fn().mockResolvedValue(false),
               update: jest.fn().mockResolvedValue(undefined),
               delete: jest.fn().mockResolvedValue(undefined),
+              archive: jest.fn().mockResolvedValue(undefined),
+              unarchive: jest.fn().mockResolvedValue(undefined),
               updateDisplayOrders: jest.fn().mockResolvedValue(undefined),
             };
 

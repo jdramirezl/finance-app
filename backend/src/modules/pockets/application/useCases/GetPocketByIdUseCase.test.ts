@@ -27,6 +27,8 @@ describe('GetPocketByIdUseCase', () => {
       update: jest.fn(),
       delete: jest.fn(),
       deleteByAccountId: jest.fn(),
+      archive: jest.fn(),
+      unarchive: jest.fn(),
       updateDisplayOrders: jest.fn(),
     };
 
@@ -59,6 +61,7 @@ describe('GetPocketByIdUseCase', () => {
         balance: 1000,
         currency: 'USD',
         displayOrder: undefined,
+        archivedAt: null,
       });
     });
 
@@ -87,6 +90,7 @@ describe('GetPocketByIdUseCase', () => {
         balance: 500,
         currency: 'USD',
         displayOrder: 1,
+        archivedAt: null,
       });
     });
 

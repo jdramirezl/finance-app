@@ -30,6 +30,18 @@ describe('accountService', () => {
       const result = await accountService.getAllAccounts();
       expect(result).toEqual([]);
     });
+
+    it('should omit query string when includeArchived is false (default)', async () => {
+      vi.spyOn(apiClient, 'get').mockResolvedValue([mockAccount]);
+      await accountService.getAllAccounts(false);
+      expect(apiClient.get).toHaveBeenCalledWith('/api/accounts');
+    });
+
+    it('should pass include_archived=true when requested', async () => {
+      vi.spyOn(apiClient, 'get').mockResolvedValue([mockAccount]);
+      await accountService.getAllAccounts(true);
+      expect(apiClient.get).toHaveBeenCalledWith('/api/accounts?include_archived=true');
+    });
   });
 
   describe('getAccount', () => {
@@ -144,6 +156,42 @@ describe('accountService', () => {
     });
   });
 
+  describe('archiveAccount', () => {
+    it('should PATCH the archive endpoint', async () => {
+      vi.spyOn(apiClient, 'patch').mockResolvedValue(undefined);
+      await accountService.archiveAccount('test-id');
+      expect(apiClient.patch).toHaveBeenCalledWith('/api/accounts/test-id/archive');
+    });
+
+    it('should resolve to void on success', async () => {
+      vi.spyOn(apiClient, 'patch').mockResolvedValue(undefined);
+      await expect(accountService.archiveAccount('test-id')).resolves.toBeUndefined();
+    });
+
+    it('should propagate errors from apiClient', async () => {
+      vi.spyOn(apiClient, 'patch').mockRejectedValue(new Error('not found'));
+      await expect(accountService.archiveAccount('missing')).rejects.toThrow('not found');
+    });
+  });
+
+  describe('unarchiveAccount', () => {
+    it('should PATCH the unarchive endpoint', async () => {
+      vi.spyOn(apiClient, 'patch').mockResolvedValue(undefined);
+      await accountService.unarchiveAccount('test-id');
+      expect(apiClient.patch).toHaveBeenCalledWith('/api/accounts/test-id/unarchive');
+    });
+
+    it('should resolve to void on success', async () => {
+      vi.spyOn(apiClient, 'patch').mockResolvedValue(undefined);
+      await expect(accountService.unarchiveAccount('test-id')).resolves.toBeUndefined();
+    });
+
+    it('should propagate errors from apiClient', async () => {
+      vi.spyOn(apiClient, 'patch').mockRejectedValue(new Error('not found'));
+      await expect(accountService.unarchiveAccount('missing')).rejects.toThrow('not found');
+    });
+  });
+
   describe('deleteAccountCascade', () => {
     it('should call apiClient.post with cascade endpoint', async () => {
       const cascadeResult = { account: 'Test', pockets: 2, subPockets: 3, movements: 10 };
@@ -192,6 +240,12 @@ describe('accountService', () => {
       vi.spyOn(apiClient, 'get').mockResolvedValue([mockAccount]);
       const isUnique = await accountService.validateAccountUniqueness('Test Account', 'MXN');
       expect(isUnique).toBe(true);
+    });
+
+    it('should query with include_archived=true so archived accounts still block reuse', async () => {
+      const getSpy = vi.spyOn(apiClient, 'get').mockResolvedValue([mockAccount]);
+      await accountService.validateAccountUniqueness('Other', 'USD');
+      expect(getSpy).toHaveBeenCalledWith('/api/accounts?include_archived=true');
     });
   });
 

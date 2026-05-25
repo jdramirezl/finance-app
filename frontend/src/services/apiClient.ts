@@ -10,7 +10,7 @@
 import { supabase } from '../lib/supabase';
 import { AppError } from '../errors/AppError';
 
-type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE';
+type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 
 type ErrorBody = {
   message?: string;
@@ -190,6 +190,13 @@ class ApiClient {
    */
   async put<T>(path: string, data?: Record<string, unknown>): Promise<T> {
     return this.request<T>('PUT', path, data);
+  }
+
+  /**
+   * PATCH request.
+   */
+  async patch<T>(path: string, data?: Record<string, unknown>): Promise<T> {
+    return this.request<T>('PATCH', path, data);
   }
 
   /**

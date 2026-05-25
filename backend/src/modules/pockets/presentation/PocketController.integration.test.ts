@@ -20,6 +20,9 @@ import { UpdatePocketUseCase } from '../application/useCases/UpdatePocketUseCase
 import { DeletePocketUseCase } from '../application/useCases/DeletePocketUseCase';
 import { MigrateFixedPocketUseCase } from '../application/useCases/MigrateFixedPocketUseCase';
 import { ReorderPocketsUseCase } from '../application/useCases/ReorderPocketsUseCase';
+import { ArchivePocketUseCase } from '../application/useCases/ArchivePocketUseCase';
+import { UnarchivePocketUseCase } from '../application/useCases/UnarchivePocketUseCase';
+import { GetAllPocketsUseCase } from '../application/useCases/GetAllPocketsUseCase';
 import { ValidationError, ConflictError, NotFoundError } from '../../../shared/errors/AppError';
 import { errorHandler } from '../../../shared/middleware/errorHandler';
 
@@ -32,7 +35,9 @@ describe('PocketController Integration Tests', () => {
   let mockDeletePocketUseCase: jest.Mocked<DeletePocketUseCase>;
   let mockMigrateFixedPocketUseCase: jest.Mocked<MigrateFixedPocketUseCase>;
   let mockReorderPocketsUseCase: jest.Mocked<ReorderPocketsUseCase>;
-  let mockPocketRepo: { findAllByUserId: jest.Mock };
+  let mockArchivePocketUseCase: jest.Mocked<ArchivePocketUseCase>;
+  let mockUnarchivePocketUseCase: jest.Mocked<UnarchivePocketUseCase>;
+  let mockGetAllPocketsUseCase: jest.Mocked<GetAllPocketsUseCase>;
   
   const testUserId = 'test-user-123';
   const mockAuthMiddleware = (req: any, res: any, next: any) => {
@@ -70,20 +75,30 @@ describe('PocketController Integration Tests', () => {
       execute: jest.fn()
     } as any;
 
-    mockPocketRepo = {
-      findAllByUserId: jest.fn()
-    };
+    mockArchivePocketUseCase = {
+      execute: jest.fn()
+    } as any;
+
+    mockUnarchivePocketUseCase = {
+      execute: jest.fn()
+    } as any;
+
+    mockGetAllPocketsUseCase = {
+      execute: jest.fn()
+    } as any;
 
     // Create controller with mocked use cases
     const controller = new PocketController(
       mockCreatePocketUseCase,
       mockGetPocketsByAccountUseCase,
+      mockGetAllPocketsUseCase,
       mockGetPocketByIdUseCase,
       mockUpdatePocketUseCase,
       mockDeletePocketUseCase,
       mockMigrateFixedPocketUseCase,
       mockReorderPocketsUseCase,
-      mockPocketRepo as any
+      mockArchivePocketUseCase,
+      mockUnarchivePocketUseCase
     );
 
     // Setup Express app with routes
@@ -256,7 +271,7 @@ describe('PocketController Integration Tests', () => {
       expect(response.status).toBe(200);
       expect(Array.isArray(response.body)).toBe(true);
       expect(response.body.length).toBe(2);
-      expect(mockGetPocketsByAccountUseCase.execute).toHaveBeenCalledWith('account-123', testUserId);
+      expect(mockGetPocketsByAccountUseCase.execute).toHaveBeenCalledWith('account-123', testUserId, false);
     });
 
     it('should return empty array when account has no pockets', async () => {
@@ -271,6 +286,85 @@ describe('PocketController Integration Tests', () => {
       expect(response.status).toBe(200);
       expect(Array.isArray(response.body)).toBe(true);
       expect(response.body.length).toBe(0);
+    });
+
+    it('should return all pockets for the user when accountId is omitted', async () => {
+      // Without `accountId` the controller delegates to GetAllPocketsUseCase
+      // (no archived flag), preserving the pre-archive behavior for callers
+      // that don't opt in.
+      const allPockets = [
+        { id: 'p1', accountId: 'account-123', name: 'A', type: 'normal', balance: 0, currency: 'USD' },
+        { id: 'p2', accountId: 'account-456', name: 'B', type: 'normal', balance: 0, currency: 'USD' },
+      ];
+      mockGetAllPocketsUseCase.execute.mockResolvedValue(allPockets as any);
+
+      const response = await request(app).get('/api/pockets');
+
+      expect(response.status).toBe(200);
+      expect(response.body).toEqual(allPockets);
+      expect(mockGetAllPocketsUseCase.execute).toHaveBeenCalledWith(testUserId, false);
+    });
+
+    it('should pass include_archived=true through to the use case when requested', async () => {
+      // The Accounts page consumes this branch to render archived pockets in
+      // its Archived section. The controller MUST forward the flag — without
+      // it the archived rows would be filtered out at the SQL layer.
+      const allPockets = [
+        { id: 'p1', accountId: 'account-123', name: 'Active', type: 'normal', balance: 0, currency: 'USD' },
+        {
+          id: 'p2',
+          accountId: 'account-123',
+          name: 'Archived',
+          type: 'normal',
+          balance: 0,
+          currency: 'USD',
+          archivedAt: '2024-01-01T00:00:00.000Z',
+        },
+      ];
+      mockGetAllPocketsUseCase.execute.mockResolvedValue(allPockets as any);
+
+      const response = await request(app).get('/api/pockets?include_archived=true');
+
+      expect(response.status).toBe(200);
+      expect(response.body).toEqual(allPockets);
+      expect(mockGetAllPocketsUseCase.execute).toHaveBeenCalledWith(testUserId, true);
+    });
+
+    it('should pass include_archived=true through to the per-account use case when accountId is supplied', async () => {
+      // Both branches share the same query string contract — the per-account
+      // branch MUST also honour `include_archived=true` so the API stays
+      // symmetric. A regression here would silently drop archived rows for
+      // any future caller that scopes the request to a single account.
+      mockGetPocketsByAccountUseCase.execute.mockResolvedValue([]);
+
+      const response = await request(app).get(
+        '/api/pockets?accountId=account-123&include_archived=true'
+      );
+
+      expect(response.status).toBe(200);
+      expect(mockGetPocketsByAccountUseCase.execute).toHaveBeenCalledWith(
+        'account-123',
+        testUserId,
+        true
+      );
+    });
+
+    // Defensive parser parity with AccountController: only the exact string
+    // "true" enables archived inclusion. Anything else (1, yes, TRUE, empty)
+    // must NOT silently flip the flag. Parameterized so future loosening of
+    // the parser cannot pass with single-value coverage.
+    it.each([
+      ['1'],
+      ['yes'],
+      ['TRUE'],
+      ['True'],
+      [''],
+    ])('should not pass include_archived=true when the value is "%s"', async (value) => {
+      mockGetAllPocketsUseCase.execute.mockResolvedValue([]);
+
+      await request(app).get(`/api/pockets?include_archived=${value}`);
+
+      expect(mockGetAllPocketsUseCase.execute).toHaveBeenCalledWith(testUserId, false);
     });
   });
 

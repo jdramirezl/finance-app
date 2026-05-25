@@ -6,8 +6,8 @@ import type { Account, Pocket } from '../../types';
 // Hoisted mocks: declared before any vi.mock factory runs so the mocks
 // returned from those factories share these references across modules.
 const mocks = vi.hoisted(() => ({
-  useAccountsQuery: vi.fn(),
-  usePocketsQuery: vi.fn(),
+  useAccountsWithArchived: vi.fn(),
+  usePocketsWithArchived: vi.fn(),
   useSettingsQuery: vi.fn(),
   useAccountMutations: vi.fn(),
   usePocketMutations: vi.fn(),
@@ -17,22 +17,36 @@ const mocks = vi.hoisted(() => ({
   handleUpdateAccount: vi.fn(),
   handleCreateCD: vi.fn(),
   handleUpdateCD: vi.fn(),
-  handleDeleteAccount: vi.fn(),
   cascadeOpen: vi.fn(),
   cascadeClose: vi.fn(),
   cascadeConfirm: vi.fn(),
   setDeleteMovements: vi.fn(),
   reorderMutate: vi.fn(),
+  archiveMutate: vi.fn(),
+  unarchiveMutate: vi.fn(),
+  unarchivePocketMutate: vi.fn(),
+  deletePocketMutate: vi.fn(),
+  toastSuccess: vi.fn(),
+  toastError: vi.fn(),
   // ConfirmDialog
   confirm: vi.fn().mockResolvedValue(true),
 }));
 
 vi.mock('../../hooks/queries', () => ({
-  useAccountsQuery: mocks.useAccountsQuery,
-  usePocketsQuery: mocks.usePocketsQuery,
+  useAccountsWithArchived: mocks.useAccountsWithArchived,
+  usePocketsWithArchived: mocks.usePocketsWithArchived,
   useSettingsQuery: mocks.useSettingsQuery,
   useAccountMutations: mocks.useAccountMutations,
   usePocketMutations: mocks.usePocketMutations,
+}));
+
+vi.mock('../../hooks/useToast', () => ({
+  useToast: () => ({
+    success: mocks.toastSuccess,
+    error: mocks.toastError,
+    info: vi.fn(),
+    warning: vi.fn(),
+  }),
 }));
 
 vi.mock('../../hooks/actions/useAccountActions', () => ({
@@ -87,7 +101,6 @@ const buildAccountActions = () => ({
   handleUpdateAccount: mocks.handleUpdateAccount,
   handleCreateCD: mocks.handleCreateCD,
   handleUpdateCD: mocks.handleUpdateCD,
-  handleDeleteAccount: mocks.handleDeleteAccount,
   isAccountFormSaving: false,
   isCDFormSaving: false,
   cascadeDelete: {
@@ -113,8 +126,8 @@ const setupHappyPath = (options: SetupOptions = {}) => {
   const pockets = options.pockets ?? samplePockets;
   const loading = options.loading ?? false;
 
-  mocks.useAccountsQuery.mockReturnValue({ data: accounts, isLoading: loading });
-  mocks.usePocketsQuery.mockReturnValue({ data: pockets, isLoading: loading });
+  mocks.useAccountsWithArchived.mockReturnValue({ data: accounts, isLoading: loading });
+  mocks.usePocketsWithArchived.mockReturnValue({ data: pockets, isLoading: loading });
   mocks.useSettingsQuery.mockReturnValue({
     data: { defaultCurrencyForNewAccounts: 'USD' },
   });
@@ -124,8 +137,18 @@ const setupHappyPath = (options: SetupOptions = {}) => {
     deleteAccount: { isPending: false, mutateAsync: vi.fn() },
     deleteAccountCascade: { isPending: false, mutateAsync: vi.fn() },
     reorderAccounts: { mutate: mocks.reorderMutate },
+    archiveAccount: { isPending: false, mutate: mocks.archiveMutate },
+    unarchiveAccount: { isPending: false, mutate: mocks.unarchiveMutate },
   });
-  mocks.usePocketMutations.mockReturnValue({});
+  mocks.usePocketMutations.mockReturnValue({
+    createPocket: { isPending: false, mutateAsync: vi.fn() },
+    updatePocket: { isPending: false, mutateAsync: vi.fn() },
+    deletePocket: { isPending: false, mutate: mocks.deletePocketMutate, mutateAsync: vi.fn() },
+    reorderPockets: { mutate: vi.fn() },
+    migrateFixedPocketToAccount: { isPending: false, mutateAsync: vi.fn() },
+    archivePocket: { isPending: false, mutate: vi.fn() },
+    unarchivePocket: { isPending: false, mutate: mocks.unarchivePocketMutate },
+  });
   mocks.useAccountActions.mockReturnValue(buildAccountActions());
 };
 
@@ -228,15 +251,146 @@ describe('AccountsPage', () => {
     expect(nameInput.value).toBe('Checking Account');
   });
 
-  it('calls handleDeleteAccount with the account id when Delete is clicked', async () => {
+  it('archives the account when the Archive button is clicked', async () => {
     const user = userEvent.setup();
     render(<AccountsPage />);
 
-    const deleteButtons = await screen.findAllByRole('button', { name: /^delete$/i });
-    await user.click(deleteButtons[0]);
+    const archiveButtons = await screen.findAllByRole('button', { name: /^archive$/i });
+    expect(archiveButtons.length).toBe(sampleAccounts.length);
 
-    expect(mocks.handleDeleteAccount).toHaveBeenCalledTimes(1);
-    expect(mocks.handleDeleteAccount).toHaveBeenCalledWith('acc-1');
+    await user.click(archiveButtons[0]);
+
+    expect(mocks.archiveMutate).toHaveBeenCalledTimes(1);
+    const [archivedId] = mocks.archiveMutate.mock.calls[0];
+    expect(archivedId).toBe('acc-1');
+  });
+
+  it('opens the cascade-delete dialog from the detail panel "Delete account permanently" link', async () => {
+    const user = userEvent.setup();
+    render(<AccountsPage />);
+
+    // Click the row to open the detail panel for that account, then click
+    // the subtle red text link that replaces the old "Delete All" button.
+    await user.click(await screen.findByText('Checking Account'));
+
+    await user.click(
+      await screen.findByRole('button', { name: /delete account permanently/i }),
+    );
+
+    expect(mocks.cascadeOpen).toHaveBeenCalledTimes(1);
+    expect(mocks.cascadeOpen).toHaveBeenCalledWith('acc-1');
+  });
+
+  it('renders the archived section when archived accounts are present', async () => {
+    const archived: Account = {
+      id: 'arc-1',
+      name: 'Old Card',
+      color: '#888888',
+      currency: 'USD',
+      balance: 0,
+      type: 'normal',
+      archivedAt: '2024-01-01T00:00:00.000Z',
+      displayOrder: 99,
+    };
+    setupHappyPath({ accounts: [...sampleAccounts, archived] });
+
+    render(<AccountsPage />);
+
+    // Archived row is excluded from the active grid
+    expect(await screen.findByText('Checking Account')).toBeInTheDocument();
+    expect(screen.queryByText('Old Card')).not.toBeInTheDocument();
+    // ...but appears in the archived disclosure
+    expect(
+      screen.getByRole('button', { name: /^archived \(1\)$/i }),
+    ).toBeInTheDocument();
+  });
+
+  it('includes archived pockets attached to active accounts in the archived section count', async () => {
+    // The active account stays in the active grid; its archived pocket
+    // should surface in the Archived disclosure so the user can restore it.
+    const archivedPocket: Pocket = {
+      id: 'pkt-archived',
+      accountId: 'acc-1',
+      name: 'Fijos',
+      type: 'normal',
+      balance: 0,
+      currency: 'USD',
+      archivedAt: '2024-01-01T00:00:00.000Z',
+    };
+    setupHappyPath({ pockets: [archivedPocket] });
+
+    render(<AccountsPage />);
+
+    expect(await screen.findByText('Checking Account')).toBeInTheDocument();
+    // Count is 1 even though no archived account is present — the pocket
+    // alone justifies the section.
+    expect(
+      screen.getByRole('button', { name: /^archived \(1\)$/i }),
+    ).toBeInTheDocument();
+  });
+
+  it('omits archived pockets whose parent account is also archived (those are represented by the account row)', async () => {
+    // Pocket cascaded with its archived account would otherwise duplicate the
+    // user's recovery surface. The page filters them out so only orphaned
+    // archived pockets (parent still active) appear in the pocket list.
+    const archivedAcc: Account = {
+      id: 'acc-archived',
+      name: 'Old Account',
+      color: '#888888',
+      currency: 'USD',
+      balance: 0,
+      type: 'normal',
+      archivedAt: '2024-01-01T00:00:00.000Z',
+      displayOrder: 99,
+    };
+    const cascadedPocket: Pocket = {
+      id: 'pkt-cascaded',
+      accountId: 'acc-archived',
+      name: 'Cascaded',
+      type: 'normal',
+      balance: 0,
+      currency: 'USD',
+      archivedAt: '2024-01-01T00:00:00.000Z',
+    };
+    setupHappyPath({
+      accounts: [...sampleAccounts, archivedAcc],
+      pockets: [cascadedPocket],
+    });
+
+    render(<AccountsPage />);
+
+    // Header shows only the archived account, not the cascaded pocket.
+    expect(
+      await screen.findByRole('button', { name: /^archived \(1\)$/i }),
+    ).toBeInTheDocument();
+  });
+
+  it('restores an archived pocket when its Restore button is clicked', async () => {
+    const archivedPocket: Pocket = {
+      id: 'pkt-archived',
+      accountId: 'acc-1',
+      name: 'Fijos',
+      type: 'normal',
+      balance: 0,
+      currency: 'USD',
+      archivedAt: '2024-01-01T00:00:00.000Z',
+    };
+    setupHappyPath({ pockets: [archivedPocket] });
+
+    const user = userEvent.setup();
+    render(<AccountsPage />);
+
+    // Expand the archived disclosure, then click the restore button on
+    // the pocket row. The label uses the parent account name as breadcrumb.
+    await user.click(
+      await screen.findByRole('button', { name: /^archived \(1\)$/i }),
+    );
+    await user.click(
+      screen.getByRole('button', { name: /restore fijos \(in checking account\)/i }),
+    );
+
+    expect(mocks.unarchivePocketMutate).toHaveBeenCalledTimes(1);
+    expect(mocks.unarchivePocketMutate.mock.calls[0][0]).toBe('pkt-archived');
   });
 
   it('filters accounts by name when typing in the search input', async () => {
@@ -280,15 +434,13 @@ describe('AccountsPage', () => {
     expect(screen.queryByText('Savings Account')).not.toBeInTheDocument();
   });
 
-  it('passes accounts and mutations to useAccountActions so deletion flows are wired up', () => {
+  it('wires mutations into useAccountActions for the cascade-delete flow', () => {
     render(<AccountsPage />);
 
     expect(mocks.useAccountActions).toHaveBeenCalled();
     const params = mocks.useAccountActions.mock.calls[0][0] as {
-      accounts: Account[];
       mutations: unknown;
     };
-    expect(params.accounts).toEqual(sampleAccounts);
     expect(params.mutations).toBeDefined();
   });
 });

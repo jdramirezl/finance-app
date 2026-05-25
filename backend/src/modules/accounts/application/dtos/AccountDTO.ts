@@ -63,6 +63,7 @@ export interface AccountResponseDTO {
   earlyWithdrawalPenalty?: number;
   withholdingTaxRate?: number;
   cdCreatedAt?: string;
+  archivedAt?: string | null;
 }
 
 export interface CascadeDeleteResultDTO {

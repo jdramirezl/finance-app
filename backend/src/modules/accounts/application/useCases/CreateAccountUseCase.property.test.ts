@@ -47,6 +47,8 @@ describe('CreateAccountUseCase Property-Based Tests', () => {
               existsByNameAndCurrencyExcludingId: jest.fn().mockResolvedValue(false),
               update: jest.fn().mockResolvedValue(undefined),
               delete: jest.fn().mockResolvedValue(undefined),
+              archive: jest.fn().mockResolvedValue(undefined),
+              unarchive: jest.fn().mockResolvedValue(undefined),
               updateDisplayOrders: jest.fn().mockResolvedValue(undefined),
             };
 
@@ -100,6 +102,8 @@ describe('CreateAccountUseCase Property-Based Tests', () => {
               existsByNameAndCurrencyExcludingId: jest.fn().mockResolvedValue(false),
               update: jest.fn().mockResolvedValue(undefined),
               delete: jest.fn().mockResolvedValue(undefined),
+              archive: jest.fn().mockResolvedValue(undefined),
+              unarchive: jest.fn().mockResolvedValue(undefined),
               updateDisplayOrders: jest.fn().mockResolvedValue(undefined),
             };
 
@@ -147,6 +151,8 @@ describe('CreateAccountUseCase Property-Based Tests', () => {
               existsByNameAndCurrencyExcludingId: jest.fn().mockResolvedValue(false),
               update: jest.fn().mockResolvedValue(undefined),
               delete: jest.fn().mockResolvedValue(undefined),
+              archive: jest.fn().mockResolvedValue(undefined),
+              unarchive: jest.fn().mockResolvedValue(undefined),
               updateDisplayOrders: jest.fn().mockResolvedValue(undefined),
             };
 
@@ -200,6 +206,8 @@ describe('CreateAccountUseCase Property-Based Tests', () => {
               existsByNameAndCurrencyExcludingId: jest.fn().mockResolvedValue(false),
               update: jest.fn().mockResolvedValue(undefined),
               delete: jest.fn().mockResolvedValue(undefined),
+              archive: jest.fn().mockResolvedValue(undefined),
+              unarchive: jest.fn().mockResolvedValue(undefined),
               updateDisplayOrders: jest.fn().mockResolvedValue(undefined),
             };
 
@@ -247,6 +255,8 @@ describe('CreateAccountUseCase Property-Based Tests', () => {
               existsByNameAndCurrencyExcludingId: jest.fn().mockResolvedValue(false),
               update: jest.fn().mockResolvedValue(undefined),
               delete: jest.fn().mockResolvedValue(undefined),
+              archive: jest.fn().mockResolvedValue(undefined),
+              unarchive: jest.fn().mockResolvedValue(undefined),
               updateDisplayOrders: jest.fn().mockResolvedValue(undefined),
             };
 

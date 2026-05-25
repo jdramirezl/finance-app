@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import type { Pocket } from '../../types';
-import { Edit2, Trash2, ArrowRightLeft, Lock, PieChart, Banknote, Wallet } from 'lucide-react';
+import { Archive, Edit2, ArrowRightLeft, Lock, PieChart, Banknote, Wallet } from 'lucide-react';
 import ActionButtons from '../ui/ActionButtons';
 
 interface PocketCardProps {
@@ -12,14 +12,21 @@ interface PocketCardProps {
      * pocket card to re-render.
      */
     onEdit: (pocket: Pocket) => void;
-    onDelete: (id: string) => void;
+    /**
+     * Soft-delete (archive) handler. Pocket cards mirror account cards:
+     * the inline action archives the row (reversible) instead of
+     * permanently deleting it. Permanent deletion is reachable from the
+     * archived list, where the destructive action is in a less
+     * accidentally-clickable surface.
+     */
+    onArchive: (id: string) => void;
     /**
      * Optional migrate handler. The card hides the Migrate button for
      * non-fixed pockets, so the parent can pass a single stable callback
      * for all rows.
      */
     onMigrate?: (pocket: Pocket) => void;
-    isDeleting?: boolean;
+    isArchiving?: boolean;
 }
 
 /**
@@ -29,9 +36,9 @@ interface PocketCardProps {
 const PocketCard = ({
     pocket,
     onEdit,
-    onDelete,
+    onArchive,
     onMigrate,
-    isDeleting = false,
+    isArchiving = false,
 }: PocketCardProps) => {
     const isFixed = pocket.type === 'fixed';
     const isInvestment = pocket.name === 'Shares' || pocket.name === 'Invested Money';
@@ -87,20 +94,23 @@ const PocketCard = ({
                             icon: ArrowRightLeft,
                             onClick: () => onMigrate!(pocket),
                             label: 'Migrate',
+                            iconOnly: true,
                             variant: 'ghost' as const,
                         }] : []),
                         {
                             icon: Edit2,
                             onClick: () => onEdit(pocket),
                             label: 'Edit',
+                            iconOnly: true,
                             variant: 'ghost' as const,
                         },
                         {
-                            icon: Trash2,
-                            onClick: () => onDelete(pocket.id),
-                            label: 'Delete',
+                            icon: Archive,
+                            onClick: () => onArchive(pocket.id),
+                            label: 'Archive',
+                            iconOnly: true,
                             variant: 'ghost' as const,
-                            loading: isDeleting,
+                            loading: isArchiving,
                         }
                     ]}
                 />

@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import type { Account } from '../../types';
-import { EditDeleteActions } from '../ui/ActionButtons';
+import { EditArchiveActions } from '../ui/ActionButtons';
 import { TrendingUp, Wallet } from 'lucide-react';
 import SelectableValue from '../ui/SelectableValue';
 
@@ -14,8 +14,20 @@ interface AccountCardProps {
      */
     onSelect: (account: Account) => void;
     onEdit: (account: Account) => void;
-    onDelete: (id: string) => void;
-    isDeleting?: boolean;
+    /**
+     * Soft-delete (archive) handler. The mutation is reversible, so the
+     * card invokes this directly without a confirmation prompt — the
+     * archived row immediately moves to the page-level "Archived" section
+     * where the user can restore or permanently delete it.
+     *
+     * Permanent deletion is intentionally NOT exposed on the active card.
+     * Users can still cascade-delete from the account detail panel (for an
+     * already-selected account) or from the Archived section (after
+     * archiving), so the destructive action stays accessible without
+     * cluttering every row with a third red button.
+     */
+    onArchive: (id: string) => void;
+    isArchiving?: boolean;
     isFixedExpensesAccount?: boolean;
 }
 
@@ -30,8 +42,8 @@ const AccountCard = ({
     isSelected,
     onSelect,
     onEdit,
-    onDelete,
-    isDeleting = false,
+    onArchive,
+    isArchiving = false,
     isFixedExpensesAccount = false,
 }: AccountCardProps) => {
     const isInvestment = account.type === 'investment';
@@ -104,10 +116,10 @@ const AccountCard = ({
                         </SelectableValue>
                     </span>
                     <div onClick={(e) => e.stopPropagation()}>
-                        <EditDeleteActions
+                        <EditArchiveActions
                             onEdit={() => onEdit(account)}
-                            onDelete={() => onDelete(account.id)}
-                            isDeleting={isDeleting}
+                            onArchive={() => onArchive(account.id)}
+                            isArchiving={isArchiving}
                             showOnHover={false}
                         />
                     </div>

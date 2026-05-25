@@ -8,3 +8,4 @@ export { default as PocketManagementSection } from './PocketManagementSection';
 export { default as CascadeDeleteDialog } from './CascadeDeleteDialog';
 export { default as CDPreviewSection } from './CDPreviewSection';
 export { default as CDWarningsSection } from './CDWarningsSection';
+export { default as ArchivedSection } from './ArchivedSection';

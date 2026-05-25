@@ -9,8 +9,9 @@ const TEST_POCKET_NAME = '[TEST] E2E Pocket';
  * Locate the AccountCard row that contains a given account name AND an
  * "Edit" button. Filtering on both anchors keeps us out of the
  * AccountDetailPanel header (which uses different labels: "Edit
- * Account" / "Delete All"). The list renders the smallest matching
- * <div> innermost so `.last()` picks the actual card-level container.
+ * Account" / "Delete account permanently"). The list renders the
+ * smallest matching <div> innermost so `.last()` picks the actual
+ * card-level container.
  */
 const accountRow = (page: Page, name: string): Locator =>
   page
@@ -95,7 +96,10 @@ test.describe.serial('Account Management', () => {
       .getByRole('heading', { name: TEST_ACCOUNT_NAME, level: 3 })
       .first()
       .click();
-    await page.getByRole('button', { name: 'Delete All' }).click();
+    // The big red "Delete All" button was replaced with a subtle red
+    // text link styled like a hyperlink. Match by accessible name to
+    // remain layout-agnostic.
+    await page.getByRole('button', { name: /delete account permanently/i }).click();
 
     // Wait for the cascade delete API to complete
     await Promise.all([

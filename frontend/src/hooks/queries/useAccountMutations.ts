@@ -7,6 +7,58 @@ import { useToast } from '../useToast';
 const errorMessage = (error: unknown, fallback: string): string =>
     error instanceof Error && error.message ? error.message : fallback;
 
+// Archive/unarchive mutations invalidate `['accounts']`. TanStack Query's
+// default prefix matching means this also refreshes the
+// `['accounts', 'include-archived']` cache used by `useAccountsWithArchived`,
+// both in this tab and in cross-tab broadcasts (the receiving tab applies
+// the same default `invalidateQueries`).
+
+/**
+ * Standalone mutation for archiving an account (soft delete).
+ *
+ * Calls `accountService.archiveAccount(id)` and invalidates `['accounts']`.
+ *
+ * Prefer this hook in components that only need archive. Pages that already
+ * use {@link useAccountMutations} can read `archiveAccount` from the bundle
+ * — the bundle composes this exact hook, so the mutation logic is identical.
+ */
+export const useArchiveAccount = () => {
+    const queryClient = useQueryClient();
+    const toast = useToast();
+
+    return useMutation({
+        mutationFn: (id: string) => accountService.archiveAccount(id),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['accounts'] });
+            broadcastInvalidation([['accounts']]);
+        },
+        onError: (error) => {
+            toast.error(errorMessage(error, 'Failed to archive account'));
+        },
+    });
+};
+
+/**
+ * Standalone mutation for unarchiving (restoring) a previously archived
+ * account. Calls `accountService.unarchiveAccount(id)` and invalidates
+ * `['accounts']`.
+ */
+export const useUnarchiveAccount = () => {
+    const queryClient = useQueryClient();
+    const toast = useToast();
+
+    return useMutation({
+        mutationFn: (id: string) => accountService.unarchiveAccount(id),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['accounts'] });
+            broadcastInvalidation([['accounts']]);
+        },
+        onError: (error) => {
+            toast.error(errorMessage(error, 'Failed to unarchive account'));
+        },
+    });
+};
+
 export const useAccountMutations = () => {
     const queryClient = useQueryClient();
     const toast = useToast();
@@ -74,11 +126,19 @@ export const useAccountMutations = () => {
         },
     });
 
+    // Archive/unarchive share their full implementation with the standalone
+    // hooks — compose rather than duplicate so future changes (optimistic
+    // updates, additional cache keys) are made in one place.
+    const archiveAccount = useArchiveAccount();
+    const unarchiveAccount = useUnarchiveAccount();
+
     return {
         createAccount,
         updateAccount,
         deleteAccount,
         deleteAccountCascade,
         reorderAccounts,
+        archiveAccount,
+        unarchiveAccount,
     };
 };

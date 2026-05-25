@@ -116,11 +116,13 @@ describe('AccountDetailPanel', () => {
     expect(screen.getByText(/-250/).className).toContain('text-red-600');
   });
 
-  it('renders the Edit Account and Delete All buttons', () => {
+  it('renders the Edit Account button and the subtle delete-account link', () => {
     render(<AccountDetailPanel {...defaultProps} />);
 
     expect(screen.getByRole('button', { name: /Edit Account/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Delete All/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: /Delete account permanently/i }),
+    ).toBeInTheDocument();
   });
 
   it('renders the desktop Close button and the mobile Back button', () => {
@@ -141,12 +143,12 @@ describe('AccountDetailPanel', () => {
     expect(onEditAccount).toHaveBeenCalledWith(baseAccount);
   });
 
-  it('calls onCascadeDelete with the account id when Delete All is clicked', async () => {
+  it('calls onCascadeDelete with the account id when the delete-account link is clicked', async () => {
     const user = userEvent.setup();
     const onCascadeDelete = vi.fn();
     render(<AccountDetailPanel {...defaultProps} onCascadeDelete={onCascadeDelete} />);
 
-    await user.click(screen.getByRole('button', { name: /Delete All/i }));
+    await user.click(screen.getByRole('button', { name: /Delete account permanently/i }));
 
     expect(onCascadeDelete).toHaveBeenCalledTimes(1);
     expect(onCascadeDelete).toHaveBeenCalledWith('acc1');

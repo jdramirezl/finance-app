@@ -26,6 +26,8 @@ describe('UpdatePocketUseCase', () => {
       existsFixedPocketForUserExcludingId: jest.fn(),
       update: jest.fn(),
       delete: jest.fn(),
+      archive: jest.fn(),
+      unarchive: jest.fn(),
       updateDisplayOrders: jest.fn(),
     } as any;
 
@@ -193,6 +195,7 @@ describe('UpdatePocketUseCase', () => {
         balance: 100,
         currency: 'USD',
         displayOrder: 1,
+        archivedAt: null,
       });
 
       expect(mockRepo.update).toHaveBeenCalledWith(existingPocket, 'user-123');
@@ -253,6 +256,7 @@ describe('UpdatePocketUseCase', () => {
         balance: 250.50,
         currency: 'EUR',
         displayOrder: 3,
+        archivedAt: null,
       });
     });
 

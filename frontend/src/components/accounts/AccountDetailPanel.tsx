@@ -27,8 +27,9 @@ interface AccountDetailPanelProps {
 
 /**
  * Right-hand panel showing the selected account's header (name, balance,
- * edit / delete-all actions) and either the CD details panel or the pocket
- * management section depending on account type.
+ * Edit Account button, and a subtle "Delete account permanently" link)
+ * and either the CD details panel or the pocket management section
+ * depending on account type.
  */
 const AccountDetailPanel = ({
   account,
@@ -96,21 +97,33 @@ const AccountDetailPanel = ({
           </div>
         </div>
 
-        <div className="flex gap-2">
+        <div className="flex flex-col gap-2">
           <Button
             variant="secondary"
-            className="flex-1"
             onClick={() => onEditAccount(account)}
           >
             Edit Account
           </Button>
-          <Button
-            variant="danger"
-            className="flex-1"
+          {/*
+            Permanent deletion is the most destructive action available
+            and is gated by the cascade-delete confirmation dialog. We
+            render it as a subtle red text link rather than a primary
+            danger button so the visual weight matches the actual
+            frequency of the action — most users archive instead.
+
+            We use `focus-visible:` (the keyboard-focus variant) so a
+            mouse click on this destructive link doesn't flash a ring,
+            while still matching the keyboard-focus indicator on the
+            shared `Button` variants. The ring colour stays in the red
+            family for visual consistency with the link itself.
+          */}
+          <button
+            type="button"
             onClick={() => onCascadeDelete(account.id)}
+            className="text-red-400 hover:text-red-300 text-sm self-end transition-colors rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-50 dark:focus-visible:ring-offset-gray-700"
           >
-            Delete All
-          </Button>
+            Delete account permanently
+          </button>
         </div>
       </Card>
 

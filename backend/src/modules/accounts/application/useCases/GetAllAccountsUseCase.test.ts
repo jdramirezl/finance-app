@@ -32,6 +32,8 @@ describe('GetAllAccountsUseCase', () => {
       existsByNameAndCurrencyExcludingId: jest.fn(),
       update: jest.fn(),
       delete: jest.fn(),
+      archive: jest.fn(),
+      unarchive: jest.fn(),
       updateDisplayOrders: jest.fn(),
     } as jest.Mocked<IAccountRepository>;
 
@@ -48,6 +50,8 @@ describe('GetAllAccountsUseCase', () => {
       update: jest.fn(),
       delete: jest.fn(),
       deleteByAccountId: jest.fn(),
+      archive: jest.fn(),
+      unarchive: jest.fn(),
       updateDisplayOrders: jest.fn(),
     } as jest.Mocked<IPocketRepository>;
 
@@ -86,8 +90,8 @@ describe('GetAllAccountsUseCase', () => {
       expect(result[1].id).toBe('acc-2');
       expect(result[1].balance).toBe(2000);
       
-      expect(mockAccountRepo.findAllByUserId).toHaveBeenCalledWith(userId);
-      expect(mockPocketRepo.findAllByUserId).toHaveBeenCalledWith(userId);
+      expect(mockAccountRepo.findAllByUserId).toHaveBeenCalledWith(userId, false);
+      expect(mockPocketRepo.findAllByUserId).toHaveBeenCalledWith(userId, false);
     });
 
     it('should handle accounts with no pockets (zero balance)', async () => {

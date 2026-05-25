@@ -272,7 +272,81 @@ describe('Account Entity', () => {
         montoInvertido: undefined,
         shares: undefined,
         displayOrder: 1,
+        archivedAt: null,
       });
+    });
+  });
+
+  describe('Archive', () => {
+    it('should default archivedAt to null', () => {
+      const account = new Account('id', 'Test', '#3b82f6', 'USD', 0);
+      expect(account.archivedAt).toBeNull();
+      expect(account.isArchived()).toBe(false);
+    });
+
+    it('should accept archivedAt in constructor', () => {
+      const archivedDate = new Date('2025-01-15T00:00:00Z');
+      // Account constructor has 20 positional params; archivedAt is the 20th.
+      // Build args by name to defend against silent reordering of middle params.
+      const args: unknown[] = [];
+      args[0] = 'id';                  // id
+      args[1] = 'Test';                // name
+      args[2] = '#3b82f6';             // color
+      args[3] = 'USD';                 // currency
+      args[4] = 0;                     // balance
+      args[5] = 'normal';              // type
+      // args[6..18] left undefined: stockSymbol, montoInvertido, shares,
+      // displayOrder, investmentType, principal, interestRate, termMonths,
+      // maturityDate, compoundingFrequency, earlyWithdrawalPenalty,
+      // withholdingTaxRate, cdCreatedAt
+      args[19] = archivedDate;         // archivedAt (20th param)
+      const account = new (Account as unknown as new (...a: unknown[]) => Account)(...args);
+      expect(account.archivedAt).toBe(archivedDate);
+      expect(account.isArchived()).toBe(true);
+    });
+
+    it('should accept explicit null archivedAt in constructor', () => {
+      const args: unknown[] = [];
+      args[0] = 'id';
+      args[1] = 'Test';
+      args[2] = '#3b82f6';
+      args[3] = 'USD';
+      args[4] = 0;
+      args[5] = 'normal';
+      args[19] = null;                 // archivedAt
+      const account = new (Account as unknown as new (...a: unknown[]) => Account)(...args);
+      expect(account.archivedAt).toBeNull();
+      expect(account.isArchived()).toBe(false);
+    });
+
+    it('should archive an active account', () => {
+      const account = new Account('id', 'Test', '#3b82f6', 'USD', 0);
+      expect(account.isArchived()).toBe(false);
+
+      account.archive();
+
+      expect(account.isArchived()).toBe(true);
+      expect(account.archivedAt).toBeInstanceOf(Date);
+    });
+
+    it('should unarchive an archived account', () => {
+      const account = new Account('id', 'Test', '#3b82f6', 'USD', 0);
+      account.archive();
+      expect(account.isArchived()).toBe(true);
+
+      account.unarchive();
+
+      expect(account.isArchived()).toBe(false);
+      expect(account.archivedAt).toBeNull();
+    });
+
+    it('should serialize archivedAt in JSON when archived', () => {
+      const account = new Account('id', 'Test', '#3b82f6', 'USD', 0);
+      account.archive();
+
+      const json = account.toJSON();
+
+      expect(json.archivedAt).toBeInstanceOf(Date);
     });
   });
 });

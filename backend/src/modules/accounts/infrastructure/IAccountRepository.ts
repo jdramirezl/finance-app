@@ -21,8 +21,12 @@ export interface IAccountRepository {
 
   /**
    * Find all accounts for a user
+   *
+   * @param userId - The owning user's id
+   * @param includeArchived - When true, archived accounts are included.
+   *                          Defaults to false (active accounts only).
    */
-  findAllByUserId(userId: string): Promise<Account[]>;
+  findAllByUserId(userId: string, includeArchived?: boolean): Promise<Account[]>;
 
   /**
    * Check if account with name and currency exists for user
@@ -48,6 +52,18 @@ export interface IAccountRepository {
    * Delete an account
    */
   delete(id: string, userId: string): Promise<void>;
+
+  /**
+   * Archive (soft-delete) an account by setting its archived_at timestamp.
+   * Archived accounts are excluded from default list queries but their
+   * historical movements remain intact.
+   */
+  archive(id: string, userId: string): Promise<void>;
+
+  /**
+   * Restore a previously archived account by clearing its archived_at timestamp.
+   */
+  unarchive(id: string, userId: string): Promise<void>;
 
   /**
    * Update display order for multiple accounts
