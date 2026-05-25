@@ -103,7 +103,7 @@ describe('GetPocketsByAccountUseCase', () => {
 
       // Assert
       expect(mockAccountRepo.findById).toHaveBeenCalledWith(accountId, userId);
-      expect(mockPocketRepo.findByAccountId).toHaveBeenCalledWith(accountId, userId);
+      expect(mockPocketRepo.findByAccountId).toHaveBeenCalledWith(accountId, userId, false);
       expect(result).toHaveLength(3);
       
       // Should be sorted by display order
@@ -285,6 +285,45 @@ describe('GetPocketsByAccountUseCase', () => {
       expect(result[0].type).toBe('normal');
       expect(result[1].type).toBe('fixed');
       expect(result[1].balance).toBe(-50); // Fixed pockets can have negative balance
+    });
+
+    it('should forward includeArchived=true to the repository', async () => {
+      // Symmetry guard with the no-accountId branch on PocketController:
+      // when callers opt in to archived rows on a per-account query, the
+      // flag MUST flow through to the repository or archived pockets get
+      // filtered out at the SQL layer with no error.
+      const account = new Account(
+        accountId,
+        'Test Account',
+        '#3b82f6',
+        'USD' as Currency,
+        1000
+      );
+      mockAccountRepo.findById.mockResolvedValue(account);
+      mockPocketRepo.findByAccountId.mockResolvedValue([]);
+
+      await useCase.execute(accountId, userId, true);
+
+      expect(mockPocketRepo.findByAccountId).toHaveBeenCalledWith(accountId, userId, true);
+    });
+
+    it('should default includeArchived to false when omitted', async () => {
+      // Backwards-compat guard: pre-archive callers passed (accountId, userId)
+      // and expected only active pockets. The default MUST stay false so
+      // none of those callers see archived rows after this change.
+      const account = new Account(
+        accountId,
+        'Test Account',
+        '#3b82f6',
+        'USD' as Currency,
+        1000
+      );
+      mockAccountRepo.findById.mockResolvedValue(account);
+      mockPocketRepo.findByAccountId.mockResolvedValue([]);
+
+      await useCase.execute(accountId, userId);
+
+      expect(mockPocketRepo.findByAccountId).toHaveBeenCalledWith(accountId, userId, false);
     });
   });
 });

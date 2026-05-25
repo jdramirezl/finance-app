@@ -30,6 +30,18 @@ describe('pocketService', () => {
       const result = await pocketService.getAllPockets();
       expect(result).toEqual([]);
     });
+
+    it('should omit query string when includeArchived is false (default)', async () => {
+      vi.spyOn(apiClient, 'get').mockResolvedValue([mockPocket]);
+      await pocketService.getAllPockets(false);
+      expect(apiClient.get).toHaveBeenCalledWith('/api/pockets');
+    });
+
+    it('should pass include_archived=true when requested', async () => {
+      vi.spyOn(apiClient, 'get').mockResolvedValue([mockPocket]);
+      await pocketService.getAllPockets(true);
+      expect(apiClient.get).toHaveBeenCalledWith('/api/pockets?include_archived=true');
+    });
   });
 
   describe('getPocket', () => {

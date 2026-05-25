@@ -7,7 +7,7 @@ import type { Account, Pocket } from '../../types';
 // returned from those factories share these references across modules.
 const mocks = vi.hoisted(() => ({
   useAccountsWithArchived: vi.fn(),
-  usePocketsQuery: vi.fn(),
+  usePocketsWithArchived: vi.fn(),
   useSettingsQuery: vi.fn(),
   useAccountMutations: vi.fn(),
   usePocketMutations: vi.fn(),
@@ -24,6 +24,8 @@ const mocks = vi.hoisted(() => ({
   reorderMutate: vi.fn(),
   archiveMutate: vi.fn(),
   unarchiveMutate: vi.fn(),
+  unarchivePocketMutate: vi.fn(),
+  deletePocketMutate: vi.fn(),
   toastSuccess: vi.fn(),
   toastError: vi.fn(),
   // ConfirmDialog
@@ -32,7 +34,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('../../hooks/queries', () => ({
   useAccountsWithArchived: mocks.useAccountsWithArchived,
-  usePocketsQuery: mocks.usePocketsQuery,
+  usePocketsWithArchived: mocks.usePocketsWithArchived,
   useSettingsQuery: mocks.useSettingsQuery,
   useAccountMutations: mocks.useAccountMutations,
   usePocketMutations: mocks.usePocketMutations,
@@ -125,7 +127,7 @@ const setupHappyPath = (options: SetupOptions = {}) => {
   const loading = options.loading ?? false;
 
   mocks.useAccountsWithArchived.mockReturnValue({ data: accounts, isLoading: loading });
-  mocks.usePocketsQuery.mockReturnValue({ data: pockets, isLoading: loading });
+  mocks.usePocketsWithArchived.mockReturnValue({ data: pockets, isLoading: loading });
   mocks.useSettingsQuery.mockReturnValue({
     data: { defaultCurrencyForNewAccounts: 'USD' },
   });
@@ -141,11 +143,11 @@ const setupHappyPath = (options: SetupOptions = {}) => {
   mocks.usePocketMutations.mockReturnValue({
     createPocket: { isPending: false, mutateAsync: vi.fn() },
     updatePocket: { isPending: false, mutateAsync: vi.fn() },
-    deletePocket: { isPending: false, mutateAsync: vi.fn() },
+    deletePocket: { isPending: false, mutate: mocks.deletePocketMutate, mutateAsync: vi.fn() },
     reorderPockets: { mutate: vi.fn() },
     migrateFixedPocketToAccount: { isPending: false, mutateAsync: vi.fn() },
     archivePocket: { isPending: false, mutate: vi.fn() },
-    unarchivePocket: { isPending: false, mutate: vi.fn() },
+    unarchivePocket: { isPending: false, mutate: mocks.unarchivePocketMutate },
   });
   mocks.useAccountActions.mockReturnValue(buildAccountActions());
 };
@@ -301,6 +303,94 @@ describe('AccountsPage', () => {
     expect(
       screen.getByRole('button', { name: /^archived \(1\)$/i }),
     ).toBeInTheDocument();
+  });
+
+  it('includes archived pockets attached to active accounts in the archived section count', async () => {
+    // The active account stays in the active grid; its archived pocket
+    // should surface in the Archived disclosure so the user can restore it.
+    const archivedPocket: Pocket = {
+      id: 'pkt-archived',
+      accountId: 'acc-1',
+      name: 'Fijos',
+      type: 'normal',
+      balance: 0,
+      currency: 'USD',
+      archivedAt: '2024-01-01T00:00:00.000Z',
+    };
+    setupHappyPath({ pockets: [archivedPocket] });
+
+    render(<AccountsPage />);
+
+    expect(await screen.findByText('Checking Account')).toBeInTheDocument();
+    // Count is 1 even though no archived account is present — the pocket
+    // alone justifies the section.
+    expect(
+      screen.getByRole('button', { name: /^archived \(1\)$/i }),
+    ).toBeInTheDocument();
+  });
+
+  it('omits archived pockets whose parent account is also archived (those are represented by the account row)', async () => {
+    // Pocket cascaded with its archived account would otherwise duplicate the
+    // user's recovery surface. The page filters them out so only orphaned
+    // archived pockets (parent still active) appear in the pocket list.
+    const archivedAcc: Account = {
+      id: 'acc-archived',
+      name: 'Old Account',
+      color: '#888888',
+      currency: 'USD',
+      balance: 0,
+      type: 'normal',
+      archivedAt: '2024-01-01T00:00:00.000Z',
+      displayOrder: 99,
+    };
+    const cascadedPocket: Pocket = {
+      id: 'pkt-cascaded',
+      accountId: 'acc-archived',
+      name: 'Cascaded',
+      type: 'normal',
+      balance: 0,
+      currency: 'USD',
+      archivedAt: '2024-01-01T00:00:00.000Z',
+    };
+    setupHappyPath({
+      accounts: [...sampleAccounts, archivedAcc],
+      pockets: [cascadedPocket],
+    });
+
+    render(<AccountsPage />);
+
+    // Header shows only the archived account, not the cascaded pocket.
+    expect(
+      await screen.findByRole('button', { name: /^archived \(1\)$/i }),
+    ).toBeInTheDocument();
+  });
+
+  it('restores an archived pocket when its Restore button is clicked', async () => {
+    const archivedPocket: Pocket = {
+      id: 'pkt-archived',
+      accountId: 'acc-1',
+      name: 'Fijos',
+      type: 'normal',
+      balance: 0,
+      currency: 'USD',
+      archivedAt: '2024-01-01T00:00:00.000Z',
+    };
+    setupHappyPath({ pockets: [archivedPocket] });
+
+    const user = userEvent.setup();
+    render(<AccountsPage />);
+
+    // Expand the archived disclosure, then click the restore button on
+    // the pocket row. The label uses the parent account name as breadcrumb.
+    await user.click(
+      await screen.findByRole('button', { name: /^archived \(1\)$/i }),
+    );
+    await user.click(
+      screen.getByRole('button', { name: /restore fijos \(in checking account\)/i }),
+    );
+
+    expect(mocks.unarchivePocketMutate).toHaveBeenCalledTimes(1);
+    expect(mocks.unarchivePocketMutate.mock.calls[0][0]).toBe('pkt-archived');
   });
 
   it('filters accounts by name when typing in the search input', async () => {

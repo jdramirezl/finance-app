@@ -3,7 +3,7 @@ import { useLocation } from 'react-router-dom';
 import { Plus, Wallet, Search } from 'lucide-react';
 import {
   useAccountsWithArchived,
-  usePocketsQuery,
+  usePocketsWithArchived,
   useAccountMutations,
   usePocketMutations,
 } from '../hooks/queries';
@@ -37,7 +37,13 @@ const AccountsPage = () => {
   // immediately below and never leak into those code paths.
   const { data: allAccounts = [], isLoading: accountsLoading } =
     useAccountsWithArchived();
-  const { data: pockets = [], isLoading: pocketsLoading } = usePocketsQuery();
+  // Pull pockets via the include-archived variant so the same query feeds
+  // both the active grid (filtered to non-archived) and the Archived
+  // section's pocket rows. Splitting once below mirrors the accounts split
+  // and keeps the rest of the page treating `pockets` as the canonical
+  // "active pockets" list.
+  const { data: allPockets = [], isLoading: pocketsLoading } =
+    usePocketsWithArchived();
   const accountMutations = useAccountMutations();
   const pocketMutations = usePocketMutations();
   const toast = useToast();
@@ -56,6 +62,22 @@ const AccountsPage = () => {
     [allAccounts],
   );
 
+  // Same split for pockets. The active list feeds every existing flow
+  // (selection, fixed-expense detection, the detail panel). The archived
+  // list is filtered to pockets whose parent account is still ACTIVE —
+  // pockets owned by an archived account are already represented by the
+  // archived account row above, so duplicating them here would be noise.
+  const pockets = useMemo(
+    () => allPockets.filter((p) => !p.archivedAt),
+    [allPockets],
+  );
+  const archivedPockets = useMemo(() => {
+    const activeAccountIds = new Set(accounts.map((a) => a.id));
+    return allPockets.filter(
+      (p) => Boolean(p.archivedAt) && activeAccountIds.has(p.accountId),
+    );
+  }, [allPockets, accounts]);
+
   // Page-level UI state — modal visibility, selected row, in-flight error.
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
   const [showAccountForm, setShowAccountForm] = useState(false);
@@ -73,6 +95,12 @@ const AccountsPage = () => {
   // whether the loading state belongs to it.
   const [archivingId, setArchivingId] = useState<string | null>(null);
   const [restoringId, setRestoringId] = useState<string | null>(null);
+  // Same per-row pattern for archived pockets in the Archived section.
+  // Tracked separately from the account ids so the two flows can be in
+  // flight simultaneously without mis-attributing a spinner to the wrong
+  // section.
+  const [restoringPocketId, setRestoringPocketId] = useState<string | null>(null);
+  const [deletingPocketId, setDeletingPocketId] = useState<string | null>(null);
 
   // Selection lives in state for rendering, but we also keep a mirror in
   // a ref so callbacks that only read it on success (e.g. archive's
@@ -187,6 +215,52 @@ const AccountsPage = () => {
       });
     },
     [accountMutations.unarchiveAccount, toast]
+  );
+
+  // Restoring an archived pocket mirrors the account flow — same per-row
+  // id pattern so the section disables only the row currently being
+  // unarchived. Restore is reversible and non-destructive, so no confirm
+  // dialog is shown; the muted toast is enough feedback.
+  const handleRestorePocket = useCallback(
+    (id: string) => {
+      setRestoringPocketId(id);
+      pocketMutations.unarchivePocket.mutate(id, {
+        onSuccess: () => {
+          toast.success('Pocket restored');
+        },
+        onSettled: () => {
+          setRestoringPocketId((current) => (current === id ? null : current));
+        },
+      });
+    },
+    [pocketMutations.unarchivePocket, toast]
+  );
+
+  // Permanent (hard) delete of an archived pocket. Pockets don't have a
+  // cascade dialog like accounts because deleting a pocket only orphans
+  // its movements (the parent account stays put), so a single confirm
+  // prompt is enough to guard the action.
+  const handleDeleteArchivedPocket = useCallback(
+    async (id: string) => {
+      const ok = await confirm({
+        title: 'Delete pocket permanently?',
+        message:
+          'This pocket will be removed for good. Its movements will become orphans (still counted in totals, no longer attributable to a pocket). This cannot be undone.',
+        confirmText: 'Delete',
+        variant: 'danger',
+      });
+      if (!ok) return;
+      setDeletingPocketId(id);
+      pocketMutations.deletePocket.mutate(id, {
+        onSuccess: () => {
+          toast.success('Pocket deleted');
+        },
+        onSettled: () => {
+          setDeletingPocketId((current) => (current === id ? null : current));
+        },
+      });
+    },
+    [confirm, pocketMutations.deletePocket, toast]
   );
 
   // Permanent (cascade) delete is wired through the existing dialog. After
@@ -409,6 +483,12 @@ const AccountsPage = () => {
               ? accountActions.cascadeDelete.accountId
               : null
           }
+          archivedPockets={archivedPockets}
+          accountsForPocketLookup={accounts}
+          onRestorePocket={handleRestorePocket}
+          onDeletePocket={handleDeleteArchivedPocket}
+          restoringPocketId={restoringPocketId}
+          deletingPocketId={deletingPocketId}
         />
       </div>
 

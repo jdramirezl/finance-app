@@ -2,9 +2,16 @@ import type { Pocket } from '../types';
 import { apiClient } from './apiClient';
 
 class PocketService {
-  // Get all pockets
-  async getAllPockets(): Promise<Pocket[]> {
-    return await apiClient.get<Pocket[]>('/api/pockets');
+  // Get all pockets.
+  // When includeArchived is true, soft-archived pockets (archived_at IS NOT NULL)
+  // are included — used by the Accounts page to render the "Archived" section
+  // with both archived accounts and orphaned archived pockets that still
+  // belong to active accounts.
+  async getAllPockets(includeArchived: boolean = false): Promise<Pocket[]> {
+    const path = includeArchived
+      ? '/api/pockets?include_archived=true'
+      : '/api/pockets';
+    return await apiClient.get<Pocket[]>(path);
   }
 
   // Get pocket by ID

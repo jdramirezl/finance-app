@@ -36,12 +36,16 @@ router.post('/', validateBody(createPocketSchema), (req, res, next) => controlle
 
 /**
  * GET /api/pockets
- * Get pockets by account
- * 
- * Query params: accountId (required)
+ * Get pockets — either for a single account or for the whole user.
+ *
+ * Query params:
+ *   accountId         (optional) - scope to a single account
+ *   include_archived  (optional) - include soft-archived pockets when "true";
+ *                                  honoured on both the per-account and
+ *                                  all-pockets branches
  * Response: 200 + PocketResponseDTO[]
- * Errors: 400 (missing accountId), 404 (account not found)
- * 
+ * Errors: 404 (account not found, only when accountId is supplied)
+ *
  * Requirements: 6.4
  */
 router.get('/', (req, res, next) => controller.getByAccount(req, res, next));

@@ -11,6 +11,7 @@ import { Request, Response, NextFunction } from 'express';
 import { injectable, inject } from 'tsyringe';
 import { CreatePocketUseCase } from '../application/useCases/CreatePocketUseCase';
 import { GetPocketsByAccountUseCase } from '../application/useCases/GetPocketsByAccountUseCase';
+import { GetAllPocketsUseCase } from '../application/useCases/GetAllPocketsUseCase';
 import { GetPocketByIdUseCase } from '../application/useCases/GetPocketByIdUseCase';
 import { UpdatePocketUseCase } from '../application/useCases/UpdatePocketUseCase';
 import { DeletePocketUseCase } from '../application/useCases/DeletePocketUseCase';
@@ -26,14 +27,14 @@ export class PocketController {
   constructor(
     @inject(CreatePocketUseCase) private createPocketUseCase: CreatePocketUseCase,
     @inject(GetPocketsByAccountUseCase) private getPocketsByAccountUseCase: GetPocketsByAccountUseCase,
+    @inject(GetAllPocketsUseCase) private getAllPocketsUseCase: GetAllPocketsUseCase,
     @inject(GetPocketByIdUseCase) private getPocketByIdUseCase: GetPocketByIdUseCase,
     @inject(UpdatePocketUseCase) private updatePocketUseCase: UpdatePocketUseCase,
     @inject(DeletePocketUseCase) private deletePocketUseCase: DeletePocketUseCase,
     @inject(MigrateFixedPocketUseCase) private migrateFixedPocketUseCase: MigrateFixedPocketUseCase,
     @inject(ReorderPocketsUseCase) private reorderPocketsUseCase: ReorderPocketsUseCase,
     @inject(ArchivePocketUseCase) private archivePocketUseCase: ArchivePocketUseCase,
-    @inject(UnarchivePocketUseCase) private unarchivePocketUseCase: UnarchivePocketUseCase,
-    @inject('PocketRepository') private pocketRepo: { findAllByUserId(userId: string): Promise<any[]> }
+    @inject(UnarchivePocketUseCase) private unarchivePocketUseCase: UnarchivePocketUseCase
   ) {}
 
   /**
@@ -60,9 +61,22 @@ export class PocketController {
   }
 
   /**
-   * Get pockets by account
+   * Get pockets
    * GET /api/pockets?accountId=xxx
-   * 
+   * GET /api/pockets?include_archived=true
+   *
+   * Two branches share this handler:
+   *   1. With `accountId`: returns the pockets for that single account
+   *      (subject to ownership checks inside the use case).
+   *   2. Without `accountId`: returns every pocket for the authenticated
+   *      user. Used by the Accounts page to render archived rows in its
+   *      Archived section without issuing a request per account.
+   *
+   * `?include_archived=true` is honoured on BOTH branches so the API
+   * contract stays symmetric. The flag goes through application use cases
+   * (mirrors `AccountController.getAll`) — the controller never reaches
+   * into the repository directly.
+   *
    * Requirements: 6.4
    */
   async getByAccount(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -74,14 +88,23 @@ export class PocketController {
       }
 
       const accountId = req.query.accountId as string;
+      // Defensive parser: only the literal string "true" enables archived
+      // inclusion. Other truthy spellings ("1", "yes", "TRUE") MUST NOT
+      // silently flip the flag — clients that need archived rows are
+      // expected to send the canonical value.
+      const includeArchived = req.query.include_archived === 'true';
+
       if (!accountId) {
-        // No filter — return all pockets for the user
-        const allPockets = await this.pocketRepo.findAllByUserId(userId);
+        const allPockets = await this.getAllPocketsUseCase.execute(userId, includeArchived);
         res.status(200).json(allPockets);
         return;
       }
 
-      const pockets = await this.getPocketsByAccountUseCase.execute(accountId, userId);
+      const pockets = await this.getPocketsByAccountUseCase.execute(
+        accountId,
+        userId,
+        includeArchived
+      );
 
       res.status(200).json(pockets);
     } catch (error) {

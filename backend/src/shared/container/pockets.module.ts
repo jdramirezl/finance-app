@@ -3,6 +3,7 @@ import { IPocketRepository } from '../../modules/pockets/infrastructure/IPocketR
 import { SupabasePocketRepository } from '../../modules/pockets/infrastructure/SupabasePocketRepository';
 import { CreatePocketUseCase } from '../../modules/pockets/application/useCases/CreatePocketUseCase';
 import { GetPocketsByAccountUseCase } from '../../modules/pockets/application/useCases/GetPocketsByAccountUseCase';
+import { GetAllPocketsUseCase } from '../../modules/pockets/application/useCases/GetAllPocketsUseCase';
 import { GetPocketByIdUseCase } from '../../modules/pockets/application/useCases/GetPocketByIdUseCase';
 import { UpdatePocketUseCase } from '../../modules/pockets/application/useCases/UpdatePocketUseCase';
 import { DeletePocketUseCase } from '../../modules/pockets/application/useCases/DeletePocketUseCase';
@@ -16,6 +17,7 @@ export function registerPocketModule(): void {
   container.register<IPocketRepository>('PocketRepository', { useClass: SupabasePocketRepository });
   container.register(CreatePocketUseCase, { useClass: CreatePocketUseCase });
   container.register(GetPocketsByAccountUseCase, { useClass: GetPocketsByAccountUseCase });
+  container.register(GetAllPocketsUseCase, { useClass: GetAllPocketsUseCase });
   container.register(GetPocketByIdUseCase, { useClass: GetPocketByIdUseCase });
   container.register(UpdatePocketUseCase, { useClass: UpdatePocketUseCase });
   container.register(DeletePocketUseCase, { useClass: DeletePocketUseCase });
