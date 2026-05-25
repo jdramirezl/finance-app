@@ -385,8 +385,17 @@ describe('NetWorthTimelineWidget', () => {
 
     await user.click(screen.getByLabelText(/show variation/i));
 
-    expect(lastChartDataParams()).toEqual(
+    // Wave 6: variation toggling no longer flows into the data hook
+    // (which always returns raw absolute values). The chart now owns
+    // the variation transform so it can re-anchor the percentage axis
+    // on the first VISIBLE point per the user's dataZoom window. The
+    // flag should reach the chart prop and the hook should still be
+    // called with `showVariation: false`.
+    expect(mocks.echartProps).toHaveBeenLastCalledWith(
       expect.objectContaining({ showVariation: true }),
+    );
+    expect(lastChartDataParams()).toEqual(
+      expect.objectContaining({ showVariation: false }),
     );
   });
 

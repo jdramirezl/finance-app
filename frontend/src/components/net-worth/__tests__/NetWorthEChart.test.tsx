@@ -478,12 +478,17 @@ describe('NetWorthEChart', () => {
     });
 
     it('uses pp suffix for delta in variation mode without leaking the currency code (Wave 2)', () => {
+        // Wave 6: variation mode is now window-relative — the chart
+        // transforms each datum's `total` into a percentage against the
+        // first VISIBLE point (default zoom = idx 0). With totals of
+        // 100 and 112.5, the transformed series is `[0%, 12.5%]`, so
+        // the delta from the first to the second point is `12.5pp`.
         renderChart({
             data: [
-                buildDatum({ date: '2026-01-01', total: 5 }),
+                buildDatum({ date: '2026-01-01', total: 100 }),
                 buildDatum({
                     date: '2026-02-01',
-                    total: 17.5,
+                    total: 112.5,
                     snapshotId: 's2',
                 }),
             ],
@@ -505,16 +510,350 @@ describe('NetWorthEChart', () => {
 
         const html = option.tooltip.formatter([
             {
-                value: ['2026-02-01', 17.5],
+                // ECharts emits the transformed value (12.5) at this
+                // index in real renders; the synthetic params only
+                // need to carry `dataIndex` so the formatter resolves
+                // the correct datum and looks up the previous-point's
+                // transformed percentage from `totalSeriesValues`.
+                value: ['2026-02-01', 12.5],
                 dataIndex: 1,
                 name: '2026-02-01',
             },
         ]);
 
-        // 17.5 - 5 = 12.5 percentage points.
+        // Headline: window-relative percentage at idx 1 → 12.50%.
+        expect(html).toContain('12.50%');
+        // Delta from idx 0 (0%) to idx 1 (12.5%) → 12.50pp.
         expect(html).toContain('12.50pp');
         // Variation-mode delta should not surface the currency code.
         expect(html).not.toContain('COP');
+        // Variation mode drops the `(% change)` parenthetical because
+        // the headline is already a percentage; the previous code
+        // path would emit something like `(+250.0%)` which is a
+        // percentage-of-percentage with no useful interpretation.
+        expect(html).not.toMatch(/\(\+/);
+    });
+
+    // -----------------------------------------------------------------
+    // Wave 6: window-relative variation transform
+    //
+    // The chart now owns the variation calculation (previously
+    // pre-computed by `useNetWorthChartData`). Tests below pin down
+    // the per-point series transform in both total and breakdown
+    // modes, the re-anchor on dataZoom, and the breakdown tooltip's
+    // `+X.XX%` / `N/A` formatting that replaced the unconditional
+    // `formatBreakdownAmount` call.
+    // -----------------------------------------------------------------
+
+    it('transforms total-mode series values to window-relative percentages in variation mode (Wave 6)', () => {
+        // Three points at 200, 220, 250. Default zoom (0–100) anchors
+        // on idx 0 → baseline 200 → series values [0%, 10%, 25%].
+        renderChart({
+            data: [
+                buildDatum({ date: '2025-01-01', total: 200, snapshotId: 's1' }),
+                buildDatum({ date: '2025-02-01', total: 220, snapshotId: 's2' }),
+                buildDatum({ date: '2025-03-01', total: 250, snapshotId: 's3' }),
+            ],
+            primaryCurrency: 'USD',
+            showVariation: true,
+        });
+
+        const option = captured.option as {
+            series: Array<{
+                data: Array<{ value: [string, number | null] }>;
+            }>;
+        };
+
+        const values = option.series[0].data.map((d) => d.value[1]);
+        expect(values).toEqual([0, 10, 25]);
+    });
+
+    it('re-anchors the variation baseline when the user zooms into a later window (Wave 6)', () => {
+        // Same three points; after zooming the dataZoom slider so the
+        // first visible point is idx 1 (220), the series values
+        // should re-anchor on 220 → [-10%, 0%, ~13.64%]. The first
+        // entry is preserved as a leading negative because ECharts
+        // always renders the full data array; `dataZoom` only hides
+        // the OUT-OF-WINDOW portion visually.
+        renderChart({
+            data: [
+                buildDatum({ date: '2025-01-01', total: 200, snapshotId: 's1' }),
+                buildDatum({ date: '2025-02-01', total: 220, snapshotId: 's2' }),
+                buildDatum({ date: '2025-03-01', total: 250, snapshotId: 's3' }),
+            ],
+            primaryCurrency: 'USD',
+            showVariation: true,
+        });
+
+        // 50% start → round(0.5 * 2) = 1 → baseline = data[1] (220).
+        act(() => {
+            captured.onEvents?.datazoom?.({ start: 50, end: 100 });
+        });
+
+        const option = captured.option as {
+            series: Array<{
+                data: Array<{ value: [string, number | null] }>;
+            }>;
+        };
+
+        const values = option.series[0].data.map((d) => d.value[1]) as number[];
+        expect(values[0]).toBeCloseTo(((200 - 220) / 220) * 100, 5);
+        expect(values[1]).toBe(0);
+        expect(values[2]).toBeCloseTo(((250 - 220) / 220) * 100, 5);
+    });
+
+    it('renders the total-mode tooltip as N/A when the visible-window baseline is zero (Wave 6)', () => {
+        // Baseline at idx 0 is zero — variation is undefined for the
+        // entire window so every datum maps to `null`. The tooltip
+        // should surface that explicitly rather than collapse to a
+        // misleading `0%` line.
+        renderChart({
+            data: [
+                buildDatum({ date: '2025-01-01', total: 0, snapshotId: 's1' }),
+                buildDatum({ date: '2025-02-01', total: 100, snapshotId: 's2' }),
+            ],
+            primaryCurrency: 'USD',
+            showVariation: true,
+        });
+
+        const option = captured.option as {
+            tooltip: {
+                formatter: (
+                    params: Array<{
+                        value: [string, number | null];
+                        dataIndex: number;
+                        name: string;
+                    }>,
+                ) => string;
+            };
+        };
+
+        const html = option.tooltip.formatter([
+            {
+                value: ['2025-02-01', null],
+                dataIndex: 1,
+                name: '2025-02-01',
+            },
+        ]);
+
+        expect(html).toContain('N/A');
+        expect(html).not.toContain('%');
+    });
+
+    it('transforms breakdown-mode series per-currency in variation mode (Wave 6)', () => {
+        // Two currencies, two points. Default zoom anchors idx 0 →
+        // each currency baselines on its OWN idx-0 value:
+        //   USD: [60, 90] vs baseline 60 → [0%, 50%]
+        //   MXN: [200, 240] vs baseline 200 → [0%, 20%]
+        renderChart({
+            data: [
+                buildDatum({ date: '2025-01-01', total: 260, snapshotId: 's1' }),
+                buildDatum({ date: '2025-02-01', total: 330, snapshotId: 's2' }),
+            ],
+            primaryCurrency: 'USD',
+            viewMode: 'breakdown',
+            showVariation: true,
+            currencyData: [
+                {
+                    currency: 'USD',
+                    values: [60, 90],
+                    nativeValues: [60, 90],
+                    color: '#22c55e',
+                },
+                {
+                    currency: 'MXN',
+                    values: [200, 240],
+                    nativeValues: [4_000, 4_800],
+                    color: '#f97316',
+                },
+            ],
+        });
+
+        const option = captured.option as {
+            series: Array<{
+                name?: string;
+                data: Array<[string, number | null]>;
+            }>;
+        };
+
+        expect(option.series[0].name).toBe('USD');
+        expect(option.series[0].data).toEqual([
+            ['2025-01-01', 0],
+            ['2025-02-01', 50],
+        ]);
+        expect(option.series[1].name).toBe('MXN');
+        expect(option.series[1].data).toEqual([
+            ['2025-01-01', 0],
+            ['2025-02-01', 20],
+        ]);
+    });
+
+    it('skips pre-baseline indices and zero-baseline currencies as null gaps in breakdown variation mode (Wave 6)', () => {
+        // USD adopts at idx 1 (0 → 50). The per-currency baseline
+        // scans forward from `firstVisibleIdx` to find the first
+        // non-zero value, then reports pre-baseline indices as null.
+        // EUR is zero throughout → entirely null (gap line).
+        renderChart({
+            data: [
+                buildDatum({ date: '2025-01-01', total: 100, snapshotId: 's1' }),
+                buildDatum({ date: '2025-02-01', total: 150, snapshotId: 's2' }),
+                buildDatum({ date: '2025-03-01', total: 175, snapshotId: 's3' }),
+            ],
+            primaryCurrency: 'USD',
+            viewMode: 'breakdown',
+            showVariation: true,
+            currencyData: [
+                {
+                    currency: 'USD',
+                    values: [0, 50, 75],
+                    nativeValues: [0, 50, 75],
+                    color: '#22c55e',
+                },
+                {
+                    currency: 'EUR',
+                    values: [0, 0, 0],
+                    nativeValues: [0, 0, 0],
+                    color: '#3b82f6',
+                },
+            ],
+        });
+
+        const option = captured.option as {
+            series: Array<{
+                name?: string;
+                data: Array<[string, number | null]>;
+            }>;
+        };
+
+        // USD: pre-baseline idx 0 → null gap, idx 1 = baseline (0%),
+        // idx 2 = ((75-50)/50)*100 = 50%.
+        expect(option.series[0].data[0][1]).toBeNull();
+        expect(option.series[0].data[1][1]).toBe(0);
+        expect(option.series[0].data[2][1]).toBe(50);
+
+        // EUR: every value is 0 → entire series is null gaps.
+        expect(option.series[1].data.every((tuple) => tuple[1] === null)).toBe(
+            true,
+        );
+    });
+
+    it('formats breakdown tooltip rows as +X.XX%% in variation mode (Wave 6)', () => {
+        renderChart({
+            data: [
+                buildDatum({ date: '2025-01-01', total: 260, snapshotId: 's1' }),
+                buildDatum({ date: '2025-02-01', total: 330, snapshotId: 's2' }),
+            ],
+            primaryCurrency: 'USD',
+            viewMode: 'breakdown',
+            showVariation: true,
+            currencyData: [
+                {
+                    currency: 'USD',
+                    values: [60, 90],
+                    nativeValues: [60, 90],
+                    color: '#22c55e',
+                },
+                {
+                    currency: 'MXN',
+                    values: [200, 240],
+                    nativeValues: [4_000, 4_800],
+                    color: '#f97316',
+                },
+            ],
+        });
+
+        const option = captured.option as {
+            tooltip: {
+                formatter: (
+                    params: Array<{
+                        seriesName: string;
+                        value: [string, number | null];
+                        dataIndex: number;
+                        marker: string;
+                    }>,
+                ) => string;
+            };
+        };
+
+        const html = option.tooltip.formatter([
+            {
+                seriesName: 'USD',
+                value: ['2025-02-01', 50],
+                dataIndex: 1,
+                marker: '<span></span>',
+            },
+            {
+                seriesName: 'MXN',
+                value: ['2025-02-01', 20],
+                dataIndex: 1,
+                marker: '<span></span>',
+            },
+        ]);
+
+        // Each row shows the per-currency window-relative percentage
+        // with an explicit `+` sign so the user can scan a column for
+        // direction at a glance.
+        expect(html).toContain('USD: +50.00%');
+        expect(html).toContain('MXN: +20.00%');
+        // Native-amount brackets are intentionally suppressed in
+        // variation mode — there is no "native percentage", so the
+        // bracket would carry no information.
+        expect(html).not.toContain('[');
+        // Currency code never replaces the `%` suffix in variation
+        // mode (the legacy bug rendered `163 COP` instead of `163%`).
+        expect(html).not.toContain(' USD<');
+        expect(html).not.toContain(' MXN<');
+    });
+
+    it('renders breakdown tooltip rows as N/A for null gaps in variation mode (Wave 6)', () => {
+        // ECharts hands the formatter `null` for series points that
+        // have a null y-value. The formatter must surface an explicit
+        // `N/A` rather than coerce `null` to `0` and report a
+        // misleading `+0.00%` row (the `Number(null) === 0` trap).
+        renderChart({
+            data: [
+                buildDatum({ date: '2025-01-01', total: 100, snapshotId: 's1' }),
+                buildDatum({ date: '2025-02-01', total: 150, snapshotId: 's2' }),
+            ],
+            primaryCurrency: 'USD',
+            viewMode: 'breakdown',
+            showVariation: true,
+            currencyData: [
+                {
+                    currency: 'USD',
+                    values: [0, 50],
+                    nativeValues: [0, 50],
+                    color: '#22c55e',
+                },
+            ],
+        });
+
+        const option = captured.option as {
+            tooltip: {
+                formatter: (
+                    params: Array<{
+                        seriesName: string;
+                        value: [string, number | null];
+                        dataIndex: number;
+                        marker: string;
+                    }>,
+                ) => string;
+            };
+        };
+
+        // Hover the pre-baseline index (idx 0) — USD's baseline scans
+        // to idx 1, so idx 0 is a null gap.
+        const html = option.tooltip.formatter([
+            {
+                seriesName: 'USD',
+                value: ['2025-01-01', null],
+                dataIndex: 0,
+                marker: '<span></span>',
+            },
+        ]);
+
+        expect(html).toContain('USD: N/A');
+        expect(html).not.toContain('+0.00%');
     });
 
     // -----------------------------------------------------------------

@@ -85,9 +85,12 @@ export interface NetWorthEChartDatum {
     /** ISO date string (e.g. "2023-02-28"). Parsed by ECharts time axis. */
     date: string;
     /**
-     * In normal mode, net worth value in `primaryCurrency`. In variation
-     * mode (`showVariation === true`), the percentage change from the
-     * baseline as produced by `useNetWorthChartData`.
+     * Net worth value in `primaryCurrency`. Always a raw absolute
+     * amount — variation-mode formatting (window-relative percentage
+     * vs the first visible point) is computed inside the chart in the
+     * `option` `useMemo` so panning/zooming can re-anchor the
+     * baseline. Producers (the data hook) MUST pass raw amounts here
+     * regardless of the `showVariation` UI toggle.
      */
     total: number;
     /** Snapshot id, used to resolve the source snapshot on point click. */
@@ -113,8 +116,11 @@ export interface NetWorthEChartProps {
      */
     primaryCurrency: string;
     /**
-     * When true, the `total` field of each datum is interpreted as a
-     * percentage and the axis/tooltip switch to percent formatting.
+     * When true, the chart renders each datum as a window-relative
+     * percentage against the FIRST VISIBLE point per the current
+     * dataZoom range, and the Y-axis switches to percent formatting.
+     * The transform happens inside this component (not the data hook)
+     * so the baseline can re-anchor when the user pans or zooms.
      */
     showVariation: boolean;
     /** Called with the full datum of the clicked point. */
@@ -599,6 +605,55 @@ const NetWorthEChart = ({
             : formatCurrencyAxisTick;
         const hierarchical = makeHierarchicalFormatter(visibleCount);
 
+        // Window-relative variation transform.
+        //
+        // In variation mode, the chart re-anchors the percentage axis on
+        // the FIRST VISIBLE data point per the current `zoomRange`. The
+        // hook hands us raw absolute values; the percentage transform
+        // happens here so panning/zooming the dataZoom slider re-derives
+        // the baseline (only the chart owns the dataZoom state). When
+        // `showVariation` is false this collapses to identity for total
+        // mode and a passthrough for breakdown mode, preserving the
+        // pre-Wave-6 behavior verified by the existing snapshot tests.
+        //
+        // Index math: `zoomRange.start` is a percentage (0–100) of the
+        // x-axis time range. We approximate the first visible index by
+        // mapping that percentage onto the data array. ECharts' time-
+        // axis dataZoom uses time-based percentages, so this is an
+        // approximation when snapshots are spaced unevenly — close
+        // enough for picking a baseline (off by at most one neighbor)
+        // and avoids round-tripping through the time axis.
+        const firstVisibleIdx =
+            data.length === 0
+                ? 0
+                : Math.max(
+                      0,
+                      Math.min(
+                          data.length - 1,
+                          Math.round(
+                              (zoomRange.start / 100) * (data.length - 1),
+                          ),
+                      ),
+                  );
+
+        // Total-mode per-point values. Identity in normal mode;
+        // percentage change vs the first visible total in variation
+        // mode. A `null` entry renders as a gap in the rendered line —
+        // produced when the visible-window baseline itself is zero,
+        // since the percentage formula is undefined there.
+        const totalSeriesValues: Array<number | null> = (() => {
+            if (!showVariation) {
+                return data.map((d) => d.total);
+            }
+            const baseline = data[firstVisibleIdx]?.total ?? 0;
+            if (baseline === 0) {
+                return data.map(() => null);
+            }
+            return data.map(
+                (d) => ((d.total - baseline) / Math.abs(baseline)) * 100,
+            );
+        })();
+
         // Dashed vertical year-boundary lines, attached to the first
         // series only. Attaching to a single series keeps ECharts from
         // rendering N overlapping copies in breakdown mode (one per
@@ -632,33 +687,75 @@ const NetWorthEChart = ({
         // one line per currency, sharing the same x-axis date positions
         // sourced from `data`.
         const series: LineSeriesOption[] = isBreakdown
-            ? (currencyData ?? []).map((cd, seriesIdx) => ({
-                  // `name` is used both as the legend label and as
-                  // `seriesName` in tooltip params, so the breakdown
-                  // formatter can reverse-lookup the matching
-                  // `currencyData` entry by name.
-                  name: cd.currency,
-                  type: 'line',
-                  // Pair each value with the same date string ECharts
-                  // already parses for total mode so the time axis lines
-                  // every series up at identical x positions.
-                  data: data.map((d, i) => [d.date, cd.values[i] ?? 0]),
-                  smooth: true,
-                  symbol: 'circle',
-                  symbolSize,
-                  showSymbol: true,
-                  lineStyle: { color: cd.color, width: 2 },
-                  itemStyle: { color: cd.color },
-                  // No areaStyle in breakdown mode — multiple stacked
-                  // gradients quickly become unreadable, and the user
-                  // request explicitly calls for plain colored lines.
-                  cursor: 'pointer',
-                  // Year-boundary guide lines live on the first series
-                  // only to avoid duplicate overlapping lines.
-                  ...(seriesIdx === 0 && yearMarkLine
-                      ? { markLine: yearMarkLine }
-                      : {}),
-              }))
+            ? (currencyData ?? []).map((cd, seriesIdx) => {
+                  // Variation mode: replace this currency's values with
+                  // window-relative percentages. Each currency anchors
+                  // on its OWN first non-zero value at or after
+                  // `firstVisibleIdx` so a late-adopted currency (e.g.
+                  // USD that only shows up half-way through the
+                  // timeline) doesn't get pulled to a flat-zero
+                  // baseline that produces meaningless `0%` lines.
+                  // Pre-baseline indices and any currency whose visible
+                  // window is entirely zero render as `null` gaps.
+                  let seriesValues: Array<number | null>;
+                  if (showVariation) {
+                      let baselineIdx = firstVisibleIdx;
+                      while (
+                          baselineIdx < cd.values.length &&
+                          cd.values[baselineIdx] === 0
+                      ) {
+                          baselineIdx++;
+                      }
+                      const baseline =
+                          baselineIdx < cd.values.length
+                              ? cd.values[baselineIdx]
+                              : 0;
+                      seriesValues = cd.values.map((v, i) => {
+                          if (baseline === 0) return null;
+                          if (i < baselineIdx) return null;
+                          return ((v - baseline) / Math.abs(baseline)) * 100;
+                      });
+                  } else {
+                      seriesValues = cd.values;
+                  }
+
+                  return {
+                      // `name` is used both as the legend label and as
+                      // `seriesName` in tooltip params, so the breakdown
+                      // formatter can reverse-lookup the matching
+                      // `currencyData` entry by name.
+                      name: cd.currency,
+                      type: 'line',
+                      // Pair each value with the same date string ECharts
+                      // already parses for total mode so the time axis lines
+                      // every series up at identical x positions. In
+                      // variation mode `null` is preserved as an explicit
+                      // gap; in normal mode the legacy `?? 0` fallback is
+                      // kept for parity with the previous behavior.
+                      data: data.map((d, i) => {
+                          const v = seriesValues[i];
+                          const resolved = showVariation
+                              ? v ?? null
+                              : v ?? 0;
+                          return [d.date, resolved];
+                      }),
+                      smooth: true,
+                      symbol: 'circle',
+                      symbolSize,
+                      showSymbol: true,
+                      lineStyle: { color: cd.color, width: 2 },
+                      itemStyle: { color: cd.color },
+                      // No areaStyle in breakdown mode — multiple stacked
+                      // gradients quickly become unreadable, and the user
+                      // request explicitly calls for plain colored lines.
+                      cursor: 'pointer',
+                      // Year-boundary guide lines live on the first series
+                      // only to avoid duplicate overlapping lines.
+                      ...(seriesIdx === 0 && yearMarkLine
+                          ? { markLine: yearMarkLine }
+                          : {}),
+                  };
+              })
             : [
                   {
                       type: 'line',
@@ -666,11 +763,17 @@ const NetWorthEChart = ({
                       // objects so we can attach `itemStyle` overrides per
                       // data point. The series-level `itemStyle` (below)
                       // applies to anchors; derived points override the
-                      // fill to render as hollow rings.
-                      data: data.map((d) => {
+                      // fill to render as hollow rings. In variation mode
+                      // the value is the transformed percentage (or
+                      // `null` for a baseline-zero gap).
+                      data: data.map((d, i) => {
                           const isDerived = d.isAnchor === false;
+                          const transformed = totalSeriesValues[i];
+                          const value = showVariation
+                              ? transformed ?? null
+                              : d.total;
                           return {
-                              value: [d.date, d.total],
+                              value: [d.date, value],
                               itemStyle: isDerived
                                   ? {
                                         color: 'transparent',
@@ -859,6 +962,15 @@ const NetWorthEChart = ({
                           // bracket can be appended for foreign
                           // currencies. Skip rows with non-numeric or
                           // missing values defensively.
+                          //
+                          // In variation mode each row's value is the
+                          // window-relative percentage emitted by the
+                          // series transform above; rows with a `null`
+                          // entry (pre-baseline or baseline-zero) get
+                          // a literal `N/A` so the user sees that the
+                          // line genuinely has no anchor at that point
+                          // rather than a misleading `0%` or a
+                          // currency-amount in percent's place.
                           const rows = list
                               .map((p) => {
                                   const seriesName = p.seriesName ?? '';
@@ -866,6 +978,37 @@ const NetWorthEChart = ({
                                   const rawValue = Array.isArray(p.value)
                                       ? p.value[1]
                                       : p.value;
+
+                                  const marker =
+                                      typeof p.marker === 'string'
+                                          ? p.marker
+                                          : '';
+
+                                  if (showVariation) {
+                                      // `null` reaches here as either
+                                      // an explicit gap or a missing
+                                      // value tuple; skip the
+                                      // `Number(null) === 0` trap
+                                      // before any numeric coercion.
+                                      if (rawValue == null) {
+                                          return `${marker}${seriesName}: N/A`;
+                                      }
+                                      const value =
+                                          typeof rawValue === 'number'
+                                              ? rawValue
+                                              : Number(rawValue);
+                                      if (!Number.isFinite(value)) {
+                                          return `${marker}${seriesName}: N/A`;
+                                      }
+                                      // Explicit `+` for non-negative
+                                      // values keeps the sign visually
+                                      // consistent across rows so the
+                                      // user can scan a column for
+                                      // direction at a glance.
+                                      const sign = value >= 0 ? '+' : '';
+                                      return `${marker}${seriesName}: ${sign}${value.toFixed(2)}%`;
+                                  }
+
                                   const value =
                                       typeof rawValue === 'number'
                                           ? rawValue
@@ -902,15 +1045,6 @@ const NetWorthEChart = ({
                                         )}]`
                                       : '';
 
-                                  // `p.marker` is the colored dot
-                                  // ECharts pre-renders for the series;
-                                  // including it keeps each row visually
-                                  // tied to its line color.
-                                  const marker =
-                                      typeof p.marker === 'string'
-                                          ? p.marker
-                                          : '';
-
                                   return `${marker}${seriesName}: ${converted}${nativeSuffix}`;
                               })
                               .filter(Boolean);
@@ -921,7 +1055,12 @@ const NetWorthEChart = ({
                           );
                       }
                     : (params) => {
-                          // Total-mode formatter (unchanged from Wave 2/3):
+                          // Total-mode formatter (Wave 6: variation mode
+                          // reads the window-relative transformed value
+                          // out of `totalSeriesValues` rather than the
+                          // raw `datum.total`, so the headline reflects
+                          // the same baseline as the rendered series and
+                          // the Y-axis):
                           // render the single-line value plus a
                           // delta-from-previous-point row for every
                           // datum after the first.
@@ -947,7 +1086,23 @@ const NetWorthEChart = ({
                           let dateLabel: string;
 
                           if (datum) {
-                              numericValue = datum.total;
+                              if (showVariation) {
+                                  const transformed = totalSeriesValues[idx];
+                                  if (transformed == null) {
+                                      // Baseline-zero gap or pre-baseline
+                                      // index — surface explicit `N/A`
+                                      // rather than collapse to the
+                                      // raw absolute amount the user
+                                      // toggled away from.
+                                      return (
+                                          `<strong>${formatTooltipDate(datum.date)}</strong><br/>` +
+                                          `N/A`
+                                      );
+                                  }
+                                  numericValue = transformed;
+                              } else {
+                                  numericValue = datum.total;
+                              }
                               dateLabel = formatTooltipDate(datum.date);
                           } else {
                               // Fallback path: unpack the tuple ECharts ships
@@ -979,36 +1134,60 @@ const NetWorthEChart = ({
                           // Delta-from-previous: only show when we have both a
                           // resolved current datum and a non-zero index, so
                           // the headline ("first snapshot") never gets a
-                          // misleading "+0" line.
+                          // misleading "+0" line. In variation mode the
+                          // previous value is read from the transformed
+                          // array so the delta is always "percentage
+                          // points between two visible-window-relative
+                          // percentages" — symmetric with the current
+                          // headline.
                           let deltaHtml = '';
                           if (datum && idx > 0) {
                               const prev = data[idx - 1];
-                              const delta = numericValue - prev.total;
-                              const isUp = delta >= 0;
-                              const sign = isUp ? '+' : '-';
-                              const color = isUp
-                                  ? DELTA_UP_COLOR
-                                  : DELTA_DOWN_COLOR;
-                              const deltaFormatted = formatDeltaValue(
-                                  delta,
-                                  showVariation,
-                              );
-                              // Percent-change of the absolute amount; in
-                              // variation mode we still report the
-                              // percentage-of-percentage so the user sees a
-                              // single consistent secondary metric.
-                              const deltaPct =
-                                  prev.total !== 0
-                                      ? (delta / Math.abs(prev.total)) * 100
-                                      : 0;
-                              const pctFormatted = `${
-                                  isUp ? '+' : '-'
-                              }${Math.abs(deltaPct).toFixed(1)}%`;
-                              deltaHtml =
-                                  `<div style="color:${color};font-size:11px;` +
-                                  `margin-top:2px;">` +
-                                  `${sign}${deltaFormatted} (${pctFormatted})` +
-                                  `</div>`;
+                              const prevValue = showVariation
+                                  ? totalSeriesValues[idx - 1]
+                                  : prev.total;
+                              if (
+                                  prevValue != null &&
+                                  Number.isFinite(prevValue)
+                              ) {
+                                  const delta = numericValue - prevValue;
+                                  const isUp = delta >= 0;
+                                  const sign = isUp ? '+' : '-';
+                                  const color = isUp
+                                      ? DELTA_UP_COLOR
+                                      : DELTA_DOWN_COLOR;
+                                  const deltaFormatted = formatDeltaValue(
+                                      delta,
+                                      showVariation,
+                                  );
+                                  // In variation mode the headline IS
+                                  // already a percentage, so the
+                                  // parenthetical "% change of %" line
+                                  // collapses to either Infinity (when
+                                  // the previous value is 0%) or a
+                                  // nested-percent figure that doesn't
+                                  // add information. Drop it; the `pp`
+                                  // delta carries the relevant signal
+                                  // on its own.
+                                  let pctSuffix = '';
+                                  if (!showVariation) {
+                                      const deltaPct =
+                                          prevValue !== 0
+                                              ? (delta /
+                                                    Math.abs(prevValue)) *
+                                                100
+                                              : 0;
+                                      const pctFormatted = `${
+                                          isUp ? '+' : '-'
+                                      }${Math.abs(deltaPct).toFixed(1)}%`;
+                                      pctSuffix = ` (${pctFormatted})`;
+                                  }
+                                  deltaHtml =
+                                      `<div style="color:${color};font-size:11px;` +
+                                      `margin-top:2px;">` +
+                                      `${sign}${deltaFormatted}${pctSuffix}` +
+                                      `</div>`;
+                              }
                           }
 
                           return (

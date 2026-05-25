@@ -161,7 +161,12 @@ const NetWorthTimelineWidget = () => {
         // breakdown mode.
         dateRange: 'all',
         viewMode: viewMode === 'rates' ? 'total' : viewMode,
-        showVariation,
+        // The chart computes window-relative variation internally so it can
+        // anchor the percentage axis on the FIRST VISIBLE point (which only
+        // the chart knows via its dataZoom state). Pass `false` here so the
+        // hook always returns raw absolute values; the `showVariation` UI
+        // toggle flows directly into the chart prop below.
+        showVariation: false,
     });
 
     // Resolve the snapshot the user clicked. Prefer matching by id (the
