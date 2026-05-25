@@ -477,12 +477,12 @@ describe('NetWorthEChart', () => {
         expect(html).not.toContain('#f87171');
     });
 
-    it('uses pp suffix for delta in variation mode without leaking the currency code (Wave 2)', () => {
+    it('uses % suffix for delta in variation mode without leaking the currency code (Wave 2)', () => {
         // Wave 6: variation mode is now window-relative — the chart
         // transforms each datum's `total` into a percentage against the
         // first VISIBLE point (default zoom = idx 0). With totals of
         // 100 and 112.5, the transformed series is `[0%, 12.5%]`, so
-        // the delta from the first to the second point is `12.5pp`.
+        // the delta from the first to the second point is `12.5%`.
         renderChart({
             data: [
                 buildDatum({ date: '2026-01-01', total: 100 }),
@@ -524,7 +524,7 @@ describe('NetWorthEChart', () => {
         // Headline: window-relative percentage at idx 1 → 12.50%.
         expect(html).toContain('12.50%');
         // Delta from idx 0 (0%) to idx 1 (12.5%) → 12.50pp.
-        expect(html).toContain('12.50pp');
+        expect(html).toContain('12.50%');
         // Variation-mode delta should not surface the currency code.
         expect(html).not.toContain('COP');
         // Variation mode drops the `(% change)` parenthetical because

@@ -282,8 +282,7 @@ const formatBreakdownAmount = (value: number, currency: string): string => {
  * keeping this formatter independent of color logic.
  *
  * In variation mode the underlying values are percentages, so the delta
- * is naturally "percentage points". We render it with a `pp` suffix to
- * avoid ambiguity ("a 2% increase from 50% to 52%" reads as "+2pp").
+ * is the change in percentage points. We render it with a `%` suffix.
  *
  * Currency mode uses K/M suffixes and intentionally omits the currency
  * code — the headline value above the delta already shows the currency,
@@ -292,7 +291,7 @@ const formatBreakdownAmount = (value: number, currency: string): string => {
 const formatDeltaValue = (delta: number, showVariation: boolean): string => {
     const abs = Math.abs(delta);
     if (showVariation) {
-        return `${abs.toFixed(2)}pp`;
+        return `${abs.toFixed(2)}%`;
     }
     if (abs >= 1_000_000) {
         return `${(abs / 1_000_000).toFixed(1)}M`;
@@ -617,24 +616,24 @@ const NetWorthEChart = ({
         // pre-Wave-6 behavior verified by the existing snapshot tests.
         //
         // Index math: `zoomRange.start` is a percentage (0–100) of the
-        // x-axis time range. We approximate the first visible index by
-        // mapping that percentage onto the data array. ECharts' time-
-        // axis dataZoom uses time-based percentages, so this is an
-        // approximation when snapshots are spaced unevenly — close
-        // enough for picking a baseline (off by at most one neighbor)
-        // and avoids round-tripping through the time axis.
-        const firstVisibleIdx =
-            data.length === 0
-                ? 0
-                : Math.max(
-                      0,
-                      Math.min(
-                          data.length - 1,
-                          Math.round(
-                              (zoomRange.start / 100) * (data.length - 1),
-                          ),
-                      ),
-                  );
+        // x-axis TIME range (not the data array). We find the first
+        // data point whose timestamp >= the visible start time.
+        const firstVisibleIdx = (() => {
+            if (data.length === 0) return 0;
+            const timestamps = data.map(d => new Date(d.date + 'T00:00:00Z').getTime());
+            const minTs = timestamps[0];
+            const maxTs = timestamps[timestamps.length - 1];
+            const span = maxTs - minTs;
+            if (span === 0) return 0;
+            const visibleStartTs = minTs + (zoomRange.start / 100) * span;
+            // Find first index where timestamp >= visibleStartTs
+            let idx = 0;
+            for (let i = 0; i < timestamps.length; i++) {
+                if (timestamps[i] >= visibleStartTs) { idx = i; break; }
+                idx = i;
+            }
+            return idx;
+        })();
 
         // Total-mode per-point values. Identity in normal mode;
         // percentage change vs the first visible total in variation
