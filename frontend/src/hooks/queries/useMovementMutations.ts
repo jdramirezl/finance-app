@@ -172,14 +172,11 @@ export const useMovementMutations = () => {
     const applyPendingMovement = useMutation({
         mutationFn: (id: string) => movementService.applyPendingMovement(id),
         onSuccess: () => {
-            // Converting pending → real shifts the movement into balance
-            // calculations. We invalidate `['movements']`, `['accounts']`, and
-            // `['pockets']`. Sub-pockets are only refreshed by the targeted
-            // create/update paths that know whether a sub-pocket is involved.
             queryClient.invalidateQueries({ queryKey: ['movements'] });
             queryClient.invalidateQueries({ queryKey: ['accounts'] });
             queryClient.invalidateQueries({ queryKey: ['pockets'] });
-            broadcastInvalidation([['movements'], ['accounts'], ['pockets']]);
+            queryClient.invalidateQueries({ queryKey: ['subPockets'] });
+            broadcastInvalidation([['movements'], ['accounts'], ['pockets'], ['subPockets']]);
         },
         onError: (error) => {
             toast.error(errorMessage(error, 'Failed to apply pending movement'));
@@ -189,14 +186,11 @@ export const useMovementMutations = () => {
     const markAsPending = useMutation({
         mutationFn: (id: string) => movementService.markAsPending(id),
         onSuccess: () => {
-            // Real → pending removes the movement from balance calculations.
-            // We invalidate `['movements']`, `['accounts']`, and `['pockets']`.
-            // Sub-pockets are intentionally excluded for the same reason as
-            // `applyPendingMovement` above.
             queryClient.invalidateQueries({ queryKey: ['movements'] });
             queryClient.invalidateQueries({ queryKey: ['accounts'] });
             queryClient.invalidateQueries({ queryKey: ['pockets'] });
-            broadcastInvalidation([['movements'], ['accounts'], ['pockets']]);
+            queryClient.invalidateQueries({ queryKey: ['subPockets'] });
+            broadcastInvalidation([['movements'], ['accounts'], ['pockets'], ['subPockets']]);
         },
         onError: (error) => {
             toast.error(errorMessage(error, 'Failed to mark movement as pending'));

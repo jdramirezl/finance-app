@@ -23,6 +23,7 @@ export const updateMovementSchema = z.object({
   subPocketId: z.string().uuid().nullable().optional(),
   accountId: z.string().uuid().optional(),
   pocketId: z.string().uuid().optional(),
+  isPending: z.boolean().optional(),
   category: z.string().max(50).nullable().optional(),
   tags: z.array(z.string().max(30)).max(10).nullable().optional(),
 }).strict();
