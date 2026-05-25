@@ -8,6 +8,8 @@
 import type { Currency, PocketType } from '@shared-backend/types';
 
 export class Pocket {
+  private _archivedAt: Date | null;
+
   constructor(
     public readonly id: string,
     public accountId: string,
@@ -15,8 +17,10 @@ export class Pocket {
     public type: PocketType,
     private _balance: number,
     public currency: Currency,
-    public displayOrder?: number
+    public displayOrder?: number,
+    archivedAt?: Date | null
   ) {
+    this._archivedAt = archivedAt ?? null;
     this.validate();
   }
 
@@ -112,6 +116,34 @@ export class Pocket {
   }
 
   /**
+   * Archive timestamp - null when the pocket is active
+   */
+  get archivedAt(): Date | null {
+    return this._archivedAt;
+  }
+
+  /**
+   * Check if this pocket is archived
+   */
+  isArchived(): boolean {
+    return this._archivedAt !== null;
+  }
+
+  /**
+   * Archive this pocket (soft delete) by stamping the current time
+   */
+  archive(): void {
+    this._archivedAt = new Date();
+  }
+
+  /**
+   * Restore an archived pocket
+   */
+  unarchive(): void {
+    this._archivedAt = null;
+  }
+
+  /**
    * Convert to plain object (for serialization)
    */
   toJSON() {
@@ -123,6 +155,7 @@ export class Pocket {
       balance: this._balance,
       currency: this.currency,
       displayOrder: this.displayOrder,
+      archivedAt: this._archivedAt,
     };
   }
 }

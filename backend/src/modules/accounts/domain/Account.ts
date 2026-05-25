@@ -12,6 +12,8 @@ export type InvestmentType = 'stock' | 'etf' | 'cd';
 export type CompoundingFrequency = 'daily' | 'monthly' | 'quarterly' | 'annually';
 
 export class Account {
+  private _archivedAt: Date | null;
+
   constructor(
     public readonly id: string,
     public name: string,
@@ -32,8 +34,10 @@ export class Account {
     public compoundingFrequency?: CompoundingFrequency,
     public earlyWithdrawalPenalty?: number,
     public withholdingTaxRate?: number,
-    public cdCreatedAt?: Date
+    public cdCreatedAt?: Date,
+    archivedAt?: Date | null
   ) {
+    this._archivedAt = archivedAt ?? null;
     this.validate();
   }
 
@@ -337,6 +341,34 @@ export class Account {
   }
 
   /**
+   * Archive timestamp - null when the account is active
+   */
+  get archivedAt(): Date | null {
+    return this._archivedAt;
+  }
+
+  /**
+   * Check if this account is archived
+   */
+  isArchived(): boolean {
+    return this._archivedAt !== null;
+  }
+
+  /**
+   * Archive this account (soft delete) by stamping the current time
+   */
+  archive(): void {
+    this._archivedAt = new Date();
+  }
+
+  /**
+   * Restore an archived account
+   */
+  unarchive(): void {
+    this._archivedAt = null;
+  }
+
+  /**
    * Convert to plain object (for serialization)
    */
   toJSON() {
@@ -361,6 +393,7 @@ export class Account {
       earlyWithdrawalPenalty: this.earlyWithdrawalPenalty,
       withholdingTaxRate: this.withholdingTaxRate,
       cdCreatedAt: this.cdCreatedAt,
+      archivedAt: this._archivedAt,
     };
   }
 }
