@@ -16,6 +16,8 @@ import { UpdateAccountUseCase } from '../application/useCases/UpdateAccountUseCa
 import { DeleteAccountUseCase } from '../application/useCases/DeleteAccountUseCase';
 import { DeleteAccountCascadeUseCase } from '../application/useCases/DeleteAccountCascadeUseCase';
 import { ReorderAccountsUseCase } from '../application/useCases/ReorderAccountsUseCase';
+import { ArchiveAccountUseCase } from '../application/useCases/ArchiveAccountUseCase';
+import { UnarchiveAccountUseCase } from '../application/useCases/UnarchiveAccountUseCase';
 import type { CreateAccountDTO, UpdateAccountDTO } from '../application/dtos/AccountDTO';
 import type { DeleteAccountCascadeDTO } from '../application/useCases/DeleteAccountCascadeUseCase';
 import type { ReorderAccountsDTO } from '../application/useCases/ReorderAccountsUseCase';
@@ -29,7 +31,9 @@ export class AccountController {
     @inject(UpdateAccountUseCase) private updateAccountUseCase: UpdateAccountUseCase,
     @inject(DeleteAccountUseCase) private deleteAccountUseCase: DeleteAccountUseCase,
     @inject(DeleteAccountCascadeUseCase) private deleteCascadeUseCase: DeleteAccountCascadeUseCase,
-    @inject(ReorderAccountsUseCase) private reorderAccountsUseCase: ReorderAccountsUseCase
+    @inject(ReorderAccountsUseCase) private reorderAccountsUseCase: ReorderAccountsUseCase,
+    @inject(ArchiveAccountUseCase) private archiveAccountUseCase: ArchiveAccountUseCase,
+    @inject(UnarchiveAccountUseCase) private unarchiveAccountUseCase: UnarchiveAccountUseCase
   ) {}
 
   /**
@@ -58,8 +62,10 @@ export class AccountController {
   /**
    * Get all accounts for user
    * GET /api/accounts
-   * Query params: ?skipInvestmentPrices=true (optional)
-   * 
+   * Query params:
+   *   ?skipInvestmentPrices=true (optional) - skip live investment price lookups
+   *   ?include_archived=true    (optional) - include soft-archived accounts
+   *
    * Requirements: 4.4
    */
   async getAll(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -71,7 +77,12 @@ export class AccountController {
       }
 
       const skipInvestmentPrices = req.query.skipInvestmentPrices === 'true';
-      const accounts = await this.getAllAccountsUseCase.execute(userId, skipInvestmentPrices);
+      const includeArchived = req.query.include_archived === 'true';
+      const accounts = await this.getAllAccountsUseCase.execute(
+        userId,
+        skipInvestmentPrices,
+        includeArchived
+      );
 
       res.status(200).json(accounts);
     } catch (error) {
@@ -191,6 +202,53 @@ export class AccountController {
 
       const dto: ReorderAccountsDTO = req.body;
       await this.reorderAccountsUseCase.execute(dto, userId);
+
+      res.status(204).send();
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Archive (soft-delete) account
+   * PATCH /api/accounts/:id/archive
+   *
+   * Cascades the archive to every pocket inside the account so it disappears
+   * from default views. Historical movements are preserved.
+   */
+  async archive(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        res.status(401).json({ error: 'Unauthorized' });
+        return;
+      }
+
+      const accountId = req.params.id;
+      await this.archiveAccountUseCase.execute(accountId, userId);
+
+      res.status(204).send();
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Restore an archived account
+   * PATCH /api/accounts/:id/unarchive
+   *
+   * Pockets are NOT auto-restored - the user unarchives them individually.
+   */
+  async unarchive(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        res.status(401).json({ error: 'Unauthorized' });
+        return;
+      }
+
+      const accountId = req.params.id;
+      await this.unarchiveAccountUseCase.execute(accountId, userId);
 
       res.status(204).send();
     } catch (error) {

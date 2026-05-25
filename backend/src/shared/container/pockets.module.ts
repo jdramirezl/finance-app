@@ -8,6 +8,8 @@ import { UpdatePocketUseCase } from '../../modules/pockets/application/useCases/
 import { DeletePocketUseCase } from '../../modules/pockets/application/useCases/DeletePocketUseCase';
 import { MigrateFixedPocketUseCase } from '../../modules/pockets/application/useCases/MigrateFixedPocketUseCase';
 import { ReorderPocketsUseCase } from '../../modules/pockets/application/useCases/ReorderPocketsUseCase';
+import { ArchivePocketUseCase } from '../../modules/pockets/application/useCases/ArchivePocketUseCase';
+import { UnarchivePocketUseCase } from '../../modules/pockets/application/useCases/UnarchivePocketUseCase';
 import { PocketController } from '../../modules/pockets/presentation/PocketController';
 
 export function registerPocketModule(): void {
@@ -19,5 +21,7 @@ export function registerPocketModule(): void {
   container.register(DeletePocketUseCase, { useClass: DeletePocketUseCase });
   container.register(MigrateFixedPocketUseCase, { useClass: MigrateFixedPocketUseCase });
   container.register(ReorderPocketsUseCase, { useClass: ReorderPocketsUseCase });
+  container.register(ArchivePocketUseCase, { useClass: ArchivePocketUseCase });
+  container.register(UnarchivePocketUseCase, { useClass: UnarchivePocketUseCase });
   container.register(PocketController, { useClass: PocketController });
 }

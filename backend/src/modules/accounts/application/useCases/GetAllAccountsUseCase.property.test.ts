@@ -106,7 +106,7 @@ describe('GetAllAccountsUseCase Property-Based Tests', () => {
             expect(result[0].balance).toBeCloseTo(expectedBalance, 5);
             
             // Verify that pockets were fetched for the user
-            expect(mockPocketRepo.findAllByUserId).toHaveBeenCalledWith(userId);
+            expect(mockPocketRepo.findAllByUserId).toHaveBeenCalledWith(userId, false);
           }
         ),
         { numRuns: 100 }

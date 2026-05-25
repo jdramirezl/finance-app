@@ -12,6 +12,8 @@ import { UpdateAccountUseCase } from '../../modules/accounts/application/useCase
 import { DeleteAccountUseCase } from '../../modules/accounts/application/useCases/DeleteAccountUseCase';
 import { DeleteAccountCascadeUseCase } from '../../modules/accounts/application/useCases/DeleteAccountCascadeUseCase';
 import { ReorderAccountsUseCase } from '../../modules/accounts/application/useCases/ReorderAccountsUseCase';
+import { ArchiveAccountUseCase } from '../../modules/accounts/application/useCases/ArchiveAccountUseCase';
+import { UnarchiveAccountUseCase } from '../../modules/accounts/application/useCases/UnarchiveAccountUseCase';
 import { GetCurrentStockPriceUseCase } from '../../modules/accounts/application/useCases/GetCurrentStockPriceUseCase';
 import { UpdateInvestmentAccountUseCase } from '../../modules/accounts/application/useCases/UpdateInvestmentAccountUseCase';
 import { AccountController } from '../../modules/accounts/presentation/AccountController';
@@ -29,6 +31,8 @@ export function registerAccountModule(): void {
   container.register(DeleteAccountUseCase, { useClass: DeleteAccountUseCase });
   container.register(DeleteAccountCascadeUseCase, { useClass: DeleteAccountCascadeUseCase });
   container.register(ReorderAccountsUseCase, { useClass: ReorderAccountsUseCase });
+  container.register(ArchiveAccountUseCase, { useClass: ArchiveAccountUseCase });
+  container.register(UnarchiveAccountUseCase, { useClass: UnarchiveAccountUseCase });
   container.register(GetCurrentStockPriceUseCase, { useClass: GetCurrentStockPriceUseCase });
   container.register(UpdateInvestmentAccountUseCase, { useClass: UpdateInvestmentAccountUseCase });
   container.register(AccountController, { useClass: AccountController });

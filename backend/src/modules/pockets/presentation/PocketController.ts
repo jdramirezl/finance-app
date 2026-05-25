@@ -16,6 +16,8 @@ import { UpdatePocketUseCase } from '../application/useCases/UpdatePocketUseCase
 import { DeletePocketUseCase } from '../application/useCases/DeletePocketUseCase';
 import { MigrateFixedPocketUseCase } from '../application/useCases/MigrateFixedPocketUseCase';
 import { ReorderPocketsUseCase } from '../application/useCases/ReorderPocketsUseCase';
+import { ArchivePocketUseCase } from '../application/useCases/ArchivePocketUseCase';
+import { UnarchivePocketUseCase } from '../application/useCases/UnarchivePocketUseCase';
 import type { CreatePocketDTO, UpdatePocketDTO, MigratePocketDTO } from '../application/dtos/PocketDTO';
 import type { ReorderPocketsDTO } from '../application/useCases/ReorderPocketsUseCase';
 
@@ -29,6 +31,8 @@ export class PocketController {
     @inject(DeletePocketUseCase) private deletePocketUseCase: DeletePocketUseCase,
     @inject(MigrateFixedPocketUseCase) private migrateFixedPocketUseCase: MigrateFixedPocketUseCase,
     @inject(ReorderPocketsUseCase) private reorderPocketsUseCase: ReorderPocketsUseCase,
+    @inject(ArchivePocketUseCase) private archivePocketUseCase: ArchivePocketUseCase,
+    @inject(UnarchivePocketUseCase) private unarchivePocketUseCase: UnarchivePocketUseCase,
     @inject('PocketRepository') private pocketRepo: { findAllByUserId(userId: string): Promise<any[]> }
   ) {}
 
@@ -197,6 +201,50 @@ export class PocketController {
 
       const dto: ReorderPocketsDTO = req.body;
       await this.reorderPocketsUseCase.execute(dto, userId);
+
+      res.status(204).send();
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Archive (soft-delete) pocket
+   * PATCH /api/pockets/:id/archive
+   *
+   * Historical movements stay attached to the pocket.
+   */
+  async archive(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        res.status(401).json({ error: 'Unauthorized' });
+        return;
+      }
+
+      const pocketId = req.params.id;
+      await this.archivePocketUseCase.execute(pocketId, userId);
+
+      res.status(204).send();
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Restore an archived pocket
+   * PATCH /api/pockets/:id/unarchive
+   */
+  async unarchive(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        res.status(401).json({ error: 'Unauthorized' });
+        return;
+      }
+
+      const pocketId = req.params.id;
+      await this.unarchivePocketUseCase.execute(pocketId, userId);
 
       res.status(204).send();
     } catch (error) {

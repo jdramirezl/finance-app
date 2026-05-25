@@ -103,4 +103,22 @@ router.post('/:id/cascade', validateBody(cascadeDeleteSchema), (req, res, next) 
  */
 router.post('/reorder', validateBody(reorderAccountsSchema), (req, res, next) => controller.reorder(req, res, next));
 
+/**
+ * PATCH /api/accounts/:id/archive
+ * Soft-delete (archive) an account and cascade to its pockets.
+ *
+ * Response: 204
+ * Errors: 404 (not found)
+ */
+router.patch('/:id/archive', (req, res, next) => controller.archive(req, res, next));
+
+/**
+ * PATCH /api/accounts/:id/unarchive
+ * Restore a previously archived account.
+ *
+ * Response: 204
+ * Errors: 404 (not found)
+ */
+router.patch('/:id/unarchive', (req, res, next) => controller.unarchive(req, res, next));
+
 export default router;

@@ -90,8 +90,8 @@ describe('GetAllAccountsUseCase', () => {
       expect(result[1].id).toBe('acc-2');
       expect(result[1].balance).toBe(2000);
       
-      expect(mockAccountRepo.findAllByUserId).toHaveBeenCalledWith(userId);
-      expect(mockPocketRepo.findAllByUserId).toHaveBeenCalledWith(userId);
+      expect(mockAccountRepo.findAllByUserId).toHaveBeenCalledWith(userId, false);
+      expect(mockPocketRepo.findAllByUserId).toHaveBeenCalledWith(userId, false);
     });
 
     it('should handle accounts with no pockets (zero balance)', async () => {

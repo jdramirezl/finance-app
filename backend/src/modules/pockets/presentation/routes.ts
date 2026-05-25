@@ -104,4 +104,22 @@ router.post('/:id/migrate', validateBody(migratePocketSchema), (req, res, next) 
  */
 router.post('/reorder', validateBody(reorderPocketsSchema), (req, res, next) => controller.reorder(req, res, next));
 
+/**
+ * PATCH /api/pockets/:id/archive
+ * Soft-delete (archive) a pocket.
+ *
+ * Response: 204
+ * Errors: 404 (not found)
+ */
+router.patch('/:id/archive', (req, res, next) => controller.archive(req, res, next));
+
+/**
+ * PATCH /api/pockets/:id/unarchive
+ * Restore a previously archived pocket.
+ *
+ * Response: 204
+ * Errors: 404 (not found)
+ */
+router.patch('/:id/unarchive', (req, res, next) => controller.unarchive(req, res, next));
+
 export default router;
