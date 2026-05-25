@@ -69,4 +69,18 @@ export interface IAccountRepository {
    * Update display order for multiple accounts
    */
   updateDisplayOrders(accountIds: string[], userId: string): Promise<void>;
+
+  /**
+   * Get the distinct stock symbols across all active (non-archived) investment
+   * accounts in the system.
+   *
+   * Used by the stock price use case to size its cache window dynamically:
+   * with N symbols and 25 free-tier API calls/day, we can refresh each symbol
+   * roughly every `Math.ceil(N * 24 / 25)` hours without exceeding the quota.
+   *
+   * Crosses user boundaries on purpose — the price cache is global (one
+   * `stock_prices` row per symbol regardless of which user holds it) so the
+   * sizing input must be global too.
+   */
+  getDistinctActiveSymbols(): Promise<string[]>;
 }

@@ -47,12 +47,18 @@ export class StockPrice {
   }
 
   /**
-   * Check if the cached price has expired (older than 24 hours)
+   * Check if the cached price has expired.
+   *
+   * @param cacheHours - Optional override for how long the cache is
+   *   considered valid. Defaults to {@link CACHE_EXPIRATION_HOURS} when
+   *   omitted, preserving the original 24-hour behavior for any caller
+   *   that hasn't migrated to dynamic sizing.
    */
-  isExpired(): boolean {
+  isExpired(cacheHours?: number): boolean {
+    const hours = cacheHours ?? StockPrice.CACHE_EXPIRATION_HOURS;
     const now = new Date();
     const expirationTime = new Date(this.cachedAt);
-    expirationTime.setHours(expirationTime.getHours() + StockPrice.CACHE_EXPIRATION_HOURS);
+    expirationTime.setHours(expirationTime.getHours() + hours);
 
     return now > expirationTime;
   }
@@ -67,10 +73,13 @@ export class StockPrice {
   }
 
   /**
-   * Check if the price is still fresh (not expired)
+   * Check if the price is still fresh (not expired).
+   *
+   * @param cacheHours - Optional override for how long the cache is
+   *   considered valid. See {@link isExpired} for details.
    */
-  isFresh(): boolean {
-    return !this.isExpired();
+  isFresh(cacheHours?: number): boolean {
+    return !this.isExpired(cacheHours);
   }
 
   /**

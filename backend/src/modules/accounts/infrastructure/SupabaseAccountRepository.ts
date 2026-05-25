@@ -230,4 +230,43 @@ export class SupabaseAccountRepository implements IAccountRepository {
       throw new DatabaseError(`Failed to update display orders: ${error.message}`);
     }
   }
+
+  /**
+   * Return the distinct, uppercase stock symbols across all active
+   * (non-archived) investment accounts in the system.
+   *
+   * Crosses user boundaries by design — the stock price cache (in
+   * `stock_prices`) is keyed by symbol alone, so the symbol-count input
+   * that controls cache TTL must aggregate across users too.
+   */
+  async getDistinctActiveSymbols(): Promise<string[]> {
+    const { data, error } = await this.supabase
+      .from('accounts')
+      .select('stock_symbol')
+      .eq('type', 'investment')
+      .is('archived_at', null)
+      .not('stock_symbol', 'is', null);
+
+    if (error) {
+      throw new DatabaseError(
+        `Failed to fetch distinct active stock symbols: ${error.message}`
+      );
+    }
+
+    if (!data || data.length === 0) {
+      return [];
+    }
+
+    // De-dupe and normalize to uppercase so 'voo' and 'VOO' collapse into
+    // a single entry — matches the casing the price cache and Alpha
+    // Vantage requests use.
+    const symbols = new Set<string>();
+    for (const row of data) {
+      const symbol = row.stock_symbol;
+      if (typeof symbol === 'string' && symbol.trim().length > 0) {
+        symbols.add(symbol.toUpperCase());
+      }
+    }
+    return Array.from(symbols);
+  }
 }
