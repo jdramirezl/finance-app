@@ -11,10 +11,11 @@ const FORCE_REFRESH_COOLDOWN = 60000; // 1 minute cooldown
 const FORCE_CLICK_THRESHOLD = 3;
 
 // Prices don't move often enough to justify refetching on every mount or
-// dependency change — 15 minutes is well below the volatility we care about
-// for a personal-finance summary while still avoiding chatter against the
-// upstream price service.
-const PRICE_STALE_TIME_MS = 1000 * 60 * 15;
+// dependency change, but the backend now decides how aggressively to hit
+// the upstream price API based on the active-symbol count. We poll the
+// backend every 5 minutes so cache invalidations propagate quickly while
+// still letting the backend's dynamic TTL throttle real upstream calls.
+const PRICE_STALE_TIME_MS = 1000 * 60 * 5;
 
 const investmentPriceKey = (symbol: string) =>
   ['investmentPrice', symbol] as const;
