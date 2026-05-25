@@ -1,32 +1,15 @@
 import { useState } from 'react';
-import { format } from 'date-fns';
-import type { Account, FixedExpenseGroup, Pocket, SubPocket } from '../../types';
-import type { BatchMovementRow } from '../../components/movements/BatchMovementForm';
-import { calculateAporteMensual } from '../../utils/fixedExpenseUtils';
+import type { FixedExpenseGroup, SubPocket } from '../../types';
 import type { useToast } from '../useToast';
 import type { useConfirm } from '../useConfirm';
-import type { useMovementMutations } from '../queries/useMovementMutations';
 import type { useFixedExpenseGroupMutations } from '../queries/useFixedExpenseGroupMutations';
 import type { useSubPocketMutations } from '../queries/useSubPocketMutations';
 
-type MovementMutations = ReturnType<typeof useMovementMutations>;
 type GroupMutations = ReturnType<typeof useFixedExpenseGroupMutations>;
 type SubPocketMutations = ReturnType<typeof useSubPocketMutations>;
 
-export interface BatchFormController {
-  isOpen: boolean;
-  rows: BatchMovementRow[];
-  open: () => void;
-  close: () => void;
-  setRows: (rows: BatchMovementRow[]) => void;
-  save: (rows: BatchMovementRow[]) => Promise<void>;
-}
-
 export interface UseFixedExpenseActionsParams {
-  accounts: Account[];
-  fixedPockets: Pocket[];
   fixedSubPockets: SubPocket[];
-  movementMutations: MovementMutations;
   groupMutations: GroupMutations;
   subPocketMutations: SubPocketMutations;
   toast: ReturnType<typeof useToast.getState>;
@@ -46,36 +29,28 @@ export interface UseFixedExpenseActionsResult {
   // Collapse state
   collapsedGroups: Set<string>;
   toggleGroupCollapse: (groupId: string) => void;
-
-  // Batch form controller
-  batchForm: BatchFormController;
-  prepareBatchFromEnabled: () => void;
 }
 
 /**
  * Encapsulates CRUD flows on the Fixed Expenses page: sub-pocket
- * delete/move, group delete/reorder, expand/collapse state, and the
- * batch movement form populated from fixed expenses.
+ * delete/move, group delete/reorder, and expand/collapse state.
+ *
+ * The batch movement form previously owned by this hook has been folded
+ * into the unified Generate Movements flow on `UnifiedBudgetPage` —
+ * see `useBudgetActions.prepareUnifiedBatch`.
  */
 export const useFixedExpenseActions = ({
-  accounts,
-  fixedPockets,
   fixedSubPockets,
-  movementMutations,
   groupMutations,
   subPocketMutations,
   toast,
   confirm,
 }: UseFixedExpenseActionsParams): UseFixedExpenseActionsResult => {
-  const { createMovement } = movementMutations;
   const { deleteFixedExpenseGroup, reorderFixedExpenseGroups } = groupMutations;
   const { deleteSubPocket, moveSubPocketToGroup } = subPocketMutations;
 
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
-
-  const [batchOpen, setBatchOpen] = useState(false);
-  const [batchRows, setBatchRows] = useState<BatchMovementRow[]>([]);
 
   const handleDeleteSubPocket = async (id: string) => {
     const subPocket = fixedSubPockets.find((sp) => sp.id === id);
@@ -144,60 +119,6 @@ export const useFixedExpenseActions = ({
     });
   };
 
-  const prepareBatchFromEnabled = () => {
-    if (fixedPockets.length === 0) {
-      toast.error('No fixed expenses accounts found');
-      return;
-    }
-    if (fixedSubPockets.length === 0) {
-      toast.error('No fixed expenses found');
-      return;
-    }
-
-    const rows: BatchMovementRow[] = fixedSubPockets.map((sp) => {
-      const parent = fixedPockets.find((fp) => fp.id === sp.pocketId);
-      const account = parent ? accounts.find((a) => a.id === parent.accountId) : null;
-      return {
-        id: crypto.randomUUID(),
-        type: 'IngresoFijo',
-        accountId: account?.id || '',
-        pocketId: sp.pocketId,
-        subPocketId: sp.id,
-        amount: calculateAporteMensual(sp.valueTotal, sp.periodicityMonths, sp.balance).toFixed(2),
-        notes: `Monthly contribution for ${sp.name}`,
-        displayedDate: format(new Date(), 'yyyy-MM-dd'),
-      };
-    });
-
-    setBatchRows(rows);
-    setBatchOpen(true);
-    toast.success(`Pre-populated ${rows.length} fixed expenses`);
-  };
-
-  const saveBatch = async (rows: BatchMovementRow[]) => {
-    for (const row of rows) {
-      await createMovement.mutateAsync({
-        type: row.type,
-        accountId: row.accountId,
-        pocketId: row.pocketId,
-        amount: parseFloat(row.amount),
-        notes: row.notes || undefined,
-        displayedDate: row.displayedDate,
-        subPocketId: row.subPocketId,
-        isPending: row.isPending || false,
-      });
-    }
-    setBatchOpen(false);
-    setBatchRows([]);
-    toast.success(`Successfully created ${rows.length} movements!`);
-    // Errors propagate to callers; mutation onError shows the toast.
-  };
-
-  const closeBatch = () => {
-    setBatchOpen(false);
-    setBatchRows([]);
-  };
-
   return {
     handleDeleteSubPocket,
     handleMoveToGroup,
@@ -206,14 +127,5 @@ export const useFixedExpenseActions = ({
     handleReorderGroups,
     collapsedGroups,
     toggleGroupCollapse,
-    batchForm: {
-      isOpen: batchOpen,
-      rows: batchRows,
-      open: () => setBatchOpen(true),
-      close: closeBatch,
-      setRows: setBatchRows,
-      save: saveBatch,
-    },
-    prepareBatchFromEnabled,
   };
 };

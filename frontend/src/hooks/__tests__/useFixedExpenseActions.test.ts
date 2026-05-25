@@ -2,27 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useFixedExpenseActions } from '../actions/useFixedExpenseActions';
 import type { UseFixedExpenseActionsParams } from '../actions/useFixedExpenseActions';
-import type { Account, FixedExpenseGroup, Pocket, SubPocket } from '../../types';
-
-const mockAccount = (overrides: Partial<Account> = {}): Account => ({
-  id: 'acc-1',
-  name: 'Bank',
-  color: '#3B82F6',
-  currency: 'USD',
-  balance: 1000,
-  type: 'normal',
-  ...overrides,
-});
-
-const mockFixedPocket = (overrides: Partial<Pocket> = {}): Pocket => ({
-  id: 'pkt-fixed',
-  accountId: 'acc-1',
-  name: 'Fixed Expenses',
-  type: 'fixed',
-  balance: 0,
-  currency: 'USD',
-  ...overrides,
-});
+import type { FixedExpenseGroup, SubPocket } from '../../types';
 
 const mockSubPocket = (overrides: Partial<SubPocket> = {}): SubPocket => ({
   id: 'sub-1',
@@ -49,11 +29,6 @@ interface MutationStub {
 }
 
 const buildParams = (overrides: Partial<UseFixedExpenseActionsParams> = {}) => {
-  const createMovement: MutationStub = {
-    mutateAsync: vi.fn().mockResolvedValue({ id: 'mov-new' }),
-    isPending: false,
-  };
-
   const deleteFixedExpenseGroup: MutationStub = { mutateAsync: vi.fn().mockResolvedValue(undefined), isPending: false };
   const reorderFixedExpenseGroups: MutationStub = { mutateAsync: vi.fn().mockResolvedValue(undefined), isPending: false };
 
@@ -69,10 +44,7 @@ const buildParams = (overrides: Partial<UseFixedExpenseActionsParams> = {}) => {
   const confirm = vi.fn().mockResolvedValue(true);
 
   const params: UseFixedExpenseActionsParams = {
-    accounts: [mockAccount()],
-    fixedPockets: [mockFixedPocket()],
     fixedSubPockets: [mockSubPocket()],
-    movementMutations: { createMovement } as unknown as UseFixedExpenseActionsParams['movementMutations'],
     groupMutations: {
       deleteFixedExpenseGroup,
       reorderFixedExpenseGroups,
@@ -88,7 +60,6 @@ const buildParams = (overrides: Partial<UseFixedExpenseActionsParams> = {}) => {
 
   return {
     params,
-    createMovement,
     deleteFixedExpenseGroup,
     reorderFixedExpenseGroups,
     deleteSubPocket,
@@ -199,119 +170,6 @@ describe('useFixedExpenseActions', () => {
 
       act(() => result.current.toggleGroupCollapse('grp-1'));
       expect(result.current.collapsedGroups.has('grp-1')).toBe(false);
-    });
-  });
-
-  describe('prepareBatchFromEnabled', () => {
-    it('toasts an error when no fixed-expense pockets exist', () => {
-      const { params, toast } = buildParams({ fixedPockets: [] });
-      const { result } = renderHook(() => useFixedExpenseActions(params));
-
-      act(() => result.current.prepareBatchFromEnabled());
-
-      expect(toast.error).toHaveBeenCalledWith('No fixed expenses accounts found');
-      expect(result.current.batchForm.isOpen).toBe(false);
-    });
-
-    it('toasts an error when no fixed expenses exist', () => {
-      const { params, toast } = buildParams({ fixedSubPockets: [] });
-      const { result } = renderHook(() => useFixedExpenseActions(params));
-
-      act(() => result.current.prepareBatchFromEnabled());
-
-      expect(toast.error).toHaveBeenCalledWith('No fixed expenses found');
-      expect(result.current.batchForm.isOpen).toBe(false);
-    });
-
-    it('builds rows for each fixed expense and opens the batch form', () => {
-      const fixedSubPockets = [
-        mockSubPocket({ id: 'sp-1', name: 'Internet', valueTotal: 1200, periodicityMonths: 12 }),
-        mockSubPocket({ id: 'sp-2', name: 'Insurance', valueTotal: 600, periodicityMonths: 6 }),
-      ];
-
-      const { params, toast } = buildParams({ fixedSubPockets });
-      const { result } = renderHook(() => useFixedExpenseActions(params));
-
-      act(() => result.current.prepareBatchFromEnabled());
-
-      expect(result.current.batchForm.isOpen).toBe(true);
-      expect(result.current.batchForm.rows).toHaveLength(2);
-
-      const [row1, row2] = result.current.batchForm.rows;
-      expect(row1).toMatchObject({
-        type: 'IngresoFijo',
-        accountId: 'acc-1',
-        pocketId: 'pkt-fixed',
-        subPocketId: 'sp-1',
-        amount: '100.00',
-      });
-      expect(row2).toMatchObject({
-        type: 'IngresoFijo',
-        accountId: 'acc-1',
-        pocketId: 'pkt-fixed',
-        subPocketId: 'sp-2',
-        amount: '100.00',
-      });
-      expect(toast.success).toHaveBeenCalledWith('Pre-populated 2 fixed expenses');
-    });
-  });
-
-  describe('batchForm.save', () => {
-    it('creates a movement per row and clears the batch on success', async () => {
-      const { params, createMovement, toast } = buildParams();
-      const { result } = renderHook(() => useFixedExpenseActions(params));
-
-      // Open the batch first by populating it from enabled expenses.
-      act(() => result.current.prepareBatchFromEnabled());
-      const rows = result.current.batchForm.rows;
-
-      await act(async () => {
-        await result.current.batchForm.save(rows);
-      });
-
-      expect(createMovement.mutateAsync).toHaveBeenCalledTimes(rows.length);
-      expect(createMovement.mutateAsync).toHaveBeenCalledWith(
-        expect.objectContaining({
-          type: 'IngresoFijo',
-          accountId: 'acc-1',
-          pocketId: 'pkt-fixed',
-          subPocketId: 'sub-1',
-          amount: 100,
-          isPending: false,
-        }),
-      );
-      expect(toast.success).toHaveBeenCalledWith(`Successfully created ${rows.length} movements!`);
-      expect(result.current.batchForm.isOpen).toBe(false);
-      expect(result.current.batchForm.rows).toEqual([]);
-    });
-  });
-
-  describe('batchForm.open / close / setRows', () => {
-    it('exposes manual controls for the batch form state', () => {
-      const { params } = buildParams();
-      const { result } = renderHook(() => useFixedExpenseActions(params));
-
-      act(() => result.current.batchForm.open());
-      expect(result.current.batchForm.isOpen).toBe(true);
-
-      act(() =>
-        result.current.batchForm.setRows([
-          {
-            id: 'r1',
-            type: 'IngresoFijo',
-            accountId: 'acc-1',
-            pocketId: 'pkt-fixed',
-            amount: '50',
-            notes: '',
-            displayedDate: '2025-06-15',
-          },
-        ]),
-      );
-      expect(result.current.batchForm.rows).toHaveLength(1);
-
-      act(() => result.current.batchForm.close());
-      expect(result.current.batchForm.isOpen).toBe(false);
-      expect(result.current.batchForm.rows).toEqual([]);
     });
   });
 });

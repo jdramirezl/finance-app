@@ -43,6 +43,16 @@ const mockPocket = (overrides: Partial<Pocket> = {}): Pocket => ({
   ...overrides,
 });
 
+const mockFixedPocket = (overrides: Partial<Pocket> = {}): Pocket => ({
+  id: 'pkt-fixed',
+  accountId: 'acc-1',
+  name: 'Fixed Expenses',
+  type: 'fixed',
+  balance: 0,
+  currency: 'USD',
+  ...overrides,
+});
+
 const mockSubPocket = (overrides: Partial<SubPocket> = {}): SubPocket => ({
   id: 'sub-1',
   pocketId: 'pkt-fixed',
@@ -74,6 +84,7 @@ const buildParams = (overrides: Partial<UseBudgetActionsParams> = {}) => {
   const params: UseBudgetActionsParams = {
     accounts: [mockAccount()],
     pockets: [mockPocket()],
+    fixedPockets: [mockFixedPocket()],
     fixedSubPockets: [],
     initialAmount: 0,
     distributionEntries: [],
@@ -287,6 +298,149 @@ describe('useBudgetActions', () => {
 
       expect(toast.error).toHaveBeenCalledWith('Calculated amounts are zero.');
       expect(result.current.batch.isOpen).toBe(false);
+    });
+  });
+
+  describe('prepareUnifiedBatch', () => {
+    it('toasts an error when there is nothing to generate', () => {
+      const { params, toast } = buildParams({
+        distributionEntries: [],
+        fixedSubPockets: [],
+      });
+      const { result } = renderHook(() => useBudgetActions(params));
+
+      act(() => result.current.prepareUnifiedBatch());
+
+      expect(toast.error).toHaveBeenCalledWith('No movements to generate.');
+      expect(result.current.batch.isOpen).toBe(false);
+    });
+
+    it('combines distribution rows and all fixed expenses when no scenarios exist', () => {
+      const distributionEntries: DistributionEntry[] = [
+        { id: 'd-1', name: 'Savings', percentage: 50, accountId: 'acc-1', pocketId: 'pkt-1' },
+      ];
+      const fixedSubPockets = [
+        mockSubPocket({ id: 'sp-1', name: 'Internet', valueTotal: 1200, periodicityMonths: 12 }),
+        mockSubPocket({ id: 'sp-2', name: 'Insurance', valueTotal: 600, periodicityMonths: 6 }),
+      ];
+
+      const { params, toast } = buildParams({
+        distributionEntries,
+        fixedSubPockets,
+        // remaining = 1000 - 200 = 800 ⇒ 50% = 400
+        initialAmount: 1000,
+      });
+      const { result } = renderHook(() => useBudgetActions(params));
+
+      act(() => result.current.prepareUnifiedBatch());
+
+      expect(result.current.batch.isOpen).toBe(true);
+      expect(result.current.batch.rows).toHaveLength(3); // 1 distribution + 2 fixed
+
+      const [dist, fixed1, fixed2] = result.current.batch.rows;
+      expect(dist).toMatchObject({
+        type: 'IngresoNormal',
+        accountId: 'acc-1',
+        pocketId: 'pkt-1',
+        amount: '400.00',
+        notes: 'Budget Distribution: Savings',
+      });
+      expect(fixed1).toMatchObject({
+        type: 'IngresoFijo',
+        accountId: 'acc-1',
+        pocketId: 'pkt-fixed',
+        subPocketId: 'sp-1',
+        amount: '100.00',
+        notes: 'Monthly contribution for Internet',
+      });
+      expect(fixed2).toMatchObject({
+        type: 'IngresoFijo',
+        accountId: 'acc-1',
+        pocketId: 'pkt-fixed',
+        subPocketId: 'sp-2',
+        amount: '100.00',
+        notes: 'Monthly contribution for Insurance',
+      });
+      expect(toast.success).toHaveBeenCalledWith('Prepared 3 movements');
+    });
+
+    it('omits fixed expenses when scenarios exist but none are active', () => {
+      const distributionEntries: DistributionEntry[] = [
+        { id: 'd-1', name: 'Savings', percentage: 50, accountId: 'acc-1', pocketId: 'pkt-1' },
+      ];
+      const fixedSubPockets = [
+        mockSubPocket({ id: 'sp-1', valueTotal: 1200, periodicityMonths: 12 }),
+      ];
+      const scenarios: PlanningScenario[] = [
+        { id: 'sc-1', name: 'Tight', expenseIds: ['sp-1'] },
+      ];
+
+      const { params } = buildParams({
+        distributionEntries,
+        fixedSubPockets,
+        scenarios,
+        initialAmount: 1000,
+      });
+      const { result } = renderHook(() => useBudgetActions(params));
+
+      act(() => result.current.prepareUnifiedBatch());
+
+      expect(result.current.batch.rows).toHaveLength(1);
+      expect(result.current.batch.rows[0]).toMatchObject({
+        type: 'IngresoNormal',
+        notes: 'Budget Distribution: Savings',
+      });
+    });
+
+    it('only includes fixed expenses referenced by active scenarios', () => {
+      const fixedSubPockets = [
+        mockSubPocket({ id: 'sp-1', name: 'Included', valueTotal: 1200, periodicityMonths: 12 }),
+        mockSubPocket({ id: 'sp-2', name: 'Excluded', valueTotal: 600, periodicityMonths: 6 }),
+      ];
+      const scenarios: PlanningScenario[] = [
+        { id: 'sc-1', name: 'Lean', expenseIds: ['sp-1'] },
+      ];
+
+      const { params } = buildParams({
+        distributionEntries: [],
+        fixedSubPockets,
+        scenarios,
+        initialAmount: 1000,
+      });
+      const { result } = renderHook(() => useBudgetActions(params));
+
+      // Activate the scenario.
+      act(() => result.current.toggleScenario('sc-1'));
+      act(() => result.current.prepareUnifiedBatch());
+
+      expect(result.current.batch.rows).toHaveLength(1);
+      expect(result.current.batch.rows[0]).toMatchObject({
+        type: 'IngresoFijo',
+        subPocketId: 'sp-1',
+        notes: 'Monthly contribution for Included',
+      });
+    });
+
+    it('generates only fixed expenses when distribution is empty (no scenarios)', () => {
+      const fixedSubPockets = [
+        mockSubPocket({ id: 'sp-1', name: 'Internet', valueTotal: 1200, periodicityMonths: 12 }),
+      ];
+
+      const { params } = buildParams({
+        distributionEntries: [],
+        fixedSubPockets,
+        initialAmount: 0,
+      });
+      const { result } = renderHook(() => useBudgetActions(params));
+
+      act(() => result.current.prepareUnifiedBatch());
+
+      expect(result.current.batch.isOpen).toBe(true);
+      expect(result.current.batch.rows).toHaveLength(1);
+      expect(result.current.batch.rows[0]).toMatchObject({
+        type: 'IngresoFijo',
+        subPocketId: 'sp-1',
+      });
     });
   });
 

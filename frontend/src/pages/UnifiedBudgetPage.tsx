@@ -146,10 +146,7 @@ const UnifiedBudgetPage = () => {
 
   // --- Action hooks ------------------------------------------------------
   const fixedExpenseActions = useFixedExpenseActions({
-    accounts,
-    fixedPockets,
     fixedSubPockets,
-    movementMutations,
     groupMutations,
     subPocketMutations,
     toast,
@@ -159,6 +156,7 @@ const UnifiedBudgetPage = () => {
   const budgetActions = useBudgetActions({
     accounts,
     pockets,
+    fixedPockets,
     fixedSubPockets,
     initialAmount,
     distributionEntries,
@@ -255,9 +253,11 @@ const UnifiedBudgetPage = () => {
 
   // --- Render -----------------------------------------------------------
   const activeScenarioIdsArray = Array.from(budgetActions.activeScenarioIds);
+  // The unified Generate button is disabled only when there is genuinely
+  // nothing to generate: no positive distribution entries AND no
+  // scenario-filtered fixed expenses.
   const generateDisabled =
-    distributionEntries.length === 0 || budgetActions.remaining <= 0;
-  const hasChanges = distributionEntries.length > 0;
+    distributionEntries.length === 0 && budgetActions.totalFijosMes === 0;
 
   return (
     <div className="space-y-6">
@@ -316,8 +316,6 @@ const UnifiedBudgetPage = () => {
               setEditingSubPocket(null);
               setShowExpenseForm(true);
             }}
-            onBulkGenerate={fixedExpenseActions.prepareBatchFromEnabled}
-            bulkDisabled={fixedSubPockets.length === 0}
           />
         </section>
 
@@ -375,10 +373,8 @@ const UnifiedBudgetPage = () => {
           </div>
 
           <DistributionFooter
-            onCancel={() => setDistributionEntries([])}
-            onGenerate={budgetActions.prepareBatchFromDistribution}
+            onGenerate={budgetActions.prepareUnifiedBatch}
             generateDisabled={generateDisabled}
-            hasChanges={hasChanges}
           />
         </section>
       </div>
@@ -434,18 +430,6 @@ const UnifiedBudgetPage = () => {
           currency={budgetCurrency}
           onSave={handleSaveScenario}
           onCancel={closeScenarioForm}
-        />
-      </Modal>
-
-      <Modal
-        isOpen={fixedExpenseActions.batchForm.isOpen}
-        onClose={fixedExpenseActions.batchForm.close}
-        size="xl"
-      >
-        <BatchMovementForm
-          onSave={fixedExpenseActions.batchForm.save}
-          onCancel={fixedExpenseActions.batchForm.close}
-          initialRows={fixedExpenseActions.batchForm.rows}
         />
       </Modal>
 

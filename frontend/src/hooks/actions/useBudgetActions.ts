@@ -22,6 +22,7 @@ export interface BudgetBatchController {
 export interface UseBudgetActionsParams {
   accounts: Account[];
   pockets: Pocket[];
+  fixedPockets: Pocket[];
   fixedSubPockets: SubPocket[];
   initialAmount: number;
   distributionEntries: DistributionEntry[];
@@ -54,6 +55,7 @@ export interface UseBudgetActionsResult {
   deleteScenario: (id: string) => Promise<void>;
   // Batch movements
   prepareBatchFromDistribution: () => void;
+  prepareUnifiedBatch: () => void;
   batch: BudgetBatchController;
 }
 
@@ -66,6 +68,7 @@ export interface UseBudgetActionsResult {
 export const useBudgetActions = ({
   accounts,
   pockets,
+  fixedPockets,
   fixedSubPockets,
   initialAmount,
   distributionEntries,
@@ -95,28 +98,31 @@ export const useBudgetActions = ({
 
   // Pick the relevant subset of fixed expenses based on active scenarios.
   // - No scenarios exist: fall back to all fixed expenses.
-  // - Scenarios exist but none active: deduct nothing (manual override).
+  // - Scenarios exist but none active: empty (manual override).
   // - Scenarios active: union of expenses in those scenarios.
-  const totalFijosMes = useMemo(() => {
-    let relevant: SubPocket[] = [];
+  const relevantFixedSubPockets = useMemo<SubPocket[]>(() => {
     if (activeScenarioIds.size > 0) {
       const allIds = new Set<string>();
       scenarios.forEach((s) => {
         if (activeScenarioIds.has(s.id)) s.expenseIds.forEach((id) => allIds.add(id));
       });
-      relevant = fixedSubPockets.filter((sp) => allIds.has(sp.id));
-    } else if (scenarios.length > 0) {
-      relevant = [];
-    } else {
-      relevant = fixedSubPockets;
+      return fixedSubPockets.filter((sp) => allIds.has(sp.id));
     }
-
-    return relevant.reduce(
-      (sum, sp) =>
-        sum + calculateAporteMensual(sp.valueTotal, sp.periodicityMonths, sp.balance),
-      0
-    );
+    if (scenarios.length > 0) {
+      return [];
+    }
+    return fixedSubPockets;
   }, [activeScenarioIds, scenarios, fixedSubPockets]);
+
+  const totalFijosMes = useMemo(
+    () =>
+      relevantFixedSubPockets.reduce(
+        (sum, sp) =>
+          sum + calculateAporteMensual(sp.valueTotal, sp.periodicityMonths, sp.balance),
+        0
+      ),
+    [relevantFixedSubPockets]
+  );
 
   const remaining = initialAmount - totalFijosMes;
 
@@ -275,6 +281,78 @@ export const useBudgetActions = ({
     toast.success(rows.length === 1 ? 'Prepared 1 movement' : `Prepared ${rows.length} movements`);
   };
 
+  /**
+   * Build a single batch combining distribution rows AND scenario-filtered
+   * fixed expense rows. This is the entry point behind the unified
+   * "Generate Movements" button on the budget page — the older
+   * `prepareBatchFromDistribution` and the fixed-expense-only batch flow
+   * are kept as separate code paths only for testing and back-compat.
+   */
+  const prepareUnifiedBatch = () => {
+    const today = format(new Date(), 'yyyy-MM-dd');
+
+    // 1. Distribution rows — same logic as prepareBatchFromDistribution
+    //    but without the toast/short-circuit (we still want to generate
+    //    fixed expense rows even if distribution is empty).
+    const distributionRows: BatchMovementRow[] = [];
+    distributionEntries
+      .filter((e) => e.percentage > 0)
+      .forEach((entry) => {
+        const amount = calculateEntryAmount(entry.percentage);
+        if (amount <= 0) return;
+
+        const matchedPocket =
+          entry.pocketId ? pockets.find((p) => p.id === entry.pocketId) : undefined;
+        const accountId =
+          matchedPocket?.accountId ?? entry.accountId ?? defaultAccountId ?? '';
+        const pocketId = matchedPocket?.id ?? defaultPocketId ?? '';
+        const account = accountId ? accounts.find((a) => a.id === accountId) : undefined;
+
+        distributionRows.push({
+          id: crypto.randomUUID(),
+          type: 'IngresoNormal',
+          accountId: account?.id || '',
+          pocketId,
+          amount: amount.toFixed(2),
+          notes: `Budget Distribution: ${entry.name}`,
+          displayedDate: today,
+        });
+      });
+
+    // 2. Fixed expense rows — scenario filter via `relevantFixedSubPockets`.
+    const fixedRows: BatchMovementRow[] = relevantFixedSubPockets.map((sp) => {
+      const parent = fixedPockets.find((fp) => fp.id === sp.pocketId);
+      const account = parent ? accounts.find((a) => a.id === parent.accountId) : null;
+      return {
+        id: crypto.randomUUID(),
+        type: 'IngresoFijo',
+        accountId: account?.id || '',
+        pocketId: sp.pocketId,
+        subPocketId: sp.id,
+        amount: calculateAporteMensual(
+          sp.valueTotal,
+          sp.periodicityMonths,
+          sp.balance
+        ).toFixed(2),
+        notes: `Monthly contribution for ${sp.name}`,
+        displayedDate: today,
+      };
+    });
+
+    const allRows = [...distributionRows, ...fixedRows];
+
+    if (allRows.length === 0) {
+      toast.error('No movements to generate.');
+      return;
+    }
+
+    setBatchRows(allRows);
+    setBatchOpen(true);
+    toast.success(
+      allRows.length === 1 ? 'Prepared 1 movement' : `Prepared ${allRows.length} movements`
+    );
+  };
+
   const saveBatch = async (rows: BatchMovementRow[]) => {
     try {
       for (const row of rows) {
@@ -312,6 +390,7 @@ export const useBudgetActions = ({
     saveScenario,
     deleteScenario,
     prepareBatchFromDistribution,
+    prepareUnifiedBatch,
     batch: {
       isOpen: batchOpen,
       rows: batchRows,

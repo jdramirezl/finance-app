@@ -5,10 +5,8 @@ import DistributionFooter from '../DistributionFooter';
 
 describe('DistributionFooter', () => {
   const defaultProps = {
-    onCancel: vi.fn(),
     onGenerate: vi.fn(),
     generateDisabled: false,
-    hasChanges: false,
   };
 
   beforeEach(() => {
@@ -49,29 +47,12 @@ describe('DistributionFooter', () => {
     expect(onGenerate).not.toHaveBeenCalled();
   });
 
-  it('hides the Cancel Changes button when hasChanges is false', () => {
-    render(<DistributionFooter {...defaultProps} hasChanges={false} />);
+  it('does not render a Cancel Changes button', () => {
+    render(<DistributionFooter {...defaultProps} />);
 
     expect(
       screen.queryByRole('button', { name: /cancel changes/i }),
     ).not.toBeInTheDocument();
-  });
-
-  it('shows the Cancel Changes button and fires onCancel when hasChanges is true', async () => {
-    const onCancel = vi.fn();
-    const user = userEvent.setup();
-    render(
-      <DistributionFooter {...defaultProps} onCancel={onCancel} hasChanges />,
-    );
-
-    const cancelButton = screen.getByRole('button', {
-      name: /cancel changes/i,
-    });
-    expect(cancelButton).toBeInTheDocument();
-
-    await user.click(cancelButton);
-
-    expect(onCancel).toHaveBeenCalledTimes(1);
   });
 
   it('fires onGenerate when the enabled Generate button is clicked', async () => {
