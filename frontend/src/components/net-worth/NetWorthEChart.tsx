@@ -187,6 +187,14 @@ const VISIBLE_SYMBOL_SIZE = 6;
  * Above this visible-point count, hide individual dots — the line
  * becomes too dense for them to read as discrete markers and they
  * visually clutter the chart.
+ *
+ * Intentionally lower than the xAxis sparse-mode threshold (18, see
+ * {@link makeHierarchicalFormatter}). Dots and tick labels tolerate
+ * crowding differently: a 6px dot occupies more horizontal space than
+ * a "Jan" label and reads as visual noise sooner, so we hide them
+ * earlier. The two thresholds are tuned independently rather than
+ * aligned to a single value because they govern different visual
+ * channels.
  */
 const DOT_VISIBILITY_THRESHOLD = 12;
 
@@ -504,8 +512,8 @@ const NetWorthEChart = ({
         visibleCount > DOT_VISIBILITY_THRESHOLD ? 0 : VISIBLE_SYMBOL_SIZE;
 
     // Compute the set of January-1 dates that fall strictly between the
-    // first and last snapshot. A future wave wires this into a series
-    // `markLine` to render vertical year-boundary guide lines on the
+    // first and last snapshot. Wired into the first series' `markLine`
+    // below to render dashed vertical year-boundary guide lines on the
     // time axis. Empty when there is fewer than one full calendar year
     // of data (no boundary to mark) so the consumer can spread the
     // result into the option without an extra null check.
@@ -527,13 +535,6 @@ const NetWorthEChart = ({
         }
         return boundaries;
     }, [data]);
-
-    // Task 2 staging only: the memo above is intentionally not yet
-    // consumed — Task 3 will wire `yearBoundaryDates` into the chart's
-    // series `markLine` config. The `void` reference here keeps
-    // `tsconfig.app.json`'s `noUnusedLocals` happy in the meantime, and
-    // is removed by Task 3 the moment the memo is read by `option`.
-    void yearBoundaryDates;
 
     // Treat the chart as `breakdown` only when the caller actually
     // provides a non-empty `currencyData` array. An empty array (e.g.
@@ -558,12 +559,40 @@ const NetWorthEChart = ({
             : formatCurrencyAxisTick;
         const hierarchical = makeHierarchicalFormatter(visibleCount);
 
+        // Dashed vertical year-boundary lines, attached to the first
+        // series only. Attaching to a single series keeps ECharts from
+        // rendering N overlapping copies in breakdown mode (one per
+        // currency line); `silent: true` keeps them out of tooltip and
+        // hover hit-testing so they read as background guides. Computed
+        // as `undefined` when there are no boundaries so the spread
+        // below is a no-op on short ranges.
+        const yearMarkLine: LineSeriesOption['markLine'] | undefined =
+            yearBoundaryDates.length > 0
+                ? {
+                      silent: true,
+                      symbol: 'none',
+                      label: { show: false },
+                      lineStyle: {
+                          color: '#374151',
+                          type: 'dashed',
+                          width: 1,
+                          opacity: 0.6,
+                      },
+                      // The xAxis is `type: 'time'`, so markLine xAxis
+                      // values must be numeric timestamps — passing the
+                      // raw `YYYY-01-01` strings places no marker.
+                      data: yearBoundaryDates.map((d) => ({
+                          xAxis: new Date(d + 'T00:00:00Z').getTime(),
+                      })),
+                  }
+                : undefined;
+
         // Build the series list. Total mode renders the single
         // aggregate line with the area gradient; breakdown mode emits
         // one line per currency, sharing the same x-axis date positions
         // sourced from `data`.
         const series: LineSeriesOption[] = isBreakdown
-            ? (currencyData ?? []).map((cd) => ({
+            ? (currencyData ?? []).map((cd, seriesIdx) => ({
                   // `name` is used both as the legend label and as
                   // `seriesName` in tooltip params, so the breakdown
                   // formatter can reverse-lookup the matching
@@ -584,6 +613,11 @@ const NetWorthEChart = ({
                   // gradients quickly become unreadable, and the user
                   // request explicitly calls for plain colored lines.
                   cursor: 'pointer',
+                  // Year-boundary guide lines live on the first series
+                  // only to avoid duplicate overlapping lines.
+                  ...(seriesIdx === 0 && yearMarkLine
+                      ? { markLine: yearMarkLine }
+                      : {}),
               }))
             : [
                   {
@@ -629,6 +663,10 @@ const NetWorthEChart = ({
                       // affordance for "click to edit" is immediately
                       // discoverable.
                       cursor: 'pointer',
+                      // Year-boundary guide lines on the single total
+                      // series. Spread is a no-op when `yearMarkLine`
+                      // is `undefined` (short ranges).
+                      ...(yearMarkLine ? { markLine: yearMarkLine } : {}),
                   },
               ];
 
@@ -950,6 +988,7 @@ const NetWorthEChart = ({
         zoomRange.end,
         isBreakdown,
         currencyData,
+        yearBoundaryDates,
     ]);
 
     // Stable click handler — only changes when the data array or the
