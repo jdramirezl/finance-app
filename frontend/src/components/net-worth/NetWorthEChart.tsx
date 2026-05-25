@@ -41,6 +41,8 @@ import {
     type DataZoomComponentOption,
     LegendComponent,
     type LegendComponentOption,
+    MarkLineComponent,
+    type MarkLineComponentOption,
 } from 'echarts/components';
 import { CanvasRenderer } from 'echarts/renderers';
 import type { ComposeOption } from 'echarts/core';
@@ -52,12 +54,17 @@ import type { DefaultLabelFormatterCallbackParams as CallbackDataParams } from '
 // Register only the components this chart needs. `LegendComponent` is
 // registered alongside the rest so breakdown mode can render the
 // per-currency legend without pulling in the full echarts barrel.
+// `MarkLineComponent` is registered now so a future wave can draw
+// year-boundary marker lines on the time axis without a follow-up
+// registration change; it has no runtime effect until a series sets a
+// `markLine` config.
 echarts.use([
     LineChart,
     GridComponent,
     TooltipComponent,
     DataZoomComponent,
     LegendComponent,
+    MarkLineComponent,
     CanvasRenderer,
 ]);
 
@@ -71,6 +78,7 @@ type ChartOption = ComposeOption<
     | TooltipComponentOption
     | DataZoomComponentOption
     | LegendComponentOption
+    | MarkLineComponentOption
 >;
 
 export interface NetWorthEChartDatum {
@@ -306,36 +314,106 @@ const formatTooltipDate = (isoDate: string): string => {
 };
 
 /**
- * Build a zoom-aware xAxis tick formatter. ECharts calls the formatter
- * once per tick with the tick's timestamp; we return a string sized to
- * how much horizontal space each tick gets, which depends on how many
- * data points are currently visible:
- *   - >20 visible → just the year ("2025")
- *   - 8–20       → month abbreviation ("Jan")
- *   - ≤8         → "MMM d" ("Jan 31")
+ * Style map used by ECharts' rich-text formatter syntax
+ * (`{styleName|text}`) for the hierarchical xAxis labels. Spread into
+ * the `axisLabel.rich` slot so the styles are registered before the
+ * formatter emits any tagged segments.
  *
- * Uses UTC so ISO `YYYY-MM-DD` snapshots aren't displayed under the
- * previous day for users west of UTC. `hideOverlap: true` on the axis
- * config collapses any duplicate-looking neighbors that survive.
+ * `fontWeight` mirrors ECharts' `ZRFontWeight` literal so the rich
+ * map drops directly into `axisLabel.rich` (typed as `Dictionary<
+ * TextCommonOption>`) without a type assertion.
  */
-const makeXAxisFormatter = (visibleCount: number) => {
-    if (visibleCount > 20) {
-        return (timestamp: number) =>
-            String(new Date(timestamp).getUTCFullYear());
-    }
-    if (visibleCount > 8) {
-        return (timestamp: number) =>
-            new Date(timestamp).toLocaleString('en-US', {
-                month: 'short',
-                timeZone: 'UTC',
-            });
-    }
-    return (timestamp: number) =>
-        new Date(timestamp).toLocaleString('en-US', {
+type RichStyle = {
+    color?: string;
+    fontSize?: number;
+    fontWeight?: 'normal' | 'bold' | 'bolder' | 'lighter' | number;
+    lineHeight?: number;
+    padding?: number[];
+};
+
+/**
+ * Build a zoom-aware xAxis tick formatter that renders month and year
+ * labels hierarchically using ECharts rich-text syntax
+ * (`{styleName|text}\n{styleName|text}`). The year is dropped onto a
+ * second line under January ticks to act as a soft section header,
+ * giving the timeline a visual rhythm without requiring a second axis.
+ *
+ * Density tiers (driven by `visibleCount`):
+ *   - ≤8        → "MMM d" (e.g. "Jan 31"); January ticks get a year
+ *                 line below ("{month|Jan 31}\n{year|2025}").
+ *   - 9–18      → "MMM"   (e.g. "Jan", "Feb"); January ticks get a
+ *                 year line below ("{month|Jan}\n{year|2025}").
+ *   - >18       → year-only labels at January ticks ("{year|2025}");
+ *                 every other tick collapses to "" so the chart
+ *                 stays readable when zoomed far out.
+ *
+ * Uses UTC throughout so ISO `YYYY-MM-DD` snapshots aren't displayed
+ * under the previous day for users west of UTC. The chart's
+ * `hideOverlap: true` on the axis config still applies to collapse any
+ * duplicate-looking neighbors that survive.
+ *
+ * The returned `rich` map MUST be spread into `axisLabel.rich`;
+ * without those style registrations the `{month|...}` / `{year|...}`
+ * tags render as literal text.
+ */
+const makeHierarchicalFormatter = (
+    visibleCount: number,
+): {
+    formatter: (value: string | number) => string;
+    rich: Record<string, RichStyle>;
+} => {
+    const rich: Record<string, RichStyle> = {
+        month: { color: '#9ca3af', fontSize: 11, lineHeight: 14 },
+        year: {
+            color: '#d1d5db',
+            fontSize: 10,
+            fontWeight: 'bold',
+            lineHeight: 14,
+        },
+    };
+
+    const formatter = (value: string | number): string => {
+        // ECharts' time axis hands us a numeric timestamp; tests or
+        // upstream wrappers occasionally pass an ISO string. Coerce
+        // either into a single Date instance read in UTC.
+        const timestamp =
+            typeof value === 'number' ? value : Date.parse(String(value));
+        if (!Number.isFinite(timestamp)) return '';
+        const date = new Date(timestamp);
+        const month = date.getUTCMonth(); // 0 = January
+        const day = date.getUTCDate();
+        const year = date.getUTCFullYear();
+        const isJanuary = month === 0;
+
+        const monthShort = date.toLocaleString('en-US', {
             month: 'short',
-            day: 'numeric',
             timeZone: 'UTC',
         });
+
+        if (visibleCount > 18) {
+            // Far zoom: only mark year boundaries, suppress the rest
+            // so the axis doesn't crowd into an unreadable smear.
+            return isJanuary ? `{year|${year}}` : '';
+        }
+
+        if (visibleCount > 8) {
+            // Medium zoom: month abbreviation; January ticks stack a
+            // year line beneath as a soft section break.
+            return isJanuary
+                ? `{month|${monthShort}}\n{year|${year}}`
+                : `{month|${monthShort}}`;
+        }
+
+        // Close zoom: full "MMM d" for every tick; January still gets
+        // the year underneath so the user can locate the snapshot in
+        // calendar time at a glance.
+        const monthDay = `${monthShort} ${day}`;
+        return isJanuary
+            ? `{month|${monthDay}}\n{year|${year}}`
+            : `{month|${monthDay}}`;
+    };
+
+    return { formatter, rich };
 };
 
 /**
@@ -425,6 +503,38 @@ const NetWorthEChart = ({
     const symbolSize =
         visibleCount > DOT_VISIBILITY_THRESHOLD ? 0 : VISIBLE_SYMBOL_SIZE;
 
+    // Compute the set of January-1 dates that fall strictly between the
+    // first and last snapshot. A future wave wires this into a series
+    // `markLine` to render vertical year-boundary guide lines on the
+    // time axis. Empty when there is fewer than one full calendar year
+    // of data (no boundary to mark) so the consumer can spread the
+    // result into the option without an extra null check.
+    //
+    // Parsed via UTC so a snapshot dated `2025-12-31` in a `UTC-6`
+    // browser doesn't get bumped into the previous calendar year and
+    // skip the 2026 boundary that should appear right after it.
+    const yearBoundaryDates = useMemo(() => {
+        if (data.length < 2) return [];
+        const firstYear = new Date(
+            data[0].date + 'T00:00:00Z',
+        ).getUTCFullYear();
+        const lastYear = new Date(
+            data[data.length - 1].date + 'T00:00:00Z',
+        ).getUTCFullYear();
+        const boundaries: string[] = [];
+        for (let y = firstYear + 1; y <= lastYear; y++) {
+            boundaries.push(`${y}-01-01`);
+        }
+        return boundaries;
+    }, [data]);
+
+    // Task 2 staging only: the memo above is intentionally not yet
+    // consumed — Task 3 will wire `yearBoundaryDates` into the chart's
+    // series `markLine` config. The `void` reference here keeps
+    // `tsconfig.app.json`'s `noUnusedLocals` happy in the meantime, and
+    // is removed by Task 3 the moment the memo is read by `option`.
+    void yearBoundaryDates;
+
     // Treat the chart as `breakdown` only when the caller actually
     // provides a non-empty `currencyData` array. An empty array (e.g.
     // a fresh account with no snapshots yet, or a snapshot whose
@@ -446,7 +556,7 @@ const NetWorthEChart = ({
         const yAxisFormatter = showVariation
             ? formatPercentAxisTick
             : formatCurrencyAxisTick;
-        const xAxisFormatter = makeXAxisFormatter(visibleCount);
+        const hierarchical = makeHierarchicalFormatter(visibleCount);
 
         // Build the series list. Total mode renders the single
         // aggregate line with the area gradient; breakdown mode emits
@@ -556,7 +666,8 @@ const NetWorthEChart = ({
                     color: '#9ca3af',
                     fontSize: 11,
                     hideOverlap: true,
-                    formatter: xAxisFormatter,
+                    rich: hierarchical.rich,
+                    formatter: hierarchical.formatter,
                 },
                 axisLine: { lineStyle: { color: '#374151' } },
                 // Wave 2: vertical dashed crosshair that snaps to the
