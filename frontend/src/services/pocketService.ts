@@ -36,6 +36,16 @@ class PocketService {
     await apiClient.delete(`/api/pockets/${id}`);
   }
 
+  // Soft-delete (archive) a pocket.
+  async archivePocket(id: string): Promise<void> {
+    await apiClient.patch(`/api/pockets/${id}/archive`);
+  }
+
+  // Restore a previously archived pocket.
+  async unarchivePocket(id: string): Promise<void> {
+    await apiClient.patch(`/api/pockets/${id}/unarchive`);
+  }
+
   // Get the fixed expenses pocket (there should only be one)
   async getFixedExpensesPocket(): Promise<Pocket | null> {
     const pockets = await this.getAllPockets();

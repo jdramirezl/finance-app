@@ -99,6 +99,42 @@ describe('pocketService', () => {
     });
   });
 
+  describe('archivePocket', () => {
+    it('should PATCH the archive endpoint', async () => {
+      vi.spyOn(apiClient, 'patch').mockResolvedValue(undefined);
+      await pocketService.archivePocket('pocket-1');
+      expect(apiClient.patch).toHaveBeenCalledWith('/api/pockets/pocket-1/archive');
+    });
+
+    it('should resolve to void on success', async () => {
+      vi.spyOn(apiClient, 'patch').mockResolvedValue(undefined);
+      await expect(pocketService.archivePocket('pocket-1')).resolves.toBeUndefined();
+    });
+
+    it('should propagate errors from apiClient', async () => {
+      vi.spyOn(apiClient, 'patch').mockRejectedValue(new Error('not found'));
+      await expect(pocketService.archivePocket('missing')).rejects.toThrow('not found');
+    });
+  });
+
+  describe('unarchivePocket', () => {
+    it('should PATCH the unarchive endpoint', async () => {
+      vi.spyOn(apiClient, 'patch').mockResolvedValue(undefined);
+      await pocketService.unarchivePocket('pocket-1');
+      expect(apiClient.patch).toHaveBeenCalledWith('/api/pockets/pocket-1/unarchive');
+    });
+
+    it('should resolve to void on success', async () => {
+      vi.spyOn(apiClient, 'patch').mockResolvedValue(undefined);
+      await expect(pocketService.unarchivePocket('pocket-1')).resolves.toBeUndefined();
+    });
+
+    it('should propagate errors from apiClient', async () => {
+      vi.spyOn(apiClient, 'patch').mockRejectedValue(new Error('not found'));
+      await expect(pocketService.unarchivePocket('missing')).rejects.toThrow('not found');
+    });
+  });
+
   describe('getFixedExpensesPocket', () => {
     it('should return the fixed pocket when it exists', async () => {
       const fixedPocket = { ...mockPocket, id: 'fixed-1', type: 'fixed' as const };

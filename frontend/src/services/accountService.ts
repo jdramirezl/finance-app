@@ -3,9 +3,14 @@ import { apiClient } from './apiClient';
 import { cdCalculationService } from './cdCalculationService';
 
 class AccountService {
-  // Get all accounts
-  async getAllAccounts(): Promise<Account[]> {
-    return await apiClient.get<Account[]>('/api/accounts');
+  // Get all accounts.
+  // When includeArchived is true, soft-archived accounts (archived_at IS NOT NULL)
+  // are included — used by the Accounts page to render the "Archived" section.
+  async getAllAccounts(includeArchived: boolean = false): Promise<Account[]> {
+    const path = includeArchived
+      ? '/api/accounts?include_archived=true'
+      : '/api/accounts';
+    return await apiClient.get<Account[]>(path);
   }
 
   // Get account by ID
@@ -13,9 +18,12 @@ class AccountService {
     return await apiClient.get<Account>(`/api/accounts/${id}`);
   }
 
-  // Validate account uniqueness (name + currency combination)
+  // Validate account uniqueness (name + currency combination).
+  // Includes archived accounts so that users can't create a new account with
+  // a name+currency colliding with an archived one — the DB UNIQUE constraint
+  // (user_id, name, currency) is full-table and would reject the insert anyway.
   async validateAccountUniqueness(name: string, currency: string, excludeId?: string): Promise<boolean> {
-    const accounts = await this.getAllAccounts();
+    const accounts = await this.getAllAccounts(true);
     const existing = accounts.find(
       acc => acc.name === name && acc.currency === currency && acc.id !== excludeId
     );
@@ -97,6 +105,18 @@ class AccountService {
   // Delete account
   async deleteAccount(id: string): Promise<void> {
     await apiClient.delete(`/api/accounts/${id}`);
+  }
+
+  // Soft-delete (archive) an account.
+  // Cascades on the backend: associated active pockets are also archived.
+  async archiveAccount(id: string): Promise<void> {
+    await apiClient.patch(`/api/accounts/${id}/archive`);
+  }
+
+  // Restore a previously archived account.
+  // Cascades on the backend: associated archived pockets are also unarchived.
+  async unarchiveAccount(id: string): Promise<void> {
+    await apiClient.patch(`/api/accounts/${id}/unarchive`);
   }
 
   // Cascade delete account with all pockets, sub-pockets, and optionally movements
