@@ -98,8 +98,9 @@ export const calculateZoomRange = (
 
     const pctOf = (ts: number) => ((ts - min) / span) * 100;
 
-    if (range === '1y' || range === '2y') {
-        const window = range === '1y' ? POINTS_PER_YEAR : POINTS_PER_YEAR * 2;
+    if (range === '3m' || range === '6m' || range === '1y' || range === '2y') {
+        const windowMap = { '3m': 3, '6m': 6, '1y': POINTS_PER_YEAR, '2y': POINTS_PER_YEAR * 2 };
+        const window = windowMap[range];
         const idx = Math.max(0, timestamps.length - window);
         return { start: pctOf(timestamps[idx]), end: 100 };
     }
