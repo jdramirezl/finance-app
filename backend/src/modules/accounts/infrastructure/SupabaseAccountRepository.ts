@@ -62,14 +62,23 @@ export class SupabaseAccountRepository implements IAccountRepository {
   }
 
   /**
-   * Find all accounts for a user, sorted by display order
+   * Find all accounts for a user, sorted by display order.
+   *
+   * By default, archived accounts (archived_at IS NOT NULL) are excluded.
+   * Pass `includeArchived = true` to include them — typically for the
+   * Accounts page that renders an "Archived" section.
    */
-  async findAllByUserId(userId: string): Promise<Account[]> {
-    const { data, error } = await this.supabase
+  async findAllByUserId(userId: string, includeArchived = false): Promise<Account[]> {
+    let query = this.supabase
       .from('accounts')
       .select('*')
-      .eq('user_id', userId)
-      .order('display_order', { ascending: true, nullsFirst: false });
+      .eq('user_id', userId);
+
+    if (!includeArchived) {
+      query = query.is('archived_at', null);
+    }
+
+    const { data, error } = await query.order('display_order', { ascending: true, nullsFirst: false });
 
     if (error) {
       throw new DatabaseError(`Failed to fetch accounts: ${error.message}`);
@@ -162,6 +171,38 @@ export class SupabaseAccountRepository implements IAccountRepository {
 
     if (error) {
       throw new DatabaseError(`Failed to delete account: ${error.message}`);
+    }
+  }
+
+  /**
+   * Archive (soft-delete) an account by stamping archived_at with the
+   * current time. The row remains in the database so historical movements
+   * retain referential integrity.
+   */
+  async archive(id: string, userId: string): Promise<void> {
+    const { error } = await this.supabase
+      .from('accounts')
+      .update({ archived_at: new Date().toISOString() })
+      .eq('id', id)
+      .eq('user_id', userId);
+
+    if (error) {
+      throw new DatabaseError(`Failed to archive account: ${error.message}`);
+    }
+  }
+
+  /**
+   * Restore a previously archived account by clearing archived_at.
+   */
+  async unarchive(id: string, userId: string): Promise<void> {
+    const { error } = await this.supabase
+      .from('accounts')
+      .update({ archived_at: null })
+      .eq('id', id)
+      .eq('user_id', userId);
+
+    if (error) {
+      throw new DatabaseError(`Failed to unarchive account: ${error.message}`);
     }
   }
 

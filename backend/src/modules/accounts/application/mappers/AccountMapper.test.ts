@@ -49,6 +49,7 @@ describe('AccountMapper', () => {
         early_withdrawal_penalty: null,
         withholding_tax_rate: null,
         cd_created_at: null,
+        archived_at: null,
       });
     });
 
@@ -89,6 +90,7 @@ describe('AccountMapper', () => {
         early_withdrawal_penalty: null,
         withholding_tax_rate: null,
         cd_created_at: null,
+        archived_at: null,
       });
     });
 
@@ -159,6 +161,7 @@ describe('AccountMapper', () => {
         early_withdrawal_penalty: null,
         withholding_tax_rate: null,
         cd_created_at: null,
+        archived_at: null,
         created_at: '2024-01-01T00:00:00Z',
         updated_at: '2024-01-02T00:00:00Z',
       };
@@ -200,6 +203,7 @@ describe('AccountMapper', () => {
         early_withdrawal_penalty: null,
         withholding_tax_rate: null,
         cd_created_at: null,
+        archived_at: null,
         created_at: '2024-01-01T00:00:00Z',
         updated_at: '2024-01-02T00:00:00Z',
       };
@@ -235,6 +239,7 @@ describe('AccountMapper', () => {
         early_withdrawal_penalty: null,
         withholding_tax_rate: null,
         cd_created_at: null,
+        archived_at: null,
       };
 
       const account = AccountMapper.toDomain(row);
@@ -267,6 +272,7 @@ describe('AccountMapper', () => {
         early_withdrawal_penalty: null,
         withholding_tax_rate: null,
         cd_created_at: null,
+        archived_at: null,
       };
 
       // Should not throw validation error
@@ -311,6 +317,7 @@ describe('AccountMapper', () => {
         earlyWithdrawalPenalty: undefined,
         withholdingTaxRate: undefined,
         cdCreatedAt: undefined,
+        archivedAt: null,
       });
     });
 
@@ -350,6 +357,7 @@ describe('AccountMapper', () => {
         earlyWithdrawalPenalty: undefined,
         withholdingTaxRate: undefined,
         cdCreatedAt: undefined,
+        archivedAt: null,
       });
     });
 
@@ -438,6 +446,7 @@ describe('AccountMapper', () => {
           early_withdrawal_penalty: null,
           withholding_tax_rate: null,
           cd_created_at: null,
+        archived_at: null,
         },
         {
           id: 'acc-2',
@@ -460,6 +469,7 @@ describe('AccountMapper', () => {
           early_withdrawal_penalty: null,
           withholding_tax_rate: null,
           cd_created_at: null,
+        archived_at: null,
         },
       ];
 

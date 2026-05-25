@@ -61,15 +61,23 @@ export class SupabasePocketRepository implements IPocketRepository {
   }
 
   /**
-   * Find all pockets for a specific account, sorted by display order
+   * Find all pockets for a specific account, sorted by display order.
+   *
+   * By default, archived pockets (archived_at IS NOT NULL) are excluded.
+   * Pass `includeArchived = true` to include them.
    */
-  async findByAccountId(accountId: string, userId: string): Promise<Pocket[]> {
-    const { data, error } = await this.supabase
+  async findByAccountId(accountId: string, userId: string, includeArchived = false): Promise<Pocket[]> {
+    let query = this.supabase
       .from('pockets')
       .select('*')
       .eq('account_id', accountId)
-      .eq('user_id', userId)
-      .order('display_order', { ascending: true, nullsFirst: false });
+      .eq('user_id', userId);
+
+    if (!includeArchived) {
+      query = query.is('archived_at', null);
+    }
+
+    const { data, error } = await query.order('display_order', { ascending: true, nullsFirst: false });
 
     if (error) {
       throw new DatabaseError(`Failed to fetch pockets by account: ${error.message}`);
@@ -83,14 +91,22 @@ export class SupabasePocketRepository implements IPocketRepository {
   }
 
   /**
-   * Find all pockets for a user, sorted by display order
+   * Find all pockets for a user, sorted by display order.
+   *
+   * By default, archived pockets (archived_at IS NOT NULL) are excluded.
+   * Pass `includeArchived = true` to include them.
    */
-  async findAllByUserId(userId: string): Promise<Pocket[]> {
-    const { data, error } = await this.supabase
+  async findAllByUserId(userId: string, includeArchived = false): Promise<Pocket[]> {
+    let query = this.supabase
       .from('pockets')
       .select('*')
-      .eq('user_id', userId)
-      .order('display_order', { ascending: true, nullsFirst: false });
+      .eq('user_id', userId);
+
+    if (!includeArchived) {
+      query = query.is('archived_at', null);
+    }
+
+    const { data, error } = await query.order('display_order', { ascending: true, nullsFirst: false });
 
     if (error) {
       throw new DatabaseError(`Failed to fetch pockets: ${error.message}`);
@@ -242,6 +258,38 @@ export class SupabasePocketRepository implements IPocketRepository {
 
     if (error) {
       throw new DatabaseError(`Failed to delete pocket: ${error.message}`);
+    }
+  }
+
+  /**
+   * Archive (soft-delete) a pocket by stamping archived_at with the
+   * current time. The row remains in the database so historical movements
+   * retain referential integrity.
+   */
+  async archive(id: string, userId: string): Promise<void> {
+    const { error } = await this.supabase
+      .from('pockets')
+      .update({ archived_at: new Date().toISOString() })
+      .eq('id', id)
+      .eq('user_id', userId);
+
+    if (error) {
+      throw new DatabaseError(`Failed to archive pocket: ${error.message}`);
+    }
+  }
+
+  /**
+   * Restore a previously archived pocket by clearing archived_at.
+   */
+  async unarchive(id: string, userId: string): Promise<void> {
+    const { error } = await this.supabase
+      .from('pockets')
+      .update({ archived_at: null })
+      .eq('id', id)
+      .eq('user_id', userId);
+
+    if (error) {
+      throw new DatabaseError(`Failed to unarchive pocket: ${error.message}`);
     }
   }
 

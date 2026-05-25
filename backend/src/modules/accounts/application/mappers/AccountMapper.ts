@@ -37,6 +37,7 @@ interface AccountPersistence {
   early_withdrawal_penalty: number | null;
   withholding_tax_rate: number | null;
   cd_created_at: string | null;
+  archived_at: string | null;
   created_at?: string;
   updated_at?: string;
 }
@@ -75,6 +76,7 @@ export class AccountMapper {
       early_withdrawal_penalty: account.earlyWithdrawalPenalty ?? null,
       withholding_tax_rate: account.withholdingTaxRate ?? null,
       cd_created_at: account.cdCreatedAt?.toISOString() ?? null,
+      archived_at: account.archivedAt?.toISOString() ?? null,
     };
   }
 
@@ -108,7 +110,8 @@ export class AccountMapper {
       row.compounding_frequency as CompoundingFrequency ?? undefined,
       row.early_withdrawal_penalty ?? undefined,
       row.withholding_tax_rate ?? undefined,
-      row.cd_created_at ? new Date(row.cd_created_at) : undefined
+      row.cd_created_at ? new Date(row.cd_created_at) : undefined,
+      row.archived_at ? new Date(row.archived_at) : null
     );
   }
 
@@ -143,6 +146,7 @@ export class AccountMapper {
       earlyWithdrawalPenalty: account.earlyWithdrawalPenalty,
       withholdingTaxRate: account.withholdingTaxRate,
       cdCreatedAt: account.cdCreatedAt?.toISOString(),
+      archivedAt: account.archivedAt?.toISOString() ?? null,
     };
   }
 

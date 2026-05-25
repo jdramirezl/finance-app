@@ -20,13 +20,22 @@ export interface IPocketRepository {
 
   /**
    * Find all pockets for a specific account
+   *
+   * @param accountId - The owning account's id
+   * @param userId - The owning user's id
+   * @param includeArchived - When true, archived pockets are included.
+   *                          Defaults to false (active pockets only).
    */
-  findByAccountId(accountId: string, userId: string): Promise<Pocket[]>;
+  findByAccountId(accountId: string, userId: string, includeArchived?: boolean): Promise<Pocket[]>;
 
   /**
    * Find all pockets for a user
+   *
+   * @param userId - The owning user's id
+   * @param includeArchived - When true, archived pockets are included.
+   *                          Defaults to false (active pockets only).
    */
-  findAllByUserId(userId: string): Promise<Pocket[]>;
+  findAllByUserId(userId: string, includeArchived?: boolean): Promise<Pocket[]>;
 
   /**
    * Check if pocket with name exists within an account
@@ -69,6 +78,18 @@ export interface IPocketRepository {
    * Delete a pocket
    */
   delete(id: string, userId: string): Promise<void>;
+
+  /**
+   * Archive (soft-delete) a pocket by setting its archived_at timestamp.
+   * Archived pockets are excluded from default list queries but their
+   * historical movements remain intact.
+   */
+  archive(id: string, userId: string): Promise<void>;
+
+  /**
+   * Restore a previously archived pocket by clearing its archived_at timestamp.
+   */
+  unarchive(id: string, userId: string): Promise<void>;
 
   /**
    * Delete all pockets for a given account (bulk operation)

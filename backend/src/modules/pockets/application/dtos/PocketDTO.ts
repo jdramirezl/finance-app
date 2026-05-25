@@ -34,6 +34,7 @@ export interface PocketResponseDTO {
   balance: number;
   currency: Currency;
   displayOrder?: number;
+  archivedAt?: string | null;
 }
 
 /**
