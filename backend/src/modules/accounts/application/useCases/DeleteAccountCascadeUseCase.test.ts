@@ -26,6 +26,8 @@ describe('DeleteAccountCascadeUseCase', () => {
       existsByNameAndCurrencyExcludingId: jest.fn(),
       update: jest.fn(),
       delete: jest.fn(),
+      archive: jest.fn(),
+      unarchive: jest.fn(),
       updateDisplayOrders: jest.fn(),
     } as jest.Mocked<IAccountRepository>;
 

@@ -27,6 +27,8 @@ interface IPocketRepository {
   existsFixedPocketForUserExcludingId(userId: string, excludeId: string): Promise<boolean>;
   update(pocket: Pocket, userId: string): Promise<void>;
   delete(id: string, userId: string): Promise<void>;
+  archive(id: string, userId: string): Promise<void>;
+  unarchive(id: string, userId: string): Promise<void>;
   deleteByAccountId(accountId: string, userId: string): Promise<number>;
   updateDisplayOrders(pocketIds: string[], userId: string): Promise<void>;
 }
@@ -39,6 +41,8 @@ interface IAccountRepository {
   existsByNameAndCurrencyExcludingId(name: string, currency: Currency, userId: string, excludeId: string): Promise<boolean>;
   update(account: Account, userId: string): Promise<void>;
   delete(id: string, userId: string): Promise<void>;
+  archive(id: string, userId: string): Promise<void>;
+  unarchive(id: string, userId: string): Promise<void>;
   updateDisplayOrders(accountIds: string[], userId: string): Promise<void>;
 }
 
@@ -306,6 +310,7 @@ describe('MigrateFixedPocketUseCase', () => {
         balance: 500,
         currency: 'USD',
         displayOrder: undefined,
+        archivedAt: null,
       });
     });
 

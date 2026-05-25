@@ -32,6 +32,8 @@ describe('GetAllAccountsUseCase', () => {
       existsByNameAndCurrencyExcludingId: jest.fn(),
       update: jest.fn(),
       delete: jest.fn(),
+      archive: jest.fn(),
+      unarchive: jest.fn(),
       updateDisplayOrders: jest.fn(),
     } as jest.Mocked<IAccountRepository>;
 
@@ -48,6 +50,8 @@ describe('GetAllAccountsUseCase', () => {
       update: jest.fn(),
       delete: jest.fn(),
       deleteByAccountId: jest.fn(),
+      archive: jest.fn(),
+      unarchive: jest.fn(),
       updateDisplayOrders: jest.fn(),
     } as jest.Mocked<IPocketRepository>;
 
