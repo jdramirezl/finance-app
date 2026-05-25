@@ -34,6 +34,8 @@ vi.mock('../../services/pocketService', () => ({
         deletePocket: vi.fn(),
         reorderPockets: vi.fn(),
         migrateFixedPocketToAccount: vi.fn(),
+        archivePocket: vi.fn(),
+        unarchivePocket: vi.fn(),
     },
 }));
 
@@ -45,7 +47,7 @@ vi.mock('../useToast', () => ({
     useToast: () => mocks.toast,
 }));
 
-import { usePocketMutations } from '../queries/usePocketMutations';
+import { usePocketMutations, useArchivePocket, useUnarchivePocket } from '../queries/usePocketMutations';
 import { pocketService } from '../../services/pocketService';
 
 interface WrapperFixture {
@@ -324,5 +326,179 @@ describe('usePocketMutations', () => {
 
             expect(mocks.toast.error).toHaveBeenCalledWith('Failed to migrate pocket');
         });
+    });
+
+    describe('archivePocket', () => {
+        it('forwards the id to pocketService.archivePocket', async () => {
+            const { wrapper } = createWrapper();
+            vi.mocked(pocketService.archivePocket).mockResolvedValue(undefined);
+
+            const { result } = renderHook(() => usePocketMutations(), { wrapper });
+            await act(async () => {
+                await result.current.archivePocket.mutateAsync('pkt-1');
+            });
+
+            expect(pocketService.archivePocket).toHaveBeenCalledWith('pkt-1');
+        });
+
+        it('invalidates only pockets on success', async () => {
+            const { wrapper, invalidateSpy } = createWrapper();
+            vi.mocked(pocketService.archivePocket).mockResolvedValue(undefined);
+
+            const { result } = renderHook(() => usePocketMutations(), { wrapper });
+            await act(async () => {
+                await result.current.archivePocket.mutateAsync('pkt-1');
+            });
+
+            expect(invalidatedKeys(invalidateSpy)).toEqual([['pockets']]);
+            expect(mocks.broadcastInvalidation).toHaveBeenCalledWith([['pockets']]);
+        });
+
+        it('toasts the failure message on error', async () => {
+            const { wrapper } = createWrapper();
+            vi.mocked(pocketService.archivePocket).mockRejectedValue(new Error('archive failed'));
+
+            const { result } = renderHook(() => usePocketMutations(), { wrapper });
+            await act(async () => {
+                await expect(
+                    result.current.archivePocket.mutateAsync('pkt-1'),
+                ).rejects.toThrow('archive failed');
+            });
+
+            expect(mocks.toast.error).toHaveBeenCalledWith('archive failed');
+        });
+
+        it('toasts the default message when the failure has no message', async () => {
+            const { wrapper } = createWrapper();
+            vi.mocked(pocketService.archivePocket).mockRejectedValue(new Error(''));
+
+            const { result } = renderHook(() => usePocketMutations(), { wrapper });
+            await act(async () => {
+                await expect(
+                    result.current.archivePocket.mutateAsync('pkt-1'),
+                ).rejects.toBeDefined();
+            });
+
+            expect(mocks.toast.error).toHaveBeenCalledWith('Failed to archive pocket');
+        });
+    });
+
+    describe('unarchivePocket', () => {
+        it('forwards the id to pocketService.unarchivePocket', async () => {
+            const { wrapper } = createWrapper();
+            vi.mocked(pocketService.unarchivePocket).mockResolvedValue(undefined);
+
+            const { result } = renderHook(() => usePocketMutations(), { wrapper });
+            await act(async () => {
+                await result.current.unarchivePocket.mutateAsync('pkt-1');
+            });
+
+            expect(pocketService.unarchivePocket).toHaveBeenCalledWith('pkt-1');
+        });
+
+        it('invalidates only pockets on success', async () => {
+            const { wrapper, invalidateSpy } = createWrapper();
+            vi.mocked(pocketService.unarchivePocket).mockResolvedValue(undefined);
+
+            const { result } = renderHook(() => usePocketMutations(), { wrapper });
+            await act(async () => {
+                await result.current.unarchivePocket.mutateAsync('pkt-1');
+            });
+
+            expect(invalidatedKeys(invalidateSpy)).toEqual([['pockets']]);
+            expect(mocks.broadcastInvalidation).toHaveBeenCalledWith([['pockets']]);
+        });
+
+        it('toasts the failure message on error', async () => {
+            const { wrapper } = createWrapper();
+            vi.mocked(pocketService.unarchivePocket).mockRejectedValue(new Error('unarchive failed'));
+
+            const { result } = renderHook(() => usePocketMutations(), { wrapper });
+            await act(async () => {
+                await expect(
+                    result.current.unarchivePocket.mutateAsync('pkt-1'),
+                ).rejects.toThrow('unarchive failed');
+            });
+
+            expect(mocks.toast.error).toHaveBeenCalledWith('unarchive failed');
+        });
+
+        it('toasts the default message when the failure has no message', async () => {
+            const { wrapper } = createWrapper();
+            vi.mocked(pocketService.unarchivePocket).mockRejectedValue(new Error(''));
+
+            const { result } = renderHook(() => usePocketMutations(), { wrapper });
+            await act(async () => {
+                await expect(
+                    result.current.unarchivePocket.mutateAsync('pkt-1'),
+                ).rejects.toBeDefined();
+            });
+
+            expect(mocks.toast.error).toHaveBeenCalledWith('Failed to unarchive pocket');
+        });
+    });
+});
+
+describe('useArchivePocket (standalone)', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    it('forwards the id to pocketService.archivePocket and invalidates pockets', async () => {
+        const { wrapper, invalidateSpy } = createWrapper();
+        vi.mocked(pocketService.archivePocket).mockResolvedValue(undefined);
+
+        const { result } = renderHook(() => useArchivePocket(), { wrapper });
+        await act(async () => {
+            await result.current.mutateAsync('pkt-1');
+        });
+
+        expect(pocketService.archivePocket).toHaveBeenCalledWith('pkt-1');
+        expect(invalidatedKeys(invalidateSpy)).toEqual([['pockets']]);
+        expect(mocks.broadcastInvalidation).toHaveBeenCalledWith([['pockets']]);
+    });
+
+    it('toasts the failure message on error', async () => {
+        const { wrapper } = createWrapper();
+        vi.mocked(pocketService.archivePocket).mockRejectedValue(new Error('boom'));
+
+        const { result } = renderHook(() => useArchivePocket(), { wrapper });
+        await act(async () => {
+            await expect(result.current.mutateAsync('pkt-1')).rejects.toThrow('boom');
+        });
+
+        expect(mocks.toast.error).toHaveBeenCalledWith('boom');
+    });
+});
+
+describe('useUnarchivePocket (standalone)', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    it('forwards the id to pocketService.unarchivePocket and invalidates pockets', async () => {
+        const { wrapper, invalidateSpy } = createWrapper();
+        vi.mocked(pocketService.unarchivePocket).mockResolvedValue(undefined);
+
+        const { result } = renderHook(() => useUnarchivePocket(), { wrapper });
+        await act(async () => {
+            await result.current.mutateAsync('pkt-1');
+        });
+
+        expect(pocketService.unarchivePocket).toHaveBeenCalledWith('pkt-1');
+        expect(invalidatedKeys(invalidateSpy)).toEqual([['pockets']]);
+        expect(mocks.broadcastInvalidation).toHaveBeenCalledWith([['pockets']]);
+    });
+
+    it('toasts the failure message on error', async () => {
+        const { wrapper } = createWrapper();
+        vi.mocked(pocketService.unarchivePocket).mockRejectedValue(new Error('nope'));
+
+        const { result } = renderHook(() => useUnarchivePocket(), { wrapper });
+        await act(async () => {
+            await expect(result.current.mutateAsync('pkt-1')).rejects.toThrow('nope');
+        });
+
+        expect(mocks.toast.error).toHaveBeenCalledWith('nope');
     });
 });

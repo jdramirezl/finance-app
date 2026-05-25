@@ -31,6 +31,8 @@ vi.mock('../../services/accountService', () => ({
         deleteAccount: vi.fn(),
         deleteAccountCascade: vi.fn(),
         reorderAccounts: vi.fn(),
+        archiveAccount: vi.fn(),
+        unarchiveAccount: vi.fn(),
     },
 }));
 
@@ -42,7 +44,7 @@ vi.mock('../useToast', () => ({
     useToast: () => mocks.toast,
 }));
 
-import { useAccountMutations } from '../queries/useAccountMutations';
+import { useAccountMutations, useArchiveAccount, useUnarchiveAccount } from '../queries/useAccountMutations';
 import { accountService } from '../../services/accountService';
 
 interface WrapperFixture {
@@ -301,5 +303,179 @@ describe('useAccountMutations', () => {
 
             expect(mocks.toast.error).toHaveBeenCalledWith('reorder failed');
         });
+    });
+
+    describe('archiveAccount', () => {
+        it('forwards the id to accountService.archiveAccount', async () => {
+            const { wrapper } = createWrapper();
+            vi.mocked(accountService.archiveAccount).mockResolvedValue(undefined);
+
+            const { result } = renderHook(() => useAccountMutations(), { wrapper });
+            await act(async () => {
+                await result.current.archiveAccount.mutateAsync('acc-1');
+            });
+
+            expect(accountService.archiveAccount).toHaveBeenCalledWith('acc-1');
+        });
+
+        it('invalidates only accounts on success', async () => {
+            const { wrapper, invalidateSpy } = createWrapper();
+            vi.mocked(accountService.archiveAccount).mockResolvedValue(undefined);
+
+            const { result } = renderHook(() => useAccountMutations(), { wrapper });
+            await act(async () => {
+                await result.current.archiveAccount.mutateAsync('acc-1');
+            });
+
+            expect(invalidatedKeys(invalidateSpy)).toEqual([['accounts']]);
+            expect(mocks.broadcastInvalidation).toHaveBeenCalledWith([['accounts']]);
+        });
+
+        it('toasts the failure message on error', async () => {
+            const { wrapper } = createWrapper();
+            vi.mocked(accountService.archiveAccount).mockRejectedValue(new Error('archive failed'));
+
+            const { result } = renderHook(() => useAccountMutations(), { wrapper });
+            await act(async () => {
+                await expect(
+                    result.current.archiveAccount.mutateAsync('acc-1'),
+                ).rejects.toThrow('archive failed');
+            });
+
+            expect(mocks.toast.error).toHaveBeenCalledWith('archive failed');
+        });
+
+        it('toasts the default message when the failure has no message', async () => {
+            const { wrapper } = createWrapper();
+            vi.mocked(accountService.archiveAccount).mockRejectedValue(new Error(''));
+
+            const { result } = renderHook(() => useAccountMutations(), { wrapper });
+            await act(async () => {
+                await expect(
+                    result.current.archiveAccount.mutateAsync('acc-1'),
+                ).rejects.toBeDefined();
+            });
+
+            expect(mocks.toast.error).toHaveBeenCalledWith('Failed to archive account');
+        });
+    });
+
+    describe('unarchiveAccount', () => {
+        it('forwards the id to accountService.unarchiveAccount', async () => {
+            const { wrapper } = createWrapper();
+            vi.mocked(accountService.unarchiveAccount).mockResolvedValue(undefined);
+
+            const { result } = renderHook(() => useAccountMutations(), { wrapper });
+            await act(async () => {
+                await result.current.unarchiveAccount.mutateAsync('acc-1');
+            });
+
+            expect(accountService.unarchiveAccount).toHaveBeenCalledWith('acc-1');
+        });
+
+        it('invalidates only accounts on success', async () => {
+            const { wrapper, invalidateSpy } = createWrapper();
+            vi.mocked(accountService.unarchiveAccount).mockResolvedValue(undefined);
+
+            const { result } = renderHook(() => useAccountMutations(), { wrapper });
+            await act(async () => {
+                await result.current.unarchiveAccount.mutateAsync('acc-1');
+            });
+
+            expect(invalidatedKeys(invalidateSpy)).toEqual([['accounts']]);
+            expect(mocks.broadcastInvalidation).toHaveBeenCalledWith([['accounts']]);
+        });
+
+        it('toasts the failure message on error', async () => {
+            const { wrapper } = createWrapper();
+            vi.mocked(accountService.unarchiveAccount).mockRejectedValue(new Error('unarchive failed'));
+
+            const { result } = renderHook(() => useAccountMutations(), { wrapper });
+            await act(async () => {
+                await expect(
+                    result.current.unarchiveAccount.mutateAsync('acc-1'),
+                ).rejects.toThrow('unarchive failed');
+            });
+
+            expect(mocks.toast.error).toHaveBeenCalledWith('unarchive failed');
+        });
+
+        it('toasts the default message when the failure has no message', async () => {
+            const { wrapper } = createWrapper();
+            vi.mocked(accountService.unarchiveAccount).mockRejectedValue(new Error(''));
+
+            const { result } = renderHook(() => useAccountMutations(), { wrapper });
+            await act(async () => {
+                await expect(
+                    result.current.unarchiveAccount.mutateAsync('acc-1'),
+                ).rejects.toBeDefined();
+            });
+
+            expect(mocks.toast.error).toHaveBeenCalledWith('Failed to unarchive account');
+        });
+    });
+});
+
+describe('useArchiveAccount (standalone)', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    it('forwards the id to accountService.archiveAccount and invalidates accounts', async () => {
+        const { wrapper, invalidateSpy } = createWrapper();
+        vi.mocked(accountService.archiveAccount).mockResolvedValue(undefined);
+
+        const { result } = renderHook(() => useArchiveAccount(), { wrapper });
+        await act(async () => {
+            await result.current.mutateAsync('acc-1');
+        });
+
+        expect(accountService.archiveAccount).toHaveBeenCalledWith('acc-1');
+        expect(invalidatedKeys(invalidateSpy)).toEqual([['accounts']]);
+        expect(mocks.broadcastInvalidation).toHaveBeenCalledWith([['accounts']]);
+    });
+
+    it('toasts the failure message on error', async () => {
+        const { wrapper } = createWrapper();
+        vi.mocked(accountService.archiveAccount).mockRejectedValue(new Error('boom'));
+
+        const { result } = renderHook(() => useArchiveAccount(), { wrapper });
+        await act(async () => {
+            await expect(result.current.mutateAsync('acc-1')).rejects.toThrow('boom');
+        });
+
+        expect(mocks.toast.error).toHaveBeenCalledWith('boom');
+    });
+});
+
+describe('useUnarchiveAccount (standalone)', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    it('forwards the id to accountService.unarchiveAccount and invalidates accounts', async () => {
+        const { wrapper, invalidateSpy } = createWrapper();
+        vi.mocked(accountService.unarchiveAccount).mockResolvedValue(undefined);
+
+        const { result } = renderHook(() => useUnarchiveAccount(), { wrapper });
+        await act(async () => {
+            await result.current.mutateAsync('acc-1');
+        });
+
+        expect(accountService.unarchiveAccount).toHaveBeenCalledWith('acc-1');
+        expect(invalidatedKeys(invalidateSpy)).toEqual([['accounts']]);
+        expect(mocks.broadcastInvalidation).toHaveBeenCalledWith([['accounts']]);
+    });
+
+    it('toasts the failure message on error', async () => {
+        const { wrapper } = createWrapper();
+        vi.mocked(accountService.unarchiveAccount).mockRejectedValue(new Error('nope'));
+
+        const { result } = renderHook(() => useUnarchiveAccount(), { wrapper });
+        await act(async () => {
+            await expect(result.current.mutateAsync('acc-1')).rejects.toThrow('nope');
+        });
+
+        expect(mocks.toast.error).toHaveBeenCalledWith('nope');
     });
 });
