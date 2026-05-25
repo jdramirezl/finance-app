@@ -57,7 +57,6 @@ const DEFAULT_LINE_COLOR = '#8884d8';
  * actual time range; this constant only matters for sparse datasets
  * where index ≈ time.
  */
-const POINTS_PER_YEAR = 12;
 
 interface ZoomRange {
     start: number;
@@ -99,10 +98,15 @@ export const calculateZoomRange = (
     const pctOf = (ts: number) => ((ts - min) / span) * 100;
 
     if (range === '3m' || range === '6m' || range === '1y' || range === '2y') {
-        const windowMap = { '3m': 3, '6m': 6, '1y': POINTS_PER_YEAR, '2y': POINTS_PER_YEAR * 2 };
-        const window = windowMap[range];
-        const idx = Math.max(0, timestamps.length - window);
-        return { start: pctOf(timestamps[idx]), end: 100 };
+        const now = max;
+        const msMap: Record<string, number> = {
+            '3m': 90 * 24 * 60 * 60 * 1000,
+            '6m': 182 * 24 * 60 * 60 * 1000,
+            '1y': 365 * 24 * 60 * 60 * 1000,
+            '2y': 730 * 24 * 60 * 60 * 1000,
+        };
+        const windowStart = now - msMap[range];
+        return { start: Math.max(0, pctOf(windowStart)), end: 100 };
     }
 
     if (range === 'custom') {
