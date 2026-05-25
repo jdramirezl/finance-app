@@ -7,15 +7,13 @@ describe('ObligationsFooter', () => {
   const defaultProps = {
     onAddGroup: vi.fn(),
     onAddExpense: vi.fn(),
-    onBulkGenerate: vi.fn(),
-    bulkDisabled: false,
   };
 
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('renders all three buttons', () => {
+  it('renders the Add Group and Add Expense buttons', () => {
     render(<ObligationsFooter {...defaultProps} />);
 
     expect(
@@ -24,25 +22,14 @@ describe('ObligationsFooter', () => {
     expect(
       screen.getByRole('button', { name: /add expense/i }),
     ).toBeInTheDocument();
-    expect(
-      screen.getByRole('button', { name: /bulk generate/i }),
-    ).toBeInTheDocument();
   });
 
-  it('disables Bulk Generate when bulkDisabled is true', () => {
-    render(<ObligationsFooter {...defaultProps} bulkDisabled={true} />);
+  it('does not render a Bulk Generate button', () => {
+    render(<ObligationsFooter {...defaultProps} />);
 
     expect(
-      screen.getByRole('button', { name: /bulk generate/i }),
-    ).toBeDisabled();
-  });
-
-  it('keeps Bulk Generate enabled when bulkDisabled is false', () => {
-    render(<ObligationsFooter {...defaultProps} bulkDisabled={false} />);
-
-    expect(
-      screen.getByRole('button', { name: /bulk generate/i }),
-    ).not.toBeDisabled();
+      screen.queryByRole('button', { name: /bulk generate/i }),
+    ).not.toBeInTheDocument();
   });
 
   it('calls onAddGroup when Add Group is clicked', async () => {
@@ -63,33 +50,5 @@ describe('ObligationsFooter', () => {
     await user.click(screen.getByRole('button', { name: /add expense/i }));
 
     expect(onAddExpense).toHaveBeenCalledTimes(1);
-  });
-
-  it('calls onBulkGenerate when Bulk Generate is clicked', async () => {
-    const user = userEvent.setup();
-    const onBulkGenerate = vi.fn();
-    render(
-      <ObligationsFooter {...defaultProps} onBulkGenerate={onBulkGenerate} />,
-    );
-
-    await user.click(screen.getByRole('button', { name: /bulk generate/i }));
-
-    expect(onBulkGenerate).toHaveBeenCalledTimes(1);
-  });
-
-  it('does not call onBulkGenerate when disabled and clicked', async () => {
-    const user = userEvent.setup();
-    const onBulkGenerate = vi.fn();
-    render(
-      <ObligationsFooter
-        {...defaultProps}
-        onBulkGenerate={onBulkGenerate}
-        bulkDisabled={true}
-      />,
-    );
-
-    await user.click(screen.getByRole('button', { name: /bulk generate/i }));
-
-    expect(onBulkGenerate).not.toHaveBeenCalled();
   });
 });

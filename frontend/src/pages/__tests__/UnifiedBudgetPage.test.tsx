@@ -209,15 +209,6 @@ const buildFixedActions = (
   handleReorderGroups: vi.fn(),
   collapsedGroups: new Set<string>(),
   toggleGroupCollapse: vi.fn(),
-  batchForm: {
-    isOpen: false,
-    rows: [],
-    open: vi.fn(),
-    close: vi.fn(),
-    setRows: vi.fn(),
-    save: vi.fn(),
-  },
-  prepareBatchFromEnabled: vi.fn(),
   ...overrides,
 });
 
@@ -238,6 +229,7 @@ const buildBudgetActions = (
   saveScenario: vi.fn(),
   deleteScenario: vi.fn(),
   prepareBatchFromDistribution: vi.fn(),
+  prepareUnifiedBatch: vi.fn(),
   batch: {
     isOpen: false,
     rows: [],
