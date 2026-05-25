@@ -12,12 +12,14 @@ import type { NetWorthEditModalHandle } from '../NetWorthEditModal';
  * Tests for {@link NetWorthTimelineWidget}. The widget is a lightweight
  * orchestrator: it owns the view-mode + range chip + variation state,
  * hands the shaping work to `useNetWorthChartData`, delegates rendering
- * to `NetWorthChart`/`NetWorthEChart`/`ExchangeRateTrend`, and routes
- * chart clicks into the imperative edit modal. Wave 4 swapped the
- * date-range buttons for chip-based controls that drive the chart's
- * dataZoom rather than filtering the dataset, so these tests assert on
- * the chip wiring and the dataZoomStart/End props handed to the
- * underlying ECharts component.
+ * to `NetWorthEChart`/`ExchangeRateTrend`, and routes chart clicks into
+ * the imperative edit modal. Wave 4 swapped the date-range buttons for
+ * chip-based controls that drive the chart's dataZoom rather than
+ * filtering the dataset, so these tests assert on the chip wiring and
+ * the dataZoomStart/End props handed to the underlying ECharts
+ * component. Wave 5 retired the Recharts-based "By Currency" chart, so
+ * `NetWorthEChart` is now used for both Total and Breakdown views and
+ * receives a `currencyData` prop in the latter.
  *
  * The hooks and child components are mocked so each test focuses on the
  * orchestration logic instead of re-testing the chart and modal
@@ -29,8 +31,6 @@ const mocks = vi.hoisted(() => ({
   useSettingsQuery: vi.fn(),
   useNetWorthChartData: vi.fn(),
   modalOpen: vi.fn(),
-  chartProps: vi.fn(),
-  rechartProps: vi.fn(),
   echartProps: vi.fn(),
 }));
 
@@ -42,39 +42,31 @@ vi.mock('../../../hooks/queries', () => ({
   useSettingsQuery: () => mocks.useSettingsQuery(),
 }));
 
-vi.mock('../../../hooks/useNetWorthChartData', () => ({
-  useNetWorthChartData: (params: unknown) => mocks.useNetWorthChartData(params),
-}));
-
-vi.mock('../NetWorthChart', () => {
-  const Mock = (props: {
-    onPointClick: (datum: { snapshotId: string; fullDate: string }) => void;
-  }) => {
-    mocks.chartProps(props);
-    mocks.rechartProps(props);
-    return createElement(
-      'button',
-      {
-        'data-testid': 'net-worth-chart-mock',
-        'data-chart-impl': 'recharts',
-        type: 'button',
-        onClick: () =>
-          props.onPointClick({ snapshotId: 's1', fullDate: '2026-01-01' }),
-      },
-      'chart',
-    );
+vi.mock('../../../hooks/useNetWorthChartData', async (importOriginal) => {
+  // Preserve `CURRENCY_LINE_COLORS` and any other re-exports the widget
+  // imports alongside the hook itself — only the hook function is
+  // stubbed so we can assert the params it was called with.
+  const actual =
+    await importOriginal<typeof import('../../../hooks/useNetWorthChartData')>();
+  return {
+    ...actual,
+    useNetWorthChartData: (params: unknown) => mocks.useNetWorthChartData(params),
   };
-  return { default: Mock };
 });
 
 vi.mock('../NetWorthEChart', () => {
-  // The widget renders NetWorthEChart for total mode and NetWorthChart
-  // for breakdown mode. Both mocks share the same testid so existing
-  // tests that only assert "the chart is rendered" continue to work
-  // regardless of which view is active. The `data-chart-impl` attr
-  // distinguishes them for branch-coverage tests, and key dataZoom
-  // props are surfaced on `data-*` attrs so the prop-wiring tests
-  // don't have to dig into mock-call argument arrays.
+  // Wave 5: the widget now renders NetWorthEChart for both Total and
+  // Breakdown modes, branching on `viewMode`/`currencyData`. The mock
+  // surfaces the props the orchestration tests care about as
+  // `data-*` attributes for cheap querying, and forwards every prop to
+  // `mocks.echartProps` so the prop-wiring tests can assert against the
+  // full call history.
+  type CurrencySeries = {
+    currency: string;
+    values: number[];
+    nativeValues: number[];
+    color: string;
+  };
   const Mock = (props: {
     onPointClick: (datum: {
       snapshotId: string;
@@ -82,14 +74,20 @@ vi.mock('../NetWorthEChart', () => {
     }) => void;
     dataZoomStart?: number;
     dataZoomEnd?: number;
+    viewMode?: 'total' | 'breakdown';
+    currencyData?: CurrencySeries[];
   }) => {
-    mocks.chartProps(props);
     mocks.echartProps(props);
     return createElement(
       'button',
       {
         'data-testid': 'net-worth-chart-mock',
         'data-chart-impl': 'echarts',
+        'data-view-mode': props.viewMode ?? 'total',
+        'data-currency-count':
+          props.currencyData != null
+            ? String(props.currencyData.length)
+            : '',
         'data-zoom-start':
           props.dataZoomStart != null ? String(props.dataZoomStart) : '',
         'data-zoom-end':
@@ -104,7 +102,9 @@ vi.mock('../NetWorthEChart', () => {
       'chart',
     );
   };
-  return { default: Mock };
+  return {
+    default: Mock,
+  };
 });
 
 vi.mock('../NetWorthEditModal', () => {
@@ -153,7 +153,17 @@ const lastChartDataParams = () => {
 const lastEChartProps = () => {
   const calls = mocks.echartProps.mock.calls;
   return calls.at(-1)?.[0] as
-    | { dataZoomStart?: number; dataZoomEnd?: number }
+    | {
+        dataZoomStart?: number;
+        dataZoomEnd?: number;
+        viewMode?: 'total' | 'breakdown';
+        currencyData?: Array<{
+          currency: string;
+          values: number[];
+          nativeValues: number[];
+          color: string;
+        }>;
+      }
     | undefined;
 };
 
@@ -457,24 +467,72 @@ describe('NetWorthTimelineWidget', () => {
     );
   });
 
-  it('renders the ECharts implementation in total mode (not Recharts)', () => {
+  it('renders the ECharts implementation in total mode with viewMode=total', () => {
     render(<NetWorthTimelineWidget />);
 
     const chart = screen.getByTestId('net-worth-chart-mock');
     expect(chart).toHaveAttribute('data-chart-impl', 'echarts');
+    expect(chart).toHaveAttribute('data-view-mode', 'total');
     expect(mocks.echartProps).toHaveBeenCalled();
-    expect(mocks.rechartProps).not.toHaveBeenCalled();
+    expect(mocks.echartProps).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        viewMode: 'total',
+        // Total mode does not pass per-currency series data — the
+        // single aggregate line is sourced from `data` alone.
+        currencyData: undefined,
+      }),
+    );
   });
 
-  it('renders the Recharts implementation in breakdown mode (not ECharts)', async () => {
+  it('renders the ECharts implementation in breakdown mode with viewMode=breakdown and currencyData', async () => {
+    // Provide a multi-currency hook payload so the widget has values to
+    // forward into the breakdown `currencyData`.
+    mocks.useNetWorthChartData.mockReturnValue({
+      chartData: [
+        {
+          date: 'Jan 1',
+          fullDate: '2026-01-01',
+          snapshotId: 's1',
+          total: 100,
+          USD: 60,
+          USD_native: 50,
+          MXN: 40,
+          MXN_native: 800,
+        },
+      ],
+      currencies: ['USD', 'MXN'],
+      tooltipFormatter: vi.fn(),
+    });
+
     const user = userEvent.setup();
     render(<NetWorthTimelineWidget />);
 
     await user.click(screen.getByRole('button', { name: /by currency/i }));
 
     const chart = screen.getByTestId('net-worth-chart-mock');
-    expect(chart).toHaveAttribute('data-chart-impl', 'recharts');
-    expect(mocks.rechartProps).toHaveBeenCalled();
+    expect(chart).toHaveAttribute('data-chart-impl', 'echarts');
+    expect(chart).toHaveAttribute('data-view-mode', 'breakdown');
+    expect(chart).toHaveAttribute('data-currency-count', '2');
+
+    // The widget should reshape the chartData rows into a per-currency
+    // array. Each entry's `values` come from `chartData[i][currency]`,
+    // `nativeValues` come from `chartData[i][${currency}_native]`, and
+    // the color is sourced from the shared `CURRENCY_LINE_COLORS` map.
+    const props = lastEChartProps();
+    expect(props?.currencyData).toEqual([
+      expect.objectContaining({
+        currency: 'USD',
+        values: [60],
+        nativeValues: [50],
+        color: '#22c55e',
+      }),
+      expect.objectContaining({
+        currency: 'MXN',
+        values: [40],
+        nativeValues: [800],
+        color: '#f97316',
+      }),
+    ]);
   });
 
   it('forwards primaryCurrency and showVariation to NetWorthEChart in total mode', async () => {

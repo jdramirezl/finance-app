@@ -10,6 +10,11 @@
  *         driven by visible-point count, and per-point `itemStyle` to
  *         distinguish anchor (real snapshot) vs derived (interpolated)
  *         points by solid-vs-hollow rendering.
+ * Wave 5: optional `viewMode='breakdown'` + `currencyData` props that
+ *         render one colored line per currency with a legend and a
+ *         multi-row tooltip (converted value plus native amount in
+ *         brackets for foreign currencies). Replaces the old Recharts
+ *         "By Currency" chart.
  *
  * Tree-shaking: only the modules registered in `echarts.use([...])`
  * below are pulled into the bundle. The component intentionally imports
@@ -34,6 +39,8 @@ import {
     type TooltipComponentOption,
     DataZoomComponent,
     type DataZoomComponentOption,
+    LegendComponent,
+    type LegendComponentOption,
 } from 'echarts/components';
 import { CanvasRenderer } from 'echarts/renderers';
 import type { ComposeOption } from 'echarts/core';
@@ -42,13 +49,15 @@ import type { ComposeOption } from 'echarts/core';
 // so this does not pull the full echarts barrel into the runtime bundle.
 import type { DefaultLabelFormatterCallbackParams as CallbackDataParams } from 'echarts';
 
-// Register only the components this chart needs. Subsequent waves can
-// extend this list (e.g. LegendComponent for breakdown mode).
+// Register only the components this chart needs. `LegendComponent` is
+// registered alongside the rest so breakdown mode can render the
+// per-currency legend without pulling in the full echarts barrel.
 echarts.use([
     LineChart,
     GridComponent,
     TooltipComponent,
     DataZoomComponent,
+    LegendComponent,
     CanvasRenderer,
 ]);
 
@@ -61,6 +70,7 @@ type ChartOption = ComposeOption<
     | GridComponentOption
     | TooltipComponentOption
     | DataZoomComponentOption
+    | LegendComponentOption
 >;
 
 export interface NetWorthEChartDatum {
@@ -114,6 +124,45 @@ export interface NetWorthEChartProps {
     dataZoomStart?: number;
     /** Optional controlled end percentage (0–100) for the dataZoom slider. */
     dataZoomEnd?: number;
+    /**
+     * Wave 5: which logical view to render.
+     *   - `'total'` (default): a single line of the aggregate net worth.
+     *   - `'breakdown'`: one colored line per currency in `currencyData`.
+     * Defaults to `'total'` so existing call sites that don't pass it
+     * keep their original behavior unchanged.
+     */
+    viewMode?: 'total' | 'breakdown';
+    /**
+     * Wave 5: per-currency series data, required when
+     * `viewMode === 'breakdown'`. Each entry produces one line on the
+     * chart aligned to the same x-axis (snapshot dates) as `data`.
+     *
+     * - `values` are the per-snapshot amounts converted to
+     *   `primaryCurrency` (so they're comparable on a single Y-axis).
+     * - `nativeValues` are the original unconverted amounts in the
+     *   currency's own denomination, surfaced in the tooltip's bracket
+     *   suffix for foreign currencies (e.g. `[178,862 MXN]`).
+     * - `color` is the line and legend swatch color.
+     *
+     * Both `values` and `nativeValues` MUST be the same length as
+     * `data`; the index maps directly to the snapshot at `data[i]`.
+     */
+    currencyData?: CurrencySeriesData[];
+}
+
+/**
+ * Wave 5: input shape for one currency's series in breakdown mode.
+ * Exported so call sites can build the array with type safety.
+ */
+export interface CurrencySeriesData {
+    /** ISO currency code (e.g. `"USD"`, `"MXN"`). Used as series name and legend label. */
+    currency: string;
+    /** Per-snapshot amounts converted to the chart's primary currency. */
+    values: number[];
+    /** Per-snapshot amounts in the currency's native denomination. */
+    nativeValues: number[];
+    /** Line and legend swatch color (e.g. `"#22c55e"`). */
+    color: string;
 }
 
 const DEFAULT_HEIGHT = 288;
@@ -178,6 +227,30 @@ const formatTooltipValue = (
         return `${(value / 1_000_000).toFixed(2)}M ${primaryCurrency}`;
     }
     return `${value.toLocaleString()} ${primaryCurrency}`;
+};
+
+/**
+ * Format a currency amount for the breakdown-mode tooltip rows.
+ *
+ * Uses thousands-separator locale formatting with no decimals (e.g.
+ * `"68,296,200 COP"`, `"178,862 MXN"`) to match the example layout
+ * documented for the "By Currency" tooltip. Unlike
+ * {@link formatTooltipValue}, this does NOT collapse to `K`/`M`
+ * suffixes — multi-currency rows stack vertically and benefit from
+ * showing the full digit grouping so the user can compare magnitudes
+ * across currencies at a glance.
+ *
+ * Note on rounding: the breakdown formatter `Math.round`s before
+ * locale-formatting because the converted-to-primary values are
+ * floating-point (post FX-conversion), and stacking three rows of
+ * "12,345,678.001234" would create needless visual jitter as the
+ * exchange rate fluctuates. Total mode keeps `toLocaleString()`
+ * directly on the integer net-worth amount because there's only one
+ * row and the digit precision is already meaningful.
+ */
+const formatBreakdownAmount = (value: number, currency: string): string => {
+    const rounded = Math.round(value);
+    return `${rounded.toLocaleString('en-US')} ${currency}`;
 };
 
 /**
@@ -284,6 +357,8 @@ const NetWorthEChart = ({
     height = DEFAULT_HEIGHT,
     dataZoomStart,
     dataZoomEnd,
+    viewMode = 'total',
+    currencyData,
 }: NetWorthEChartProps) => {
     // Ref to the echarts-for-react instance, exposed for programmatic
     // control via `getEchartsInstance().dispatchAction(...)` whenever
@@ -350,6 +425,19 @@ const NetWorthEChart = ({
     const symbolSize =
         visibleCount > DOT_VISIBILITY_THRESHOLD ? 0 : VISIBLE_SYMBOL_SIZE;
 
+    // Treat the chart as `breakdown` only when the caller actually
+    // provides a non-empty `currencyData` array. An empty array (e.g.
+    // a fresh account with no snapshots yet, or a snapshot whose
+    // breakdown is `{}`) is not enough — we'd render an empty legend
+    // and a chart with zero series, which is more confusing than the
+    // total-mode fallback. The fallback also keeps the type narrowing
+    // simple downstream: every code path that reads `currencyData`
+    // inside this branch knows it has at least one entry.
+    const isBreakdown =
+        viewMode === 'breakdown' &&
+        Array.isArray(currencyData) &&
+        currencyData.length > 0;
+
     // Memoize the option object so that unchanged props don't cause
     // `echarts-for-react` to re-run setOption (which would fight against
     // user-driven dataZoom state). Recomputes when any input that
@@ -360,14 +448,107 @@ const NetWorthEChart = ({
             : formatCurrencyAxisTick;
         const xAxisFormatter = makeXAxisFormatter(visibleCount);
 
+        // Build the series list. Total mode renders the single
+        // aggregate line with the area gradient; breakdown mode emits
+        // one line per currency, sharing the same x-axis date positions
+        // sourced from `data`.
+        const series: LineSeriesOption[] = isBreakdown
+            ? (currencyData ?? []).map((cd) => ({
+                  // `name` is used both as the legend label and as
+                  // `seriesName` in tooltip params, so the breakdown
+                  // formatter can reverse-lookup the matching
+                  // `currencyData` entry by name.
+                  name: cd.currency,
+                  type: 'line',
+                  // Pair each value with the same date string ECharts
+                  // already parses for total mode so the time axis lines
+                  // every series up at identical x positions.
+                  data: data.map((d, i) => [d.date, cd.values[i] ?? 0]),
+                  smooth: true,
+                  symbol: 'circle',
+                  symbolSize,
+                  showSymbol: true,
+                  lineStyle: { color: cd.color, width: 2 },
+                  itemStyle: { color: cd.color },
+                  // No areaStyle in breakdown mode — multiple stacked
+                  // gradients quickly become unreadable, and the user
+                  // request explicitly calls for plain colored lines.
+                  cursor: 'pointer',
+              }))
+            : [
+                  {
+                      type: 'line',
+                      // Switch from raw [date, value] tuples to per-point
+                      // objects so we can attach `itemStyle` overrides per
+                      // data point. The series-level `itemStyle` (below)
+                      // applies to anchors; derived points override the
+                      // fill to render as hollow rings.
+                      data: data.map((d) => {
+                          const isDerived = d.isAnchor === false;
+                          return {
+                              value: [d.date, d.total],
+                              itemStyle: isDerived
+                                  ? {
+                                        color: 'transparent',
+                                        borderColor: PRIMARY_COLOR,
+                                        borderWidth: 2,
+                                    }
+                                  : undefined,
+                          };
+                      }),
+                      smooth: true,
+                      symbol: 'circle',
+                      // Wave 3: zoom-driven dot visibility. We don't
+                      // distinguish "hidden" via `showSymbol: false`
+                      // because that also disables hover symbols, which
+                      // we want to keep — emphasis still expands the dot
+                      // on hover even when `symbolSize: 0`.
+                      symbolSize,
+                      showSymbol: true,
+                      lineStyle: { color: PRIMARY_COLOR, width: 2 },
+                      areaStyle: { color: AREA_GRADIENT },
+                      // Default (anchor) styling: solid filled circle in
+                      // brand blue. Per-point overrides above flip this
+                      // to a hollow ring for derived points.
+                      itemStyle: {
+                          color: PRIMARY_COLOR,
+                          borderColor: PRIMARY_COLOR,
+                          borderWidth: 0,
+                      },
+                      // Wave 2: pointer cursor on the series so the
+                      // affordance for "click to edit" is immediately
+                      // discoverable.
+                      cursor: 'pointer',
+                  },
+              ];
+
         return {
             backgroundColor: 'transparent',
+            // Reserve more headroom in breakdown mode for the legend
+            // strip; total mode keeps the original tighter top margin
+            // since there's no legend.
             grid: {
-                top: 20,
+                top: isBreakdown ? 36 : 20,
                 right: 20,
                 bottom: 80, // room for the dataZoom slider
                 left: 60,
                 containLabel: true,
+            },
+            // Legend strip is only present in breakdown mode. We pass
+            // `show: false` (rather than omitting the key) in total mode
+            // so the option shape stays stable across renders and the
+            // tests can assert on the toggle directly.
+            legend: {
+                show: isBreakdown,
+                data: isBreakdown
+                    ? (currencyData ?? []).map((cd) => cd.currency)
+                    : [],
+                top: 4,
+                right: 20,
+                textStyle: { color: '#9ca3af', fontSize: 12 },
+                icon: 'circle',
+                itemWidth: 10,
+                itemHeight: 10,
             },
             xAxis: {
                 type: 'time',
@@ -403,52 +584,7 @@ const NetWorthEChart = ({
                     lineStyle: { color: '#374151', type: 'dashed' },
                 },
             },
-            series: [
-                {
-                    type: 'line',
-                    // Switch from raw [date, value] tuples to per-point
-                    // objects so we can attach `itemStyle` overrides per
-                    // data point. The series-level `itemStyle` (below)
-                    // applies to anchors; derived points override the
-                    // fill to render as hollow rings.
-                    data: data.map((d) => {
-                        const isDerived = d.isAnchor === false;
-                        return {
-                            value: [d.date, d.total],
-                            itemStyle: isDerived
-                                ? {
-                                      color: 'transparent',
-                                      borderColor: PRIMARY_COLOR,
-                                      borderWidth: 2,
-                                  }
-                                : undefined,
-                        };
-                    }),
-                    smooth: true,
-                    symbol: 'circle',
-                    // Wave 3: zoom-driven dot visibility. We don't
-                    // distinguish "hidden" via `showSymbol: false`
-                    // because that also disables hover symbols, which
-                    // we want to keep — emphasis still expands the dot
-                    // on hover even when `symbolSize: 0`.
-                    symbolSize,
-                    showSymbol: true,
-                    lineStyle: { color: PRIMARY_COLOR, width: 2 },
-                    areaStyle: { color: AREA_GRADIENT },
-                    // Default (anchor) styling: solid filled circle in
-                    // brand blue. Per-point overrides above flip this
-                    // to a hollow ring for derived points.
-                    itemStyle: {
-                        color: PRIMARY_COLOR,
-                        borderColor: PRIMARY_COLOR,
-                        borderWidth: 0,
-                    },
-                    // Wave 2: pointer cursor on the series so the
-                    // affordance for "click to edit" is immediately
-                    // discoverable.
-                    cursor: 'pointer',
-                },
-            ],
+            series,
             dataZoom: [
                 {
                     type: 'slider',
@@ -491,101 +627,206 @@ const NetWorthEChart = ({
                 backgroundColor: '#374151',
                 borderColor: '#4b5563',
                 textStyle: { color: '#f3f4f6', fontSize: 12 },
-                formatter: (params) => {
-                    // Axis-trigger tooltips receive an array of series
-                    // entries at the hovered x value; for our single-line
-                    // chart there's exactly one entry.
-                    const list = Array.isArray(params)
-                        ? (params as CallbackDataParams[])
-                        : [params as CallbackDataParams];
-                    const first = list[0];
-                    if (!first) return '';
+                formatter: isBreakdown
+                    ? (params) => {
+                          // Breakdown mode: render one row per series at
+                          // the hovered dataIndex. ECharts always passes
+                          // an array under `trigger: 'axis'`; we still
+                          // defensively wrap a non-array param so a stub
+                          // single-entry payload from a test doesn't
+                          // throw.
+                          const list = Array.isArray(params)
+                              ? (params as CallbackDataParams[])
+                              : [params as CallbackDataParams];
+                          if (list.length === 0) return '';
 
-                    // Resolve the data point. Prefer dataIndex (set by
-                    // ECharts on every series-trigger) so we can look
-                    // up the previous datum for the delta line. Fall
-                    // back to extracting the value tuple directly when
-                    // dataIndex is unavailable (defensive — the test
-                    // suite stubs synthetic params without it).
-                    const idx =
-                        typeof first.dataIndex === 'number'
-                            ? first.dataIndex
-                            : -1;
-                    const datum = idx >= 0 ? data[idx] : undefined;
+                          const idx =
+                              typeof list[0].dataIndex === 'number'
+                                  ? list[0].dataIndex
+                                  : -1;
+                          const datum = idx >= 0 ? data[idx] : undefined;
 
-                    let numericValue: number;
-                    let dateLabel: string;
+                          // Resolve the date label from the resolved
+                          // datum first, then fall back to the raw tuple
+                          // header — matches the total-mode formatter so
+                          // both paths show identical date formatting.
+                          let dateLabel = '';
+                          if (datum) {
+                              dateLabel = formatTooltipDate(datum.date);
+                          } else {
+                              const rawDate =
+                                  Array.isArray(list[0].value) &&
+                                  typeof list[0].value[0] === 'string'
+                                      ? list[0].value[0]
+                                      : list[0].name || '';
+                              dateLabel = rawDate
+                                  ? formatTooltipDate(rawDate)
+                                  : '';
+                          }
 
-                    if (datum) {
-                        numericValue = datum.total;
-                        dateLabel = formatTooltipDate(datum.date);
-                    } else {
-                        // Fallback path: unpack the tuple ECharts ships
-                        // through `value`.
-                        const rawValue = Array.isArray(first.value)
-                            ? first.value[1]
-                            : first.value;
-                        numericValue =
-                            typeof rawValue === 'number'
-                                ? rawValue
-                                : Number(rawValue);
-                        const rawDate =
-                            Array.isArray(first.value) &&
-                            typeof first.value[0] === 'string'
-                                ? first.value[0]
-                                : first.name || '';
-                        dateLabel = rawDate
-                            ? formatTooltipDate(rawDate)
-                            : '';
-                    }
-                    if (!Number.isFinite(numericValue)) return '';
+                          // Build a row per series. We look up the
+                          // matching `currencyData` entry by name (set
+                          // as series.name above) so the native value
+                          // bracket can be appended for foreign
+                          // currencies. Skip rows with non-numeric or
+                          // missing values defensively.
+                          const rows = list
+                              .map((p) => {
+                                  const seriesName = p.seriesName ?? '';
+                                  if (!seriesName) return '';
+                                  const rawValue = Array.isArray(p.value)
+                                      ? p.value[1]
+                                      : p.value;
+                                  const value =
+                                      typeof rawValue === 'number'
+                                          ? rawValue
+                                          : Number(rawValue);
+                                  if (!Number.isFinite(value)) return '';
 
-                    const formatted = formatTooltipValue(
-                        numericValue,
-                        showVariation,
-                        primaryCurrency,
-                    );
+                                  const cd = currencyData?.find(
+                                      (entry) =>
+                                          entry.currency === seriesName,
+                                  );
+                                  const native =
+                                      cd && idx >= 0
+                                          ? cd.nativeValues[idx]
+                                          : undefined;
 
-                    // Delta-from-previous: only show when we have both a
-                    // resolved current datum and a non-zero index, so
-                    // the headline ("first snapshot") never gets a
-                    // misleading "+0" line.
-                    let deltaHtml = '';
-                    if (datum && idx > 0) {
-                        const prev = data[idx - 1];
-                        const delta = numericValue - prev.total;
-                        const isUp = delta >= 0;
-                        const sign = isUp ? '+' : '-';
-                        const color = isUp
-                            ? DELTA_UP_COLOR
-                            : DELTA_DOWN_COLOR;
-                        const deltaFormatted = formatDeltaValue(
-                            delta,
-                            showVariation,
-                        );
-                        // Percent-change of the absolute amount; in
-                        // variation mode we still report the
-                        // percentage-of-percentage so the user sees a
-                        // single consistent secondary metric.
-                        const deltaPct =
-                            prev.total !== 0
-                                ? (delta / Math.abs(prev.total)) * 100
-                                : 0;
-                        const pctFormatted = `${isUp ? '+' : '-'}${Math.abs(
-                            deltaPct,
-                        ).toFixed(1)}%`;
-                        deltaHtml =
-                            `<div style="color:${color};font-size:11px;` +
-                            `margin-top:2px;">` +
-                            `${sign}${deltaFormatted} (${pctFormatted})` +
-                            `</div>`;
-                    }
+                                  const converted = formatBreakdownAmount(
+                                      value,
+                                      primaryCurrency,
+                                  );
 
-                    return (
-                        `<strong>${dateLabel}</strong><br/>` +
-                        `${formatted}${deltaHtml}`
-                    );
-                },
+                                  // Only foreign currencies get the
+                                  // native amount in brackets — for the
+                                  // primary currency the converted and
+                                  // native values are identical, so the
+                                  // bracket would be visual noise.
+                                  const showNative =
+                                      seriesName !== primaryCurrency &&
+                                      typeof native === 'number' &&
+                                      Number.isFinite(native);
+                                  const nativeSuffix = showNative
+                                      ? ` [${formatBreakdownAmount(
+                                            native as number,
+                                            seriesName,
+                                        )}]`
+                                      : '';
+
+                                  // `p.marker` is the colored dot
+                                  // ECharts pre-renders for the series;
+                                  // including it keeps each row visually
+                                  // tied to its line color.
+                                  const marker =
+                                      typeof p.marker === 'string'
+                                          ? p.marker
+                                          : '';
+
+                                  return `${marker}${seriesName}: ${converted}${nativeSuffix}`;
+                              })
+                              .filter(Boolean);
+
+                          return (
+                              `<strong>${dateLabel}</strong><br/>` +
+                              rows.join('<br/>')
+                          );
+                      }
+                    : (params) => {
+                          // Total-mode formatter (unchanged from Wave 2/3):
+                          // render the single-line value plus a
+                          // delta-from-previous-point row for every
+                          // datum after the first.
+                          const list = Array.isArray(params)
+                              ? (params as CallbackDataParams[])
+                              : [params as CallbackDataParams];
+                          const first = list[0];
+                          if (!first) return '';
+
+                          // Resolve the data point. Prefer dataIndex (set by
+                          // ECharts on every series-trigger) so we can look
+                          // up the previous datum for the delta line. Fall
+                          // back to extracting the value tuple directly when
+                          // dataIndex is unavailable (defensive — the test
+                          // suite stubs synthetic params without it).
+                          const idx =
+                              typeof first.dataIndex === 'number'
+                                  ? first.dataIndex
+                                  : -1;
+                          const datum = idx >= 0 ? data[idx] : undefined;
+
+                          let numericValue: number;
+                          let dateLabel: string;
+
+                          if (datum) {
+                              numericValue = datum.total;
+                              dateLabel = formatTooltipDate(datum.date);
+                          } else {
+                              // Fallback path: unpack the tuple ECharts ships
+                              // through `value`.
+                              const rawValue = Array.isArray(first.value)
+                                  ? first.value[1]
+                                  : first.value;
+                              numericValue =
+                                  typeof rawValue === 'number'
+                                      ? rawValue
+                                      : Number(rawValue);
+                              const rawDate =
+                                  Array.isArray(first.value) &&
+                                  typeof first.value[0] === 'string'
+                                      ? first.value[0]
+                                      : first.name || '';
+                              dateLabel = rawDate
+                                  ? formatTooltipDate(rawDate)
+                                  : '';
+                          }
+                          if (!Number.isFinite(numericValue)) return '';
+
+                          const formatted = formatTooltipValue(
+                              numericValue,
+                              showVariation,
+                              primaryCurrency,
+                          );
+
+                          // Delta-from-previous: only show when we have both a
+                          // resolved current datum and a non-zero index, so
+                          // the headline ("first snapshot") never gets a
+                          // misleading "+0" line.
+                          let deltaHtml = '';
+                          if (datum && idx > 0) {
+                              const prev = data[idx - 1];
+                              const delta = numericValue - prev.total;
+                              const isUp = delta >= 0;
+                              const sign = isUp ? '+' : '-';
+                              const color = isUp
+                                  ? DELTA_UP_COLOR
+                                  : DELTA_DOWN_COLOR;
+                              const deltaFormatted = formatDeltaValue(
+                                  delta,
+                                  showVariation,
+                              );
+                              // Percent-change of the absolute amount; in
+                              // variation mode we still report the
+                              // percentage-of-percentage so the user sees a
+                              // single consistent secondary metric.
+                              const deltaPct =
+                                  prev.total !== 0
+                                      ? (delta / Math.abs(prev.total)) * 100
+                                      : 0;
+                              const pctFormatted = `${
+                                  isUp ? '+' : '-'
+                              }${Math.abs(deltaPct).toFixed(1)}%`;
+                              deltaHtml =
+                                  `<div style="color:${color};font-size:11px;` +
+                                  `margin-top:2px;">` +
+                                  `${sign}${deltaFormatted} (${pctFormatted})` +
+                                  `</div>`;
+                          }
+
+                          return (
+                              `<strong>${dateLabel}</strong><br/>` +
+                              `${formatted}${deltaHtml}`
+                          );
+                      },
             },
         };
     }, [
@@ -596,6 +837,8 @@ const NetWorthEChart = ({
         visibleCount,
         zoomRange.start,
         zoomRange.end,
+        isBreakdown,
+        currencyData,
     ]);
 
     // Stable click handler — only changes when the data array or the

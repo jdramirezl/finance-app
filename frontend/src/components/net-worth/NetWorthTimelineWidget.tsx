@@ -4,8 +4,8 @@
  * Top-level orchestrator for the net-worth timeline card. Owns the query
  * subscriptions and the per-card UI controls (view mode, range chips,
  * variation toggle). Data shaping is delegated to `useNetWorthChartData`,
- * chart rendering to `NetWorthChart`/`NetWorthEChart`, and the
- * click-to-edit/delete flow to `NetWorthEditModal`.
+ * chart rendering to `NetWorthEChart` (in both `total` and `breakdown`
+ * modes), and the click-to-edit/delete flow to `NetWorthEditModal`.
  *
  * Wave 4 changed the range controls from buttons that filtered the
  * dataset (`30d / 6m / 1y / All Time`) to chips that programmatically
@@ -13,6 +13,11 @@
  * widget now always fetches the full snapshot history and computes the
  * dataZoom start/end percentages from the active range so the user can
  * still see (and zoom out to) older data via the minimap.
+ *
+ * Wave 5 retired the Recharts-based `NetWorthChart` fallback. The
+ * "By Currency" tab now renders the same `NetWorthEChart` as "Total",
+ * passing `viewMode='breakdown'` plus a per-currency `currencyData`
+ * array so the chart can build one colored line per currency.
  */
 
 import { useMemo, useRef, useState } from 'react';
@@ -25,11 +30,13 @@ import { useSettingsQuery } from '../../hooks/queries';
 import {
     useNetWorthChartData,
     type NetWorthViewMode,
+    CURRENCY_LINE_COLORS,
 } from '../../hooks/useNetWorthChartData';
 import Card from '../ui/Card';
 import CurrencyAmount from '../ui/CurrencyAmount';
-import NetWorthChart from './NetWorthChart';
-import NetWorthEChart from './NetWorthEChart';
+import NetWorthEChart, {
+    type CurrencySeriesData,
+} from './NetWorthEChart';
 import NetWorthEditModal, {
     type NetWorthEditModalHandle,
 } from './NetWorthEditModal';
@@ -39,6 +46,9 @@ import NetWorthRangeControls, {
 import ExchangeRateTrend from './ExchangeRateTrend';
 
 type WidgetTab = NetWorthViewMode | 'rates';
+
+/** Fallback color for currencies missing from the configured palette. */
+const DEFAULT_LINE_COLOR = '#8884d8';
 
 /**
  * Approximate number of monthly snapshots covered by each preset. Used
@@ -142,7 +152,7 @@ const NetWorthTimelineWidget = () => {
 
     const primaryCurrency = settings?.primaryCurrency || 'USD';
 
-    const { chartData, currencies, tooltipFormatter } = useNetWorthChartData({
+    const { chartData, currencies } = useNetWorthChartData({
         snapshots,
         primaryCurrency,
         // Always fetch the full range; visual scoping is handled by the
@@ -156,9 +166,9 @@ const NetWorthTimelineWidget = () => {
     // Resolve the snapshot the user clicked. Prefer matching by id (the
     // canonical identifier) and fall back to the snapshot date string so
     // the click still works for legacy datums that didn't carry an id.
-    // Accepts the minimal shape both chart implementations share so we
-    // can wire the same handler to NetWorthChart (Recharts) and
-    // NetWorthEChart (ECharts) without a type squeeze on the call site.
+    // After Wave 5 the only chart implementation is NetWorthEChart, so
+    // this signature targets `NetWorthEChartDatum` directly via the
+    // structural shape both Total and Breakdown modes carry.
     const handlePointClick = (datum: {
         snapshotId: string;
         fullDate: string;
@@ -186,6 +196,27 @@ const NetWorthTimelineWidget = () => {
             })),
         [chartData],
     );
+
+    // Wave 5: build per-currency series for the EChart in breakdown
+    // mode. The hook already populated `chartData[i][currency]` with
+    // the converted value (in `primaryCurrency`) and
+    // `chartData[i][${currency}_native]` with the native amount, so the
+    // mapping below is just a reshaping step. We only build it when the
+    // breakdown view is selected to avoid a wasted allocation on every
+    // total-mode render.
+    const currencyData = useMemo<CurrencySeriesData[] | undefined>(() => {
+        if (viewMode !== 'breakdown') return undefined;
+        return currencies.map((currency) => ({
+            currency,
+            values: chartData.map(
+                (d) => (d[currency] as number | undefined) ?? 0,
+            ),
+            nativeValues: chartData.map(
+                (d) => (d[`${currency}_native`] as number | undefined) ?? 0,
+            ),
+            color: CURRENCY_LINE_COLORS[currency] || DEFAULT_LINE_COLOR,
+        }));
+    }, [viewMode, currencies, chartData]);
 
     // Compute zoom percentages from the EChart data so the dataZoom
     // window matches what the chart is actually rendering. Memoized on
@@ -310,26 +341,16 @@ const NetWorthTimelineWidget = () => {
                 </div>
 
                 {/* Chart */}
-                {viewMode === 'total' ? (
-                    <NetWorthEChart
-                        data={echartData}
-                        primaryCurrency={primaryCurrency}
-                        showVariation={showVariation}
-                        onPointClick={handlePointClick}
-                        dataZoomStart={zoomRange.start}
-                        dataZoomEnd={zoomRange.end}
-                    />
-                ) : (
-                    <NetWorthChart
-                        chartData={chartData}
-                        currencies={currencies}
-                        viewMode={viewMode as NetWorthViewMode}
-                        showVariation={showVariation}
-                        primaryCurrency={primaryCurrency}
-                        tooltipFormatter={tooltipFormatter}
-                        onPointClick={handlePointClick}
-                    />
-                )}
+                <NetWorthEChart
+                    data={echartData}
+                    primaryCurrency={primaryCurrency}
+                    showVariation={showVariation}
+                    onPointClick={handlePointClick}
+                    dataZoomStart={zoomRange.start}
+                    dataZoomEnd={zoomRange.end}
+                    viewMode={viewMode === 'breakdown' ? 'breakdown' : 'total'}
+                    currencyData={currencyData}
+                />
 
                 {/* Latest Value */}
                 {latestDatum && viewMode === 'total' && (

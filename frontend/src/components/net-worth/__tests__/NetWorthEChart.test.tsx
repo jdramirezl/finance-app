@@ -3,6 +3,7 @@ import { createElement, forwardRef, useImperativeHandle, type Ref } from 'react'
 import { render, screen, act } from '../../../test/testUtils';
 import NetWorthEChart, {
     type NetWorthEChartDatum,
+    type CurrencySeriesData,
 } from '../NetWorthEChart';
 
 /**
@@ -81,6 +82,8 @@ const renderChart = (
         onPointClick: (datum: NetWorthEChartDatum) => void;
         dataZoomStart: number;
         dataZoomEnd: number;
+        viewMode: 'total' | 'breakdown';
+        currencyData: CurrencySeriesData[];
     }> = {},
 ) => {
     const onPointClick = overrides.onPointClick ?? vi.fn();
@@ -93,6 +96,8 @@ const renderChart = (
             onPointClick={onPointClick}
             dataZoomStart={overrides.dataZoomStart}
             dataZoomEnd={overrides.dataZoomEnd}
+            viewMode={overrides.viewMode}
+            currencyData={overrides.currencyData}
         />,
     );
     return { onPointClick, ...result };
@@ -702,5 +707,400 @@ describe('NetWorthEChart', () => {
         };
         // 30 * 0.30 = 9 points → dots show.
         expect(option.series[0].symbolSize).toBe(6);
+    });
+
+    // -----------------------------------------------------------------
+    // Wave 5: multi-series "By Currency" breakdown
+    // -----------------------------------------------------------------
+
+    /**
+     * Build a deterministic two-snapshot history shared by the
+     * breakdown tests. The first snapshot is a Jan 1 / Feb 1 pair so
+     * the date label assertions work in any host timezone (UTC parsing
+     * keeps the calendar day stable).
+     */
+    const buildBreakdownData = (): NetWorthEChartDatum[] => [
+        buildDatum({
+            date: '2025-10-31',
+            total: 190_000_000,
+            snapshotId: 'snap-1',
+            fullDate: '2025-10-31',
+        }),
+        buildDatum({
+            date: '2025-11-30',
+            total: 200_000_000,
+            snapshotId: 'snap-2',
+            fullDate: '2025-11-30',
+        }),
+    ];
+
+    /**
+     * Mirror of the example breakdown layout from the user-facing
+     * tooltip spec — three currencies (one primary, two foreign) with
+     * rounded values that match the documented format. Used by every
+     * tooltip-format test so the assertions can quote the exact
+     * strings the spec calls for.
+     */
+    const buildBreakdownCurrencyData = (): CurrencySeriesData[] => [
+        {
+            currency: 'COP',
+            values: [60_000_000, 68_296_200],
+            nativeValues: [60_000_000, 68_296_200],
+            color: '#eab308',
+        },
+        {
+            currency: 'MXN',
+            values: [35_000_000, 37_979_123],
+            nativeValues: [165_000, 178_862],
+            color: '#f97316',
+        },
+        {
+            currency: 'USD',
+            values: [80_000_000, 83_755_602],
+            nativeValues: [21_500, 22_744],
+            color: '#22c55e',
+        },
+    ];
+
+    it('emits one line series per currency in breakdown mode (Wave 5)', () => {
+        renderChart({
+            data: buildBreakdownData(),
+            primaryCurrency: 'COP',
+            viewMode: 'breakdown',
+            currencyData: buildBreakdownCurrencyData(),
+        });
+
+        const option = captured.option as {
+            series: Array<{
+                name?: string;
+                type: string;
+                lineStyle?: { color?: string };
+                itemStyle?: { color?: string };
+                areaStyle?: unknown;
+                data: Array<unknown>;
+            }>;
+        };
+
+        // One series per currency — three lines stacked on the same
+        // time axis, in the order the caller provided.
+        expect(option.series).toHaveLength(3);
+        expect(option.series.map((s) => s.name)).toEqual([
+            'COP',
+            'MXN',
+            'USD',
+        ]);
+        expect(option.series.every((s) => s.type === 'line')).toBe(true);
+
+        // Each series picks up its color from the corresponding
+        // currencyData entry — both line and dot color match.
+        expect(option.series[0].lineStyle?.color).toBe('#eab308');
+        expect(option.series[0].itemStyle?.color).toBe('#eab308');
+        expect(option.series[1].lineStyle?.color).toBe('#f97316');
+        expect(option.series[2].lineStyle?.color).toBe('#22c55e');
+
+        // Plain colored lines per the spec — stacked area gradients
+        // would be unreadable with three currencies overlapping.
+        expect(option.series.every((s) => s.areaStyle === undefined)).toBe(
+            true,
+        );
+
+        // Series data must align row-by-row with the input snapshots.
+        // Each row is [date, value], where `value` comes from
+        // `currencyData[i].values[idx]`.
+        expect(option.series[0].data).toEqual([
+            ['2025-10-31', 60_000_000],
+            ['2025-11-30', 68_296_200],
+        ]);
+        expect(option.series[1].data).toEqual([
+            ['2025-10-31', 35_000_000],
+            ['2025-11-30', 37_979_123],
+        ]);
+        expect(option.series[2].data).toEqual([
+            ['2025-10-31', 80_000_000],
+            ['2025-11-30', 83_755_602],
+        ]);
+    });
+
+    it('shows the legend with currency names in breakdown mode (Wave 5)', () => {
+        renderChart({
+            data: buildBreakdownData(),
+            primaryCurrency: 'COP',
+            viewMode: 'breakdown',
+            currencyData: buildBreakdownCurrencyData(),
+        });
+
+        const option = captured.option as {
+            legend: { show: boolean; data: string[] };
+        };
+
+        expect(option.legend.show).toBe(true);
+        expect(option.legend.data).toEqual(['COP', 'MXN', 'USD']);
+    });
+
+    it('hides the legend in total mode (Wave 5)', () => {
+        renderChart({
+            data: [buildDatum()],
+            viewMode: 'total',
+        });
+
+        const option = captured.option as {
+            legend: { show: boolean; data: string[] };
+        };
+
+        // Even though the legend object is always emitted (so the
+        // option shape is stable), `show: false` keeps it hidden in
+        // total mode.
+        expect(option.legend.show).toBe(false);
+        expect(option.legend.data).toEqual([]);
+    });
+
+    it('falls back to the total-mode single-line series when breakdown is requested without currencyData (Wave 5)', () => {
+        renderChart({
+            data: [buildDatum()],
+            viewMode: 'breakdown',
+            // currencyData intentionally omitted
+        });
+
+        const option = captured.option as {
+            series: Array<{ areaStyle?: unknown }>;
+            legend: { show: boolean };
+        };
+
+        // No per-currency data → render the single aggregate line
+        // with the gradient fill and no legend, matching the total
+        // mode default.
+        expect(option.series).toHaveLength(1);
+        expect(option.series[0].areaStyle).toBeDefined();
+        expect(option.legend.show).toBe(false);
+    });
+
+    it('falls back to total-mode rendering when breakdown is requested with an empty currencyData array (Wave 5)', () => {
+        // A user with no snapshots-with-breakdown can produce an empty
+        // currencies list, which the widget translates into an empty
+        // currencyData array. The chart must guard against this so the
+        // user sees the total line instead of an empty legend over a
+        // chart with zero series.
+        renderChart({
+            data: [buildDatum()],
+            viewMode: 'breakdown',
+            currencyData: [],
+        });
+
+        const option = captured.option as {
+            series: Array<{ areaStyle?: unknown }>;
+            legend: { show: boolean; data: string[] };
+        };
+
+        expect(option.series).toHaveLength(1);
+        expect(option.series[0].areaStyle).toBeDefined();
+        expect(option.legend.show).toBe(false);
+        expect(option.legend.data).toEqual([]);
+    });
+
+    it('renders one tooltip row per currency with the formatted date header (Wave 5)', () => {
+        renderChart({
+            data: buildBreakdownData(),
+            primaryCurrency: 'COP',
+            viewMode: 'breakdown',
+            currencyData: buildBreakdownCurrencyData(),
+        });
+
+        const option = captured.option as {
+            tooltip: {
+                formatter: (
+                    params: Array<{
+                        seriesName: string;
+                        value: [string, number];
+                        dataIndex: number;
+                        marker: string;
+                    }>,
+                ) => string;
+            };
+        };
+
+        // Synthesise the params shape ECharts hands the formatter for
+        // an axis-trigger hover at index 1 (the second snapshot).
+        const html = option.tooltip.formatter([
+            {
+                seriesName: 'COP',
+                value: ['2025-11-30', 68_296_200],
+                dataIndex: 1,
+                marker: '<span style="color:#eab308;">●</span>',
+            },
+            {
+                seriesName: 'MXN',
+                value: ['2025-11-30', 37_979_123],
+                dataIndex: 1,
+                marker: '<span style="color:#f97316;">●</span>',
+            },
+            {
+                seriesName: 'USD',
+                value: ['2025-11-30', 83_755_602],
+                dataIndex: 1,
+                marker: '<span style="color:#22c55e;">●</span>',
+            },
+        ]);
+
+        // Header is the resolved datum's date (2025-11-30) formatted
+        // as `MMM d, yyyy` — matches the total-mode formatter.
+        expect(html).toContain('Nov 30, 2025');
+
+        // Primary currency: converted only, no native bracket — the
+        // converted value already IS the native value when the line is
+        // the user's primary currency.
+        expect(html).toContain('COP: 68,296,200 COP');
+        expect(html).not.toMatch(/COP: 68,296,200 COP \[/);
+
+        // Foreign currencies: converted-to-primary value followed by
+        // `[native]` in the currency's own denomination.
+        expect(html).toContain('MXN: 37,979,123 COP [178,862 MXN]');
+        expect(html).toContain('USD: 83,755,602 COP [22,744 USD]');
+
+        // Each row carries the colored marker from ECharts so the
+        // legend swatch is visually tied to the row.
+        expect(html).toContain('color:#eab308');
+        expect(html).toContain('color:#f97316');
+        expect(html).toContain('color:#22c55e');
+    });
+
+    it('omits the native bracket suffix only for the primary currency, even when listed last (Wave 5)', () => {
+        // Reorder the currency list so the primary currency isn't the
+        // first row — the bracket suppression must key on the series
+        // name vs primaryCurrency, not its position.
+        const reordered: CurrencySeriesData[] = [
+            {
+                currency: 'USD',
+                values: [83_755_602],
+                nativeValues: [22_744],
+                color: '#22c55e',
+            },
+            {
+                currency: 'MXN',
+                values: [37_979_123],
+                nativeValues: [178_862],
+                color: '#f97316',
+            },
+            {
+                currency: 'COP',
+                values: [68_296_200],
+                nativeValues: [68_296_200],
+                color: '#eab308',
+            },
+        ];
+
+        renderChart({
+            data: [
+                buildDatum({
+                    date: '2025-11-30',
+                    total: 190_000_000,
+                    fullDate: '2025-11-30',
+                }),
+            ],
+            primaryCurrency: 'COP',
+            viewMode: 'breakdown',
+            currencyData: reordered,
+        });
+
+        const option = captured.option as {
+            tooltip: {
+                formatter: (
+                    params: Array<{
+                        seriesName: string;
+                        value: [string, number];
+                        dataIndex: number;
+                        marker: string;
+                    }>,
+                ) => string;
+            };
+        };
+
+        const html = option.tooltip.formatter([
+            {
+                seriesName: 'USD',
+                value: ['2025-11-30', 83_755_602],
+                dataIndex: 0,
+                marker: '',
+            },
+            {
+                seriesName: 'MXN',
+                value: ['2025-11-30', 37_979_123],
+                dataIndex: 0,
+                marker: '',
+            },
+            {
+                seriesName: 'COP',
+                value: ['2025-11-30', 68_296_200],
+                dataIndex: 0,
+                marker: '',
+            },
+        ]);
+
+        // Primary currency row never gets a bracket, regardless of
+        // position in the list.
+        expect(html).toContain('COP: 68,296,200 COP');
+        expect(html).not.toMatch(/COP: 68,296,200 COP \[/);
+
+        // Foreign rows still get the native bracket.
+        expect(html).toContain('USD: 83,755,602 COP [22,744 USD]');
+        expect(html).toContain('MXN: 37,979,123 COP [178,862 MXN]');
+    });
+
+    it('does not render the total-mode delta line in the breakdown tooltip (Wave 5)', () => {
+        renderChart({
+            data: buildBreakdownData(),
+            primaryCurrency: 'COP',
+            viewMode: 'breakdown',
+            currencyData: buildBreakdownCurrencyData(),
+        });
+
+        const option = captured.option as {
+            tooltip: {
+                formatter: (
+                    params: Array<{
+                        seriesName: string;
+                        value: [string, number];
+                        dataIndex: number;
+                        marker: string;
+                    }>,
+                ) => string;
+            };
+        };
+
+        const html = option.tooltip.formatter([
+            {
+                seriesName: 'COP',
+                value: ['2025-11-30', 68_296_200],
+                dataIndex: 1,
+                marker: '',
+            },
+        ]);
+
+        // The breakdown formatter intentionally drops the total-mode
+        // delta-from-previous block — three lines moving in different
+        // directions can't be summarised by a single delta number.
+        expect(html).not.toContain('#4ade80'); // up-color
+        expect(html).not.toContain('#f87171'); // down-color
+    });
+
+    it('routes click events to onPointClick with the matching datum in breakdown mode (Wave 5)', () => {
+        const data = buildBreakdownData();
+        const { onPointClick } = renderChart({
+            data,
+            primaryCurrency: 'COP',
+            viewMode: 'breakdown',
+            currencyData: buildBreakdownCurrencyData(),
+        });
+
+        // Clicks on any breakdown series share the same x-axis index,
+        // so resolving via `data[dataIndex]` still surfaces the right
+        // snapshot regardless of which series received the click.
+        captured.onEvents?.click({
+            componentType: 'series',
+            seriesIndex: 1,
+            dataIndex: 0,
+        });
+
+        expect(onPointClick).toHaveBeenCalledTimes(1);
+        expect(onPointClick).toHaveBeenCalledWith(data[0]);
     });
 });
