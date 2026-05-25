@@ -188,13 +188,14 @@ const VISIBLE_SYMBOL_SIZE = 6;
  * becomes too dense for them to read as discrete markers and they
  * visually clutter the chart.
  *
- * Intentionally lower than the xAxis sparse-mode threshold (18, see
- * {@link makeHierarchicalFormatter}). Dots and tick labels tolerate
- * crowding differently: a 6px dot occupies more horizontal space than
- * a "Jan" label and reads as visual noise sooner, so we hide them
- * earlier. The two thresholds are tuned independently rather than
- * aligned to a single value because they govern different visual
- * channels.
+ * Sits between the xAxis close-zoom (8) and sparse-mode (18)
+ * thresholds (see {@link makeHierarchicalFormatter}). Dots and tick
+ * labels tolerate crowding differently: a 6px dot occupies more
+ * horizontal space than a "Jan" label and reads as visual noise
+ * sooner, so we hide them earlier than the axis collapses to
+ * year-only labels. The three thresholds (8 / 12 / 18) are tuned
+ * independently rather than aligned to a single value because they
+ * govern different visual channels.
  */
 const DOT_VISIBILITY_THRESHOLD = 12;
 
@@ -347,13 +348,26 @@ type RichStyle = {
  * giving the timeline a visual rhythm without requiring a second axis.
  *
  * Density tiers (driven by `visibleCount`):
+ *   - ≤1        → "MMM d" + year on a second line for the single tick,
+ *                 regardless of month. A solitary point with just
+ *                 "Jun 15" loses its calendar context, so we always
+ *                 surface the year alongside it.
  *   - ≤8        → "MMM d" (e.g. "Jan 31"); January ticks get a year
  *                 line below ("{month|Jan 31}\n{year|2025}").
  *   - 9–18      → "MMM"   (e.g. "Jan", "Feb"); January ticks get a
  *                 year line below ("{month|Jan}\n{year|2025}").
  *   - >18       → year-only labels at January ticks ("{year|2025}");
  *                 every other tick collapses to "" so the chart
- *                 stays readable when zoomed far out.
+ *                 stays readable when zoomed far out. When all data
+ *                 falls in a single year, the axis still emits its
+ *                 own January tick at the year boundary, so the year
+ *                 label still surfaces — confirmed by tests.
+ *
+ * "All data in same year" is handled implicitly across every tier: if
+ * the axis never places a tick on a January 1 boundary that doesn't
+ * match the data's lone year, no spurious year label appears. The
+ * year only renders at January positions, so a same-year range with
+ * no January data simply omits it.
  *
  * Uses UTC throughout so ISO `YYYY-MM-DD` snapshots aren't displayed
  * under the previous day for users west of UTC. The chart's
@@ -398,15 +412,41 @@ const makeHierarchicalFormatter = (
             timeZone: 'UTC',
         });
 
+        // With only one data point in view (single-point dataset, or
+        // extreme zoom-in on a larger one) there is no zoom rhythm to
+        // establish, so always anchor the lone label with its year.
+        // This branch sits before the density tiers because the same
+        // `visibleCount === 1` value would otherwise fall through to
+        // the close-zoom branch and emit just a bare "Jun 15" for
+        // non-January dates.
+        if (visibleCount <= 1) {
+            const monthDay = `${monthShort} ${day}`;
+            return `{month|${monthDay}}\n{year|${year}}`;
+        }
+
         if (visibleCount > 18) {
             // Far zoom: only mark year boundaries, suppress the rest
             // so the axis doesn't crowd into an unreadable smear.
+            // Returning the empty string (rather than a single space
+            // or a truncated month) lets the axis' `hideOverlap`
+            // collapse non-January ticks cleanly without leaving
+            // ghost labels behind.
+            //
+            // Single-year datasets still hit this branch when the
+            // axis happens to land a tick on the year's January 1
+            // (the time-axis tick algorithm's natural boundary), so
+            // the lone year label surfaces as expected — covered by
+            // a dedicated regression test.
             return isJanuary ? `{year|${year}}` : '';
         }
 
         if (visibleCount > 8) {
             // Medium zoom: month abbreviation; January ticks stack a
-            // year line beneath as a soft section break.
+            // year line beneath as a soft section break. When all
+            // data is in one year, no year label appears at non-
+            // January ticks — by construction this tier only emits a
+            // year line at January boundaries, so a single-year range
+            // with no January data shows month abbreviations only.
             return isJanuary
                 ? `{month|${monthShort}}\n{year|${year}}`
                 : `{month|${monthShort}}`;

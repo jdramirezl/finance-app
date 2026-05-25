@@ -621,7 +621,7 @@ describe('NetWorthEChart', () => {
         expect(option.series[0].symbolSize).toBe(6);
     });
 
-    it('formats xAxis ticks as the year when more than 20 points are visible (Wave 3)', () => {
+    it('formats xAxis ticks as the year at January boundaries when more than 18 points are visible (Wave 3)', () => {
         const data = Array.from({ length: 30 }, (_, i) =>
             buildDatum({
                 date: `2024-${String((i % 12) + 1).padStart(2, '0')}-01`,
@@ -635,12 +635,19 @@ describe('NetWorthEChart', () => {
             xAxis: { axisLabel: { formatter: (v: number) => string } };
         };
         // `Date.UTC` keeps the assertion deterministic regardless of
-        // the host machine's timezone.
-        const ts = Date.UTC(2024, 5, 15);
-        expect(option.xAxis.axisLabel.formatter(ts)).toBe('2024');
+        // the host machine's timezone. January 1 → year-only label
+        // wrapped in the `{year|...}` rich-text tag emitted by Task 1's
+        // hierarchical formatter.
+        const janTs = Date.UTC(2024, 0, 1);
+        expect(option.xAxis.axisLabel.formatter(janTs)).toBe('{year|2024}');
+
+        // Non-January in sparse mode collapses to empty string so
+        // `hideOverlap` can drop the tick cleanly.
+        const juneTs = Date.UTC(2024, 5, 15);
+        expect(option.xAxis.axisLabel.formatter(juneTs)).toBe('');
     });
 
-    it('formats xAxis ticks as a month abbreviation when 9–20 points are visible (Wave 3)', () => {
+    it('formats xAxis ticks as a month abbreviation when 9–18 points are visible (Wave 3)', () => {
         const data = Array.from({ length: 30 }, (_, i) =>
             buildDatum({
                 date: `2024-${String((i % 12) + 1).padStart(2, '0')}-01`,
@@ -650,7 +657,7 @@ describe('NetWorthEChart', () => {
         );
         renderChart({ data });
 
-        // Zoom to the last 50% → 15 points (in the 9–20 band).
+        // Zoom to the last 50% → 15 points (in the 9–18 band).
         act(() => {
             captured.onEvents?.datazoom?.({ start: 50, end: 100 });
         });
@@ -659,7 +666,9 @@ describe('NetWorthEChart', () => {
             xAxis: { axisLabel: { formatter: (v: number) => string } };
         };
         const ts = Date.UTC(2024, 5, 15);
-        expect(option.xAxis.axisLabel.formatter(ts)).toBe('Jun');
+        // Wrapped in `{month|...}` since Task 1; the rich map registers
+        // the `month` style so the bare word renders correctly.
+        expect(option.xAxis.axisLabel.formatter(ts)).toBe('{month|Jun}');
     });
 
     it('formats xAxis ticks as "MMM d" when 8 or fewer points are visible (Wave 3)', () => {
@@ -681,7 +690,7 @@ describe('NetWorthEChart', () => {
             xAxis: { axisLabel: { formatter: (v: number) => string } };
         };
         const ts = Date.UTC(2024, 5, 15);
-        expect(option.xAxis.axisLabel.formatter(ts)).toBe('Jun 15');
+        expect(option.xAxis.axisLabel.formatter(ts)).toBe('{month|Jun 15}');
     });
 
     it('handles batched datazoom events from the inside-zoom (scroll/pinch) (Wave 3)', () => {
@@ -707,6 +716,124 @@ describe('NetWorthEChart', () => {
         };
         // 30 * 0.30 = 9 points → dots show.
         expect(option.series[0].symbolSize).toBe(6);
+    });
+
+    // -----------------------------------------------------------------
+    // Task 4: hierarchical formatter edge cases
+    // -----------------------------------------------------------------
+
+    it('always shows the year alongside the month/day when only one point is visible (Task 4)', () => {
+        // Single-point chart: visibleCount clamps to 1 regardless of
+        // zoom. Without the single-point guard the formatter would
+        // fall through to the close-zoom branch and emit just
+        // `{month|Jun 15}` for a non-January date, stripping the user
+        // of any calendar context.
+        renderChart({
+            data: [buildDatum({ date: '2024-06-15', total: 100 })],
+        });
+
+        const option = captured.option as {
+            xAxis: { axisLabel: { formatter: (v: number) => string } };
+        };
+        const ts = Date.UTC(2024, 5, 15);
+        expect(option.xAxis.axisLabel.formatter(ts)).toBe(
+            '{month|Jun 15}\n{year|2024}',
+        );
+    });
+
+    it('still shows full date + year for a single-point January datum (Task 4)', () => {
+        // January single-point case — the close-zoom branch already
+        // would have rendered the year here, but we want the
+        // single-point guard to take precedence so the behavior is
+        // explicit and consistent regardless of month.
+        renderChart({
+            data: [buildDatum({ date: '2024-01-01', total: 100 })],
+        });
+
+        const option = captured.option as {
+            xAxis: { axisLabel: { formatter: (v: number) => string } };
+        };
+        const ts = Date.UTC(2024, 0, 1);
+        expect(option.xAxis.axisLabel.formatter(ts)).toBe(
+            '{month|Jan 1}\n{year|2024}',
+        );
+    });
+
+    it('still surfaces the year at the January boundary in sparse mode for a single-year dataset (Task 4)', () => {
+        // All snapshots fall in 2024. The axis tick algorithm still
+        // lands a tick at 2024-01-01 (the year's natural boundary),
+        // and the sparse-mode formatter must surface that as the lone
+        // year label so the user can anchor the timeline even when
+        // every other tick collapses to "".
+        const data = Array.from({ length: 30 }, (_, i) =>
+            buildDatum({
+                date: `2024-${String((i % 12) + 1).padStart(2, '0')}-01`,
+                total: 100 + i,
+                snapshotId: `s${i}`,
+            }),
+        );
+        renderChart({ data });
+
+        const option = captured.option as {
+            xAxis: { axisLabel: { formatter: (v: number) => string } };
+        };
+        const janTs = Date.UTC(2024, 0, 1);
+        expect(option.xAxis.axisLabel.formatter(janTs)).toBe('{year|2024}');
+    });
+
+    it('returns an empty string for non-January ticks in sparse mode so hideOverlap can drop them (Task 4)', () => {
+        // Above the 18-point threshold, only year boundaries should
+        // survive — every other tick collapses to the empty string so
+        // ECharts' `hideOverlap: true` can remove it cleanly.
+        const data = Array.from({ length: 30 }, (_, i) =>
+            buildDatum({
+                date: `2024-${String((i % 12) + 1).padStart(2, '0')}-01`,
+                total: 100 + i,
+                snapshotId: `s${i}`,
+            }),
+        );
+        renderChart({ data });
+
+        const option = captured.option as {
+            xAxis: { axisLabel: { formatter: (v: number) => string } };
+        };
+        // Sample a handful of non-January months — all must collapse.
+        for (const month of [1, 4, 5, 8, 10]) {
+            const ts = Date.UTC(2024, month, 1);
+            expect(option.xAxis.axisLabel.formatter(ts)).toBe('');
+        }
+    });
+
+    it('emits no year line at non-January ticks for a single-year medium-zoom dataset (Task 4)', () => {
+        // 9–18 tier with all data in 2024. Only the January tick
+        // surfaces a year line; the rest are bare month abbreviations.
+        // This guards against a future regression that might add a
+        // year line on every tick when only one year is present.
+        const data = Array.from({ length: 30 }, (_, i) =>
+            buildDatum({
+                date: `2024-${String((i % 12) + 1).padStart(2, '0')}-01`,
+                total: 100 + i,
+                snapshotId: `s${i}`,
+            }),
+        );
+        renderChart({ data });
+
+        // Zoom to the last 50% → 15 points (medium-zoom band).
+        act(() => {
+            captured.onEvents?.datazoom?.({ start: 50, end: 100 });
+        });
+
+        const option = captured.option as {
+            xAxis: { axisLabel: { formatter: (v: number) => string } };
+        };
+        // March → bare month, no year line.
+        const marTs = Date.UTC(2024, 2, 1);
+        expect(option.xAxis.axisLabel.formatter(marTs)).toBe('{month|Mar}');
+        // January → still gets the year line by design.
+        const janTs = Date.UTC(2024, 0, 1);
+        expect(option.xAxis.axisLabel.formatter(janTs)).toBe(
+            '{month|Jan}\n{year|2024}',
+        );
     });
 
     // -----------------------------------------------------------------
