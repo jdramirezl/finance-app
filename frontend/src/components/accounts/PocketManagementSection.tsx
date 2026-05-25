@@ -46,6 +46,11 @@ const PocketManagementSection = ({
 }: PocketManagementSectionProps) => {
   const [showForm, setShowForm] = useState(false);
   const [editingPocket, setEditingPocket] = useState<Pocket | null>(null);
+  // Track which pocket id, if any, has an archive request in flight so the
+  // matching row can show a spinner while siblings stay interactive. The
+  // mutation only exposes a single shared `isPending` flag, which would
+  // otherwise mark every row as busy when only one is mid-flight.
+  const [archivingId, setArchivingId] = useState<string | null>(null);
 
   const closeForm = useCallback(() => {
     setShowForm(false);
@@ -73,11 +78,26 @@ const PocketManagementSection = ({
     setEditingPocket(pocket);
     setShowForm(true);
   }, []);
-  const handleDeletePocket = useCallback(
+  // Archive replaces the previous delete-from-card flow. Pockets gain a
+  // soft-delete path symmetric to accounts: archiving moves the row out
+  // of the active list (and into a future archived view) without an
+  // immediate data loss, so we invoke the mutation directly without a
+  // confirmation dialog.
+  const handleArchivePocket = useCallback(
     (id: string) => {
-      void actions.handleDeletePocket(id);
+      setArchivingId(id);
+      pocketMutations.archivePocket.mutate(id, {
+        onSuccess: () => {
+          toast.success('Pocket archived');
+        },
+        onSettled: () => {
+          // Clear the per-row spinner whether the request succeeded or
+          // failed; the mutation hook already shows an error toast.
+          setArchivingId((current) => (current === id ? null : current));
+        },
+      });
     },
-    [actions]
+    [pocketMutations.archivePocket, toast]
   );
   const handleMigratePocket = useCallback(
     (pocket: Pocket) => {
@@ -148,7 +168,8 @@ const PocketManagementSection = ({
               <PocketCard
                 pocket={pocket}
                 onEdit={handleEditPocket}
-                onDelete={handleDeletePocket}
+                onArchive={handleArchivePocket}
+                isArchiving={archivingId === pocket.id}
                 // PocketCard hides the migrate button for non-fixed pockets,
                 // so we always pass the same stable handler.
                 onMigrate={handleMigratePocket}

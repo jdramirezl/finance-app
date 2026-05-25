@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import type { Account } from '../../types';
-import { EditArchiveDeleteActions } from '../ui/ActionButtons';
+import { EditArchiveActions } from '../ui/ActionButtons';
 import { TrendingUp, Wallet } from 'lucide-react';
 import SelectableValue from '../ui/SelectableValue';
 
@@ -19,15 +19,15 @@ interface AccountCardProps {
      * card invokes this directly without a confirmation prompt — the
      * archived row immediately moves to the page-level "Archived" section
      * where the user can restore or permanently delete it.
+     *
+     * Permanent deletion is intentionally NOT exposed on the active card.
+     * Users can still cascade-delete from the account detail panel (for an
+     * already-selected account) or from the Archived section (after
+     * archiving), so the destructive action stays accessible without
+     * cluttering every row with a third red button.
      */
     onArchive: (id: string) => void;
-    /**
-     * Permanent (cascade) delete handler. Callers are expected to gate
-     * this behind a confirmation flow (the existing CascadeDeleteDialog).
-     */
-    onDeletePermanent: (id: string) => void;
     isArchiving?: boolean;
-    isDeleting?: boolean;
     isFixedExpensesAccount?: boolean;
 }
 
@@ -43,9 +43,7 @@ const AccountCard = ({
     onSelect,
     onEdit,
     onArchive,
-    onDeletePermanent,
     isArchiving = false,
-    isDeleting = false,
     isFixedExpensesAccount = false,
 }: AccountCardProps) => {
     const isInvestment = account.type === 'investment';
@@ -118,12 +116,10 @@ const AccountCard = ({
                         </SelectableValue>
                     </span>
                     <div onClick={(e) => e.stopPropagation()}>
-                        <EditArchiveDeleteActions
+                        <EditArchiveActions
                             onEdit={() => onEdit(account)}
                             onArchive={() => onArchive(account.id)}
-                            onDeletePermanent={() => onDeletePermanent(account.id)}
                             isArchiving={isArchiving}
-                            isDeleting={isDeleting}
                             showOnHover={false}
                         />
                     </div>

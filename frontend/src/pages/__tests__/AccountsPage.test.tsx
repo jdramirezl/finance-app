@@ -138,7 +138,15 @@ const setupHappyPath = (options: SetupOptions = {}) => {
     archiveAccount: { isPending: false, mutate: mocks.archiveMutate },
     unarchiveAccount: { isPending: false, mutate: mocks.unarchiveMutate },
   });
-  mocks.usePocketMutations.mockReturnValue({});
+  mocks.usePocketMutations.mockReturnValue({
+    createPocket: { isPending: false, mutateAsync: vi.fn() },
+    updatePocket: { isPending: false, mutateAsync: vi.fn() },
+    deletePocket: { isPending: false, mutateAsync: vi.fn() },
+    reorderPockets: { mutate: vi.fn() },
+    migrateFixedPocketToAccount: { isPending: false, mutateAsync: vi.fn() },
+    archivePocket: { isPending: false, mutate: vi.fn() },
+    unarchivePocket: { isPending: false, mutate: vi.fn() },
+  });
   mocks.useAccountActions.mockReturnValue(buildAccountActions());
 };
 
@@ -255,14 +263,17 @@ describe('AccountsPage', () => {
     expect(archivedId).toBe('acc-1');
   });
 
-  it('opens the cascade-delete dialog when Delete Permanently is clicked', async () => {
+  it('opens the cascade-delete dialog from the detail panel "Delete account permanently" link', async () => {
     const user = userEvent.setup();
     render(<AccountsPage />);
 
-    const deleteButtons = await screen.findAllByRole('button', {
-      name: /delete permanently/i,
-    });
-    await user.click(deleteButtons[0]);
+    // Click the row to open the detail panel for that account, then click
+    // the subtle red text link that replaces the old "Delete All" button.
+    await user.click(await screen.findByText('Checking Account'));
+
+    await user.click(
+      await screen.findByRole('button', { name: /delete account permanently/i }),
+    );
 
     expect(mocks.cascadeOpen).toHaveBeenCalledTimes(1);
     expect(mocks.cascadeOpen).toHaveBeenCalledWith('acc-1');

@@ -189,16 +189,12 @@ const AccountsPage = () => {
     [accountMutations.unarchiveAccount, toast]
   );
 
-  // Permanent (cascade) delete is wired through the existing dialog. Called
-  // from the active card's red "Delete Permanently" button as well as the
-  // archived row's "Delete" button — both flows route through the same
-  // confirmation modal so the user explicitly opts in.
-  const handleDeletePermanent = useCallback(
-    (id: string) => {
-      accountActions.cascadeDelete.open(id);
-    },
-    [accountActions.cascadeDelete]
-  );
+  // Permanent (cascade) delete is wired through the existing dialog. After
+  // this UI cleanup the active account card no longer exposes a permanent
+  // delete button — the action is reachable from the account detail panel
+  // (subtle red text link) and from the Archived section's row controls.
+  // Both flows route through `accountActions.cascadeDelete.open` directly,
+  // so we no longer need a `handleDeletePermanent` wrapper here.
 
   // Sort and filter accounts for display.
   const sortedAccounts = useMemo(() => {
@@ -326,14 +322,13 @@ const AccountsPage = () => {
               onReorder={(items) => accountMutations.reorderAccounts.mutate(items)}
               getId={(account) => account.id}
               renderItem={(account) => {
-                // Only the row whose archive/cascade-delete is actually in
-                // flight should show a spinner. `cascadeDelete.accountId`
-                // tracks which account opened the dialog, so it's the
-                // single source of truth for the active-grid delete state.
+                // Only the row whose archive is actually in flight should
+                // show a spinner. Permanent delete no longer renders on
+                // the active card — it is reachable from the account
+                // detail panel and the Archived section instead — so we
+                // do not need a per-row "is this row being deleted?"
+                // signal here anymore.
                 const isThisArchiving = archivingId === account.id;
-                const isThisDeleting =
-                  accountActions.cascadeDelete.accountId === account.id &&
-                  accountActions.cascadeDelete.isDeleting;
                 return (
                   <SortableItem key={account.id} id={account.id}>
                     {isCDAccount(account) ? (
@@ -343,9 +338,7 @@ const AccountsPage = () => {
                         onSelect={handleSelectAccount}
                         onEdit={handleEditCD}
                         onArchive={handleArchiveAccount}
-                        onDeletePermanent={handleDeletePermanent}
                         isArchiving={isThisArchiving}
-                        isDeleting={isThisDeleting}
                       />
                     ) : (
                       <AccountCard
@@ -354,9 +347,7 @@ const AccountsPage = () => {
                         onSelect={handleSelectAccount}
                         onEdit={handleEditAccount}
                         onArchive={handleArchiveAccount}
-                        onDeletePermanent={handleDeletePermanent}
                         isArchiving={isThisArchiving}
-                        isDeleting={isThisDeleting}
                         isFixedExpensesAccount={fixedExpenseAccountIds.has(account.id)}
                       />
                     )}
@@ -411,7 +402,7 @@ const AccountsPage = () => {
         <ArchivedSection
           accounts={archivedAccounts}
           onRestore={handleRestoreAccount}
-          onDeletePermanent={handleDeletePermanent}
+          onDeletePermanent={accountActions.cascadeDelete.open}
           restoringId={restoringId}
           deletingId={
             accountActions.cascadeDelete.isDeleting

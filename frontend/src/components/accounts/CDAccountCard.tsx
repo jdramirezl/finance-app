@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import type { CDInvestmentAccount, CDCalculationResult } from '../../types';
-import { EditArchiveDeleteActions } from '../ui/ActionButtons';
+import { EditArchiveActions } from '../ui/ActionButtons';
 import { TrendingUp, Landmark, AlertTriangle } from 'lucide-react';
 import SelectableValue from '../ui/SelectableValue';
 import { currencyService } from '../../services/currencyService';
@@ -12,12 +12,12 @@ interface CDAccountCardProps {
     /** Receives the account so the parent can hold a stable callback. */
     onSelect: (account: CDInvestmentAccount) => void;
     onEdit: (account: CDInvestmentAccount) => void;
-    /** Soft-delete (archive) handler. See {@link AccountCard} for rationale. */
+    /**
+     * Soft-delete (archive) handler. See {@link AccountCard} for the
+     * rationale on keeping permanent deletion off the active card.
+     */
     onArchive: (id: string) => void;
-    /** Permanent cascade delete handler. Caller gates with confirmation. */
-    onDeletePermanent: (id: string) => void;
     isArchiving?: boolean;
-    isDeleting?: boolean;
 }
 
 /**
@@ -31,9 +31,7 @@ const CDAccountCard = ({
     onSelect,
     onEdit,
     onArchive,
-    onDeletePermanent,
     isArchiving = false,
-    isDeleting = false,
 }: CDAccountCardProps) => {
     // Calculate current CD values with error handling
     let calculation: CDCalculationResult | null = null;
@@ -105,12 +103,10 @@ const CDAccountCard = ({
                         )}
                     </div>
                     <div onClick={(e) => e.stopPropagation()}>
-                        <EditArchiveDeleteActions
+                        <EditArchiveActions
                             onEdit={() => onEdit(account)}
                             onArchive={() => onArchive(account.id)}
-                            onDeletePermanent={() => onDeletePermanent(account.id)}
                             isArchiving={isArchiving}
-                            isDeleting={isDeleting}
                             showOnHover={false}
                         />
                     </div>

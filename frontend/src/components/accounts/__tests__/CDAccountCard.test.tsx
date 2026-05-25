@@ -60,7 +60,6 @@ const defaultProps = {
     onSelect: vi.fn(),
     onEdit: vi.fn(),
     onArchive: vi.fn(),
-    onDeletePermanent: vi.fn(),
 };
 
 describe('CDAccountCard', () => {
@@ -86,31 +85,10 @@ describe('CDAccountCard', () => {
         expect(onArchive).toHaveBeenCalledWith('cd1');
     });
 
-    it('calls onDeletePermanent with the account id when Delete Permanently is clicked', async () => {
-        const user = userEvent.setup();
-        const onDeletePermanent = vi.fn();
-        render(
-            <CDAccountCard {...defaultProps} onDeletePermanent={onDeletePermanent} />,
-        );
-
-        await user.click(screen.getByRole('button', { name: /delete permanently/i }));
-
-        expect(onDeletePermanent).toHaveBeenCalledTimes(1);
-        expect(onDeletePermanent).toHaveBeenCalledWith('cd1');
-    });
-
     it('shows the loading state on the archive button when isArchiving is true', () => {
         render(<CDAccountCard {...defaultProps} isArchiving />);
 
         expect(screen.getByRole('button', { name: /^archive$/i })).toBeDisabled();
-    });
-
-    it('shows the loading state on the delete button when isDeleting is true', () => {
-        render(<CDAccountCard {...defaultProps} isDeleting />);
-
-        expect(
-            screen.getByRole('button', { name: /delete permanently/i }),
-        ).toBeDisabled();
     });
 
     it('does not propagate clicks on the action buttons up to the card', async () => {

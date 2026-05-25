@@ -28,7 +28,6 @@ const defaultProps = {
   onSelect: vi.fn(),
   onEdit: vi.fn(),
   onArchive: vi.fn(),
-  onDeletePermanent: vi.fn(),
 };
 
 describe('AccountCard', () => {
@@ -135,18 +134,6 @@ describe('AccountCard', () => {
     expect(onArchive).toHaveBeenCalledWith('acc1');
   });
 
-  it('calls onDeletePermanent with the account id when the Delete Permanently button is clicked', async () => {
-    const user = userEvent.setup();
-    const onDeletePermanent = vi.fn();
-    const onSelect = vi.fn();
-    render(<AccountCard {...defaultProps} onDeletePermanent={onDeletePermanent} onSelect={onSelect} />);
-
-    await user.click(screen.getByRole('button', { name: /delete permanently/i }));
-
-    expect(onDeletePermanent).toHaveBeenCalledTimes(1);
-    expect(onDeletePermanent).toHaveBeenCalledWith('acc1');
-  });
-
   it('does not propagate clicks on the action buttons up to the card', async () => {
     const user = userEvent.setup();
     const onSelect = vi.fn();
@@ -164,12 +151,6 @@ describe('AccountCard', () => {
     render(<AccountCard {...defaultProps} isArchiving />);
 
     expect(screen.getByRole('button', { name: /^archive$/i })).toBeDisabled();
-  });
-
-  it('shows the loading state on the delete button when isDeleting is true', () => {
-    render(<AccountCard {...defaultProps} isDeleting />);
-
-    expect(screen.getByRole('button', { name: /delete permanently/i })).toBeDisabled();
   });
 
   it('renders the account color swatch with the account color', () => {
