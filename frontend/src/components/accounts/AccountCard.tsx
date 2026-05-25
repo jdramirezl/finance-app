@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import type { Account } from '../../types';
-import { EditDeleteActions } from '../ui/ActionButtons';
+import { EditArchiveDeleteActions } from '../ui/ActionButtons';
 import { TrendingUp, Wallet } from 'lucide-react';
 import SelectableValue from '../ui/SelectableValue';
 
@@ -14,7 +14,19 @@ interface AccountCardProps {
      */
     onSelect: (account: Account) => void;
     onEdit: (account: Account) => void;
-    onDelete: (id: string) => void;
+    /**
+     * Soft-delete (archive) handler. The mutation is reversible, so the
+     * card invokes this directly without a confirmation prompt — the
+     * archived row immediately moves to the page-level "Archived" section
+     * where the user can restore or permanently delete it.
+     */
+    onArchive: (id: string) => void;
+    /**
+     * Permanent (cascade) delete handler. Callers are expected to gate
+     * this behind a confirmation flow (the existing CascadeDeleteDialog).
+     */
+    onDeletePermanent: (id: string) => void;
+    isArchiving?: boolean;
     isDeleting?: boolean;
     isFixedExpensesAccount?: boolean;
 }
@@ -30,7 +42,9 @@ const AccountCard = ({
     isSelected,
     onSelect,
     onEdit,
-    onDelete,
+    onArchive,
+    onDeletePermanent,
+    isArchiving = false,
     isDeleting = false,
     isFixedExpensesAccount = false,
 }: AccountCardProps) => {
@@ -104,9 +118,11 @@ const AccountCard = ({
                         </SelectableValue>
                     </span>
                     <div onClick={(e) => e.stopPropagation()}>
-                        <EditDeleteActions
+                        <EditArchiveDeleteActions
                             onEdit={() => onEdit(account)}
-                            onDelete={() => onDelete(account.id)}
+                            onArchive={() => onArchive(account.id)}
+                            onDeletePermanent={() => onDeletePermanent(account.id)}
+                            isArchiving={isArchiving}
                             isDeleting={isDeleting}
                             showOnHover={false}
                         />

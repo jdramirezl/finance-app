@@ -66,10 +66,8 @@ const buildParams = (overrides: Partial<UseAccountActionsParams> = {}): {
   params: UseAccountActionsParams;
   createAccount: MutationStub;
   updateAccount: MutationStub;
-  deleteAccount: MutationStub;
   deleteAccountCascade: MutationStub;
   toast: { success: ReturnType<typeof vi.fn>; error: ReturnType<typeof vi.fn>; info: ReturnType<typeof vi.fn>; warning: ReturnType<typeof vi.fn> };
-  confirm: ReturnType<typeof vi.fn>;
   setError: ReturnType<typeof vi.fn>;
   setSelectedAccountId: ReturnType<typeof vi.fn>;
   closeAccountForm: ReturnType<typeof vi.fn>;
@@ -78,7 +76,6 @@ const buildParams = (overrides: Partial<UseAccountActionsParams> = {}): {
 } => {
   const createAccount: MutationStub = { mutateAsync: vi.fn().mockResolvedValue({ id: 'acc-new' }), isPending: false };
   const updateAccount: MutationStub = { mutateAsync: vi.fn().mockResolvedValue({}), isPending: false };
-  const deleteAccount: MutationStub = { mutateAsync: vi.fn().mockResolvedValue(undefined), isPending: false };
   const deleteAccountCascade: MutationStub = {
     mutateAsync: vi.fn().mockResolvedValue({ account: 'Checking', pockets: 2, subPockets: 0, movements: 5 }),
     isPending: false,
@@ -91,7 +88,6 @@ const buildParams = (overrides: Partial<UseAccountActionsParams> = {}): {
     warning: vi.fn(),
   };
 
-  const confirm = vi.fn().mockResolvedValue(true);
   const setError = vi.fn();
   const setSelectedAccountId = vi.fn();
   const closeAccountForm = vi.fn();
@@ -99,15 +95,15 @@ const buildParams = (overrides: Partial<UseAccountActionsParams> = {}): {
   const switchToCDForm = vi.fn();
 
   const params: UseAccountActionsParams = {
-    accounts: [mockAccount()],
     mutations: {
       createAccount,
       updateAccount,
-      deleteAccount,
+      // deleteAccount kept on the underlying mutation bundle but no longer
+      // surfaced through useAccountActions.
+      deleteAccount: { mutateAsync: vi.fn(), isPending: false },
       deleteAccountCascade,
       reorderAccounts: { mutateAsync: vi.fn(), isPending: false },
     } as unknown as UseAccountActionsParams['mutations'],
-    confirm: confirm as unknown as UseAccountActionsParams['confirm'],
     toast: toast as unknown as UseAccountActionsParams['toast'],
     setError,
     selectedAccountId: null,
@@ -122,10 +118,8 @@ const buildParams = (overrides: Partial<UseAccountActionsParams> = {}): {
     params,
     createAccount,
     updateAccount,
-    deleteAccount,
     deleteAccountCascade,
     toast,
-    confirm,
     setError,
     setSelectedAccountId,
     closeAccountForm,
@@ -307,32 +301,6 @@ describe('useAccountActions', () => {
       });
       expect(toast.success).toHaveBeenCalledWith('CD updated successfully!');
       expect(closeCDForm).toHaveBeenCalled();
-    });
-  });
-
-  describe('handleDeleteAccount', () => {
-    it('skips deletion when confirm resolves false', async () => {
-      const { result, deleteAccount, confirm, toast } = setup();
-      confirm.mockResolvedValueOnce(false);
-
-      await act(async () => {
-        await result.current.handleDeleteAccount('acc-1');
-      });
-
-      expect(deleteAccount.mutateAsync).not.toHaveBeenCalled();
-      expect(toast.success).not.toHaveBeenCalled();
-    });
-
-    it('deletes when confirmed and clears the selected id if it matches', async () => {
-      const { result, deleteAccount, toast, setSelectedAccountId } = setup({ selectedAccountId: 'acc-1' });
-
-      await act(async () => {
-        await result.current.handleDeleteAccount('acc-1');
-      });
-
-      expect(setSelectedAccountId).toHaveBeenCalledWith(null);
-      expect(deleteAccount.mutateAsync).toHaveBeenCalledWith('acc-1');
-      expect(toast.success).toHaveBeenCalledWith('Account deleted successfully!');
     });
   });
 

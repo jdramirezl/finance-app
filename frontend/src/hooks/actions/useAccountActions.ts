@@ -5,7 +5,6 @@ import type { Account, CDInvestmentAccount, Currency } from '../../types';
 import type { CDFormData } from '../../components/accounts/CDAccountForm';
 import type { AccountFormData } from '../../components/accounts/AccountForm';
 import type { useToast } from '../useToast';
-import type { useConfirm } from '../useConfirm';
 import type { useAccountMutations } from '../queries/useAccountMutations';
 
 type AccountMutations = ReturnType<typeof useAccountMutations>;
@@ -22,9 +21,11 @@ export interface CascadeDeleteController {
 }
 
 export interface UseAccountActionsParams {
-  accounts: Account[];
+  // `mutations` and toast/error/selection wiring are all that's needed now
+  // that the simple-delete flow (which used `accounts` to look up the row
+  // and `confirm` to gate the prompt) has been removed in favor of archive
+  // + cascade delete.
   mutations: AccountMutations;
-  confirm: ReturnType<typeof useConfirm>['confirm'];
   toast: ReturnType<typeof useToast.getState>;
   setError: (value: string | null) => void;
   selectedAccountId: string | null;
@@ -45,7 +46,6 @@ export interface UseAccountActionsResult {
     account: CDInvestmentAccount,
     data: CDFormData
   ) => Promise<void>;
-  handleDeleteAccount: (id: string) => Promise<void>;
   isAccountFormSaving: boolean;
   isCDFormSaving: boolean;
   cascadeDelete: CascadeDeleteController;
@@ -53,8 +53,12 @@ export interface UseAccountActionsResult {
 
 /**
  * Encapsulates account CRUD flows: create/update for both regular and CD
- * accounts, single delete with a confirm prompt, and cascade delete with
- * its dialog state machine.
+ * accounts, plus the cascade-delete dialog state machine.
+ *
+ * The simple "delete account" path was removed in the archive redesign —
+ * the only paths that destroy data now are (a) archive (soft, reversible)
+ * which lives directly on the page via `useAccountMutations.archiveAccount`,
+ * and (b) cascade delete, which is gated by the dialog this hook drives.
  *
  * Mutations are received from the caller so they share the same instance
  * the rest of the page uses. Account/CD form modal open/close lives on the
@@ -62,9 +66,7 @@ export interface UseAccountActionsResult {
  * callbacks.
  */
 export const useAccountActions = ({
-  accounts,
   mutations,
-  confirm,
   toast,
   setError,
   selectedAccountId,
@@ -74,8 +76,7 @@ export const useAccountActions = ({
   switchToCDForm,
 }: UseAccountActionsParams): UseAccountActionsResult => {
   const queryClient = useQueryClient();
-  const { createAccount, updateAccount, deleteAccount, deleteAccountCascade } =
-    mutations;
+  const { createAccount, updateAccount, deleteAccountCascade } = mutations;
 
   // CD creation goes through accountService directly. Wrap it as a mutation
   // here so cache invalidation stays consistent and we can read `.isPending`.
@@ -201,33 +202,6 @@ export const useAccountActions = ({
     }
   };
 
-  const handleDeleteAccount = async (id: string) => {
-    const account = accounts.find((a) => a.id === id);
-    const confirmed = await confirm({
-      title: 'Delete Account',
-      message: `Are you sure you want to delete "${account?.name}"? This will also delete all its pockets and cannot be undone.`,
-      confirmText: 'Delete Account',
-      cancelText: 'Cancel',
-      variant: 'danger',
-    });
-
-    if (!confirmed) return;
-
-    setError(null);
-    try {
-      if (selectedAccountId === id) {
-        setSelectedAccountId(null);
-      }
-      await deleteAccount.mutateAsync(id);
-      toast.success('Account deleted successfully!');
-    } catch (err: unknown) {
-      const msg =
-        err instanceof Error ? err.message : 'Failed to delete account';
-      setError(msg);
-      // Toast is shown by the mutation's onError handler.
-    }
-  };
-
   const openCascade = (id: string) => {
     setCascadeAccountId(id);
     setCascadeDeleteMovements(false);
@@ -276,7 +250,6 @@ export const useAccountActions = ({
     handleUpdateAccount,
     handleCreateCD,
     handleUpdateCD,
-    handleDeleteAccount,
     isAccountFormSaving: createAccount.isPending || updateAccount.isPending,
     isCDFormSaving: createCDMutation.isPending || updateAccount.isPending,
     cascadeDelete: {

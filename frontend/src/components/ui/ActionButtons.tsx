@@ -1,4 +1,4 @@
-import { Edit2, Trash2, type LucideIcon } from 'lucide-react';
+import { Archive, Edit2, Trash2, type LucideIcon } from 'lucide-react';
 import Button from './Button';
 
 interface Action {
@@ -83,6 +83,60 @@ export const EditDeleteActions = ({
                     variant: 'ghost',
                     loading: isDeleting,
                     label: 'Delete',
+                },
+            ]}
+        />
+    );
+};
+
+/**
+ * Three-action variant for surfaces that support soft-delete (archive) as
+ * the primary destructive action, with permanent delete preserved as a
+ * secondary, more dangerous option.
+ *
+ * Archive is reversible — wired to a soft-delete mutation in the parent —
+ * and intentionally has no confirmation dialog. Permanent delete uses the
+ * `danger` variant so it visually reads as the destructive option, and
+ * callers are expected to gate it behind a confirmation flow (the existing
+ * cascade-delete dialog in `AccountsPage`).
+ */
+export const EditArchiveDeleteActions = ({
+    onEdit,
+    onArchive,
+    onDeletePermanent,
+    isArchiving = false,
+    isDeleting = false,
+    showOnHover = true,
+}: {
+    onEdit: () => void;
+    onArchive: () => void;
+    onDeletePermanent: () => void;
+    isArchiving?: boolean;
+    isDeleting?: boolean;
+    showOnHover?: boolean;
+}) => {
+    return (
+        <ActionButtons
+            showOnHover={showOnHover}
+            actions={[
+                {
+                    icon: Edit2,
+                    onClick: onEdit,
+                    label: 'Edit',
+                },
+                {
+                    icon: Archive,
+                    onClick: onArchive,
+                    variant: 'ghost',
+                    loading: isArchiving,
+                    label: 'Archive',
+                },
+                {
+                    icon: Trash2,
+                    onClick: onDeletePermanent,
+                    variant: 'danger',
+                    loading: isDeleting,
+                    label: 'Delete Permanently',
                 },
             ]}
         />

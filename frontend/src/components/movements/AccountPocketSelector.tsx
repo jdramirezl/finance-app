@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import {
     useAccountsQuery,
     usePocketsQuery,
@@ -140,19 +140,40 @@ const AccountPocketSelector = ({
     const { data: pockets = [] } = usePocketsQuery();
     const { data: subPockets = [] } = useSubPocketsQuery();
 
+    // Defensive client-side filter: the backend already excludes archived
+    // (`archived_at IS NOT NULL`) accounts and pockets from the default
+    // listings these queries hit, but we still strip any rows where
+    // `archivedAt` is set so the selector can never surface a soft-deleted
+    // option even if a future query swap or stale cache entry sneaks one
+    // through. New movements must always reference a live account/pocket.
+    //
+    // The arrays must be memoized — they flow into the auto-select effect's
+    // dep list below, and a fresh reference on every render would re-run
+    // the effect (and potentially fire `onAccountChange('')`/`onPocketChange('')`
+    // in smart mode) on each render instead of only when the underlying
+    // data changes.
+    const activeAccounts = useMemo(
+        () => accounts.filter((a) => !a.archivedAt),
+        [accounts],
+    );
+    const activePockets = useMemo(
+        () => pockets.filter((p) => !p.archivedAt),
+        [pockets],
+    );
+
     const isFixedType = movementType ? isFixedMovement(movementType) : false;
 
     // Account list — restricted to accounts that have at least one fixed
     // pocket when the smart mode is engaged for a fixed movement type.
     const filteredAccounts = enforceMovementType && isFixedType
-        ? accounts.filter((acc) =>
-            pockets.some((p) => p.accountId === acc.id && p.type === 'fixed'),
+        ? activeAccounts.filter((acc) =>
+            activePockets.some((p) => p.accountId === acc.id && p.type === 'fixed'),
         )
-        : accounts;
+        : activeAccounts;
 
     // Pockets that belong to the currently-selected account.
     const availablePockets = accountId
-        ? pockets.filter((p) => p.accountId === accountId)
+        ? activePockets.filter((p) => p.accountId === accountId)
         : [];
 
     // Pocket list — restricted to fixed pockets for fixed types and
@@ -178,7 +199,7 @@ const AccountPocketSelector = ({
         if (!enforceMovementType || !movementType) return;
 
         if (isFixedType && accountId) {
-            const target = pockets.find(
+            const target = activePockets.find(
                 (p) => p.accountId === accountId && p.type === 'fixed',
             );
             if (target && pocketId !== target.id) {
@@ -188,7 +209,7 @@ const AccountPocketSelector = ({
                 onPocketChange('');
             }
         } else if (!isFixedType && pocketId) {
-            const current = pockets.find((p) => p.id === pocketId);
+            const current = activePockets.find((p) => p.id === pocketId);
             if (current?.type === 'fixed') {
                 onPocketChange('');
             }
@@ -198,7 +219,7 @@ const AccountPocketSelector = ({
         movementType,
         isFixedType,
         accountId,
-        pockets,
+        activePockets,
         pocketId,
         onAccountChange,
         onPocketChange,

@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Plus, Wallet, Search } from 'lucide-react';
 import {
-  useAccountsQuery,
+  useAccountsWithArchived,
   usePocketsQuery,
   useAccountMutations,
   usePocketMutations,
@@ -18,7 +18,7 @@ import SortableItem from '../components/ui/SortableItem';
 import { Skeleton, SkeletonList } from '../components/ui/Skeleton';
 import PageHeader from '../components/ui/PageHeader';
 import EmptyState from '../components/ui/EmptyState';
-import { AccountCard, AccountForm } from '../components/accounts';
+import { AccountCard, AccountForm, ArchivedSection } from '../components/accounts';
 import CDAccountCard from '../components/accounts/CDAccountCard';
 import CDAccountForm, {
   type CDFormData,
@@ -30,13 +30,31 @@ const isCDAccount = (account: Account): account is CDInvestmentAccount =>
   account.type === 'cd';
 
 const AccountsPage = () => {
-  const { data: accounts = [], isLoading: accountsLoading } = useAccountsQuery();
+  // Pull both active and archived accounts from a single query so we can
+  // render the active grid and the collapsed "Archived" section without
+  // double-fetching. Active rows still drive every existing flow — selection,
+  // editing, sorting, deep-linking — so the archived rows are split out
+  // immediately below and never leak into those code paths.
+  const { data: allAccounts = [], isLoading: accountsLoading } =
+    useAccountsWithArchived();
   const { data: pockets = [], isLoading: pocketsLoading } = usePocketsQuery();
   const accountMutations = useAccountMutations();
   const pocketMutations = usePocketMutations();
   const toast = useToast();
   const { confirm } = useConfirmDialog();
   const location = useLocation();
+
+  // Split once at the top so the rest of the page treats `accounts` as the
+  // canonical "active accounts" list — same shape the page used before the
+  // archived section was added.
+  const accounts = useMemo(
+    () => allAccounts.filter((a) => !a.archivedAt),
+    [allAccounts],
+  );
+  const archivedAccounts = useMemo(
+    () => allAccounts.filter((a) => Boolean(a.archivedAt)),
+    [allAccounts],
+  );
 
   // Page-level UI state — modal visibility, selected row, in-flight error.
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
@@ -47,6 +65,25 @@ const AccountsPage = () => {
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState<'all' | 'investment' | 'normal' | 'cd'>('all');
+
+  // Per-row in-flight ids for archive and restore. Mutations expose a
+  // single `isPending` shared across calls, which would mark every card
+  // as busy when only one row is actually mid-flight — track the id we
+  // started the call with instead and pass it down so each card knows
+  // whether the loading state belongs to it.
+  const [archivingId, setArchivingId] = useState<string | null>(null);
+  const [restoringId, setRestoringId] = useState<string | null>(null);
+
+  // Selection lives in state for rendering, but we also keep a mirror in
+  // a ref so callbacks that only read it on success (e.g. archive's
+  // post-success "did you just archive the row you were viewing?" check)
+  // do not need `selectedAccountId` in their dep array. Without this,
+  // every selection change would create a new `handleArchiveAccount`
+  // identity and defeat the React.memo wrap on every AccountCard.
+  const selectedAccountIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    selectedAccountIdRef.current = selectedAccountId;
+  }, [selectedAccountId]);
 
   const closeAccountForm = useCallback(() => {
     setShowAccountForm(false);
@@ -62,9 +99,7 @@ const AccountsPage = () => {
   }, []);
 
   const accountActions = useAccountActions({
-    accounts,
     mutations: accountMutations,
-    confirm,
     toast,
     setError,
     selectedAccountId,
@@ -84,11 +119,14 @@ const AccountsPage = () => {
   }, [location.search, accounts]);
 
   // Build a single set of which accounts are "fixed-expense" accounts so the
-  // per-row check below stays O(1) instead of O(pockets) per row.
+  // per-row check below stays O(1) instead of O(pockets) per row. Archived
+  // pockets are excluded defensively — the backend already drops them from
+  // the default listing, but a future query swap shouldn't be able to mark
+  // an active account as "fixed expenses" because of an archived ghost.
   const fixedExpenseAccountIds = useMemo(() => {
     const set = new Set<string>();
     for (const p of pockets) {
-      if (p.type === 'fixed') set.add(p.accountId);
+      if (p.type === 'fixed' && !p.archivedAt) set.add(p.accountId);
     }
     return set;
   }, [pockets]);
@@ -106,11 +144,60 @@ const AccountsPage = () => {
     setEditingCD(account);
     setShowCDForm(true);
   }, []);
-  const handleDeleteAccount = useCallback(
+
+  // Archive is the new primary destructive action on each account card.
+  // It's reversible (the row moves into the ArchivedSection below the grid),
+  // so we deliberately invoke the mutation without a confirmation dialog
+  // — the backend cascades the archive to the account's pockets.
+  const handleArchiveAccount = useCallback(
     (id: string) => {
-      void accountActions.handleDeleteAccount(id);
+      setArchivingId(id);
+      accountMutations.archiveAccount.mutate(id, {
+        onSuccess: () => {
+          // Read selection through the ref so this callback does not
+          // depend on `selectedAccountId` and stays stable for memoized
+          // cards (see the ref comment above).
+          if (selectedAccountIdRef.current === id) {
+            setSelectedAccountId(null);
+          }
+          toast.success('Account archived');
+        },
+        onSettled: () => {
+          // Clear the per-row spinner whether the request succeeded or
+          // failed; the mutation hook already shows an error toast.
+          setArchivingId((current) => (current === id ? null : current));
+        },
+      });
     },
-    [accountActions]
+    [accountMutations.archiveAccount, toast]
+  );
+
+  // Restoring an archived account uses the same per-row id pattern so the
+  // ArchivedSection can disable only the row currently being unarchived.
+  const handleRestoreAccount = useCallback(
+    (id: string) => {
+      setRestoringId(id);
+      accountMutations.unarchiveAccount.mutate(id, {
+        onSuccess: () => {
+          toast.success('Account restored');
+        },
+        onSettled: () => {
+          setRestoringId((current) => (current === id ? null : current));
+        },
+      });
+    },
+    [accountMutations.unarchiveAccount, toast]
+  );
+
+  // Permanent (cascade) delete is wired through the existing dialog. Called
+  // from the active card's red "Delete Permanently" button as well as the
+  // archived row's "Delete" button — both flows route through the same
+  // confirmation modal so the user explicitly opts in.
+  const handleDeletePermanent = useCallback(
+    (id: string) => {
+      accountActions.cascadeDelete.open(id);
+    },
+    [accountActions.cascadeDelete]
   );
 
   // Sort and filter accounts for display.
@@ -238,28 +325,44 @@ const AccountsPage = () => {
               items={sortedAccounts}
               onReorder={(items) => accountMutations.reorderAccounts.mutate(items)}
               getId={(account) => account.id}
-              renderItem={(account) => (
-                <SortableItem key={account.id} id={account.id}>
-                  {isCDAccount(account) ? (
-                    <CDAccountCard
-                      account={account}
-                      isSelected={selectedAccountId === account.id}
-                      onSelect={handleSelectAccount}
-                      onEdit={handleEditCD}
-                      onDelete={handleDeleteAccount}
-                    />
-                  ) : (
-                    <AccountCard
-                      account={account}
-                      isSelected={selectedAccountId === account.id}
-                      onSelect={handleSelectAccount}
-                      onEdit={handleEditAccount}
-                      onDelete={handleDeleteAccount}
-                      isFixedExpensesAccount={fixedExpenseAccountIds.has(account.id)}
-                    />
-                  )}
-                </SortableItem>
-              )}
+              renderItem={(account) => {
+                // Only the row whose archive/cascade-delete is actually in
+                // flight should show a spinner. `cascadeDelete.accountId`
+                // tracks which account opened the dialog, so it's the
+                // single source of truth for the active-grid delete state.
+                const isThisArchiving = archivingId === account.id;
+                const isThisDeleting =
+                  accountActions.cascadeDelete.accountId === account.id &&
+                  accountActions.cascadeDelete.isDeleting;
+                return (
+                  <SortableItem key={account.id} id={account.id}>
+                    {isCDAccount(account) ? (
+                      <CDAccountCard
+                        account={account}
+                        isSelected={selectedAccountId === account.id}
+                        onSelect={handleSelectAccount}
+                        onEdit={handleEditCD}
+                        onArchive={handleArchiveAccount}
+                        onDeletePermanent={handleDeletePermanent}
+                        isArchiving={isThisArchiving}
+                        isDeleting={isThisDeleting}
+                      />
+                    ) : (
+                      <AccountCard
+                        account={account}
+                        isSelected={selectedAccountId === account.id}
+                        onSelect={handleSelectAccount}
+                        onEdit={handleEditAccount}
+                        onArchive={handleArchiveAccount}
+                        onDeletePermanent={handleDeletePermanent}
+                        isArchiving={isThisArchiving}
+                        isDeleting={isThisDeleting}
+                        isFixedExpensesAccount={fixedExpenseAccountIds.has(account.id)}
+                      />
+                    )}
+                  </SortableItem>
+                );
+              }}
             />
           )}
         </div>
@@ -296,6 +399,26 @@ const AccountsPage = () => {
             </div>
           )}
         </div>
+      </div>
+
+      {/*
+        Archived section sits below the active grid so it stays out of the
+        way for normal browsing but is still discoverable. It only renders
+        when there is at least one archived account, and is collapsed by
+        default — see ArchivedSection for the rationale.
+      */}
+      <div className={selectedAccountId ? 'hidden md:block' : 'block'}>
+        <ArchivedSection
+          accounts={archivedAccounts}
+          onRestore={handleRestoreAccount}
+          onDeletePermanent={handleDeletePermanent}
+          restoringId={restoringId}
+          deletingId={
+            accountActions.cascadeDelete.isDeleting
+              ? accountActions.cascadeDelete.accountId
+              : null
+          }
+        />
       </div>
 
       <Modal

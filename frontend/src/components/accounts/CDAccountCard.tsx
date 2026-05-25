@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import type { CDInvestmentAccount, CDCalculationResult } from '../../types';
-import { EditDeleteActions } from '../ui/ActionButtons';
+import { EditArchiveDeleteActions } from '../ui/ActionButtons';
 import { TrendingUp, Landmark, AlertTriangle } from 'lucide-react';
 import SelectableValue from '../ui/SelectableValue';
 import { currencyService } from '../../services/currencyService';
@@ -12,7 +12,11 @@ interface CDAccountCardProps {
     /** Receives the account so the parent can hold a stable callback. */
     onSelect: (account: CDInvestmentAccount) => void;
     onEdit: (account: CDInvestmentAccount) => void;
-    onDelete: (id: string) => void;
+    /** Soft-delete (archive) handler. See {@link AccountCard} for rationale. */
+    onArchive: (id: string) => void;
+    /** Permanent cascade delete handler. Caller gates with confirmation. */
+    onDeletePermanent: (id: string) => void;
+    isArchiving?: boolean;
     isDeleting?: boolean;
 }
 
@@ -26,7 +30,9 @@ const CDAccountCard = ({
     isSelected,
     onSelect,
     onEdit,
-    onDelete,
+    onArchive,
+    onDeletePermanent,
+    isArchiving = false,
     isDeleting = false,
 }: CDAccountCardProps) => {
     // Calculate current CD values with error handling
@@ -99,9 +105,11 @@ const CDAccountCard = ({
                         )}
                     </div>
                     <div onClick={(e) => e.stopPropagation()}>
-                        <EditDeleteActions
+                        <EditArchiveDeleteActions
                             onEdit={() => onEdit(account)}
-                            onDelete={() => onDelete(account.id)}
+                            onArchive={() => onArchive(account.id)}
+                            onDeletePermanent={() => onDeletePermanent(account.id)}
+                            isArchiving={isArchiving}
                             isDeleting={isDeleting}
                             showOnHover={false}
                         />
