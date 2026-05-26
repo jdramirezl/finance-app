@@ -105,7 +105,7 @@ export const useMovementSubmit = ({
           targetPocketId,
           amount, displayedDate, notes: notes || undefined,
         });
-        useLastUsedPocket.getState().setLastUsed(toSimpleType(type), accountId, pocketId);
+        useLastUsedPocket.getState().setLastUsed(toSimpleType(type), accountId, pocketId, type);
         toast.success('Transfer created successfully!');
         return;
       }
@@ -117,7 +117,7 @@ export const useMovementSubmit = ({
         category: category || undefined,
       });
 
-      useLastUsedPocket.getState().setLastUsed(toSimpleType(type), accountId, pocketId);
+      useLastUsedPocket.getState().setLastUsed(toSimpleType(type), accountId, pocketId, type);
 
       if (wasReminderId) {
         if (wasReminderRecurring && wasReminderDate) {
