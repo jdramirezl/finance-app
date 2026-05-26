@@ -41,6 +41,7 @@ vi.mock('../../../hooks/queries', () => ({
 vi.mock('../../../services/currencyService', () => ({
   currencyService: {
     getExchangeRateHistory: mocks.getExchangeRateHistory,
+    convert: vi.fn().mockResolvedValue(1),
   },
 }));
 
