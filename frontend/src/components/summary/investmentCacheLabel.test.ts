@@ -31,16 +31,18 @@ describe('formatCacheLabel', () => {
   it('formats hours-ago and remaining hours when within the cache window', () => {
     const now = 1_000_000_000;
     // Cached 2h ago, 6h cache window — 4h left until next refresh.
+    const nextAt = now - 2 * HOUR_MS + 6 * HOUR_MS;
+    const expectedTime = new Date(nextAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     expect(
       formatCacheLabel(
         {
           lastUpdated: now - 2 * HOUR_MS,
           cacheHours: 6,
-          nextRefreshAt: now - 2 * HOUR_MS + 6 * HOUR_MS,
+          nextRefreshAt: nextAt,
         },
         now,
       ),
-    ).toBe('Updated 2h ago · Next in ~4h');
+    ).toBe(`Updated 2h ago · Next at ${expectedTime}`);
   });
 
   it('signals "Refresh available" when the cache window has elapsed', () => {
