@@ -1,8 +1,9 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import { format } from 'date-fns';
-import { useAccountsQuery, useMovementTemplatesQuery, usePocketsQuery, useSubPocketsQuery } from '../../hooks/queries';
+import { useAccountsQuery, useMovementTemplatesQuery, usePocketsQuery, useSettingsQuery, useSubPocketsQuery } from '../../hooks/queries';
 import { useUnsavedChanges } from '../../hooks/useUnsavedChanges';
+import { resolveLastUsedPocket, toSimpleType, useLastUsedPocket } from '../../store/useLastUsedPocket';
 import Button from '../ui/Button';
 import Input from '../ui/Input';
 import Select from '../ui/Select';
@@ -64,6 +65,7 @@ const MovementForm = forwardRef<MovementFormRef, MovementFormProps>(
     const { data: pockets = [] } = usePocketsQuery();
     const { data: subPockets = [] } = useSubPocketsQuery();
     const { data: movementTemplates = [] } = useMovementTemplatesQuery();
+    const { data: settings } = useSettingsQuery();
 
     const defaultDateValue = initialData?.displayedDate
       ? toDateOnly(initialData.displayedDate)
@@ -71,13 +73,23 @@ const MovementForm = forwardRef<MovementFormRef, MovementFormProps>(
         ? toDateOnly(prefillValues.date)
         : format(new Date(), 'yyyy-MM-dd');
 
+    // For brand-new movements (no edit, no template/fixed-expense prefill of type),
+    // pre-fill type/account/pocket from the user's last-used selection. Falls back
+    // to the DB default and finally to the first account+pocket. Edit mode and
+    // explicit prefill always take precedence.
+    const isNewMovement = !initialData && !prefillValues?.type;
+    const storedLastType = useLastUsedPocket.getState().getLastType() ?? 'EgresoNormal';
+    const lastUsedDefaults = isNewMovement
+      ? resolveLastUsedPocket(toSimpleType(storedLastType), accounts, pockets, settings)
+      : null;
+
     const { register, handleSubmit, control, setValue, watch, formState: { errors, isDirty } } = useForm<MovementFormData>({
       mode: 'onBlur',
       defaultValues: {
-        type: initialData?.type ?? prefillValues?.type ?? 'EgresoNormal',
+        type: initialData?.type ?? prefillValues?.type ?? lastUsedDefaults?.lastType ?? 'EgresoNormal',
         displayedDate: defaultDateValue,
-        accountId: initialData?.accountId ?? '',
-        pocketId: initialData?.pocketId ?? '',
+        accountId: initialData?.accountId ?? lastUsedDefaults?.accountId ?? '',
+        pocketId: initialData?.pocketId ?? lastUsedDefaults?.pocketId ?? '',
         subPocketId: initialData?.subPocketId ?? '',
         amount: initialData ? initialData.amount.toString() : (prefillValues?.amount ? prefillValues.amount.toString() : ''),
         notes: initialData?.notes ?? prefillValues?.notes ?? '',
