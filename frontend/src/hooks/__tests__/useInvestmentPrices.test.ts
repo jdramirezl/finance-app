@@ -27,6 +27,7 @@ vi.mock('../../services/investmentService', () => ({
       }),
     ),
     getPriceTimestamp: vi.fn(() => 1234567890),
+    markRefreshed: vi.fn(),
   },
 }));
 

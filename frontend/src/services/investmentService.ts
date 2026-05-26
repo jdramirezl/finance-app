@@ -88,6 +88,16 @@ class InvestmentService {
         return cached ? cached.timestamp : null;
     }
 
+    // Mark a symbol as just refreshed (updates local timestamp to now)
+    markRefreshed(symbol: string): void {
+        this.loadPriceCache();
+        const cached = this.priceCache.get(symbol);
+        if (cached) {
+            cached.timestamp = Date.now();
+            this.savePriceCache();
+        }
+    }
+
     // Update investment account with current price
     async updateInvestmentAccount(account: Account): Promise<{
         precioActual: number;

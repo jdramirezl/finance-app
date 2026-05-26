@@ -279,6 +279,10 @@ export const useInvestmentPrices = ({
         const price =
           queryClient.getQueryData<number>(investmentPriceKey(symbol)) ?? 0;
 
+        // Update local timestamp so the UI shows "Just now" instead of
+        // the backend's stale cachedAt value.
+        investmentService.markRefreshed(symbol);
+
         toast.success(
           `Price refreshed: ${symbol} = ${currencyService.formatCurrency(
             price,
