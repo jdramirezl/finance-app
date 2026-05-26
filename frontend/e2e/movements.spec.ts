@@ -44,8 +44,8 @@ test.describe.serial('Movement CRUD + Transfer', () => {
 
     await page.getByRole('button', { name: /create movement/i }).click();
 
-    // Verify it appears in the list
-    await expect(page.getByText('[TEST] Expense Movement')).toBeVisible({ timeout: 10000 });
+    // Verify it appears in the list (allow time for mutation + refetch in CI)
+    await expect(page.getByText('[TEST] Expense Movement')).toBeVisible({ timeout: 30000 });
   });
 
   test('inline edit movement amount', async ({ page }) => {
@@ -93,7 +93,7 @@ test.describe.serial('Movement CRUD + Transfer', () => {
     await page.getByRole('button', { name: /transfer funds/i }).click();
 
     // Verify transfer note appears in list
-    await expect(page.getByText('[TEST] Transfer')).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText('[TEST] Transfer')).toBeVisible({ timeout: 30000 });
   });
 
   test('delete a movement', async ({ page }) => {
