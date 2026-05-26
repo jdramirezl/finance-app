@@ -147,6 +147,7 @@ class ApiClient {
           await supabase.auth.refreshSession();
 
         if (!refreshError && refreshData.session) {
+          this.cachedToken = refreshData.session.access_token;
           const retryHeaders: Record<string, string> = {
             ...headers,
             Authorization: `Bearer ${refreshData.session.access_token}`,
@@ -159,12 +160,9 @@ class ApiClient {
           if (retryResponse.ok) return this.parseSuccess<T>(retryResponse);
         }
 
-        // Refresh failed or retry still 401 — session is dead.
+        // Refresh failed or retry still 401 — throw so TanStack Query can handle it
         window.dispatchEvent(new CustomEvent('auth:session-expired'));
-        // Return a never-resolving promise: the session-expired modal
-        // will redirect to /login, so there's no point in propagating
-        // the error to mutation onError handlers (which would show a toast).
-        return new Promise<T>(() => {});
+        throw new AppError(401, 'Session expired');
       }
 
       const errorBody = (await response.json().catch(() => ({}))) as ErrorBody;
