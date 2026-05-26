@@ -5,7 +5,7 @@ import { useAccountsQuery, usePocketsQuery } from '../../hooks/queries';
 import { format } from 'date-fns';
 import type { MovementType } from '../../types';
 
-type SimpleType = 'expense' | 'income' | 'transfer';
+type SimpleType = 'expense' | 'income';
 
 export interface QuickAddMovementProps {
   variant: 'inline' | 'modal';
@@ -84,7 +84,6 @@ const QuickAddMovement = ({ variant, onClose, onSuccess }: QuickAddMovementProps
   const typeButtons: { value: SimpleType; label: string }[] = [
     { value: 'expense', label: 'Expense' },
     { value: 'income', label: 'Income' },
-    { value: 'transfer', label: 'Transfer' },
   ];
 
   const form = (
@@ -112,7 +111,7 @@ const QuickAddMovement = ({ variant, onClose, onSuccess }: QuickAddMovementProps
           </div>
         </div>
 
-        {/* 3-button type toggle */}
+        {/* Type toggle */}
         <div className="flex bg-gray-900 p-1 rounded-lg border border-gray-600">
           {typeButtons.map((btn) => (
             <button
