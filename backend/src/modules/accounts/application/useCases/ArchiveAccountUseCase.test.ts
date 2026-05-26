@@ -27,6 +27,7 @@ describe('ArchiveAccountUseCase', () => {
       archive: jest.fn(),
       unarchive: jest.fn(),
       updateDisplayOrders: jest.fn(),
+      getDistinctActiveSymbols: jest.fn().mockResolvedValue([]),
     } as jest.Mocked<IAccountRepository>;
 
     mockPocketRepo = {
@@ -45,6 +46,7 @@ describe('ArchiveAccountUseCase', () => {
       unarchive: jest.fn(),
       deleteByAccountId: jest.fn(),
       updateDisplayOrders: jest.fn(),
+      getDistinctActiveSymbols: jest.fn().mockResolvedValue([]),
     } as jest.Mocked<IPocketRepository>;
 
     useCase = new ArchiveAccountUseCase(mockAccountRepo, mockPocketRepo);

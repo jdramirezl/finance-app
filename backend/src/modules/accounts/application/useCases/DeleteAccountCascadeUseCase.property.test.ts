@@ -70,6 +70,7 @@ describe('DeleteAccountCascadeUseCase Property-Based Tests', () => {
               archive: jest.fn().mockResolvedValue(undefined),
               unarchive: jest.fn().mockResolvedValue(undefined),
               updateDisplayOrders: jest.fn().mockResolvedValue(undefined),
+              getDistinctActiveSymbols: jest.fn().mockResolvedValue([]),
             };
 
             const mockPocketRepo: jest.Mocked<IPocketRepository> = {
@@ -148,6 +149,7 @@ describe('DeleteAccountCascadeUseCase Property-Based Tests', () => {
               archive: jest.fn().mockResolvedValue(undefined),
               unarchive: jest.fn().mockResolvedValue(undefined),
               updateDisplayOrders: jest.fn().mockResolvedValue(undefined),
+              getDistinctActiveSymbols: jest.fn().mockResolvedValue([]),
             };
 
             const mockPocketRepo: jest.Mocked<IPocketRepository> = {
@@ -207,6 +209,7 @@ describe('DeleteAccountCascadeUseCase Property-Based Tests', () => {
               archive: jest.fn().mockResolvedValue(undefined),
               unarchive: jest.fn().mockResolvedValue(undefined),
               updateDisplayOrders: jest.fn().mockResolvedValue(undefined),
+              getDistinctActiveSymbols: jest.fn().mockResolvedValue([]),
             };
 
             const mockPocketRepo: jest.Mocked<IPocketRepository> = {
@@ -264,6 +267,7 @@ describe('DeleteAccountCascadeUseCase Property-Based Tests', () => {
               archive: jest.fn().mockResolvedValue(undefined),
               unarchive: jest.fn().mockResolvedValue(undefined),
               updateDisplayOrders: jest.fn().mockResolvedValue(undefined),
+              getDistinctActiveSymbols: jest.fn().mockResolvedValue([]),
             };
 
             const mockPocketRepo: jest.Mocked<IPocketRepository> = {
