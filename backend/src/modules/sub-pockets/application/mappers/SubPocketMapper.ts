@@ -27,7 +27,7 @@ interface SubPocketPersistence {
   periodicity_months: number;
   balance: number;
   group_id: string | null;
-  display_order: number | null;
+  display_order: number;
   created_at?: string;
   updated_at?: string;
 }
@@ -53,7 +53,7 @@ export class SubPocketMapper {
       periodicity_months: subPocket.periodicityMonths,
       balance: subPocket.balance,
       group_id: subPocket.groupId ?? null,
-      display_order: subPocket.displayOrder ?? null,
+      display_order: subPocket.displayOrder ?? 0,
     };
   }
 

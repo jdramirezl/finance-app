@@ -221,10 +221,24 @@ export class SupabaseSubPocketRepository implements ISubPocketRepository {
 
   /**
    * Check if sub-pocket has any movements
-   * Used to prevent deletion of sub-pockets with movements
    */
   async hasMovements(subPocketId: string, userId: string): Promise<boolean> {
     const count = await this.countMovements(subPocketId, userId);
     return count > 0;
+  }
+
+  /**
+   * Nullify sub_pocket_id on all movements linked to this sub-pocket
+   */
+  async detachMovements(subPocketId: string, userId: string): Promise<void> {
+    const { error } = await this.supabase
+      .from('movements')
+      .update({ sub_pocket_id: null })
+      .eq('sub_pocket_id', subPocketId)
+      .eq('user_id', userId);
+
+    if (error) {
+      throw new DatabaseError(`Failed to detach movements from sub-pocket: ${error.message}`);
+    }
   }
 }

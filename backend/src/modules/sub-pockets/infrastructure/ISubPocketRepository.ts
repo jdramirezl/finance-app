@@ -61,7 +61,11 @@ export interface ISubPocketRepository {
 
   /**
    * Check if sub-pocket has any movements
-   * Used to prevent deletion of sub-pockets with movements
    */
   hasMovements(subPocketId: string, userId: string): Promise<boolean>;
+
+  /**
+   * Nullify sub_pocket_id on all movements linked to this sub-pocket
+   */
+  detachMovements(subPocketId: string, userId: string): Promise<void>;
 }
