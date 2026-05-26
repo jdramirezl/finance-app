@@ -17,6 +17,7 @@ import { GetCurrentStockPriceUseCase } from './GetCurrentStockPriceUseCase';
 import { StockPrice } from '../../domain/StockPrice';
 import type { IStockPriceRepository } from '../../infrastructure/IStockPriceRepository';
 import type { IAlphaVantageService } from '../../infrastructure/IAlphaVantageService';
+import type { IAccountRepository } from '../../infrastructure/IAccountRepository';
 
 describe('GetCurrentStockPriceUseCase Property-Based Tests', () => {
   // Helper to generate valid stock symbols (1-5 uppercase letters)
@@ -28,6 +29,24 @@ describe('GetCurrentStockPriceUseCase Property-Based Tests', () => {
 
   // Helper to generate valid stock prices
   const validStockPrice = () => fc.double({ min: 0.01, max: 10000, noNaN: true });
+
+  // Helper to build a mock account repository. The use case calls
+  // accountRepo.getDistinctActiveSymbols() to size its cache window;
+  // returning [] gives a 1h window which keeps these tests deterministic
+  // (fresh entries stay fresh, 25h-old entries stay expired).
+  const buildMockAccountRepo = (): jest.Mocked<IAccountRepository> => ({
+    save: jest.fn(),
+    findById: jest.fn(),
+    findAllByUserId: jest.fn(),
+    existsByNameAndCurrency: jest.fn(),
+    existsByNameAndCurrencyExcludingId: jest.fn(),
+    update: jest.fn(),
+    delete: jest.fn(),
+    archive: jest.fn(),
+    unarchive: jest.fn(),
+    updateDisplayOrders: jest.fn(),
+    getDistinctActiveSymbols: jest.fn().mockResolvedValue([]),
+  });
 
   describe('Property 46: Stock price caching checks local cache first', () => {
     it('should return from local cache when available and fresh', async () => {
@@ -47,7 +66,7 @@ describe('GetCurrentStockPriceUseCase Property-Based Tests', () => {
               fetchStockPrice: jest.fn(),
             };
 
-            const useCase = new GetCurrentStockPriceUseCase(mockRepo, mockService);
+            const useCase = new GetCurrentStockPriceUseCase(mockRepo, mockService, buildMockAccountRepo());
 
             // Pre-populate local cache with fresh price
             const cachedPrice = new StockPrice(symbol, price, new Date());
@@ -90,7 +109,7 @@ describe('GetCurrentStockPriceUseCase Property-Based Tests', () => {
               fetchStockPrice: jest.fn(),
             };
 
-            const useCase = new GetCurrentStockPriceUseCase(mockRepo, mockService);
+            const useCase = new GetCurrentStockPriceUseCase(mockRepo, mockService, buildMockAccountRepo());
 
             // Pre-populate local cache with EXPIRED price (25 hours ago)
             const expiredDate = new Date();
@@ -135,7 +154,7 @@ describe('GetCurrentStockPriceUseCase Property-Based Tests', () => {
               fetchStockPrice: jest.fn(),
             };
 
-            const useCase = new GetCurrentStockPriceUseCase(mockRepo, mockService);
+            const useCase = new GetCurrentStockPriceUseCase(mockRepo, mockService, buildMockAccountRepo());
 
             // Ensure local cache is empty
             useCase.clearLocalCache();
@@ -184,7 +203,7 @@ describe('GetCurrentStockPriceUseCase Property-Based Tests', () => {
               fetchStockPrice: jest.fn().mockResolvedValue(newPrice),
             };
 
-            const useCase = new GetCurrentStockPriceUseCase(mockRepo, mockService);
+            const useCase = new GetCurrentStockPriceUseCase(mockRepo, mockService, buildMockAccountRepo());
 
             // Ensure local cache is empty
             useCase.clearLocalCache();
@@ -228,7 +247,7 @@ describe('GetCurrentStockPriceUseCase Property-Based Tests', () => {
               fetchStockPrice: jest.fn().mockResolvedValue(price),
             };
 
-            const useCase = new GetCurrentStockPriceUseCase(mockRepo, mockService);
+            const useCase = new GetCurrentStockPriceUseCase(mockRepo, mockService, buildMockAccountRepo());
 
             // Ensure local cache is empty
             useCase.clearLocalCache();
@@ -276,7 +295,7 @@ describe('GetCurrentStockPriceUseCase Property-Based Tests', () => {
               fetchStockPrice: jest.fn().mockResolvedValue(price),
             };
 
-            const useCase = new GetCurrentStockPriceUseCase(mockRepo, mockService);
+            const useCase = new GetCurrentStockPriceUseCase(mockRepo, mockService, buildMockAccountRepo());
             useCase.clearLocalCache();
 
             // Execute use case
@@ -319,7 +338,7 @@ describe('GetCurrentStockPriceUseCase Property-Based Tests', () => {
               fetchStockPrice: jest.fn().mockResolvedValue(price),
             };
 
-            const useCase = new GetCurrentStockPriceUseCase(mockRepo, mockService);
+            const useCase = new GetCurrentStockPriceUseCase(mockRepo, mockService, buildMockAccountRepo());
             useCase.clearLocalCache();
 
             // Execute with lowercase symbol
@@ -351,7 +370,7 @@ describe('GetCurrentStockPriceUseCase Property-Based Tests', () => {
               fetchStockPrice: jest.fn().mockResolvedValue(price),
             };
 
-            const useCase = new GetCurrentStockPriceUseCase(mockRepo, mockService);
+            const useCase = new GetCurrentStockPriceUseCase(mockRepo, mockService, buildMockAccountRepo());
             useCase.clearLocalCache();
 
             // Create mixed case version

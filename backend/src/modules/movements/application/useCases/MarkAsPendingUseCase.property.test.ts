@@ -64,6 +64,7 @@ describe('MarkAsPendingUseCase Property-Based Tests', () => {
       archive: jest.fn().mockResolvedValue(undefined),
       unarchive: jest.fn().mockResolvedValue(undefined),
       updateDisplayOrders: jest.fn().mockResolvedValue(undefined),
+      getDistinctActiveSymbols: jest.fn().mockResolvedValue([]),
     };
 
     const mockPocketRepo: jest.Mocked<IPocketRepository> = {
@@ -96,6 +97,7 @@ describe('MarkAsPendingUseCase Property-Based Tests', () => {
       updateDisplayOrders: jest.fn().mockResolvedValue(undefined),
       countMovements: jest.fn().mockResolvedValue(1),
       hasMovements: jest.fn().mockResolvedValue(true),
+      detachMovements: jest.fn().mockResolvedValue(undefined),
     };
 
     return { mockMovementRepo, mockAccountRepo, mockPocketRepo, mockSubPocketRepo };
