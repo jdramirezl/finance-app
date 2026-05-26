@@ -9,7 +9,7 @@
 
 import { injectable, inject } from 'tsyringe';
 import type { ISubPocketRepository } from '../../infrastructure/ISubPocketRepository';
-import { ValidationError, NotFoundError } from '../../../../shared/errors/AppError';
+import { ValidationError } from '../../../../shared/errors/AppError';
 
 @injectable()
 export class DeleteSubPocketUseCase {
@@ -24,7 +24,7 @@ export class DeleteSubPocketUseCase {
 
     const subPocket = await this.subPocketRepo.findById(id, userId);
     if (!subPocket) {
-      throw new NotFoundError('SubPocket not found');
+      return; // Already deleted — idempotent
     }
 
     // Detach movements from this sub-pocket before deleting
