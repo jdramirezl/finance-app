@@ -1,26 +1,54 @@
 import type { SubPocket } from '../types';
 import { apiClient } from './apiClient';
+import { supabase } from '../lib/supabase';
+import { mapSubPocketRow } from './mappers';
 import { calculateAporteMensual } from '../utils/fixedExpenseUtils';
 
 class SubPocketService {
-  // Get all sub-pockets
+  // Get all sub-pockets directly from Supabase
   async getAllSubPockets(): Promise<SubPocket[]> {
-    return apiClient.get<SubPocket[]>('/api/sub-pockets');
+    const { data, error } = await supabase
+      .from('sub_pockets')
+      .select('*')
+      .order('display_order', { ascending: true, nullsFirst: false });
+    if (error) throw new Error(`Failed to fetch sub-pockets: ${error.message}`);
+    return (data ?? []).map(mapSubPocketRow);
   }
 
-  // Get sub-pocket by ID
+  // Get sub-pocket by ID directly from Supabase
   async getSubPocket(id: string): Promise<SubPocket | null> {
-    return apiClient.get<SubPocket>(`/api/sub-pockets/${id}`);
+    const { data, error } = await supabase
+      .from('sub_pockets')
+      .select('*')
+      .eq('id', id)
+      .single();
+    if (error) {
+      if (error.code === 'PGRST116') return null;
+      throw new Error(error.message);
+    }
+    return data ? mapSubPocketRow(data) : null;
   }
 
-  // Get sub-pockets by pocket (fixed expenses pocket)
+  // Get sub-pockets by pocket (fixed expenses pocket) directly from Supabase
   async getSubPocketsByPocket(pocketId: string): Promise<SubPocket[]> {
-    return apiClient.get<SubPocket[]>(`/api/sub-pockets?pocketId=${pocketId}`);
+    const { data, error } = await supabase
+      .from('sub_pockets')
+      .select('*')
+      .eq('pocket_id', pocketId)
+      .order('display_order', { ascending: true, nullsFirst: false });
+    if (error) throw new Error(error.message);
+    return (data ?? []).map(mapSubPocketRow);
   }
 
-  // Get sub-pockets by group
+  // Get sub-pockets by group directly from Supabase
   async getSubPocketsByGroup(groupId: string): Promise<SubPocket[]> {
-    return apiClient.get<SubPocket[]>(`/api/sub-pockets?groupId=${groupId}`);
+    const { data, error } = await supabase
+      .from('sub_pockets')
+      .select('*')
+      .eq('group_id', groupId)
+      .order('display_order', { ascending: true, nullsFirst: false });
+    if (error) throw new Error(error.message);
+    return (data ?? []).map(mapSubPocketRow);
   }
 
   // Calculate monthly contribution (aporteMensual)
