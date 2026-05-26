@@ -42,6 +42,7 @@ describe('DeleteGroupUseCase - Property Tests', () => {
       updateDisplayOrders: jest.fn(),
       countMovements: jest.fn(),
       hasMovements: jest.fn(),
+      detachMovements: jest.fn(),
     };
     useCase = new DeleteGroupUseCase(mockGroupRepository, mockSubPocketRepository);
   });
