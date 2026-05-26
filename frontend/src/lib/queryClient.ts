@@ -1,5 +1,4 @@
 import { QueryClient, onlineManager } from '@tanstack/react-query';
-import { AppError } from '../errors/AppError';
 
 /**
  * Configure TanStack Query's online manager to pause/resume
@@ -35,12 +34,7 @@ export const queryClient = new QueryClient({
             retry: 1,
         },
         mutations: {
-            networkMode: 'offlineFirst',
-            retry: (failureCount, error) => {
-                if (failureCount >= 2) return false;
-                return AppError.isTransient(error);
-            },
-            retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 10000),
+            retry: false,
         },
     },
 });

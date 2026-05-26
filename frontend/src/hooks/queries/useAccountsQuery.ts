@@ -8,7 +8,7 @@ export const useAccountsQuery = () => {
     return useQuery({
         queryKey: ['accounts'],
         queryFn: () => accountService.getAllAccounts(),
-        staleTime: 1000 * 60 * 10, // 10 minutes - accounts change infrequently
+        staleTime: 0, // Always refetch on invalidation for instant UI updates
     });
 };
 
@@ -24,7 +24,7 @@ export const useAccountsWithArchived = () => {
     return useQuery({
         queryKey: ['accounts', 'include-archived'],
         queryFn: () => accountService.getAllAccounts(true),
-        staleTime: 1000 * 60 * 10, // 10 minutes - accounts change infrequently
+        staleTime: 0, // Always refetch on invalidation for instant UI updates
     });
 };
 
@@ -36,6 +36,6 @@ export const useAccountQuery = (accountId: string) => {
         queryKey: ['accounts', accountId],
         queryFn: () => accountService.getAccount(accountId),
         enabled: !!accountId, // Only run query if accountId is provided
-        staleTime: 1000 * 60 * 10, // 10 minutes - accounts change infrequently
+        staleTime: 0, // Always refetch on invalidation for instant UI updates
     });
 };
