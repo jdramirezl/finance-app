@@ -1,9 +1,19 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { accountService } from './accountService';
 import { apiClient } from './apiClient';
+import { supabase } from '../lib/supabase';
+import { makeSupabaseQuery, type SupabaseQueryMock } from '../test/supabaseQueryMock';
 import type { Account } from '../types';
 
-const mockAccount: Account = {
+// Override the global supabase mock from `test/setup.ts` so each read can
+// configure its own resolved data/error pair via `makeSupabaseQuery`.
+vi.mock('../lib/supabase', () => ({
+  supabase: { from: vi.fn() },
+}));
+
+// Snake-case row shape returned by Supabase. `accountService` uses the
+// shared `mapAccountRow` to convert this into the camelCase domain type.
+const mockAccountRow = {
   id: 'test-id',
   name: 'Test Account',
   color: '#FF0000',
@@ -12,50 +22,91 @@ const mockAccount: Account = {
   type: 'normal',
 };
 
+// Domain shape callers receive. Mirrors `mapAccountRow(mockAccountRow)`:
+// `archivedAt` defaults to `null` rather than `undefined`, so we declare
+// it explicitly here for `toEqual` comparisons.
+const mockAccount: Account = {
+  id: 'test-id',
+  name: 'Test Account',
+  color: '#FF0000',
+  currency: 'USD',
+  balance: 0,
+  type: 'normal',
+  archivedAt: null,
+};
+
 describe('accountService', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   describe('getAllAccounts', () => {
-    it('should call apiClient.get with correct path', async () => {
-      vi.spyOn(apiClient, 'get').mockResolvedValue([mockAccount]);
+    it('queries the accounts table and filters out archived rows by default', async () => {
+      const query: SupabaseQueryMock = makeSupabaseQuery({ data: [mockAccountRow], error: null });
+      vi.mocked(supabase.from).mockReturnValue(query as unknown as ReturnType<typeof supabase.from>);
+
       const result = await accountService.getAllAccounts();
-      expect(apiClient.get).toHaveBeenCalledWith('/api/accounts');
+
+      expect(supabase.from).toHaveBeenCalledWith('accounts');
+      expect(query.select).toHaveBeenCalledWith('*');
+      expect(query.order).toHaveBeenCalledWith('display_order', { ascending: true, nullsFirst: false });
+      expect(query.is).toHaveBeenCalledWith('archived_at', null);
       expect(result).toEqual([mockAccount]);
     });
 
-    it('should return empty array when no accounts', async () => {
-      vi.spyOn(apiClient, 'get').mockResolvedValue([]);
+    it('returns an empty array when the table has no rows', async () => {
+      const query = makeSupabaseQuery({ data: [], error: null });
+      vi.mocked(supabase.from).mockReturnValue(query as unknown as ReturnType<typeof supabase.from>);
+
       const result = await accountService.getAllAccounts();
+
       expect(result).toEqual([]);
     });
 
-    it('should omit query string when includeArchived is false (default)', async () => {
-      vi.spyOn(apiClient, 'get').mockResolvedValue([mockAccount]);
-      await accountService.getAllAccounts(false);
-      expect(apiClient.get).toHaveBeenCalledWith('/api/accounts');
+    it('skips the archived_at filter when includeArchived=true', async () => {
+      const query = makeSupabaseQuery({ data: [mockAccountRow], error: null });
+      vi.mocked(supabase.from).mockReturnValue(query as unknown as ReturnType<typeof supabase.from>);
+
+      await accountService.getAllAccounts(true);
+
+      expect(query.is).not.toHaveBeenCalled();
     });
 
-    it('should pass include_archived=true when requested', async () => {
-      vi.spyOn(apiClient, 'get').mockResolvedValue([mockAccount]);
-      await accountService.getAllAccounts(true);
-      expect(apiClient.get).toHaveBeenCalledWith('/api/accounts?include_archived=true');
+    it('throws when Supabase returns an error', async () => {
+      const query = makeSupabaseQuery({ data: null, error: { message: 'boom' } });
+      vi.mocked(supabase.from).mockReturnValue(query as unknown as ReturnType<typeof supabase.from>);
+
+      await expect(accountService.getAllAccounts()).rejects.toThrow('Failed to fetch accounts: boom');
     });
   });
 
   describe('getAccount', () => {
-    it('should retrieve account by ID', async () => {
-      vi.spyOn(apiClient, 'get').mockResolvedValue(mockAccount);
+    it('retrieves a single account by id via .eq().single()', async () => {
+      const query = makeSupabaseQuery({ data: mockAccountRow, error: null });
+      vi.mocked(supabase.from).mockReturnValue(query as unknown as ReturnType<typeof supabase.from>);
+
       const result = await accountService.getAccount('test-id');
-      expect(apiClient.get).toHaveBeenCalledWith('/api/accounts/test-id');
+
+      expect(supabase.from).toHaveBeenCalledWith('accounts');
+      expect(query.eq).toHaveBeenCalledWith('id', 'test-id');
+      expect(query.single).toHaveBeenCalled();
       expect(result).toEqual(mockAccount);
     });
 
-    it('should return null for non-existent ID', async () => {
-      vi.spyOn(apiClient, 'get').mockResolvedValue(null);
+    it('returns null when Supabase reports the row was not found (PGRST116)', async () => {
+      const query = makeSupabaseQuery({ data: null, error: { message: 'no rows', code: 'PGRST116' } });
+      vi.mocked(supabase.from).mockReturnValue(query as unknown as ReturnType<typeof supabase.from>);
+
       const result = await accountService.getAccount('non-existent');
+
       expect(result).toBeNull();
+    });
+
+    it('throws on any other Supabase error', async () => {
+      const query = makeSupabaseQuery({ data: null, error: { message: 'denied', code: '42501' } });
+      vi.mocked(supabase.from).mockReturnValue(query as unknown as ReturnType<typeof supabase.from>);
+
+      await expect(accountService.getAccount('test-id')).rejects.toThrow('denied');
     });
   });
 
@@ -218,42 +269,62 @@ describe('accountService', () => {
   });
 
   describe('validateAccountUniqueness', () => {
-    it('should return true when no duplicate exists', async () => {
-      vi.spyOn(apiClient, 'get').mockResolvedValue([mockAccount]);
+    it('returns true when no account with the same name+currency exists', async () => {
+      const query = makeSupabaseQuery({ data: [mockAccountRow], error: null });
+      vi.mocked(supabase.from).mockReturnValue(query as unknown as ReturnType<typeof supabase.from>);
+
       const isUnique = await accountService.validateAccountUniqueness('Other', 'USD');
+
       expect(isUnique).toBe(true);
     });
 
-    it('should return false when duplicate name+currency exists', async () => {
-      vi.spyOn(apiClient, 'get').mockResolvedValue([mockAccount]);
+    it('returns false when a duplicate name+currency exists', async () => {
+      const query = makeSupabaseQuery({ data: [mockAccountRow], error: null });
+      vi.mocked(supabase.from).mockReturnValue(query as unknown as ReturnType<typeof supabase.from>);
+
       const isUnique = await accountService.validateAccountUniqueness('Test Account', 'USD');
+
       expect(isUnique).toBe(false);
     });
 
-    it('should exclude specified ID from validation', async () => {
-      vi.spyOn(apiClient, 'get').mockResolvedValue([mockAccount]);
+    it('excludes the supplied id when validating uniqueness', async () => {
+      const query = makeSupabaseQuery({ data: [mockAccountRow], error: null });
+      vi.mocked(supabase.from).mockReturnValue(query as unknown as ReturnType<typeof supabase.from>);
+
       const isUnique = await accountService.validateAccountUniqueness('Test Account', 'USD', 'test-id');
+
       expect(isUnique).toBe(true);
     });
 
-    it('should return true for same name different currency', async () => {
-      vi.spyOn(apiClient, 'get').mockResolvedValue([mockAccount]);
+    it('treats different currencies as distinct accounts', async () => {
+      const query = makeSupabaseQuery({ data: [mockAccountRow], error: null });
+      vi.mocked(supabase.from).mockReturnValue(query as unknown as ReturnType<typeof supabase.from>);
+
       const isUnique = await accountService.validateAccountUniqueness('Test Account', 'MXN');
+
       expect(isUnique).toBe(true);
     });
 
-    it('should query with include_archived=true so archived accounts still block reuse', async () => {
-      const getSpy = vi.spyOn(apiClient, 'get').mockResolvedValue([mockAccount]);
+    it('includes archived rows so archived accounts still block reuse', async () => {
+      const query = makeSupabaseQuery({ data: [mockAccountRow], error: null });
+      vi.mocked(supabase.from).mockReturnValue(query as unknown as ReturnType<typeof supabase.from>);
+
       await accountService.validateAccountUniqueness('Other', 'USD');
-      expect(getSpy).toHaveBeenCalledWith('/api/accounts?include_archived=true');
+
+      // includeArchived=true skips the `.is('archived_at', null)` filter so
+      // archived rows surface alongside active ones.
+      expect(query.is).not.toHaveBeenCalled();
     });
   });
 
   describe('getCDAccounts', () => {
     it('should filter only CD accounts', async () => {
-      const cdAccount = { ...mockAccount, id: 'cd-1', type: 'cd' as const, investmentType: 'cd' as const };
-      vi.spyOn(apiClient, 'get').mockResolvedValue([mockAccount, cdAccount]);
+      const cdRow = { ...mockAccountRow, id: 'cd-1', type: 'cd', investment_type: 'cd' };
+      const query = makeSupabaseQuery({ data: [mockAccountRow, cdRow], error: null });
+      vi.mocked(supabase.from).mockReturnValue(query as unknown as ReturnType<typeof supabase.from>);
+
       const result = await accountService.getCDAccounts();
+
       expect(result).toHaveLength(1);
       expect(result[0].id).toBe('cd-1');
     });
@@ -261,14 +332,18 @@ describe('accountService', () => {
 
   describe('calculateCDEarlyWithdrawal', () => {
     it('should throw for non-CD account', async () => {
-      vi.spyOn(apiClient, 'get').mockResolvedValue(mockAccount);
+      const query = makeSupabaseQuery({ data: mockAccountRow, error: null });
+      vi.mocked(supabase.from).mockReturnValue(query as unknown as ReturnType<typeof supabase.from>);
+
       await expect(
         accountService.calculateCDEarlyWithdrawal('test-id')
       ).rejects.toThrow('Account is not a CD investment account');
     });
 
     it('should throw when account not found', async () => {
-      vi.spyOn(apiClient, 'get').mockResolvedValue(null);
+      const query = makeSupabaseQuery({ data: null, error: { message: 'no rows', code: 'PGRST116' } });
+      vi.mocked(supabase.from).mockReturnValue(query as unknown as ReturnType<typeof supabase.from>);
+
       await expect(
         accountService.calculateCDEarlyWithdrawal('non-existent')
       ).rejects.toThrow('Account is not a CD investment account');

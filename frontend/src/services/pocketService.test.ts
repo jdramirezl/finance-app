@@ -1,8 +1,29 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { pocketService } from './pocketService';
 import { apiClient } from './apiClient';
+import { supabase } from '../lib/supabase';
+import { makeSupabaseQuery } from '../test/supabaseQueryMock';
 import type { Pocket } from '../types';
 
+// Override the global supabase mock from `test/setup.ts` so each read can
+// configure its own resolved data/error pair via `makeSupabaseQuery`.
+vi.mock('../lib/supabase', () => ({
+  supabase: { from: vi.fn() },
+}));
+
+// Snake-case row shape returned by Supabase. `pocketService` runs it through
+// `mapPocketRow` to convert to the camelCase `Pocket` domain type.
+const mockPocketRow = {
+  id: 'pocket-1',
+  account_id: 'acc-1',
+  name: 'Savings',
+  type: 'normal',
+  balance: 0,
+  currency: 'USD',
+};
+
+// Domain shape callers receive. Mirrors `mapPocketRow(mockPocketRow)`:
+// `archivedAt` defaults to `null` rather than `undefined`.
 const mockPocket: Pocket = {
   id: 'pocket-1',
   accountId: 'acc-1',
@@ -10,6 +31,7 @@ const mockPocket: Pocket = {
   type: 'normal',
   balance: 0,
   currency: 'USD',
+  archivedAt: null,
 };
 
 describe('pocketService', () => {
@@ -18,52 +40,85 @@ describe('pocketService', () => {
   });
 
   describe('getAllPockets', () => {
-    it('should call apiClient.get with correct path', async () => {
-      vi.spyOn(apiClient, 'get').mockResolvedValue([mockPocket]);
+    it('queries the pockets table and filters out archived rows by default', async () => {
+      const query = makeSupabaseQuery({ data: [mockPocketRow], error: null });
+      vi.mocked(supabase.from).mockReturnValue(query as unknown as ReturnType<typeof supabase.from>);
+
       const result = await pocketService.getAllPockets();
-      expect(apiClient.get).toHaveBeenCalledWith('/api/pockets');
+
+      expect(supabase.from).toHaveBeenCalledWith('pockets');
+      expect(query.select).toHaveBeenCalledWith('*');
+      expect(query.order).toHaveBeenCalledWith('display_order', { ascending: true, nullsFirst: false });
+      expect(query.is).toHaveBeenCalledWith('archived_at', null);
       expect(result).toEqual([mockPocket]);
     });
 
-    it('should return empty array when no pockets', async () => {
-      vi.spyOn(apiClient, 'get').mockResolvedValue([]);
+    it('returns an empty array when the table has no rows', async () => {
+      const query = makeSupabaseQuery({ data: [], error: null });
+      vi.mocked(supabase.from).mockReturnValue(query as unknown as ReturnType<typeof supabase.from>);
+
       const result = await pocketService.getAllPockets();
+
       expect(result).toEqual([]);
     });
 
-    it('should omit query string when includeArchived is false (default)', async () => {
-      vi.spyOn(apiClient, 'get').mockResolvedValue([mockPocket]);
-      await pocketService.getAllPockets(false);
-      expect(apiClient.get).toHaveBeenCalledWith('/api/pockets');
+    it('skips the archived_at filter when includeArchived=true', async () => {
+      const query = makeSupabaseQuery({ data: [mockPocketRow], error: null });
+      vi.mocked(supabase.from).mockReturnValue(query as unknown as ReturnType<typeof supabase.from>);
+
+      await pocketService.getAllPockets(true);
+
+      expect(query.is).not.toHaveBeenCalled();
     });
 
-    it('should pass include_archived=true when requested', async () => {
-      vi.spyOn(apiClient, 'get').mockResolvedValue([mockPocket]);
-      await pocketService.getAllPockets(true);
-      expect(apiClient.get).toHaveBeenCalledWith('/api/pockets?include_archived=true');
+    it('throws when Supabase returns an error', async () => {
+      const query = makeSupabaseQuery({ data: null, error: { message: 'denied' } });
+      vi.mocked(supabase.from).mockReturnValue(query as unknown as ReturnType<typeof supabase.from>);
+
+      await expect(pocketService.getAllPockets()).rejects.toThrow('Failed to fetch pockets: denied');
     });
   });
 
   describe('getPocket', () => {
-    it('should retrieve pocket by ID', async () => {
-      vi.spyOn(apiClient, 'get').mockResolvedValue(mockPocket);
+    it('retrieves a single pocket by id via .eq().single()', async () => {
+      const query = makeSupabaseQuery({ data: mockPocketRow, error: null });
+      vi.mocked(supabase.from).mockReturnValue(query as unknown as ReturnType<typeof supabase.from>);
+
       const result = await pocketService.getPocket('pocket-1');
-      expect(apiClient.get).toHaveBeenCalledWith('/api/pockets/pocket-1');
+
+      expect(supabase.from).toHaveBeenCalledWith('pockets');
+      expect(query.eq).toHaveBeenCalledWith('id', 'pocket-1');
+      expect(query.single).toHaveBeenCalled();
       expect(result).toEqual(mockPocket);
     });
 
-    it('should return null for non-existent ID', async () => {
-      vi.spyOn(apiClient, 'get').mockResolvedValue(null);
+    it('returns null when the row is missing (PGRST116)', async () => {
+      const query = makeSupabaseQuery({ data: null, error: { message: 'no rows', code: 'PGRST116' } });
+      vi.mocked(supabase.from).mockReturnValue(query as unknown as ReturnType<typeof supabase.from>);
+
       const result = await pocketService.getPocket('non-existent');
+
       expect(result).toBeNull();
+    });
+
+    it('throws on any other Supabase error', async () => {
+      const query = makeSupabaseQuery({ data: null, error: { message: 'denied' } });
+      vi.mocked(supabase.from).mockReturnValue(query as unknown as ReturnType<typeof supabase.from>);
+
+      await expect(pocketService.getPocket('pocket-1')).rejects.toThrow('denied');
     });
   });
 
   describe('getPocketsByAccount', () => {
-    it('should filter pockets by account ID', async () => {
-      vi.spyOn(apiClient, 'get').mockResolvedValue([mockPocket]);
+    it('filters pockets by account_id and orders by display_order', async () => {
+      const query = makeSupabaseQuery({ data: [mockPocketRow], error: null });
+      vi.mocked(supabase.from).mockReturnValue(query as unknown as ReturnType<typeof supabase.from>);
+
       const result = await pocketService.getPocketsByAccount('acc-1');
-      expect(apiClient.get).toHaveBeenCalledWith('/api/pockets?accountId=acc-1');
+
+      expect(supabase.from).toHaveBeenCalledWith('pockets');
+      expect(query.eq).toHaveBeenCalledWith('account_id', 'acc-1');
+      expect(query.order).toHaveBeenCalledWith('display_order', { ascending: true, nullsFirst: false });
       expect(result).toEqual([mockPocket]);
     });
   });
@@ -148,16 +203,23 @@ describe('pocketService', () => {
   });
 
   describe('getFixedExpensesPocket', () => {
-    it('should return the fixed pocket when it exists', async () => {
-      const fixedPocket = { ...mockPocket, id: 'fixed-1', type: 'fixed' as const };
-      vi.spyOn(apiClient, 'get').mockResolvedValue([mockPocket, fixedPocket]);
+    it('returns the fixed pocket when one exists', async () => {
+      const fixedPocketRow = { ...mockPocketRow, id: 'fixed-1', type: 'fixed' };
+      const query = makeSupabaseQuery({ data: [mockPocketRow, fixedPocketRow], error: null });
+      vi.mocked(supabase.from).mockReturnValue(query as unknown as ReturnType<typeof supabase.from>);
+
       const result = await pocketService.getFixedExpensesPocket();
-      expect(result).toEqual(fixedPocket);
+
+      expect(result?.id).toBe('fixed-1');
+      expect(result?.type).toBe('fixed');
     });
 
-    it('should return null when no fixed pocket exists', async () => {
-      vi.spyOn(apiClient, 'get').mockResolvedValue([mockPocket]);
+    it('returns null when no fixed pocket exists', async () => {
+      const query = makeSupabaseQuery({ data: [mockPocketRow], error: null });
+      vi.mocked(supabase.from).mockReturnValue(query as unknown as ReturnType<typeof supabase.from>);
+
       const result = await pocketService.getFixedExpensesPocket();
+
       expect(result).toBeNull();
     });
   });
