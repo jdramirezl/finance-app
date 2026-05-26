@@ -29,7 +29,7 @@ export const queryClient = new QueryClient({
     mutationCache,
     defaultOptions: {
         queries: {
-            staleTime: 1000 * 60 * 2,
+            staleTime: 0,
             gcTime: 1000 * 60 * 30,
             refetchOnWindowFocus: true,
             retry: 1,
@@ -39,3 +39,12 @@ export const queryClient = new QueryClient({
         },
     },
 });
+
+// Force all invalidations to refetch inactive queries too.
+// By default, invalidateQueries only refetches ACTIVE (mounted) queries.
+// This caused the bug where UI never updated unless DevTools was open
+// (DevTools acts as an observer keeping queries "active").
+const originalInvalidateQueries = queryClient.invalidateQueries.bind(queryClient);
+queryClient.invalidateQueries = (filters?: any, options?: any) => {
+  return originalInvalidateQueries({ refetchType: 'all', ...filters }, options);
+};
