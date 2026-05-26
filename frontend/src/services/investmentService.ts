@@ -47,12 +47,15 @@ class InvestmentService {
     async getCurrentPrice(symbol: string): Promise<number> {
         const response = await apiClient.get<BackendStockPriceResponse>(`/api/investments/prices/${symbol}`);
 
-        // Update local cache so getPriceTimestamp can surface the freshness in UI
+        // Update local cache — but preserve a newer local timestamp (from markRefreshed)
         const cachedAt = parseDate(response.cachedAt).getTime();
+        this.loadPriceCache();
+        const existing = this.priceCache.get(symbol);
+        const bestTimestamp = existing && existing.timestamp > cachedAt ? existing.timestamp : cachedAt;
         this.priceCache.set(symbol, {
             symbol: response.symbol,
             price: response.price,
-            timestamp: cachedAt,
+            timestamp: bestTimestamp,
         });
         this.savePriceCache();
 
