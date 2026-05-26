@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { movementService } from '../../services/movementService';
 import { broadcastInvalidation } from '../../lib/crossTabSync';
-import type { Movement, MovementType } from '../../types';
+import type { MovementType } from '../../types';
 import { useToast } from '../useToast';
 
 const errorMessage = (error: unknown, fallback: string): string =>
@@ -12,14 +12,11 @@ const errorMessage = (error: unknown, fallback: string): string =>
  *
  * Cache invalidation is intentionally targeted: each mutation only invalidates
  * the query keys whose data actually changed. The rules below are documented
- * inline alongside each `onSettled`/`onSuccess` so future maintainers don't
- * widen the invalidation set without thinking about it.
+ * inline alongside each `onSuccess` so future maintainers don't widen the
+ * invalidation set without thinking about it.
  *
  * - `['movements']` — invalidated by every mutation that creates/updates/deletes
- *   a movement record. Sibling movement queries (`monthly`, `spending-summary`,
- *   `years`, `infinite`) are invalidated through {@link invalidateMovementQueries}
- *   so each key is targeted explicitly rather than relying on prefix matching
- *   (which would also wipe `['movements', 'orphaned']` on every write).
+ *   a movement record.
  * - `['accounts']`, `['pockets']` — only invalidated when account/pocket
  *   balances change (i.e. the movement is NOT pending). Pending movements are
  *   excluded from balance calculations.
@@ -27,38 +24,10 @@ const errorMessage = (error: unknown, fallback: string): string =>
  *   (`subPocketId` is set on the relevant payload).
  * - `['reminders']` — only invalidated by `deleteMovement`, since deleting a
  *   movement may restore a previously-completed reminder.
- *
- * `deleteMovement` and `updateMovement` additionally apply optimistic updates
- * to the `['movements']` cache so the UI reflects the change immediately. The
- * cache is rolled back from the snapshot on error, and the full invalidation
- * runs in `onSettled` to reconcile against the server.
  */
 export const useMovementMutations = () => {
     const queryClient = useQueryClient();
     const toast = useToast();
-
-    /**
-     * Invalidate every movement-shaped query key explicitly.
-     *
-     * `['movements']` is the active list, but several siblings (`monthly`,
-     * `spending-summary`, `years`, `infinite`, `orphaned`) share the same
-     * prefix. We deliberately avoid prefix-matching because:
-     *   1. `orphaned` is rarely affected by writes and refetching it is
-     *      expensive — opt in via `opts.includeOrphaned`.
-     *   2. The remaining keys each have their own server-side filter
-     *      (date range, pagination, etc.) so we want React Query to refetch
-     *      every variant rather than only the one currently in view.
-     */
-    const invalidateMovementQueries = (opts?: { includeOrphaned?: boolean }) => {
-        queryClient.invalidateQueries({ queryKey: ['movements'], exact: true });
-        queryClient.invalidateQueries({ queryKey: ['movements', 'monthly'] });
-        queryClient.invalidateQueries({ queryKey: ['movements', 'spending-summary'], exact: true });
-        queryClient.invalidateQueries({ queryKey: ['movements', 'years'], exact: true });
-        queryClient.invalidateQueries({ queryKey: ['movements', 'infinite'] });
-        if (opts?.includeOrphaned) {
-            queryClient.invalidateQueries({ queryKey: ['movements', 'orphaned'], exact: true });
-        }
-    };
 
     const createMovement = useMutation({
         mutationFn: (data: {
@@ -87,7 +56,7 @@ export const useMovementMutations = () => {
             ),
         onSuccess: (_result, variables) => {
             // Movements list always changes.
-            invalidateMovementQueries();
+            queryClient.invalidateQueries({ queryKey: ['movements'] });
             // Account / pocket balances only change for non-pending movements.
             if (!variables.isPending) {
                 queryClient.invalidateQueries({ queryKey: ['accounts'] });
@@ -131,7 +100,7 @@ export const useMovementMutations = () => {
             // both balances and the movements list always change. Sub-pockets
             // are not currently supported as transfer endpoints, so we don't
             // invalidate `['subPockets']` here.
-            invalidateMovementQueries();
+            queryClient.invalidateQueries({ queryKey: ['movements'] });
             queryClient.invalidateQueries({ queryKey: ['accounts'] });
             queryClient.invalidateQueries({ queryKey: ['pockets'] });
             broadcastInvalidation([['movements'], ['accounts'], ['pockets']]);
@@ -141,55 +110,27 @@ export const useMovementMutations = () => {
         },
     });
 
-    type UpdateMovementVars = {
-        id: string;
-        updates: Partial<{
-            type: MovementType;
-            accountId: string;
-            pocketId: string;
-            subPocketId: string;
-            amount: number;
-            notes: string;
-            displayedDate: string;
-            isPending: boolean;
-            category: string;
-            tags: string[];
-        }>;
-    };
-
-    type UpdateMovementContext = { previous: Movement[] | undefined };
-
-    const updateMovement = useMutation<unknown, Error, UpdateMovementVars, UpdateMovementContext>({
-        mutationFn: (data) => movementService.updateMovement(data.id, data.updates),
-        // Optimistically merge the update into the `['movements']` cache so the
-        // edited row reflects the change before the server responds. Cancelling
-        // in-flight refetches first prevents them from overwriting our optimistic
-        // value with stale data.
-        onMutate: async ({ id, updates }) => {
-            await queryClient.cancelQueries({ queryKey: ['movements'], exact: true });
-            const previous = queryClient.getQueryData<Movement[]>(['movements']);
-            if (previous) {
-                queryClient.setQueryData<Movement[]>(
-                    ['movements'],
-                    previous.map((m) => (m.id === id ? { ...m, ...updates } : m)),
-                );
-            }
-            return { previous };
-        },
-        onError: (error, _variables, context) => {
-            if (context?.previous) {
-                queryClient.setQueryData(['movements'], context.previous);
-            }
-            toast.error(errorMessage(error, 'Failed to update movement'));
-        },
-        // `onSettled` fires after both success and error so the invalidation
-        // logic always runs and we converge on server state regardless of the
-        // optimistic outcome.
-        onSettled: (_result, _error, variables) => {
+    const updateMovement = useMutation({
+        mutationFn: (data: {
+            id: string;
+            updates: Partial<{
+                type: MovementType;
+                accountId: string;
+                pocketId: string;
+                subPocketId: string;
+                amount: number;
+                notes: string;
+                displayedDate: string;
+                isPending: boolean;
+                category: string;
+                tags: string[];
+            }>;
+        }) => movementService.updateMovement(data.id, data.updates),
+        onSuccess: (_result, variables) => {
             // Same conditional logic as `createMovement`: invalidate balance
             // queries only when the updated movement is not pending, and only
             // touch sub-pockets when the update references one.
-            invalidateMovementQueries();
+            queryClient.invalidateQueries({ queryKey: ['movements'] });
             if (!variables.updates.isPending) {
                 queryClient.invalidateQueries({ queryKey: ['accounts'] });
                 queryClient.invalidateQueries({ queryKey: ['pockets'] });
@@ -202,54 +143,36 @@ export const useMovementMutations = () => {
             if (variables.updates.subPocketId) { keys.push(['subPockets']); }
             broadcastInvalidation(keys);
         },
+        onError: (error) => {
+            toast.error(errorMessage(error, 'Failed to update movement'));
+        },
     });
 
-    type DeleteMovementContext = { previous: Movement[] | undefined };
-
-    const deleteMovement = useMutation<unknown, Error, string, DeleteMovementContext>({
-        mutationFn: (id) => movementService.deleteMovement(id),
-        // Optimistically drop the deleted row so lists collapse instantly. We
-        // only touch the `['movements']` cache here — sibling caches (monthly,
-        // infinite, etc.) are reconciled in `onSettled` because rebuilding their
-        // pagination state by hand would be brittle.
-        onMutate: async (id) => {
-            await queryClient.cancelQueries({ queryKey: ['movements'], exact: true });
-            const previous = queryClient.getQueryData<Movement[]>(['movements']);
-            if (previous) {
-                queryClient.setQueryData<Movement[]>(
-                    ['movements'],
-                    previous.filter((m) => m.id !== id),
-                );
-            }
-            return { previous };
-        },
-        onError: (error, _id, context) => {
-            if (context?.previous) {
-                queryClient.setQueryData(['movements'], context.previous);
-            }
-            toast.error(errorMessage(error, 'Failed to delete movement'));
-        },
-        onSettled: () => {
+    const deleteMovement = useMutation({
+        mutationFn: (id: string) => movementService.deleteMovement(id),
+        onSuccess: () => {
             // Deletion can affect every cached slice: the movement disappears
             // from lists, account/pocket/sub-pocket balances change if the
             // movement was real (not pending), and a previously-completed
             // reminder may be restored. We don't have the original movement
             // payload here, so we conservatively invalidate everything that
-            // could plausibly have changed — including orphaned movements,
-            // since deleting an orphan removes it from that list too.
-            invalidateMovementQueries({ includeOrphaned: true });
+            // could plausibly have changed.
+            queryClient.invalidateQueries({ queryKey: ['movements'] });
             queryClient.invalidateQueries({ queryKey: ['accounts'] });
             queryClient.invalidateQueries({ queryKey: ['pockets'] });
             queryClient.invalidateQueries({ queryKey: ['subPockets'] });
             queryClient.invalidateQueries({ queryKey: ['reminders'] });
             broadcastInvalidation([['movements'], ['accounts'], ['pockets'], ['subPockets'], ['reminders']]);
         },
+        onError: (error) => {
+            toast.error(errorMessage(error, 'Failed to delete movement'));
+        },
     });
 
     const applyPendingMovement = useMutation({
         mutationFn: (id: string) => movementService.applyPendingMovement(id),
         onSuccess: () => {
-            invalidateMovementQueries();
+            queryClient.invalidateQueries({ queryKey: ['movements'] });
             queryClient.invalidateQueries({ queryKey: ['accounts'] });
             queryClient.invalidateQueries({ queryKey: ['pockets'] });
             queryClient.invalidateQueries({ queryKey: ['subPockets'] });
@@ -263,7 +186,7 @@ export const useMovementMutations = () => {
     const markAsPending = useMutation({
         mutationFn: (id: string) => movementService.markAsPending(id),
         onSuccess: () => {
-            invalidateMovementQueries();
+            queryClient.invalidateQueries({ queryKey: ['movements'] });
             queryClient.invalidateQueries({ queryKey: ['accounts'] });
             queryClient.invalidateQueries({ queryKey: ['pockets'] });
             queryClient.invalidateQueries({ queryKey: ['subPockets'] });
@@ -279,9 +202,8 @@ export const useMovementMutations = () => {
             movementService.restoreOrphanedMovements(data.movementIds, data.accountId, data.pocketId),
         onSuccess: () => {
             // Restoring orphans rewires movements onto an existing account /
-            // pocket, so balances change, the movements list changes, and the
-            // orphaned list shrinks.
-            invalidateMovementQueries({ includeOrphaned: true });
+            // pocket, so balances change and the movements list changes.
+            queryClient.invalidateQueries({ queryKey: ['movements'] });
             queryClient.invalidateQueries({ queryKey: ['accounts'] });
             queryClient.invalidateQueries({ queryKey: ['pockets'] });
             broadcastInvalidation([['movements'], ['accounts'], ['pockets']]);

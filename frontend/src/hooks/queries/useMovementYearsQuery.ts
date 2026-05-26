@@ -5,6 +5,6 @@ export const useMovementYearsQuery = () => {
   return useQuery({
     queryKey: ['movements', 'years'],
     queryFn: () => movementService.getMovementYears(),
-    staleTime: 0,
+    staleTime: 10 * 60 * 1000,
   });
 };

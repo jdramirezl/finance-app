@@ -1,0 +1,84 @@
+{
+  "source_file": "Presupuesto mensual.xlsx",
+  "generated_at": "2026-05-24T18:16:30.402Z",
+  "perSheetCounts": {
+    "823": 169,
+    "1223": 49,
+    "12723": 78,
+    "623 - 1": 39,
+    "623 - 2": 39,
+    "9-1023": 130
+  },
+  "perMonth": {
+    "2023-06": {
+      "total": 123,
+      "income_count": 33,
+      "expense_count": 90,
+      "income_total": 15044025,
+      "expense_total": 10027933,
+      "reset_entries": 0,
+      "fijos_entries": 4,
+      "needs_review": 40
+    },
+    "2023-07": {
+      "total": 101,
+      "income_count": 34,
+      "expense_count": 67,
+      "income_total": 6691248,
+      "expense_total": 6581550,
+      "reset_entries": 0,
+      "fijos_entries": 11,
+      "needs_review": 14
+    },
+    "2023-08": {
+      "total": 81,
+      "income_count": 21,
+      "expense_count": 60,
+      "income_total": 62282148,
+      "expense_total": 31411200,
+      "reset_entries": 6,
+      "fijos_entries": 13,
+      "needs_review": 13
+    },
+    "2023-09": {
+      "total": 4,
+      "income_count": 0,
+      "expense_count": 4,
+      "income_total": 0,
+      "expense_total": 140000,
+      "reset_entries": 0,
+      "fijos_entries": 4,
+      "needs_review": 4
+    },
+    "2023-10": {
+      "total": 59,
+      "income_count": 17,
+      "expense_count": 42,
+      "income_total": 6487000,
+      "expense_total": 7632600,
+      "reset_entries": 0,
+      "fijos_entries": 13,
+      "needs_review": 15
+    },
+    "2023-11": {
+      "total": 87,
+      "income_count": 31,
+      "expense_count": 56,
+      "income_total": 39364372,
+      "expense_total": 2600707,
+      "reset_entries": 11,
+      "fijos_entries": 1,
+      "needs_review": 8
+    },
+    "2023-12": {
+      "total": 49,
+      "income_count": 21,
+      "expense_count": 28,
+      "income_total": 45084438,
+      "expense_total": 1614400,
+      "reset_entries": 9,
+      "fijos_entries": 0,
+      "needs_review": 5
+    }
+  }
+}

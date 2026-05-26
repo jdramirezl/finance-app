@@ -1,0 +1,609 @@
+[
+  {
+    "date": "2023-01-31",
+    "total_value": 1605000,
+    "currency": "COP",
+    "breakdown": {
+      "accounts": [
+        {
+          "name": "Saldo final (single tracker)",
+          "value": 1605000,
+          "currency": "COP"
+        }
+      ],
+      "exchange_rates": null
+    },
+    "source_file": "Presupuesto mensual.xlsx",
+    "source_sheet": "123",
+    "confidence": "low",
+    "notes": "V1 sheet \"Saldo final\" tracks only the user's main spending account, not full net worth. Use as rough early-2023 reference only."
+  },
+  {
+    "date": "2023-02-28",
+    "total_value": 25991162,
+    "currency": "COP",
+    "breakdown": {
+      "accounts": [
+        {
+          "name": "Saldo final (single tracker)",
+          "value": 25991162,
+          "currency": "COP"
+        }
+      ],
+      "exchange_rates": null
+    },
+    "source_file": "Presupuesto mensual.xlsx",
+    "source_sheet": "223",
+    "confidence": "low",
+    "notes": "V1 sheet \"Saldo final\" tracks only the user's main spending account, not full net worth. Use as rough early-2023 reference only."
+  },
+  {
+    "date": "2023-11-30",
+    "total_value": 36752896,
+    "currency": "COP",
+    "breakdown": {
+      "accounts": [
+        {
+          "name": "Ahorros",
+          "value": 5454000,
+          "currency": "COP",
+          "kind": "account_pocket"
+        },
+        {
+          "name": "Viajes",
+          "value": 2883000,
+          "currency": "COP",
+          "kind": "account_pocket"
+        },
+        {
+          "name": "Para gastar",
+          "value": 411000,
+          "currency": "COP",
+          "kind": "account_pocket"
+        },
+        {
+          "name": "CDT",
+          "value": 27465000,
+          "currency": "COP",
+          "kind": "account_pocket"
+        },
+        {
+          "name": "Efectivo para Gastar",
+          "value": 43000,
+          "currency": "COP",
+          "kind": "account_pocket"
+        },
+        {
+          "name": "Ahorros Efectivo",
+          "value": 400000,
+          "currency": "COP",
+          "kind": "account_pocket"
+        },
+        {
+          "name": "Viajes Efectivo",
+          "value": 50000,
+          "currency": "COP",
+          "kind": "account_pocket"
+        },
+        {
+          "name": "Nequi",
+          "value": 43296,
+          "currency": "COP",
+          "kind": "account_pocket"
+        },
+        {
+          "name": "Tarjeta de Alimentacion",
+          "value": 3600,
+          "currency": "COP",
+          "kind": "account_pocket"
+        }
+      ],
+      "exchange_rates": null
+    },
+    "source_file": "Presupuesto mensual.xlsx",
+    "source_sheet": "1223",
+    "confidence": "medium",
+    "notes": "Sum of \"Reset\" entries dated 2023-12-07 in the Dec 2023 sheet (opening balances = closing balances of Nov 2023). 9 main-account pockets only (no fixed-expense Resets present in 1223), so total may understate by ~2-3M COP."
+  },
+  {
+    "date": "2023-12-31",
+    "total_value": 45386025.23,
+    "currency": "COP",
+    "breakdown": {
+      "accounts": [
+        {
+          "name": "Ahorros",
+          "value": 8684000,
+          "currency": "COP",
+          "kind": "account_pocket"
+        },
+        {
+          "name": "Viajes",
+          "value": 4464399,
+          "currency": "COP",
+          "kind": "account_pocket"
+        },
+        {
+          "name": "Para gastar",
+          "value": 387351,
+          "currency": "COP",
+          "kind": "account_pocket"
+        },
+        {
+          "name": "CDT",
+          "value": 27465000,
+          "currency": "COP",
+          "kind": "account_pocket"
+        },
+        {
+          "name": "Efectivo para Gastar",
+          "value": 100000,
+          "currency": "COP",
+          "kind": "account_pocket"
+        },
+        {
+          "name": "Ahorros Efectivo",
+          "value": 1000000,
+          "currency": "COP",
+          "kind": "account_pocket"
+        },
+        {
+          "name": "Nequi",
+          "value": 96678,
+          "currency": "COP",
+          "kind": "account_pocket"
+        },
+        {
+          "name": "Tarjeta de Alimentacion",
+          "value": 47118,
+          "currency": "COP",
+          "kind": "account_pocket"
+        },
+        {
+          "name": "CELULAR",
+          "value": 2679,
+          "currency": "COP",
+          "kind": "fixed_expense_pocket"
+        },
+        {
+          "name": "BARBERIA",
+          "value": 27000,
+          "currency": "COP",
+          "kind": "fixed_expense_pocket"
+        },
+        {
+          "name": "LAVADO CARRO",
+          "value": 73600,
+          "currency": "COP",
+          "kind": "fixed_expense_pocket"
+        },
+        {
+          "name": "RAPPI",
+          "value": 35000,
+          "currency": "COP",
+          "kind": "fixed_expense_pocket"
+        },
+        {
+          "name": "CREMAS CABELLO",
+          "value": 39000,
+          "currency": "COP",
+          "kind": "fixed_expense_pocket"
+        },
+        {
+          "name": "GASOLINA",
+          "value": 81250.23,
+          "currency": "COP",
+          "kind": "fixed_expense_pocket"
+        },
+        {
+          "name": "SPOTIFY",
+          "value": 4400,
+          "currency": "COP",
+          "kind": "fixed_expense_pocket"
+        },
+        {
+          "name": "PROTEINA",
+          "value": 102000,
+          "currency": "COP",
+          "kind": "fixed_expense_pocket"
+        },
+        {
+          "name": "PARQUEADERO",
+          "value": 100000,
+          "currency": "COP",
+          "kind": "fixed_expense_pocket"
+        },
+        {
+          "name": "GYM",
+          "value": 64000,
+          "currency": "COP",
+          "kind": "fixed_expense_pocket"
+        },
+        {
+          "name": "SOAT",
+          "value": 207250,
+          "currency": "COP",
+          "kind": "fixed_expense_pocket"
+        },
+        {
+          "name": "UBER",
+          "value": 37300,
+          "currency": "COP",
+          "kind": "fixed_expense_pocket"
+        },
+        {
+          "name": "SEGURO",
+          "value": 2200000,
+          "currency": "COP",
+          "kind": "fixed_expense_pocket"
+        },
+        {
+          "name": "vero",
+          "value": 168000,
+          "currency": "COP",
+          "kind": "fixed_expense_pocket"
+        }
+      ],
+      "exchange_rates": null
+    },
+    "source_file": "Presupuesto mensual.xlsx",
+    "source_sheet": "124",
+    "confidence": "medium",
+    "notes": "Sum of \"Reset\" entries in the Jan 2024 sheet (opening balances = closing balances of Dec 2023). Includes both main account pockets and fixed-expense category pockets (CELULAR, GYM, SEGURO, etc.). Note: the Reset cells are mis-dated 2023-12-07 in the spreadsheet but actually represent end-of-Dec-2023 state per the value progression."
+  },
+  {
+    "date": "2024-01-31",
+    "total_value": 49577895,
+    "currency": "COP",
+    "breakdown": {
+      "accounts": [
+        {
+          "name": "Tarjeta Debito",
+          "value": 20798229,
+          "currency": "COP"
+        },
+        {
+          "name": "Nequi",
+          "value": 54678,
+          "currency": "COP"
+        },
+        {
+          "name": "Efectivo para Gastar",
+          "value": 125800,
+          "currency": "COP"
+        },
+        {
+          "name": "CDT",
+          "value": 27465000,
+          "currency": "COP"
+        },
+        {
+          "name": "Dolares",
+          "value": 200,
+          "currency": "COP"
+        },
+        {
+          "name": "Tarjeta de Alimentacion",
+          "value": 356918,
+          "currency": "COP"
+        },
+        {
+          "name": "Ahorros Efectivo",
+          "value": 1040000,
+          "currency": "COP"
+        }
+      ],
+      "exchange_rates": null
+    },
+    "source_file": "Shin Presupuesto Mensual 2024.xlsx",
+    "source_sheet": "January",
+    "confidence": "high",
+    "notes": "End-of-month \"Resumen final\" section. 7 top-level account groups; sub-pocket breakdown rows ignored to avoid double-counting."
+  },
+  {
+    "date": "2024-02-29",
+    "total_value": 56798848,
+    "currency": "COP",
+    "breakdown": {
+      "accounts": [
+        {
+          "name": "Inversiones",
+          "value": 42419291,
+          "currency": "COP"
+        },
+        {
+          "name": "Dolares",
+          "value": 200,
+          "currency": "COP"
+        },
+        {
+          "name": "Bancolombia",
+          "value": 12049356,
+          "currency": "COP"
+        },
+        {
+          "name": "Efectivo",
+          "value": 1054000,
+          "currency": "COP"
+        },
+        {
+          "name": "Otros",
+          "value": 486200,
+          "currency": "COP"
+        }
+      ],
+      "exchange_rates": null
+    },
+    "source_file": "Shin Presupuesto Mensual 2024.xlsx",
+    "source_sheet": "February",
+    "confidence": "high",
+    "notes": "End-of-month \"Resumen final\" section. 5 top-level account groups; sub-pocket breakdown rows ignored to avoid double-counting."
+  },
+  {
+    "date": "2024-03-31",
+    "total_value": 60699264,
+    "currency": "COP",
+    "breakdown": {
+      "accounts": [
+        {
+          "name": "Inversiones",
+          "value": 42717527,
+          "currency": "COP"
+        },
+        {
+          "name": "Dolares",
+          "value": 200,
+          "currency": "COP"
+        },
+        {
+          "name": "Bancolombia",
+          "value": 17001627,
+          "currency": "COP"
+        },
+        {
+          "name": "Efectivo",
+          "value": 18000,
+          "currency": "COP"
+        },
+        {
+          "name": "Otros",
+          "value": 172110,
+          "currency": "COP"
+        }
+      ],
+      "exchange_rates": null
+    },
+    "source_file": "Shin Presupuesto Mensual 2024.xlsx",
+    "source_sheet": "March",
+    "confidence": "high",
+    "notes": "End-of-month \"Resumen final\" section. 5 top-level account groups; sub-pocket breakdown rows ignored to avoid double-counting."
+  },
+  {
+    "date": "2024-04-30",
+    "total_value": 60699264,
+    "currency": "COP",
+    "breakdown": {
+      "accounts": [
+        {
+          "name": "Inversiones",
+          "value": 42717527,
+          "currency": "COP"
+        },
+        {
+          "name": "Dolares",
+          "value": 200,
+          "currency": "COP"
+        },
+        {
+          "name": "Bancolombia",
+          "value": 17001627,
+          "currency": "COP"
+        },
+        {
+          "name": "Efectivo",
+          "value": 18000,
+          "currency": "COP"
+        },
+        {
+          "name": "Otros",
+          "value": 172110,
+          "currency": "COP"
+        }
+      ],
+      "exchange_rates": null
+    },
+    "source_file": "Shin Presupuesto Mensual 2024.xlsx",
+    "source_sheet": "April",
+    "confidence": "high",
+    "notes": "End-of-month \"Resumen final\" section. 5 top-level account groups; sub-pocket breakdown rows ignored to avoid double-counting."
+  },
+  {
+    "date": "2024-05-31",
+    "total_value": 66586733,
+    "currency": "COP",
+    "breakdown": {
+      "accounts": [
+        {
+          "name": "Inversiones",
+          "value": 43191306,
+          "currency": "COP"
+        },
+        {
+          "name": "Dolares",
+          "value": 200,
+          "currency": "COP"
+        },
+        {
+          "name": "Bancolombia",
+          "value": 22505018,
+          "currency": "COP"
+        },
+        {
+          "name": "Efectivo",
+          "value": 98000,
+          "currency": "COP"
+        },
+        {
+          "name": "Otros",
+          "value": 17109,
+          "currency": "COP"
+        }
+      ],
+      "exchange_rates": null
+    },
+    "source_file": "Shin Presupuesto Mensual 2024.xlsx",
+    "source_sheet": "May",
+    "confidence": "high",
+    "notes": "End-of-month \"Resumen final\" section. 5 top-level account groups; sub-pocket breakdown rows ignored to avoid double-counting."
+  },
+  {
+    "date": "2024-12-31",
+    "total_value": 89981035.17,
+    "currency": "COP",
+    "breakdown": {
+      "accounts": [
+        {
+          "name": "Inversiones",
+          "value": 33062248.15,
+          "currency": "COP"
+        },
+        {
+          "name": "Dolares",
+          "value": 481,
+          "currency": "COP"
+        },
+        {
+          "name": "Bancolombia",
+          "value": 307778.45,
+          "currency": "COP"
+        },
+        {
+          "name": "Efectivo",
+          "value": 84747,
+          "currency": "COP"
+        },
+        {
+          "name": "Otros",
+          "value": 548000,
+          "currency": "COP"
+        },
+        {
+          "name": "Nubank",
+          "value": 54208380.67,
+          "currency": "COP"
+        }
+      ],
+      "exchange_rates": null
+    },
+    "source_file": "Shin Presupuesto Mensual 2024.xlsx",
+    "source_sheet": "Resumen",
+    "confidence": "high",
+    "notes": "Year-end 2024 dashboard total. Per-account breakdown is the top-level Resumen list."
+  },
+  {
+    "date": "2025-08-31",
+    "total_value": 122166762.6,
+    "currency": "COP",
+    "breakdown": {
+      "accounts": [
+        {
+          "name": "Inversiones",
+          "value": 88428479.97,
+          "currency": "COP"
+        },
+        {
+          "name": "Dolares",
+          "value": 469,
+          "currency": "COP"
+        },
+        {
+          "name": "Bancolombia",
+          "value": 17675188.9,
+          "currency": "COP"
+        },
+        {
+          "name": "Efectivo",
+          "value": 2075000,
+          "currency": "COP"
+        },
+        {
+          "name": "Otros",
+          "value": 100659,
+          "currency": "COP"
+        },
+        {
+          "name": "Nubank",
+          "value": 12161708.86,
+          "currency": "COP"
+        }
+      ],
+      "exchange_rates": null
+    },
+    "source_file": "Presupuesto Mensual 2025.xlsx",
+    "source_sheet": "Resumen",
+    "confidence": "high",
+    "notes": "Resumen sheet cumulative total covering Jan–Aug 2025 (last active month). Snapshot dated end of August."
+  },
+  {
+    "date": "2025-11-30",
+    "total_value": 150030925.4,
+    "currency": "COP",
+    "breakdown": {
+      "accounts": [
+        {
+          "name": "Bancolombia",
+          "value": 58144400,
+          "currency": "COP"
+        },
+        {
+          "name": "Efectivo",
+          "value": 0,
+          "currency": "COP"
+        },
+        {
+          "name": "Nubank",
+          "value": 700,
+          "currency": "COP"
+        },
+        {
+          "name": "Banco Mexico",
+          "value": 6818.3,
+          "currency": "MXN"
+        },
+        {
+          "name": "Efectivo",
+          "value": 0,
+          "currency": "MXN"
+        },
+        {
+          "name": "Inversiones",
+          "value": 24032.18,
+          "currency": "USD"
+        },
+        {
+          "name": "Efectivo",
+          "value": 546,
+          "currency": "USD"
+        }
+      ],
+      "per_currency_totals": {
+        "COP": 58145100,
+        "MXN": 6818.3,
+        "USD": 24578.18
+      },
+      "per_currency_in_cop": {
+        "COP": 58145100,
+        "MXN": 1448291.47,
+        "USD": 90437533.96
+      },
+      "exchange_rates": {
+        "USD_to_COP": 3679.59,
+        "MXN_to_COP": 212.41
+      }
+    },
+    "source_file": "Presupuesto Mensual 2025 MEXICO.xlsx",
+    "source_sheet": "Resumen",
+    "confidence": "high",
+    "notes": "Mexico transition file. Total expressed as COP equivalent. breakdown.accounts shows native-currency balances grouped by currency. per_currency_totals = native; per_currency_in_cop = converted at the stored rates."
+  }
+]

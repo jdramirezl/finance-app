@@ -1,0 +1,363 @@
+{
+  "source_file": "Presupuesto Mensual 2025 MEXICO.xlsx",
+  "extracted_at": "2026-05-24T18:20:21.356Z",
+  "boundary": {
+    "min_date": "2025-10-01",
+    "max_date": "2025-11-30"
+  },
+  "total_movements": 109,
+  "per_sheet": {
+    "October": {
+      "count": 21,
+      "by_section": {
+        "Gastos": 1,
+        "Ingresos Fijos": 14,
+        "Ingresos": 6
+      },
+      "by_currency": {
+        "MXN": 17,
+        "COP": 4
+      },
+      "by_type": {
+        "income": 20,
+        "expense": 1
+      },
+      "net_by_currency": {
+        "MXN": 13102,
+        "COP": 52198200
+      },
+      "needs_review": 0,
+      "orphaned": 14,
+      "null_dates": 0,
+      "file": "movements-october.json",
+      "totals": {
+        "MXN": {
+          "income": 18308,
+          "expense": 5206
+        },
+        "COP": {
+          "income": 52198200,
+          "expense": 0
+        }
+      }
+    },
+    "November": {
+      "count": 88,
+      "by_section": {
+        "Gastos": 33,
+        "Ingresos": 10,
+        "Gastos Fijos": 44,
+        "Ingresos Fijos": 1
+      },
+      "by_currency": {
+        "MXN": 77,
+        "COP": 9,
+        "UNKNOWN": 2
+      },
+      "by_type": {
+        "income": 11,
+        "expense": 77
+      },
+      "net_by_currency": {
+        "MXN": -7253.700000000001,
+        "COP": 5946900,
+        "UNKNOWN": -1047166
+      },
+      "needs_review": 18,
+      "orphaned": 45,
+      "null_dates": 5,
+      "file": "movements-november.json",
+      "totals": {
+        "MXN": {
+          "income": 37483,
+          "expense": 44736.7
+        },
+        "COP": {
+          "income": 18500000,
+          "expense": 12553100
+        },
+        "UNKNOWN": {
+          "income": 834,
+          "expense": 1048000
+        }
+      }
+    }
+  },
+  "overall": {
+    "count": 109,
+    "by_section": {
+      "Gastos": 34,
+      "Ingresos Fijos": 15,
+      "Ingresos": 16,
+      "Gastos Fijos": 44
+    },
+    "by_currency": {
+      "MXN": 94,
+      "COP": 13,
+      "UNKNOWN": 2
+    },
+    "by_type": {
+      "income": 31,
+      "expense": 78
+    },
+    "net_by_currency": {
+      "MXN": 5848.300000000003,
+      "COP": 58145100,
+      "UNKNOWN": -1047166
+    },
+    "needs_review": 18,
+    "orphaned": 59,
+    "null_dates": 5
+  },
+  "overall_totals": {
+    "MXN": {
+      "income": 55791,
+      "expense": 49942.7
+    },
+    "COP": {
+      "income": 70698200,
+      "expense": 12553100
+    },
+    "UNKNOWN": {
+      "income": 834,
+      "expense": 1048000
+    }
+  },
+  "skipped": [],
+  "needs_review_movements": [
+    {
+      "source_sheet": "November",
+      "source_section": "Ingresos",
+      "source_row": 21,
+      "type": "income",
+      "amount": 834,
+      "currency": "UNKNOWN",
+      "description": "de merado a ahorros",
+      "date": null,
+      "account_name": "UNKNOWN",
+      "pocket_name": null,
+      "fixed_expense_name": null
+    },
+    {
+      "source_sheet": "November",
+      "source_section": "Ingresos",
+      "source_row": 23,
+      "type": "income",
+      "amount": 48,
+      "currency": "MXN",
+      "description": "diff",
+      "date": null,
+      "account_name": "Nubank MXN",
+      "pocket_name": "Ahorros",
+      "fixed_expense_name": null
+    },
+    {
+      "source_sheet": "November",
+      "source_section": "Gastos",
+      "source_row": 31,
+      "type": "expense",
+      "amount": 1048000,
+      "currency": "UNKNOWN",
+      "description": "a banamex",
+      "date": "2025-11-18",
+      "account_name": "UNKNOWN",
+      "pocket_name": null,
+      "fixed_expense_name": null
+    },
+    {
+      "source_sheet": "November",
+      "source_section": "Gastos",
+      "source_row": 36,
+      "type": "expense",
+      "amount": 1000000,
+      "currency": "COP",
+      "description": "a mexico",
+      "date": null,
+      "account_name": "Bancolombia",
+      "pocket_name": "Para gastar",
+      "fixed_expense_name": null
+    },
+    {
+      "source_sheet": "November",
+      "source_section": "Gastos",
+      "source_row": 38,
+      "type": "expense",
+      "amount": 5739,
+      "currency": "MXN",
+      "description": "de gastar",
+      "date": null,
+      "account_name": "Banamex",
+      "pocket_name": "Para gastar",
+      "fixed_expense_name": null
+    },
+    {
+      "source_sheet": "November",
+      "source_section": "Gastos Fijos",
+      "source_row": 38,
+      "type": "expense",
+      "amount": 85,
+      "currency": "MXN",
+      "description": "uber",
+      "date": "2025-11-20",
+      "account_name": "UNKNOWN",
+      "pocket_name": null,
+      "fixed_expense_name": null
+    },
+    {
+      "source_sheet": "November",
+      "source_section": "Gastos",
+      "source_row": 39,
+      "type": "expense",
+      "amount": 1976,
+      "currency": "MXN",
+      "description": "de ahorros",
+      "date": null,
+      "account_name": "Banamex",
+      "pocket_name": "Ahorros",
+      "fixed_expense_name": null
+    },
+    {
+      "source_sheet": "November",
+      "source_section": "Gastos Fijos",
+      "source_row": 39,
+      "type": "expense",
+      "amount": 81,
+      "currency": "MXN",
+      "description": "uber",
+      "date": "2025-11-20",
+      "account_name": "UNKNOWN",
+      "pocket_name": null,
+      "fixed_expense_name": null
+    },
+    {
+      "source_sheet": "November",
+      "source_section": "Gastos Fijos",
+      "source_row": 40,
+      "type": "expense",
+      "amount": 67,
+      "currency": "MXN",
+      "description": "uber",
+      "date": "2025-11-21",
+      "account_name": "UNKNOWN",
+      "pocket_name": null,
+      "fixed_expense_name": null
+    },
+    {
+      "source_sheet": "November",
+      "source_section": "Gastos Fijos",
+      "source_row": 41,
+      "type": "expense",
+      "amount": 104,
+      "currency": "MXN",
+      "description": "uber",
+      "date": "2025-11-21",
+      "account_name": "UNKNOWN",
+      "pocket_name": null,
+      "fixed_expense_name": null
+    },
+    {
+      "source_sheet": "November",
+      "source_section": "Gastos Fijos",
+      "source_row": 42,
+      "type": "expense",
+      "amount": 53,
+      "currency": "MXN",
+      "description": "uber",
+      "date": "2025-11-24",
+      "account_name": "UNKNOWN",
+      "pocket_name": null,
+      "fixed_expense_name": null
+    },
+    {
+      "source_sheet": "November",
+      "source_section": "Gastos Fijos",
+      "source_row": 43,
+      "type": "expense",
+      "amount": 72,
+      "currency": "MXN",
+      "description": "uber",
+      "date": "2025-11-24",
+      "account_name": "UNKNOWN",
+      "pocket_name": null,
+      "fixed_expense_name": null
+    },
+    {
+      "source_sheet": "November",
+      "source_section": "Gastos Fijos",
+      "source_row": 44,
+      "type": "expense",
+      "amount": 75,
+      "currency": "MXN",
+      "description": "uber",
+      "date": "2025-11-25",
+      "account_name": "UNKNOWN",
+      "pocket_name": null,
+      "fixed_expense_name": null
+    },
+    {
+      "source_sheet": "November",
+      "source_section": "Gastos Fijos",
+      "source_row": 45,
+      "type": "expense",
+      "amount": 93,
+      "currency": "MXN",
+      "description": "uber",
+      "date": "2025-11-25",
+      "account_name": "UNKNOWN",
+      "pocket_name": null,
+      "fixed_expense_name": null
+    },
+    {
+      "source_sheet": "November",
+      "source_section": "Gastos Fijos",
+      "source_row": 46,
+      "type": "expense",
+      "amount": 85,
+      "currency": "MXN",
+      "description": "uber",
+      "date": "2025-11-26",
+      "account_name": "UNKNOWN",
+      "pocket_name": null,
+      "fixed_expense_name": null
+    },
+    {
+      "source_sheet": "November",
+      "source_section": "Gastos Fijos",
+      "source_row": 47,
+      "type": "expense",
+      "amount": 85,
+      "currency": "MXN",
+      "description": "uber",
+      "date": "2025-11-26",
+      "account_name": "UNKNOWN",
+      "pocket_name": null,
+      "fixed_expense_name": null
+    },
+    {
+      "source_sheet": "November",
+      "source_section": "Gastos Fijos",
+      "source_row": 48,
+      "type": "expense",
+      "amount": 85,
+      "currency": "MXN",
+      "description": "uber",
+      "date": "2025-11-27",
+      "account_name": "UNKNOWN",
+      "pocket_name": null,
+      "fixed_expense_name": null
+    },
+    {
+      "source_sheet": "November",
+      "source_section": "Gastos Fijos",
+      "source_row": 49,
+      "type": "expense",
+      "amount": 85,
+      "currency": "MXN",
+      "description": "uber",
+      "date": "2025-11-27",
+      "account_name": "UNKNOWN",
+      "pocket_name": null,
+      "fixed_expense_name": null
+    }
+  ]
+}

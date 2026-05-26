@@ -1,0 +1,150 @@
+{
+  "_comment": "Account mapping for Excel → Supabase migration. ALL output is JSON only — no DB writes without explicit user approval.",
+  
+  "existing_accounts": {
+    "Bancolombia": { "id": "da41fa99-8bb4-4f5c-9b47-76ca630d08b5", "currency": "COP", "pockets": {
+      "Ahorros": "67995d0b-618c-4c13-97af-918143acd06a",
+      "Para gastar": "7f3b9e25-8add-4771-a2e6-e620cc65442f"
+    }},
+    "Nubank COP": { "id": "28c2305d-c6d3-46be-a5c7-36ad7b266013", "currency": "COP", "pockets": {
+      "Ahorros": "deebf755-0126-4bc0-bdd2-20bbf21ae0ac"
+    }},
+    "COP - Efectivo": { "id": "69eae210-c400-4bb9-a32b-780e221b8999", "currency": "COP", "pockets": {
+      "Cash": "79b1fb5d-619d-4c0b-acf4-21ce03c36963"
+    }},
+    "USD - Efectivo": { "id": "1ad6393a-fb53-4cb2-beb4-7035cd956882", "currency": "USD", "pockets": {
+      "Cash": "4430bd24-fa21-4a81-ab81-6ff51d43877f"
+    }},
+    "MXN - Efectivo": { "id": "d43c394b-53af-4f3b-8fe0-c0786d5b509c", "currency": "MXN", "pockets": {
+      "Cash": "cf3a397d-e594-4b9d-a84f-e08cc46c12f0"
+    }},
+    "Hapi/VOO": { "id": "06a793b8-e361-4392-b582-4abaac092be8", "currency": "USD", "pockets": {
+      "Invested Money": "a8f48702-af48-4a20-b218-67258bb42ad1",
+      "Shares": "f2dca5ef-9564-45dd-b2f8-7ed6c628fb70"
+    }},
+    "Nubank MXN": { "id": "ed3c9bb2-d2e6-4a63-a4df-f0345853f472", "currency": "MXN", "pockets": {
+      "Emergencias": "8e49d1fa-0d3c-4caf-a6c4-af5a207ca403",
+      "Cajita turbo": "f8790365-8899-446c-a514-1e5c4feb489f",
+      "Viajes": "e72610ce-d408-4c8a-bcc7-2a31cefccec8",
+      "Dinero de respaldo": "0b2fd392-cfa9-416e-a1cb-aa80cc5a1907",
+      "Ahorros": "3f043b05-d84b-4ecf-ae51-c827b955ba74"
+    }},
+    "Banamex": { "id": "229129a7-7788-46aa-8b14-8c774f0ad87e", "currency": "MXN", "pockets": {
+      "Ahorros": "23ae93d3-54aa-4ae1-b586-f33f9667c6d5",
+      "Fijos Renta": "fe1fe884-bd73-42f7-b22f-a03eb3b80093",
+      "Emergencias": "c5224e5f-2f6b-4f42-a66f-70e2def53db6",
+      "Para gastar": "b064136e-57b1-42ff-8f7f-2988dc3484ec",
+      "Bono": "4fa35fb2-9a61-4fa4-b234-8087aa22fe8a"
+    }},
+    "Tarjeta de Alimentos MXN": { "id": "35997ca6-074e-47d8-b364-7b966a833518", "currency": "MXN", "pockets": {
+      "Edenred": "1597be30-658f-4739-a9e9-727a950ffc53"
+    }}
+  },
+
+  "pockets_to_create": [
+    { "account": "Nubank COP", "name": "Viajes" },
+    { "account": "Nubank COP", "name": "Para gastar" },
+    { "account": "Nubank COP", "name": "Emergencias" },
+    { "account": "Nubank COP", "name": "Regalos" },
+    { "account": "Bancolombia", "name": "Viajes" }
+  ],
+
+  "legacy_accounts_to_create": [
+    { "name": "Nequi (Legacy)", "currency": "COP", "notes": "Digital wallet, no longer active. Will be orphaned after import." },
+    { "name": "CDT (Legacy)", "currency": "COP", "notes": "Term deposits, closed. Track initial vs end balance." },
+    { "name": "Tarjeta Alimentación (Legacy)", "currency": "COP", "notes": "Colombia employer food card. Separate from MXN Tarjeta de Alimentos." },
+    { "name": "Tarjeta de Crédito (Legacy)", "currency": "COP", "notes": "Credit card payment tracking. User no longer separates this." }
+  ],
+
+  "medio_to_account_mapping": {
+    "_comment": "Maps Excel Medio values to account names in this config. Case-insensitive matching.",
+    
+    "Bancolombia": "Bancolombia",
+    "[Bancolombia] Ahorros": "Bancolombia::Ahorros",
+    "[Bancolombia] Para gastar": "Bancolombia::Para gastar",
+    "[Bancolombia]  Para gastar": "Bancolombia::Para gastar",
+    "[Bancolombia] Viajes": "Bancolombia::Viajes",
+    "[Bancolombia] Fijos": "Bancolombia::Para gastar",
+    "[Bancolombia] Emergencias": "Bancolombia::Ahorros",
+    
+    "Ahorros": "Bancolombia::Ahorros",
+    "Para gastar": "Bancolombia::Para gastar",
+    
+    "[Nu] Ahorros": "Nubank COP::Ahorros",
+    "[Nu] Viajes": "Nubank COP::Viajes",
+    "[Nu] Para gastar": "Nubank COP::Para gastar",
+    "[Nu] Emergencias": "Nubank COP::Emergencias",
+    "[Nu] Regalos": "Nubank COP::Regalos",
+    "[Nu] Fijos": "Nubank COP::Para gastar",
+    
+    "Nequi": "Nequi (Legacy)",
+    
+    "Efectivo": "COP - Efectivo::Cash",
+    "Efectivo para gastar": "COP - Efectivo::Cash",
+    "Efectivo Para gastar": "COP - Efectivo::Cash",
+    "Efectivo para Gastar": "COP - Efectivo::Cash",
+    "Efectivo Ahorros": "COP - Efectivo::Cash",
+    "Ahorros Efectivo": "COP - Efectivo::Cash",
+    "Efectivo par": "COP - Efectivo::Cash",
+    
+    "Dolares": "USD - Efectivo::Cash",
+    
+    "VOO": "Hapi/VOO::Invested Money",
+    "VOO SHARES": "Hapi/VOO::Shares",
+    
+    "CDT": "CDT (Legacy)",
+    
+    "Tarjeta de Alimentacion": "Tarjeta Alimentación (Legacy)",
+    "Tarjeta de Ahorro": "Tarjeta Alimentación (Legacy)",
+    "Tarjeta de A": "Tarjeta Alimentación (Legacy)",
+    
+    "Tarjeta Credito": "Tarjeta de Crédito (Legacy)",
+    "T. Credito": "Tarjeta de Crédito (Legacy)",
+    "Tarjeta Cred": "Tarjeta de Crédito (Legacy)",
+    "Pago Tarjeta": "Tarjeta de Crédito (Legacy)",
+    "Puse la tarjeta": "Tarjeta de Crédito (Legacy)",
+    
+    "Viajes": "Bancolombia::Viajes",
+    
+    "[NuMX] Viajes": "Nubank MXN::Viajes",
+    "[NuMX] Para gastar": "Nubank MXN::Ahorros",
+    "[NuMX] Emergencias": "Nubank MXN::Emergencias",
+    "[NuMX] Ahorros": "Nubank MXN::Ahorros",
+    
+    "[BX] Ahorros": "Banamex::Ahorros",
+    "[BX] Para gastar": "Banamex::Para gastar",
+    "[BX] Emergencias": "Banamex::Emergencias",
+    
+    "[USD] Efectivo": "USD - Efectivo::Cash",
+    "[MXN] Efectivo": "MXN - Efectivo::Cash"
+  },
+
+  "currency_from_prefix": {
+    "[NuMX]": "MXN",
+    "[BX]": "MXN",
+    "[MXN]": "MXN",
+    "[Nu]": "COP",
+    "[Bancolombia]": "COP",
+    "[COP]": "COP",
+    "[USD]": "USD"
+  },
+
+  "fixed_expense_handling": {
+    "_comment": "Fixed expense Medio values (CELULAR, GYM, etc.) are NOT accounts. They represent payments to/from fixed expense categories. These movements will be stored as orphaned movements with the fixed expense name in the description/notes.",
+    "strategy": "orphaned_with_metadata",
+    "known_fixed_expenses": [
+      "CELULAR", "RAPPI", "SPOTIFY", "GYM", "VERO", "GASOLINA", "PARQUEADERO",
+      "SOAT", "SEGURO", "IMPUESTO", "GIMNASIA", "INTERNET", "BARBERIA",
+      "CREMAS CABELLO", "CREMAS", "LAVADO CARRO", "PROTEINA", "PSICOLOGIA",
+      "UBER", "RENTA", "LUZ", "AGUA", "GAS", "TRANSPORTE", "PELUQUERIA",
+      "MERCADO", "LAVANDERIA"
+    ]
+  },
+
+  "ignore_rules": {
+    "_comment": "These pockets from File 4 are too recent and user doesn't care about them",
+    "skip_pockets": ["[NuMX] Regalos", "[NuMX] Fijos", "[BX] Viajes", "[BX] Fijos"]
+  },
+
+  "user_id": "PLACEHOLDER_WILL_BE_SET_AT_UPLOAD_TIME"
+}

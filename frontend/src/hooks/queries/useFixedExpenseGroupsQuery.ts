@@ -5,6 +5,6 @@ export const useFixedExpenseGroupsQuery = () => {
     return useQuery({
         queryKey: ['fixedExpenseGroups'],
         queryFn: () => fixedExpenseGroupService.getAll(),
-        staleTime: 0, // Always refetch on invalidation for instant UI updates
+        staleTime: 1000 * 60 * 10, // 10 minutes - fixed expense groups change infrequently
     });
 };

@@ -8,6 +8,6 @@ export const useSettingsQuery = () => {
     return useQuery({
         queryKey: ['settings'],
         queryFn: () => settingsService.getSettings(),
-        staleTime: 0, // Always refetch on invalidation for instant UI updates
+        staleTime: 1000 * 60 * 10, // 10 minutes - settings rarely change
     });
 };

@@ -1,0 +1,326 @@
+[
+  {
+    "date": "2023-02-28",
+    "total_value": 25991162,
+    "currency": "COP",
+    "source": "anchor"
+  },
+  {
+    "date": "2023-03-31",
+    "total_value": 25837715,
+    "currency": "COP",
+    "source": "derived",
+    "method": "proportional_interpolation",
+    "gap": "2023-02-28 to 2023-11-30",
+    "scale_factor": 0.1552,
+    "raw_monthly_flow": -988500,
+    "scaled_monthly_flow": -153447
+  },
+  {
+    "date": "2023-04-30",
+    "total_value": 25783461,
+    "currency": "COP",
+    "source": "derived",
+    "method": "proportional_interpolation",
+    "gap": "2023-02-28 to 2023-11-30",
+    "scale_factor": 0.1552,
+    "raw_monthly_flow": -349500,
+    "scaled_monthly_flow": -54254
+  },
+  {
+    "date": "2023-05-31",
+    "total_value": 25657675,
+    "currency": "COP",
+    "source": "derived",
+    "method": "proportional_interpolation",
+    "gap": "2023-02-28 to 2023-11-30",
+    "scale_factor": 0.1552,
+    "raw_monthly_flow": -810307,
+    "scaled_monthly_flow": -125786
+  },
+  {
+    "date": "2023-06-30",
+    "total_value": 26436336,
+    "currency": "COP",
+    "source": "derived",
+    "method": "proportional_interpolation",
+    "gap": "2023-02-28 to 2023-11-30",
+    "scale_factor": 0.1552,
+    "raw_monthly_flow": 5016091,
+    "scaled_monthly_flow": 778661
+  },
+  {
+    "date": "2023-07-31",
+    "total_value": 26453364,
+    "currency": "COP",
+    "source": "derived",
+    "method": "proportional_interpolation",
+    "gap": "2023-02-28 to 2023-11-30",
+    "scale_factor": 0.1552,
+    "raw_monthly_flow": 109698,
+    "scaled_monthly_flow": 17029
+  },
+  {
+    "date": "2023-08-31",
+    "total_value": 31245543,
+    "currency": "COP",
+    "source": "derived",
+    "method": "proportional_interpolation",
+    "gap": "2023-02-28 to 2023-11-30",
+    "scale_factor": 0.1552,
+    "raw_monthly_flow": 30870948,
+    "scaled_monthly_flow": 4792178
+  },
+  {
+    "date": "2023-09-30",
+    "total_value": 31223810,
+    "currency": "COP",
+    "source": "derived",
+    "method": "proportional_interpolation",
+    "gap": "2023-02-28 to 2023-11-30",
+    "scale_factor": 0.1552,
+    "raw_monthly_flow": -140000,
+    "scaled_monthly_flow": -21733
+  },
+  {
+    "date": "2023-10-31",
+    "total_value": 31045976,
+    "currency": "COP",
+    "source": "derived",
+    "method": "proportional_interpolation",
+    "gap": "2023-02-28 to 2023-11-30",
+    "scale_factor": 0.1552,
+    "raw_monthly_flow": -1145600,
+    "scaled_monthly_flow": -177835
+  },
+  {
+    "date": "2023-11-30",
+    "total_value": 36752896,
+    "currency": "COP",
+    "source": "anchor"
+  },
+  {
+    "date": "2023-12-31",
+    "total_value": 45386025,
+    "currency": "COP",
+    "source": "anchor"
+  },
+  {
+    "date": "2024-01-31",
+    "total_value": 49577895,
+    "currency": "COP",
+    "source": "anchor"
+  },
+  {
+    "date": "2024-02-29",
+    "total_value": 56798848,
+    "currency": "COP",
+    "source": "anchor"
+  },
+  {
+    "date": "2024-03-31",
+    "total_value": 60699264,
+    "currency": "COP",
+    "source": "anchor"
+  },
+  {
+    "date": "2024-04-30",
+    "total_value": 66684223,
+    "currency": "COP",
+    "source": "derived",
+    "method": "proportional_interpolation",
+    "gap": "2024-03-31 to 2024-05-31",
+    "scale_factor": 0.102,
+    "raw_monthly_flow": 58664572,
+    "scaled_monthly_flow": 5984959
+  },
+  {
+    "date": "2024-05-31",
+    "total_value": 66586733,
+    "currency": "COP",
+    "source": "anchor"
+  },
+  {
+    "date": "2024-06-30",
+    "total_value": 54456160,
+    "currency": "COP",
+    "source": "derived",
+    "method": "proportional_interpolation",
+    "gap": "2024-05-31 to 2024-12-31",
+    "scale_factor": 0.9475,
+    "raw_monthly_flow": -12803192,
+    "scaled_monthly_flow": -12130573
+  },
+  {
+    "date": "2024-07-31",
+    "total_value": 63735089,
+    "currency": "COP",
+    "source": "derived",
+    "method": "proportional_interpolation",
+    "gap": "2024-05-31 to 2024-12-31",
+    "scale_factor": 0.9475,
+    "raw_monthly_flow": 9793430,
+    "scaled_monthly_flow": 9278929
+  },
+  {
+    "date": "2024-08-31",
+    "total_value": 69275567,
+    "currency": "COP",
+    "source": "derived",
+    "method": "proportional_interpolation",
+    "gap": "2024-05-31 to 2024-12-31",
+    "scale_factor": 0.9475,
+    "raw_monthly_flow": 5847688,
+    "scaled_monthly_flow": 5540478
+  },
+  {
+    "date": "2024-09-30",
+    "total_value": 73308435,
+    "currency": "COP",
+    "source": "derived",
+    "method": "proportional_interpolation",
+    "gap": "2024-05-31 to 2024-12-31",
+    "scale_factor": 0.9475,
+    "raw_monthly_flow": 4256484,
+    "scaled_monthly_flow": 4032868
+  },
+  {
+    "date": "2024-10-31",
+    "total_value": 76323052,
+    "currency": "COP",
+    "source": "derived",
+    "method": "proportional_interpolation",
+    "gap": "2024-05-31 to 2024-12-31",
+    "scale_factor": 0.9475,
+    "raw_monthly_flow": 3181772,
+    "scaled_monthly_flow": 3014617
+  },
+  {
+    "date": "2024-11-30",
+    "total_value": 82807128,
+    "currency": "COP",
+    "source": "derived",
+    "method": "proportional_interpolation",
+    "gap": "2024-05-31 to 2024-12-31",
+    "scale_factor": 0.9475,
+    "raw_monthly_flow": 6843607,
+    "scaled_monthly_flow": 6484076
+  },
+  {
+    "date": "2024-12-31",
+    "total_value": 89981035,
+    "currency": "COP",
+    "source": "anchor"
+  },
+  {
+    "date": "2025-01-31",
+    "total_value": 126143272,
+    "currency": "COP",
+    "source": "derived",
+    "method": "proportional_interpolation",
+    "gap": "2024-12-31 to 2025-08-31",
+    "scale_factor": 0.4084,
+    "raw_monthly_flow": 88539809,
+    "scaled_monthly_flow": 36162237
+  },
+  {
+    "date": "2025-02-28",
+    "total_value": 110384170,
+    "currency": "COP",
+    "source": "derived",
+    "method": "proportional_interpolation",
+    "gap": "2024-12-31 to 2025-08-31",
+    "scale_factor": 0.4084,
+    "raw_monthly_flow": -38584667,
+    "scaled_monthly_flow": -15759102
+  },
+  {
+    "date": "2025-03-31",
+    "total_value": 112342273,
+    "currency": "COP",
+    "source": "derived",
+    "method": "proportional_interpolation",
+    "gap": "2024-12-31 to 2025-08-31",
+    "scale_factor": 0.4084,
+    "raw_monthly_flow": 4794231,
+    "scaled_monthly_flow": 1958104
+  },
+  {
+    "date": "2025-04-30",
+    "total_value": 137125066,
+    "currency": "COP",
+    "source": "derived",
+    "method": "proportional_interpolation",
+    "gap": "2024-12-31 to 2025-08-31",
+    "scale_factor": 0.4084,
+    "raw_monthly_flow": 60678318,
+    "scaled_monthly_flow": 24782793
+  },
+  {
+    "date": "2025-05-31",
+    "total_value": 136603273,
+    "currency": "COP",
+    "source": "derived",
+    "method": "proportional_interpolation",
+    "gap": "2024-12-31 to 2025-08-31",
+    "scale_factor": 0.4084,
+    "raw_monthly_flow": -1277561,
+    "scaled_monthly_flow": -521793
+  },
+  {
+    "date": "2025-06-30",
+    "total_value": 140699034,
+    "currency": "COP",
+    "source": "derived",
+    "method": "proportional_interpolation",
+    "gap": "2024-12-31 to 2025-08-31",
+    "scale_factor": 0.4084,
+    "raw_monthly_flow": 10028083,
+    "scaled_monthly_flow": 4095761
+  },
+  {
+    "date": "2025-07-31",
+    "total_value": 126671739,
+    "currency": "COP",
+    "source": "derived",
+    "method": "proportional_interpolation",
+    "gap": "2024-12-31 to 2025-08-31",
+    "scale_factor": 0.4084,
+    "raw_monthly_flow": -34344502,
+    "scaled_monthly_flow": -14027295
+  },
+  {
+    "date": "2025-08-31",
+    "total_value": 122166763,
+    "currency": "COP",
+    "source": "anchor"
+  },
+  {
+    "date": "2025-09-30",
+    "total_value": 126324587,
+    "currency": "COP",
+    "source": "derived",
+    "method": "proportional_interpolation",
+    "gap": "2025-08-31 to 2025-11-30",
+    "scale_factor": 0.4151,
+    "raw_monthly_flow": 10015358,
+    "scaled_monthly_flow": 4157824
+  },
+  {
+    "date": "2025-10-31",
+    "total_value": 147999837,
+    "currency": "COP",
+    "source": "derived",
+    "method": "proportional_interpolation",
+    "gap": "2025-08-31 to 2025-11-30",
+    "scale_factor": 0.4151,
+    "raw_monthly_flow": 52211302,
+    "scaled_monthly_flow": 21675250
+  },
+  {
+    "date": "2025-11-30",
+    "total_value": 150030925,
+    "currency": "COP",
+    "source": "anchor"
+  }
+]

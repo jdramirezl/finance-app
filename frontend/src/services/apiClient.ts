@@ -29,19 +29,12 @@ class ApiClient {
     this.baseURL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
   }
 
-  private tokenPromise: Promise<string | null> | null = null;
-
   /**
    * Get authentication token from Supabase.
-   * Deduplicates concurrent calls so parallel requests share one getSession().
    */
   private async getAuthToken(): Promise<string | null> {
-    if (!this.tokenPromise) {
-      this.tokenPromise = supabase.auth.getSession()
-        .then(({ data: { session } }) => session?.access_token ?? null)
-        .finally(() => { this.tokenPromise = null; });
-    }
-    return this.tokenPromise;
+    const { data: { session } } = await supabase.auth.getSession();
+    return session?.access_token ?? null;
   }
 
   /**

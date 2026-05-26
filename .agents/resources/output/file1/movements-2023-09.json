@@ -1,0 +1,62 @@
+[
+  {
+    "type": "expense",
+    "amount": 98000,
+    "description": "GASOLINA",
+    "date": "2023-09-05",
+    "category": "GASOLINA",
+    "account_name": "Fixed Expense Payment",
+    "pocket_name": null,
+    "currency": "COP",
+    "source_file": "Presupuesto mensual.xlsx",
+    "source_sheet": "9-1023",
+    "source_section": "Fijos",
+    "source_row": 46,
+    "needs_review": true
+  },
+  {
+    "type": "expense",
+    "amount": 30000,
+    "description": "LAVADO CARRO",
+    "date": "2023-09-13",
+    "category": "LAVADO CARRO",
+    "account_name": "Fixed Expense Payment",
+    "pocket_name": null,
+    "currency": "COP",
+    "source_file": "Presupuesto mensual.xlsx",
+    "source_sheet": "9-1023",
+    "source_section": "Fijos",
+    "source_row": 48,
+    "needs_review": true
+  },
+  {
+    "type": "expense",
+    "amount": 6000,
+    "description": "EAFIT PARQ",
+    "date": "2023-09-18",
+    "category": "EAFIT PARQ",
+    "account_name": "Fixed Expense Payment",
+    "pocket_name": null,
+    "currency": "COP",
+    "source_file": "Presupuesto mensual.xlsx",
+    "source_sheet": "9-1023",
+    "source_section": "Fijos",
+    "source_row": 49,
+    "needs_review": true
+  },
+  {
+    "type": "expense",
+    "amount": 6000,
+    "description": "EAFIT PARQ",
+    "date": "2023-09-18",
+    "category": "EAFIT PARQ",
+    "account_name": "Fixed Expense Payment",
+    "pocket_name": null,
+    "currency": "COP",
+    "source_file": "Presupuesto mensual.xlsx",
+    "source_sheet": "9-1023",
+    "source_section": "Fijos",
+    "source_row": 55,
+    "needs_review": true
+  }
+]

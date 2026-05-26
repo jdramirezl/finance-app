@@ -8,7 +8,7 @@ export const usePocketsQuery = () => {
     return useQuery({
         queryKey: ['pockets'],
         queryFn: () => pocketService.getAllPockets(),
-        staleTime: 0, // Always refetch on invalidation for instant UI updates
+        staleTime: 1000 * 60 * 10, // 10 minutes - pockets change infrequently
     });
 };
 
@@ -28,7 +28,7 @@ export const usePocketsWithArchived = () => {
     return useQuery({
         queryKey: ['pockets', 'include-archived'],
         queryFn: () => pocketService.getAllPockets(true),
-        staleTime: 0, // Always refetch on invalidation for instant UI updates
+        staleTime: 1000 * 60 * 10, // 10 minutes - pockets change infrequently
     });
 };
 
@@ -40,6 +40,6 @@ export const usePocketsByAccountQuery = (accountId: string) => {
         queryKey: ['pockets', 'account', accountId],
         queryFn: () => pocketService.getPocketsByAccount(accountId),
         enabled: !!accountId,
-        staleTime: 0, // Always refetch on invalidation for instant UI updates
+        staleTime: 1000 * 60 * 10, // 10 minutes - pockets change infrequently
     });
 };
