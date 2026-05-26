@@ -26,8 +26,9 @@ const settingsWithDefaults: Settings = {
 
 describe('resolveLastUsedPocket', () => {
   beforeEach(() => {
-    // Clear localStorage state
-    useLastUsedPocket.setState({ expense: null, income: null });
+    // Clear store state and persisted data
+    useLastUsedPocket.setState({ expense: null, income: null, lastType: null });
+    localStorage.clear();
   });
 
   it('returns last-used when valid (highest priority)', () => {
@@ -35,13 +36,13 @@ describe('resolveLastUsedPocket', () => {
 
     const result = resolveLastUsedPocket('expense', accounts, pockets, settingsWithDefaults);
 
-    expect(result).toEqual({ accountId: 'acc1', pocketId: 'pkt1' });
+    expect(result).toEqual({ accountId: 'acc1', pocketId: 'pkt1', lastType: 'EgresoNormal' });
   });
 
   it('falls back to DB default when no last-used exists', () => {
     const result = resolveLastUsedPocket('expense', accounts, pockets, settingsWithDefaults);
 
-    expect(result).toEqual({ accountId: 'acc2', pocketId: 'pkt2' });
+    expect(result).toEqual({ accountId: 'acc2', pocketId: 'pkt2', lastType: 'EgresoNormal' });
   });
 
   it('falls back to DB default when last-used references deleted account', () => {
@@ -49,13 +50,13 @@ describe('resolveLastUsedPocket', () => {
 
     const result = resolveLastUsedPocket('expense', accounts, pockets, settingsWithDefaults);
 
-    expect(result).toEqual({ accountId: 'acc2', pocketId: 'pkt2' });
+    expect(result).toEqual({ accountId: 'acc2', pocketId: 'pkt2', lastType: 'EgresoNormal' });
   });
 
   it('falls back to first account when no settings provided', () => {
     const result = resolveLastUsedPocket('expense', accounts, pockets);
 
-    expect(result).toEqual({ accountId: 'acc1', pocketId: 'pkt1' });
+    expect(result).toEqual({ accountId: 'acc1', pocketId: 'pkt1', lastType: 'EgresoNormal' });
   });
 
   it('falls back to first account when DB default references deleted account', () => {
@@ -71,7 +72,7 @@ describe('resolveLastUsedPocket', () => {
 
     const result = resolveLastUsedPocket('expense', accounts, pockets, badSettings);
 
-    expect(result).toEqual({ accountId: 'acc1', pocketId: 'pkt1' });
+    expect(result).toEqual({ accountId: 'acc1', pocketId: 'pkt1', lastType: 'EgresoNormal' });
   });
 
   it('returns null when no accounts exist', () => {
@@ -95,6 +96,50 @@ describe('resolveLastUsedPocket', () => {
 
     const result = resolveLastUsedPocket('income', accounts, pockets, settings);
 
-    expect(result).toEqual({ accountId: 'acc2', pocketId: 'pkt2' });
+    expect(result).toEqual({ accountId: 'acc2', pocketId: 'pkt2', lastType: 'EgresoNormal' });
+  });
+});
+
+describe('useLastUsedPocket lastType', () => {
+  beforeEach(() => {
+    useLastUsedPocket.setState({ expense: null, income: null, lastType: null });
+    localStorage.clear();
+  });
+
+  it('stores the movement type when provided to setLastUsed', () => {
+    useLastUsedPocket.getState().setLastUsed('income', 'acc1', 'pkt1', 'IngresoFijo');
+
+    expect(useLastUsedPocket.getState().getLastType()).toBe('IngresoFijo');
+  });
+
+  it('does not change lastType when movementType is omitted', () => {
+    useLastUsedPocket.getState().setLastUsed('expense', 'acc1', 'pkt1', 'EgresoFijo');
+    useLastUsedPocket.getState().setLastUsed('expense', 'acc2', 'pkt2');
+
+    expect(useLastUsedPocket.getState().getLastType()).toBe('EgresoFijo');
+  });
+
+  it('persists lastType to localStorage under the same key', () => {
+    useLastUsedPocket.getState().setLastUsed('expense', 'acc1', 'pkt1', 'EgresoFijo');
+
+    const raw = localStorage.getItem('finance-app-last-used-pocket');
+    expect(raw).not.toBeNull();
+    const parsed = JSON.parse(raw!);
+    expect(parsed.lastType).toBe('EgresoFijo');
+    expect(parsed.expense).toEqual({ accountId: 'acc1', pocketId: 'pkt1' });
+  });
+
+  it('resolveLastUsedPocket returns the stored lastType', () => {
+    useLastUsedPocket.getState().setLastUsed('income', 'acc1', 'pkt1', 'IngresoFijo');
+
+    const result = resolveLastUsedPocket('income', accounts, pockets);
+
+    expect(result).toEqual({ accountId: 'acc1', pocketId: 'pkt1', lastType: 'IngresoFijo' });
+  });
+
+  it('resolveLastUsedPocket defaults lastType to EgresoNormal when nothing is stored', () => {
+    const result = resolveLastUsedPocket('expense', accounts, pockets);
+
+    expect(result?.lastType).toBe('EgresoNormal');
   });
 });

@@ -32,6 +32,15 @@ vi.mock('../../../hooks/queries', () => ({
   usePocketsQuery: () => ({ data: mockPockets }),
   useSubPocketsQuery: () => ({ data: [] }),
   useMovementTemplatesQuery: () => ({ data: mockTemplates }),
+  useSettingsQuery: () => ({
+    data: { primaryCurrency: 'USD', dateFormat: 'MMM d, yyyy', movementsPerPage: 50, reminderAdvanceDays: 7, defaultCurrencyForNewAccounts: 'USD' },
+  }),
+}));
+
+vi.mock('../../../store/useLastUsedPocket', () => ({
+  useLastUsedPocket: { getState: () => ({ getLastType: () => null }) },
+  resolveLastUsedPocket: () => null,
+  toSimpleType: (t: string) => (t.startsWith('Ingreso') ? 'income' : 'expense'),
 }));
 
 vi.mock('../../../hooks/useUnsavedChanges', () => ({

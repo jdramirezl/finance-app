@@ -24,7 +24,7 @@ vi.mock('../../../hooks/queries', () => ({
 }));
 
 vi.mock('../../../store/useLastUsedPocket', () => ({
-  resolveLastUsedPocket: () => ({ accountId: 'acc1', pocketId: 'pkt1' }),
+  resolveLastUsedPocket: () => ({ accountId: 'acc1', pocketId: 'pkt1', lastType: 'EgresoNormal' }),
   toSimpleType: (t: string) => (t.startsWith('Ingreso') ? 'income' : 'expense'),
 }));
 

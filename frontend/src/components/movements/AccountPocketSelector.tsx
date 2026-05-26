@@ -165,22 +165,37 @@ const AccountPocketSelector = ({
 
     // Account list — restricted to accounts that have at least one fixed
     // pocket when the smart mode is engaged for a fixed movement type.
-    const filteredAccounts = enforceMovementType && isFixedType
-        ? activeAccounts.filter((acc) =>
-            activePockets.some((p) => p.accountId === acc.id && p.type === 'fixed'),
-        )
-        : activeAccounts;
+    //
+    // Memoized because it feeds the auto-select effect below; a fresh
+    // array reference on every render would re-run the effect, and while
+    // the `!accountId` guard prevents an infinite loop in practice, a
+    // stable reference is cheaper and easier to reason about.
+    const filteredAccounts = useMemo(
+        () =>
+            enforceMovementType && isFixedType
+                ? activeAccounts.filter((acc) =>
+                    activePockets.some((p) => p.accountId === acc.id && p.type === 'fixed'),
+                )
+                : activeAccounts,
+        [enforceMovementType, isFixedType, activeAccounts, activePockets],
+    );
 
     // Pockets that belong to the currently-selected account.
-    const availablePockets = accountId
-        ? activePockets.filter((p) => p.accountId === accountId)
-        : [];
+    const availablePockets = useMemo(
+        () => (accountId ? activePockets.filter((p) => p.accountId === accountId) : []),
+        [accountId, activePockets],
+    );
 
     // Pocket list — restricted to fixed pockets for fixed types and
     // non-fixed pockets for non-fixed types when the smart mode is engaged.
-    const filteredPockets = enforceMovementType && movementType
-        ? availablePockets.filter((p) => (isFixedType ? p.type === 'fixed' : p.type !== 'fixed'))
-        : availablePockets;
+    // Memoized for the same reason as `filteredAccounts` above.
+    const filteredPockets = useMemo(
+        () =>
+            enforceMovementType && movementType
+                ? availablePockets.filter((p) => (isFixedType ? p.type === 'fixed' : p.type !== 'fixed'))
+                : availablePockets,
+        [enforceMovementType, movementType, isFixedType, availablePockets],
+    );
 
     // The (single) fixed pocket within the selected account, if any. Sub-
     // pockets always live under a fixed pocket — the audit notes that
@@ -224,6 +239,47 @@ const AccountPocketSelector = ({
         onAccountChange,
         onPocketChange,
     ]);
+
+    // Auto-select the only available account when the filtered list
+    // collapses to exactly one option and no account is currently chosen.
+    // This shortens the entry path for two common cases:
+    //
+    //   * Users with a single account in the system (very common when
+    //     just getting started or when only one currency is in use).
+    //   * Smart mode for fixed movement types — the account filter
+    //     restricts the list to accounts that have a fixed pocket, and
+    //     in practice many users have exactly one such account.
+    //
+    // Loop safety: the `!accountId` guard is the only thing standing
+    // between this effect and an infinite update loop. Once the effect
+    // fires, the parent updates `accountId`, the guard becomes false, and
+    // subsequent renders are no-ops. `filteredAccounts` is memoized so
+    // the dependency comparison is stable across unrelated re-renders.
+    useEffect(() => {
+        if (!accountId && filteredAccounts.length === 1) {
+            onAccountChange(filteredAccounts[0].id);
+        }
+    }, [accountId, filteredAccounts, onAccountChange]);
+
+    // Auto-select the only available pocket within the chosen account.
+    // The fixed-expense flow is the motivating case: each account has
+    // exactly one fixed pocket, so once the user picks the account the
+    // pocket is fully determined. The smart-mode effect above already
+    // covers the strict fixed-type path; this effect generalizes the
+    // behavior to any case where the filtered list has a single entry
+    // (e.g. an account with only one normal pocket configured).
+    //
+    // Loop safety: same shape as the account effect — `!pocketId`
+    // guarantees we only fire when there's nothing selected, and
+    // `filteredPockets` is memoized for stable dep identity. The two
+    // effects (this one and the smart-mode one above) can both target
+    // the same fixed pocket — the calls are idempotent and the parent
+    // setter is a no-op when the value is unchanged.
+    useEffect(() => {
+        if (!pocketId && filteredPockets.length === 1) {
+            onPocketChange(filteredPockets[0].id);
+        }
+    }, [pocketId, filteredPockets, onPocketChange]);
 
     // Cascading reset: when the user changes account, any previously-selected
     // pocket and sub-pocket are no longer valid. We clear them eagerly so

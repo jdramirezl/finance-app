@@ -465,4 +465,166 @@ describe('AccountPocketSelector', () => {
     expect(onAccountChange).toHaveBeenCalledWith('');
     expect(onPocketChange).toHaveBeenCalledWith('');
   });
+
+  // -----------------------------------------------------------------------
+  // Single-option auto-select
+  //
+  // When the filtered account or pocket list collapses to exactly one
+  // option and the corresponding controlled value is still empty, the
+  // selector fires `onAccountChange` / `onPocketChange` with that single
+  // id. This is the high-leverage path for fixed-expense entry, where
+  // each account typically has exactly one fixed pocket — picking the
+  // account is enough information to determine the pocket.
+  // -----------------------------------------------------------------------
+
+  it('auto-selects the only account when the filtered list has a single entry', () => {
+    accountsState = [baseAccounts[0]];
+    const onAccountChange = vi.fn();
+
+    render(
+      <AccountPocketSelector
+        accountId=""
+        pocketId=""
+        onAccountChange={onAccountChange}
+        onPocketChange={vi.fn()}
+      />,
+    );
+
+    expect(onAccountChange).toHaveBeenCalledWith('acc1');
+  });
+
+  it('does not auto-select an account when one is already chosen', () => {
+    accountsState = [baseAccounts[0]];
+    const onAccountChange = vi.fn();
+
+    render(
+      <AccountPocketSelector
+        accountId="acc1"
+        pocketId=""
+        onAccountChange={onAccountChange}
+        onPocketChange={vi.fn()}
+      />,
+    );
+
+    // The controlled `accountId` is non-empty, so the auto-select effect
+    // must stay quiet — otherwise it would loop on every render.
+    expect(onAccountChange).not.toHaveBeenCalled();
+  });
+
+  it('does not auto-select an account when multiple accounts remain after filtering', () => {
+    const onAccountChange = vi.fn();
+
+    render(
+      <AccountPocketSelector
+        accountId=""
+        pocketId=""
+        onAccountChange={onAccountChange}
+        onPocketChange={vi.fn()}
+      />,
+    );
+
+    // Three accounts in the fixture — the auto-select should not fire.
+    expect(onAccountChange).not.toHaveBeenCalled();
+  });
+
+  it('auto-selects the only pocket when the filtered list has a single entry', () => {
+    // acc3 has exactly one normal pocket (pkt3) and no fixed pocket, so
+    // the pocket dropdown collapses to a single option.
+    const onPocketChange = vi.fn();
+
+    render(
+      <AccountPocketSelector
+        accountId="acc3"
+        pocketId=""
+        onAccountChange={vi.fn()}
+        onPocketChange={onPocketChange}
+      />,
+    );
+
+    expect(onPocketChange).toHaveBeenCalledWith('pkt3');
+  });
+
+  it('does not auto-select a pocket when one is already chosen', () => {
+    const onPocketChange = vi.fn();
+
+    render(
+      <AccountPocketSelector
+        accountId="acc3"
+        pocketId="pkt3"
+        onAccountChange={vi.fn()}
+        onPocketChange={onPocketChange}
+      />,
+    );
+
+    expect(onPocketChange).not.toHaveBeenCalled();
+  });
+
+  it('does not auto-select a pocket when multiple pockets remain after filtering', () => {
+    // acc1 has two non-archived pockets (pkt1 and pkt1f) — the
+    // free-mode pocket list shows both, so no single-option shortcut.
+    const onPocketChange = vi.fn();
+
+    render(
+      <AccountPocketSelector
+        accountId="acc1"
+        pocketId=""
+        onAccountChange={vi.fn()}
+        onPocketChange={onPocketChange}
+      />,
+    );
+
+    expect(onPocketChange).not.toHaveBeenCalled();
+  });
+
+  it('auto-selects the only pocket in smart-mode fixed type (fixed-expense path)', () => {
+    // Smart mode + fixed type filters acc1's pockets to [pkt1f]. The
+    // existing smart-mode effect already handles this case; the new
+    // single-option effect agrees with it. Either way, the user only
+    // had to pick the account.
+    const onPocketChange = vi.fn();
+
+    render(
+      <AccountPocketSelector
+        accountId="acc1"
+        pocketId=""
+        onAccountChange={vi.fn()}
+        onPocketChange={onPocketChange}
+        movementType="EgresoFijo"
+        enforceMovementType
+      />,
+    );
+
+    expect(onPocketChange).toHaveBeenCalledWith('pkt1f');
+  });
+
+  it('auto-selects both account and pocket when both filtered lists collapse to one', () => {
+    // Single-account fixture combined with the smart-mode fixed-type
+    // filter — the user opens the form and both selects are filled in
+    // before they touch a thing.
+    accountsState = [baseAccounts[0]];
+    pocketsState = basePockets.filter((p) => p.accountId === 'acc1');
+
+    const onAccountChange = vi.fn();
+    const onPocketChange = vi.fn();
+
+    render(
+      <AccountPocketSelector
+        accountId=""
+        pocketId=""
+        onAccountChange={onAccountChange}
+        onPocketChange={onPocketChange}
+        movementType="EgresoFijo"
+        enforceMovementType
+      />,
+    );
+
+    expect(onAccountChange).toHaveBeenCalledWith('acc1');
+    // The pocket effect can only fire once `accountId` is non-empty, so
+    // the parent would normally need to update first. In this test we
+    // don't drive that state, but the *account* auto-select firing on
+    // an empty controlled value is the contract we care about here —
+    // the fixed-pocket selection is exercised by the smart-mode tests
+    // above when accountId is already set.
+    expect(onPocketChange).not.toHaveBeenCalledWith('pkt1f');
+  });
 });

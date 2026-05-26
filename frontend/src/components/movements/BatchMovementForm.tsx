@@ -116,8 +116,24 @@ const BatchMovementForm = forwardRef<BatchMovementFormRef, BatchMovementFormProp
     };
 
     const addRow = useCallback(() => {
-      append(createDefaultRow());
-    }, [append]);
+      const lastRow = watchedRows[watchedRows.length - 1];
+      if (!lastRow) {
+        append(createDefaultRow());
+        return;
+      }
+      // Copy contextual settings from the previous row so users don't have to
+      // re-pick the same account / pocket / type / date for every entry in a
+      // batch. Money-shaped fields (amount, notes, category) are intentionally
+      // left blank so each new row requires fresh input.
+      append({
+        ...createDefaultRow(),
+        type: lastRow.type,
+        accountId: lastRow.accountId,
+        pocketId: lastRow.pocketId,
+        subPocketId: lastRow.subPocketId,
+        displayedDate: lastRow.displayedDate,
+      });
+    }, [append, watchedRows]);
 
     const handleRemove = useCallback(
       (index: number) => {
