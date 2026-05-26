@@ -1,5 +1,7 @@
 import type { Movement, MovementType } from '../types';
 import { apiClient } from './apiClient';
+import { supabase } from '../lib/supabase';
+import { mapMovementRow } from './mappers';
 import { parseDate } from '../utils/dateUtils';
 
 export interface CurrencyTotal {
@@ -32,26 +34,6 @@ export interface PaginatedResponse<T> {
   page: number;
   limit: number;
   hasMore: boolean;
-}
-
-// Helper to map snake_case DB rows to camelCase Movement objects
-function mapMovementRow(row: Record<string, unknown>): Movement {
-  return {
-    id: row.id as string,
-    type: row.type as MovementType,
-    accountId: (row.account_id || row.accountId) as string,
-    pocketId: (row.pocket_id || row.pocketId) as string,
-    subPocketId: (row.sub_pocket_id || row.subPocketId) as string | undefined,
-    amount: Number(row.amount),
-    notes: (row.notes as string) || undefined,
-    displayedDate: (row.displayed_date || row.displayedDate) as string,
-    createdAt: (row.created_at || row.createdAt) as string,
-    isPending: Boolean(row.is_pending ?? row.isPending),
-    isOrphaned: Boolean(row.is_orphaned ?? row.isOrphaned),
-    orphanedAccountName: (row.orphaned_account_name || row.orphanedAccountName) as string | undefined,
-    orphanedAccountCurrency: (row.orphaned_account_currency || row.orphanedAccountCurrency) as string | undefined,
-    orphanedPocketName: (row.orphaned_pocket_name || row.orphanedPocketName) as string | undefined,
-  };
 }
 
 // Default page size used when callers ask for "everything" without
@@ -101,12 +83,24 @@ class MovementService {
     limit: number,
     filters?: { category?: string; tags?: string[] },
   ): Promise<PaginatedResponse<Movement>> {
-    const params = new URLSearchParams();
-    params.set('page', String(page));
-    params.set('limit', String(limit));
-    if (filters?.category) params.set('category', filters.category);
-    if (filters?.tags?.length) params.set('tags', filters.tags.join(','));
-    return await apiClient.get<PaginatedResponse<Movement>>(`/api/movements?${params.toString()}`);
+    const offset = (page - 1) * limit;
+    let query = supabase
+      .from('movements')
+      .select('*', { count: 'exact' })
+      .order('displayed_date', { ascending: false })
+      .range(offset, offset + limit - 1);
+    if (filters?.category) query = query.eq('category', filters.category);
+    if (filters?.tags?.length) query = query.overlaps('tags', filters.tags);
+    const { data, count, error } = await query;
+    if (error) throw new Error(error.message);
+    const total = count ?? 0;
+    return {
+      data: (data ?? []).map(mapMovementRow),
+      total,
+      page,
+      limit,
+      hasMore: offset + limit < total,
+    };
   }
 
   /**
@@ -124,42 +118,101 @@ class MovementService {
   }
 
   async getOrphanedMovements(): Promise<Movement[]> {
-    return await apiClient.get<Movement[]>('/api/movements/orphaned');
+    const { data, error } = await supabase
+      .from('movements')
+      .select('*')
+      .eq('is_orphaned', true)
+      .order('displayed_date', { ascending: false });
+    if (error) throw new Error(error.message);
+    return (data ?? []).map(mapMovementRow);
   }
 
   async getMovementsByAccount(accountId: string, page?: number, limit?: number): Promise<Movement[]> {
-    const params = new URLSearchParams({ accountId });
-    if (page !== undefined) params.set('page', String(page));
-    if (limit !== undefined) params.set('limit', String(limit));
-    return await apiClient.get<Movement[]>(`/api/movements?${params.toString()}`);
+    let query = supabase
+      .from('movements')
+      .select('*')
+      .eq('account_id', accountId)
+      .order('displayed_date', { ascending: false });
+    if (page !== undefined && limit !== undefined) {
+      const offset = (page - 1) * limit;
+      query = query.range(offset, offset + limit - 1);
+    }
+    const { data, error } = await query;
+    if (error) throw new Error(error.message);
+    return (data ?? []).map(mapMovementRow);
   }
 
   async getMovementsByPocket(pocketId: string, page?: number, limit?: number): Promise<Movement[]> {
-    const params = new URLSearchParams({ pocketId });
-    if (page !== undefined) params.set('page', String(page));
-    if (limit !== undefined) params.set('limit', String(limit));
-    return await apiClient.get<Movement[]>(`/api/movements?${params.toString()}`);
+    let query = supabase
+      .from('movements')
+      .select('*')
+      .eq('pocket_id', pocketId)
+      .order('displayed_date', { ascending: false });
+    if (page !== undefined && limit !== undefined) {
+      const offset = (page - 1) * limit;
+      query = query.range(offset, offset + limit - 1);
+    }
+    const { data, error } = await query;
+    if (error) throw new Error(error.message);
+    return (data ?? []).map(mapMovementRow);
   }
 
   async getMovementYears(): Promise<{ years: { year: number; count: number; months: number[] }[] }> {
-    return await apiClient.get<{ years: { year: number; count: number; months: number[] }[] }>('/api/movements/years');
+    const { data, error } = await supabase
+      .from('movements')
+      .select('displayed_date')
+      .eq('is_orphaned', false);
+    if (error) throw new Error(error.message);
+    const yearMap = new Map<number, { count: number; months: Set<number> }>();
+    for (const row of data ?? []) {
+      const d = new Date(row.displayed_date);
+      const y = d.getFullYear();
+      const m = d.getMonth() + 1;
+      const entry = yearMap.get(y) || { count: 0, months: new Set<number>() };
+      entry.count++;
+      entry.months.add(m);
+      yearMap.set(y, entry);
+    }
+    const years = Array.from(yearMap.entries())
+      .map(([year, { count, months }]) => ({
+        year,
+        count,
+        months: [...months].sort((a, b) => a - b),
+      }))
+      .sort((a, b) => b.year - a.year);
+    return { years };
   }
 
   async getMovementsByMonth(
     year: number,
     month: number,
-    page?: number,
-    limit?: number,
+    page = 1,
+    limit = 50,
     filters?: { category?: string; tags?: string[] },
   ): Promise<PaginatedResponse<Movement>> {
-    const params = new URLSearchParams();
-    params.set('year', String(year));
-    params.set('month', String(month));
-    if (page) params.set('page', String(page));
-    if (limit) params.set('limit', String(limit));
-    if (filters?.category) params.set('category', filters.category);
-    if (filters?.tags?.length) params.set('tags', filters.tags.join(','));
-    return await apiClient.get<PaginatedResponse<Movement>>(`/api/movements?${params.toString()}`);
+    const offset = (page - 1) * limit;
+    const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
+    const endDate =
+      new Date(year, month, 0).toISOString().split('T')[0] + 'T23:59:59.999Z';
+    let query = supabase
+      .from('movements')
+      .select('*', { count: 'exact' })
+      .gte('displayed_date', startDate)
+      .lte('displayed_date', endDate)
+      .order('displayed_date', { ascending: false })
+      .range(offset, offset + limit - 1);
+    if (filters?.category) query = query.eq('category', filters.category);
+    if (filters?.tags?.length) query = query.overlaps('tags', filters.tags);
+    const { data, count, error } = await query;
+    if (error) throw new Error(error.message);
+    const total = count ?? 0;
+    return {
+      data: (data ?? []).map(mapMovementRow),
+      total,
+      page,
+      limit,
+      hasMore: offset + limit < total,
+    };
   }
 
   async getMovementsGroupedByMonth(): Promise<Map<string, Movement[]>> {
@@ -232,7 +285,13 @@ class MovementService {
   }
 
   async getPendingMovements(): Promise<Movement[]> {
-    return await apiClient.get<Movement[]>('/api/movements/pending');
+    const { data, error } = await supabase
+      .from('movements')
+      .select('*')
+      .eq('is_pending', true)
+      .order('displayed_date', { ascending: false });
+    if (error) throw new Error(error.message);
+    return (data ?? []).map(mapMovementRow);
   }
 
   async applyPendingMovement(id: string): Promise<Movement> {
