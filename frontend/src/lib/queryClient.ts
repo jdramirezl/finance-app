@@ -5,7 +5,18 @@ import { QueryClient, MutationCache, QueryCache } from '@tanstack/react-query';
  */
 const queryCache = new QueryCache({
   onSuccess: (data, query) => {
-    console.log(`[QUERY OK] ${JSON.stringify(query.queryKey)} → ${Array.isArray(data) ? data.length + ' items' : 'object'}`);
+    const key = JSON.stringify(query.queryKey);
+    if (Array.isArray(data)) {
+      // Log first 3 items with id/name/archivedAt to see if data actually changed
+      const preview = data.slice(0, 3).map((item: any) => ({
+        id: item?.id?.slice(0, 8),
+        name: item?.name,
+        archivedAt: item?.archivedAt || null,
+      }));
+      console.log(`[QUERY OK] ${key} → ${data.length} items`, preview);
+    } else {
+      console.log(`[QUERY OK] ${key} → object`);
+    }
   },
   onError: (error, query) => {
     console.error(`[QUERY ERR] ${JSON.stringify(query.queryKey)} →`, error);
