@@ -202,4 +202,75 @@ describe('BatchMovementForm', () => {
       expect(onRowsChange).toHaveBeenCalled();
     });
   });
+
+  it('copies type, account, pocket, sub-pocket, and date from the previous row when adding a new row', async () => {
+    const user = userEvent.setup();
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const initialRows: BatchMovementRow[] = [
+      {
+        id: 'r1',
+        type: 'EgresoNormal',
+        accountId: 'acc1',
+        pocketId: 'pkt1',
+        subPocketId: 'sub1',
+        amount: '10',
+        notes: 'first',
+        category: 'food',
+        displayedDate: '2026-03-12',
+      },
+    ];
+
+    render(<BatchMovementForm {...defaultProps} initialRows={initialRows} onSave={onSave} />);
+
+    await user.click(screen.getByRole('button', { name: /add row/i }));
+    await user.click(screen.getByRole('button', { name: /save all \(2\)/i }));
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledTimes(1);
+    });
+
+    const rows = onSave.mock.calls[0][0] as BatchMovementRow[];
+    expect(rows).toHaveLength(2);
+    // Inherited contextual settings
+    expect(rows[1]).toMatchObject({
+      type: 'EgresoNormal',
+      accountId: 'acc1',
+      pocketId: 'pkt1',
+      subPocketId: 'sub1',
+      displayedDate: '2026-03-12',
+    });
+    // Money-shaped fields intentionally left blank for fresh input
+    expect(rows[1].amount).toBe('');
+    expect(rows[1].notes).toBe('');
+    expect(rows[1].category ?? '').toBe('');
+    // New row gets its own id
+    expect(rows[1].id).not.toBe('r1');
+  });
+
+  it('uses the default blank row when adding the very first row (no previous row)', async () => {
+    const user = userEvent.setup();
+    const onSave = vi.fn().mockResolvedValue(undefined);
+
+    // initialRows=[] forces defaultValues to fall back to a single default row,
+    // but we also exercise the empty-array branch by removing all rows first
+    // is not possible (last row cannot be removed). Instead, this test
+    // documents that the default-row path is taken when no rows exist by
+    // confirming the first rendered row has the createDefaultRow() shape.
+    render(<BatchMovementForm {...defaultProps} onSave={onSave} />);
+
+    await user.click(screen.getByRole('button', { name: /save all \(1\)/i }));
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledTimes(1);
+    });
+
+    const rows = onSave.mock.calls[0][0] as BatchMovementRow[];
+    expect(rows[0]).toMatchObject({
+      type: 'IngresoNormal',
+      accountId: '',
+      pocketId: '',
+      amount: '',
+      notes: '',
+    });
+  });
 });
