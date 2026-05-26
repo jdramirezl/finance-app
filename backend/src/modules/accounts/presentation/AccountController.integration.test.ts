@@ -20,6 +20,8 @@ import { UpdateAccountUseCase } from '../application/useCases/UpdateAccountUseCa
 import { DeleteAccountUseCase } from '../application/useCases/DeleteAccountUseCase';
 import { DeleteAccountCascadeUseCase } from '../application/useCases/DeleteAccountCascadeUseCase';
 import { ReorderAccountsUseCase } from '../application/useCases/ReorderAccountsUseCase';
+import { ArchiveAccountUseCase } from '../application/useCases/ArchiveAccountUseCase';
+import { UnarchiveAccountUseCase } from '../application/useCases/UnarchiveAccountUseCase';
 import { ValidationError, ConflictError, NotFoundError } from '../../../shared/errors/AppError';
 import { errorHandler } from '../../../shared/middleware/errorHandler';
 
@@ -32,6 +34,8 @@ describe('AccountController Integration Tests', () => {
   let mockDeleteAccountUseCase: jest.Mocked<DeleteAccountUseCase>;
   let mockDeleteAccountCascadeUseCase: jest.Mocked<DeleteAccountCascadeUseCase>;
   let mockReorderAccountsUseCase: jest.Mocked<ReorderAccountsUseCase>;
+  let mockArchiveAccountUseCase: jest.Mocked<ArchiveAccountUseCase>;
+  let mockUnarchiveAccountUseCase: jest.Mocked<UnarchiveAccountUseCase>;
   
   const testUserId = 'test-user-123';
   const mockAuthMiddleware = (req: any, res: any, next: any) => {
@@ -69,6 +73,14 @@ describe('AccountController Integration Tests', () => {
       execute: jest.fn()
     } as any;
 
+    mockArchiveAccountUseCase = {
+      execute: jest.fn()
+    } as any;
+
+    mockUnarchiveAccountUseCase = {
+      execute: jest.fn()
+    } as any;
+
     // Create controller with mocked use cases
     const controller = new AccountController(
       mockCreateAccountUseCase,
@@ -77,7 +89,9 @@ describe('AccountController Integration Tests', () => {
       mockUpdateAccountUseCase,
       mockDeleteAccountUseCase,
       mockDeleteAccountCascadeUseCase,
-      mockReorderAccountsUseCase
+      mockReorderAccountsUseCase,
+      mockArchiveAccountUseCase,
+      mockUnarchiveAccountUseCase
     );
 
     // Setup Express app with routes
@@ -229,7 +243,7 @@ describe('AccountController Integration Tests', () => {
       expect(response.status).toBe(200);
       expect(Array.isArray(response.body)).toBe(true);
       expect(response.body.length).toBe(3);
-      expect(mockGetAllAccountsUseCase.execute).toHaveBeenCalledWith(testUserId, false);
+      expect(mockGetAllAccountsUseCase.execute).toHaveBeenCalledWith(testUserId, false, false);
     });
 
     it('should return empty array when user has no accounts', async () => {
