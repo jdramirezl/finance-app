@@ -1,4 +1,10 @@
-import { QueryClient, MutationCache, QueryCache } from '@tanstack/react-query';
+import { QueryClient, MutationCache, QueryCache, notifyManager } from '@tanstack/react-query';
+
+// Chrome throttles setTimeout(fn, 0) to ≥1000ms when the page is "idle"
+// (no recent user interaction), but disables throttling when DevTools is open.
+// This caused query data updates to never reach React unless DevTools was open.
+// queueMicrotask is never throttled.
+notifyManager.setScheduler(queueMicrotask);
 
 /**
  * Debug: log all query and mutation activity to console
