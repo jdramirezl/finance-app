@@ -77,7 +77,7 @@ describe('PocketMapper', () => {
 
       const persistence = PocketMapper.toPersistence(pocket, userId);
 
-      expect(persistence.display_order).toBeNull();
+      expect(persistence.display_order).toBe(0);
     });
 
     it('should handle all supported currencies', () => {
@@ -183,7 +183,7 @@ describe('PocketMapper', () => {
       expect(pocket.balance).toBe(-500.00);
     });
 
-    it('should handle null values from database', () => {
+    it('should handle default values from database', () => {
       const row = {
         id: 'pocket-3',
         user_id: userId,
@@ -192,13 +192,13 @@ describe('PocketMapper', () => {
         type: 'normal',
         balance: 0,
         currency: 'GBP',
-        display_order: null,
+        display_order: 0,
         archived_at: null,
       };
 
       const pocket = PocketMapper.toDomain(row);
 
-      expect(pocket.displayOrder).toBeUndefined();
+      expect(pocket.displayOrder).toBe(0);
     });
 
     it('should create valid domain entity that passes validation', () => {
@@ -490,7 +490,7 @@ describe('PocketMapper', () => {
       const persistence = PocketMapper.toPersistence(original, userId);
       const restored = PocketMapper.toDomain(persistence);
 
-      expect(restored.displayOrder).toBeUndefined();
+      expect(restored.displayOrder).toBe(0);
       expect(original.displayOrder).toBeUndefined();
     });
 
