@@ -1,4 +1,6 @@
 import { apiClient as api } from './apiClient';
+import { supabase } from '../lib/supabase';
+import { mapReminderRow } from './mappers';
 
 export type RecurrenceType = 'once' | 'daily' | 'weekly' | 'monthly' | 'yearly' | 'custom';
 export type RecurrenceEndType = 'never' | 'after' | 'on_date';
@@ -79,8 +81,12 @@ export interface UpdateReminderDTO {
 
 export const reminderService = {
     getAll: async (): Promise<Reminder[]> => {
-        const response = await api.get<Reminder[]>('/api/reminders');
-        return response;
+        const { data, error } = await supabase
+            .from('reminders')
+            .select('*, reminder_exceptions(*)')
+            .order('due_date', { ascending: true });
+        if (error) throw new Error(error.message);
+        return (data ?? []).map(mapReminderRow);
     },
 
     create: async (data: CreateReminderDTO): Promise<Reminder> => {

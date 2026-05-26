@@ -1,15 +1,31 @@
 import type { FixedExpenseGroup } from '../types';
 import { apiClient } from './apiClient';
+import { supabase } from '../lib/supabase';
+import { mapFixedExpenseGroupRow } from './mappers';
 
 class FixedExpenseGroupService {
-  // Get all groups
+  // Get all groups directly from Supabase
   async getAll(): Promise<FixedExpenseGroup[]> {
-    return await apiClient.get<FixedExpenseGroup[]>('/api/fixed-expense-groups');
+    const { data, error } = await supabase
+      .from('fixed_expense_groups')
+      .select('*')
+      .order('display_order', { ascending: true });
+    if (error) throw new Error(`Failed to fetch fixed expense groups: ${error.message}`);
+    return (data ?? []).map(mapFixedExpenseGroupRow);
   }
 
-  // Get group by ID
+  // Get group by ID directly from Supabase
   async getById(id: string): Promise<FixedExpenseGroup | null> {
-    return await apiClient.get<FixedExpenseGroup>(`/api/fixed-expense-groups/${id}`);
+    const { data, error } = await supabase
+      .from('fixed_expense_groups')
+      .select('*')
+      .eq('id', id)
+      .single();
+    if (error) {
+      if (error.code === 'PGRST116') return null;
+      throw new Error(error.message);
+    }
+    return data ? mapFixedExpenseGroupRow(data) : null;
   }
 
   // Create new group

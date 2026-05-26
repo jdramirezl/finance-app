@@ -5,11 +5,18 @@ import {
   isSupportedCurrency,
 } from '../constants';
 import { apiClient } from './apiClient';
+import { supabase } from '../lib/supabase';
+import { mapSettingsRow } from './mappers';
 
 class SettingsService {
-  // Get user settings
+  // Get user settings (direct Supabase read; RLS scopes to current user).
   async getSettings(): Promise<Settings> {
-    return await apiClient.get<Settings>('/api/settings');
+    const { data, error } = await supabase
+      .from('settings')
+      .select('*')
+      .single();
+    if (error) throw new Error(error.message);
+    return mapSettingsRow(data);
   }
 
   // Update user settings

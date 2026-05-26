@@ -3,6 +3,8 @@
  */
 
 import { apiClient as api } from './apiClient';
+import { supabase } from '../lib/supabase';
+import { mapNetWorthSnapshotRow } from './mappers';
 
 export interface NetWorthSnapshot {
     id: string;
@@ -22,13 +24,23 @@ export interface CreateSnapshotDTO {
 
 export const netWorthSnapshotService = {
     getAll: async (): Promise<NetWorthSnapshot[]> => {
-        const response = await api.get<NetWorthSnapshot[]>('/api/net-worth-snapshots');
-        return response;
+        const { data, error } = await supabase
+            .from('net_worth_snapshots')
+            .select('*')
+            .order('snapshot_date', { ascending: true });
+        if (error) throw new Error(error.message);
+        return (data ?? []).map(mapNetWorthSnapshotRow);
     },
 
     getLatest: async (): Promise<NetWorthSnapshot | null> => {
-        const response = await api.get<NetWorthSnapshot | null>('/api/net-worth-snapshots/latest');
-        return response;
+        const { data, error } = await supabase
+            .from('net_worth_snapshots')
+            .select('*')
+            .order('snapshot_date', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+        if (error) throw new Error(error.message);
+        return data ? mapNetWorthSnapshotRow(data) : null;
     },
 
     create: async (data: CreateSnapshotDTO): Promise<NetWorthSnapshot> => {

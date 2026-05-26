@@ -13,7 +13,6 @@ export const useNetWorthSnapshotsQuery = () => {
     return useQuery({
         queryKey: ['netWorthSnapshots'],
         queryFn: netWorthSnapshotService.getAll,
-        staleTime: 1000 * 60 * 10, // 10 minutes - snapshots are daily at most
     });
 };
 

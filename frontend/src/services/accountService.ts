@@ -1,21 +1,36 @@
 import type { Account, CDInvestmentAccount, InvestmentType, CompoundingFrequency } from '../types';
 import { apiClient } from './apiClient';
 import { cdCalculationService } from './cdCalculationService';
+import { supabase } from '../lib/supabase';
+import { mapAccountRow } from './mappers';
 
 class AccountService {
-  // Get all accounts.
+  // Get all accounts directly from Supabase.
   // When includeArchived is true, soft-archived accounts (archived_at IS NOT NULL)
   // are included — used by the Accounts page to render the "Archived" section.
   async getAllAccounts(includeArchived: boolean = false): Promise<Account[]> {
-    const path = includeArchived
-      ? '/api/accounts?include_archived=true'
-      : '/api/accounts';
-    return await apiClient.get<Account[]>(path);
+    let query = supabase
+      .from('accounts')
+      .select('*')
+      .order('display_order', { ascending: true, nullsFirst: false });
+    if (!includeArchived) query = query.is('archived_at', null);
+    const { data, error } = await query;
+    if (error) throw new Error(`Failed to fetch accounts: ${error.message}`);
+    return (data ?? []).map(mapAccountRow);
   }
 
-  // Get account by ID
+  // Get account by ID directly from Supabase
   async getAccount(id: string): Promise<Account | null> {
-    return await apiClient.get<Account>(`/api/accounts/${id}`);
+    const { data, error } = await supabase
+      .from('accounts')
+      .select('*')
+      .eq('id', id)
+      .single();
+    if (error) {
+      if (error.code === 'PGRST116') return null;
+      throw new Error(error.message);
+    }
+    return data ? mapAccountRow(data) : null;
   }
 
   // Validate account uniqueness (name + currency combination).
