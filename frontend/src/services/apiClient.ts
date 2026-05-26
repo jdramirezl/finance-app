@@ -30,18 +30,29 @@ class ApiClient {
   constructor() {
     this.baseURL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
-    // Cache the token from auth state changes instead of calling
-    // getSession() per-request (which uses navigator.locks and can hang).
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      this.cachedToken = session?.access_token ?? null;
-    });
+    // Read token from localStorage directly — avoids navigator.locks
+    // that getSession() uses internally and can hang without DevTools.
+    this.refreshTokenFromStorage();
     supabase.auth.onAuthStateChange((_event, session) => {
       this.cachedToken = session?.access_token ?? null;
     });
   }
 
+  private refreshTokenFromStorage(): void {
+    try {
+      const storageKey = `sb-fzndohawryghtzcqbrmz-auth-token`;
+      const raw = localStorage.getItem(storageKey);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        this.cachedToken = parsed?.access_token ?? null;
+      }
+    } catch {
+      // Ignore parse errors
+    }
+  }
+
   /**
-   * Get authentication token from cache (set by onAuthStateChange).
+   * Get authentication token synchronously from cache.
    */
   private getAuthToken(): string | null {
     return this.cachedToken;
