@@ -123,6 +123,9 @@ export async function authMiddleware(
     const token = authHeader.replace('Bearer ', '');
 
     const jwtSecret = process.env.SUPABASE_JWT_SECRET;
+    if (!jwtSecret) {
+      console.warn('[AUTH] ⚠️ SUPABASE_JWT_SECRET not set — using slow network verification');
+    }
     const user = jwtSecret
       ? verifyTokenLocally(token, jwtSecret)
       : await verifyTokenWithSupabase(token);
