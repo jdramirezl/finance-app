@@ -72,7 +72,13 @@ app.use(express.urlencoded({ extended: true }));
 
 // Request logging middleware
 app.use((req: Request, res: Response, next: NextFunction) => {
-  console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
+  const start = Date.now();
+  res.on('finish', () => {
+    const ms = Date.now() - start;
+    const status = res.statusCode;
+    const flag = status >= 400 ? ' ❌' : '';
+    console.log(`${new Date().toISOString()} - ${req.method} ${req.path} → ${status} (${ms}ms)${flag}`);
+  });
   next();
 });
 
