@@ -8,17 +8,12 @@ import type { Account, Pocket } from '../../types';
  * Tests for {@link useInvestmentPrices}. The hook uses TanStack Query's
  * `useQueries` to fetch one price per investment symbol, combines results
  * with pocket-derived `montoInvertido` / `shares`, and exposes a
- * triple-click force-refresh handler with a per-symbol cooldown.
+ * single-click refresh handler with a per-symbol cooldown plus cache-info
+ * lookup for the next-refresh hint.
  *
  * `investmentService` is mocked so we can drive query outcomes deterministically
  * without touching the real network. Each test wraps the hook in its own
  * QueryClient to avoid bleed-over of cached prices between cases.
- *
- * Click counters: each invocation of `handleRefreshPrice` reads
- * `clickCounts` from the closure captured at render time, so progressing
- * the count requires letting React re-render between clicks. Tests use
- * separate `await act(...)` blocks to flush state updates and re-acquire
- * `result.current.handleRefreshPrice` with the latest closure.
  */
 
 vi.mock('../../services/investmentService', () => ({
@@ -97,6 +92,10 @@ const createWrapper = () => {
 describe('useInvestmentPrices', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(investmentService.getPriceTimestamp).mockReturnValue(1234567890);
+    // Default to a resolved price so investment-account fixtures don't
+    // crash useQueries during render — individual tests override as needed.
+    vi.mocked(investmentService.getCurrentPrice).mockResolvedValue(100);
   });
 
   describe('investmentData mapping', () => {
@@ -225,39 +224,7 @@ describe('useInvestmentPrices', () => {
   });
 
   describe('handleRefreshPrice', () => {
-    it('shows a 2-clicks-remaining toast on the first click', async () => {
-      vi.mocked(investmentService.getCurrentPrice).mockResolvedValue(100);
-      const toast = makeToast();
-      const account = makeAccount({ id: 'inv-1' });
-
-      const { wrapper } = createWrapper();
-      const { result } = renderHook(
-        () =>
-          useInvestmentPrices({
-            accounts: [account],
-            pockets: [],
-            toast: toast as never,
-          }),
-        { wrapper },
-      );
-
-      await act(async () => {
-        await result.current.handleRefreshPrice(account);
-      });
-
-      // The click counter only governs the leading info toast — the
-      // refresh itself runs on every click, so the success toast fires too.
-      // The "force " prefix is only added when clickCount hit the threshold.
-      expect(toast.info).toHaveBeenCalledWith('2 more clicks to force refresh');
-      expect(toast.success).toHaveBeenCalledWith(
-        expect.stringContaining('Price refreshed: VOO'),
-      );
-      expect(toast.success).not.toHaveBeenCalledWith(
-        expect.stringContaining('force refreshed'),
-      );
-    });
-
-    it('progresses through the click prompts and force-refreshes on the third click', async () => {
+    it('refreshes immediately on a single click and surfaces a success toast', async () => {
       vi.mocked(investmentService.getCurrentPrice).mockResolvedValue(123.45);
       const toast = makeToast();
       const account = makeAccount({ id: 'inv-1' });
@@ -273,28 +240,18 @@ describe('useInvestmentPrices', () => {
         { wrapper },
       );
 
-      // Each click is its own act so React flushes state and the
-      // captured `clickCounts` closure progresses between calls.
-      await act(async () => {
-        await result.current.handleRefreshPrice(account);
-      });
-      await act(async () => {
-        await result.current.handleRefreshPrice(account);
-      });
       await act(async () => {
         await result.current.handleRefreshPrice(account);
       });
 
-      expect(toast.info).toHaveBeenCalledWith('2 more clicks to force refresh');
-      expect(toast.info).toHaveBeenCalledWith('1 more click to force refresh');
-      expect(toast.info).toHaveBeenCalledWith('Forcing refresh...');
-      // Successful invalidation surfaces the formatted price toast.
+      // Single click triggers the refresh — no "X more clicks" prompts.
+      expect(toast.info).not.toHaveBeenCalled();
       expect(toast.success).toHaveBeenCalledWith(
-        expect.stringContaining('force refreshed: VOO'),
+        expect.stringContaining('Price refreshed: VOO'),
       );
     });
 
-    it('rejects a second force refresh while inside the cooldown window', async () => {
+    it('blocks a second refresh inside the per-symbol cooldown window', async () => {
       vi.mocked(investmentService.getCurrentPrice).mockResolvedValue(100);
       const toast = makeToast();
       const account = makeAccount({ id: 'inv-1' });
@@ -310,35 +267,54 @@ describe('useInvestmentPrices', () => {
         { wrapper },
       );
 
-      // First triple-click triggers a real force refresh.
       await act(async () => {
         await result.current.handleRefreshPrice(account);
       });
-      await act(async () => {
-        await result.current.handleRefreshPrice(account);
-      });
-      await act(async () => {
-        await result.current.handleRefreshPrice(account);
-      });
-
       toast.error.mockClear();
 
-      // Second triple-click sequence — the third click hits the cooldown
-      // because lastForceRefresh was just stamped milliseconds ago.
-      await act(async () => {
-        await result.current.handleRefreshPrice(account);
-      });
-      await act(async () => {
-        await result.current.handleRefreshPrice(account);
-      });
+      // Second click lands well inside the 60s cooldown — refresh is
+      // rejected and the user sees a wait-time message.
       await act(async () => {
         await result.current.handleRefreshPrice(account);
       });
 
       expect(toast.error).toHaveBeenCalledWith(
-        expect.stringMatching(
-          /Please wait \d+ seconds before force refreshing again/,
-        ),
+        expect.stringMatching(/Please wait \d+ seconds before refreshing again/),
+      );
+      // The upstream service should only have been hit once.
+      expect(investmentService.getCurrentPrice).toHaveBeenCalledTimes(1);
+    });
+
+    it('shares the cooldown across accounts holding the same symbol', async () => {
+      vi.mocked(investmentService.getCurrentPrice).mockResolvedValue(100);
+      const toast = makeToast();
+      const accountA = makeAccount({ id: 'inv-a', stockSymbol: 'VOO' });
+      const accountB = makeAccount({ id: 'inv-b', stockSymbol: 'VOO' });
+
+      const { wrapper } = createWrapper();
+      const { result } = renderHook(
+        () =>
+          useInvestmentPrices({
+            accounts: [accountA, accountB],
+            pockets: [],
+            toast: toast as never,
+          }),
+        { wrapper },
+      );
+
+      await act(async () => {
+        await result.current.handleRefreshPrice(accountA);
+      });
+      toast.error.mockClear();
+
+      // Refreshing the *other* account that shares the symbol must hit the
+      // same cooldown — that's the whole point of keying state by symbol.
+      await act(async () => {
+        await result.current.handleRefreshPrice(accountB);
+      });
+
+      expect(toast.error).toHaveBeenCalledWith(
+        expect.stringMatching(/Please wait \d+ seconds before refreshing again/),
       );
     });
 
@@ -366,11 +342,92 @@ describe('useInvestmentPrices', () => {
       expect(toast.success).not.toHaveBeenCalled();
       expect(toast.error).not.toHaveBeenCalled();
     });
+  });
 
-    it('starts with an empty refreshingPrices set and does not leak entries after success', async () => {
-      vi.mocked(investmentService.getCurrentPrice).mockResolvedValue(100);
-      const toast = makeToast();
+  describe('isRefreshing', () => {
+    it('returns false for accounts with no symbol or before any refresh starts', () => {
       const account = makeAccount({ id: 'inv-1' });
+      const accountNoSym = makeAccount({ id: 'inv-2', stockSymbol: undefined });
+
+      const { wrapper } = createWrapper();
+      const { result } = renderHook(
+        () =>
+          useInvestmentPrices({
+            accounts: [account, accountNoSym],
+            pockets: [],
+            toast: makeToast() as never,
+          }),
+        { wrapper },
+      );
+
+      expect(result.current.isRefreshing('inv-1')).toBe(false);
+      expect(result.current.isRefreshing('inv-2')).toBe(false);
+      expect(result.current.isRefreshing('unknown')).toBe(false);
+    });
+
+    it('reports true for every account holding the symbol while a refresh is in flight', async () => {
+      // Fake timers let us suspend the queryFn indefinitely without a
+      // real promise that has to be drained — the previous live-promise
+      // approach left state dangling between tests when the act window
+      // ended before the spinner cleared, breaking later cases.
+      vi.useFakeTimers();
+      try {
+        vi.mocked(investmentService.getCurrentPrice).mockImplementation(
+          () =>
+            new Promise<number>((resolve) => {
+              setTimeout(() => resolve(100), 10_000);
+            }),
+        );
+        const accountA = makeAccount({ id: 'inv-a', stockSymbol: 'VOO' });
+        const accountB = makeAccount({ id: 'inv-b', stockSymbol: 'VOO' });
+        const accountC = makeAccount({ id: 'inv-c', stockSymbol: 'AAPL' });
+
+        const { wrapper } = createWrapper();
+        const { result } = renderHook(
+          () =>
+            useInvestmentPrices({
+              accounts: [accountA, accountB, accountC],
+              pockets: [],
+              toast: makeToast() as never,
+            }),
+          { wrapper },
+        );
+
+        // Fire the refresh — synchronous prefix sets refreshingSymbols
+        // before the await of invalidateQueries. The state update
+        // commits when act unwinds.
+        let pending: Promise<void> | undefined;
+        await act(async () => {
+          pending = result.current.handleRefreshPrice(accountA);
+          // Yield to React's scheduler so the queued state update flushes.
+          await Promise.resolve();
+        });
+
+        // Both VOO accounts spin together; the AAPL account stays idle.
+        // This is the core "cross-card spinner" guarantee.
+        expect(result.current.isRefreshing('inv-a')).toBe(true);
+        expect(result.current.isRefreshing('inv-b')).toBe(true);
+        expect(result.current.isRefreshing('inv-c')).toBe(false);
+
+        // Drain — advance fake timers to resolve the queryFn, then await.
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(10_000);
+          await pending;
+        });
+
+        // After completion the spinner clears for the whole symbol family.
+        expect(result.current.isRefreshing('inv-a')).toBe(false);
+        expect(result.current.isRefreshing('inv-b')).toBe(false);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+  });
+
+  describe('getCacheInfo', () => {
+    it('exposes a 1h window when there is a single symbol', () => {
+      vi.mocked(investmentService.getPriceTimestamp).mockReturnValue(1_000_000);
+      const account = makeAccount({ id: 'inv-1', stockSymbol: 'VOO' });
 
       const { wrapper } = createWrapper();
       const { result } = renderHook(
@@ -378,22 +435,79 @@ describe('useInvestmentPrices', () => {
           useInvestmentPrices({
             accounts: [account],
             pockets: [],
-            toast: toast as never,
+            toast: makeToast() as never,
           }),
         { wrapper },
       );
 
-      expect(result.current.refreshingPrices.size).toBe(0);
+      const info = result.current.getCacheInfo('VOO');
+      // ceil(1 * 24 / 25) = 1, and the formula floors at 1 anyway.
+      expect(info.cacheHours).toBe(1);
+      expect(info.lastUpdated).toBe(1_000_000);
+      // nextRefreshAt = lastUpdated + cacheHours * 1h-in-ms.
+      expect(info.nextRefreshAt).toBe(1_000_000 + 60 * 60 * 1000);
+    });
 
-      await act(async () => {
-        await result.current.handleRefreshPrice(account);
-      });
-
-      // The finally block must clear the entry so the spinner doesn't
-      // stick on the card after the refresh completes.
-      await waitFor(() =>
-        expect(result.current.refreshingPrices.has('inv-1')).toBe(false),
+    it('scales the window with the distinct symbol count', () => {
+      vi.mocked(investmentService.getPriceTimestamp).mockReturnValue(0);
+      // 26 distinct symbols → ceil(26 * 24 / 25) = 25 hours.
+      const accounts = Array.from({ length: 26 }, (_, i) =>
+        makeAccount({ id: `inv-${i}`, stockSymbol: `SYM${i}` }),
       );
+
+      const { wrapper } = createWrapper();
+      const { result } = renderHook(
+        () =>
+          useInvestmentPrices({
+            accounts,
+            pockets: [],
+            toast: makeToast() as never,
+          }),
+        { wrapper },
+      );
+
+      expect(result.current.getCacheInfo('SYM0').cacheHours).toBe(25);
+    });
+
+    it('counts duplicate symbols only once in the cache window calculation', () => {
+      vi.mocked(investmentService.getPriceTimestamp).mockReturnValue(0);
+      // Two accounts share VOO — distinct symbol count is still 1.
+      const accountA = makeAccount({ id: 'inv-a', stockSymbol: 'VOO' });
+      const accountB = makeAccount({ id: 'inv-b', stockSymbol: 'VOO' });
+
+      const { wrapper } = createWrapper();
+      const { result } = renderHook(
+        () =>
+          useInvestmentPrices({
+            accounts: [accountA, accountB],
+            pockets: [],
+            toast: makeToast() as never,
+          }),
+        { wrapper },
+      );
+
+      expect(result.current.getCacheInfo('VOO').cacheHours).toBe(1);
+    });
+
+    it('returns null timestamps when the symbol has never been fetched', () => {
+      vi.mocked(investmentService.getPriceTimestamp).mockReturnValue(null);
+      const account = makeAccount({ id: 'inv-1', stockSymbol: 'VOO' });
+
+      const { wrapper } = createWrapper();
+      const { result } = renderHook(
+        () =>
+          useInvestmentPrices({
+            accounts: [account],
+            pockets: [],
+            toast: makeToast() as never,
+          }),
+        { wrapper },
+      );
+
+      const info = result.current.getCacheInfo('VOO');
+      expect(info.lastUpdated).toBeNull();
+      // nextRefreshAt has nothing to anchor to without lastUpdated.
+      expect(info.nextRefreshAt).toBeNull();
     });
   });
 });

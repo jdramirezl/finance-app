@@ -229,8 +229,13 @@ const setupHappyPath = (options: SetupOptions = {}) => {
   );
   mocks.useInvestmentPrices.mockReturnValue({
     investmentData: new Map(),
-    refreshingPrices: new Set<string>(),
+    isRefreshing: vi.fn(() => false),
     handleRefreshPrice: vi.fn(),
+    getCacheInfo: vi.fn(() => ({
+      lastUpdated: null,
+      cacheHours: 1,
+      nextRefreshAt: null,
+    })),
   });
   mocks.useConsolidatedTotal.mockReturnValue(consolidated);
   mocks.useAutoNetWorthSnapshot.mockReturnValue(undefined);

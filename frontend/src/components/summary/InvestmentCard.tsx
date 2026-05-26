@@ -4,8 +4,9 @@ import type { Account } from '../../types';
 import { currencyService } from '../../services/currencyService';
 import { TrendingUp, RefreshCw, BarChart3, DollarSign, Percent, Clock } from 'lucide-react';
 import Button from '../ui/Button';
-import { formatDistanceToNow } from 'date-fns';
 import SelectableValue from '../ui/SelectableValue';
+import type { InvestmentCacheInfo } from '../../hooks/useInvestmentPrices';
+import { formatCacheLabel } from './investmentCacheLabel';
 
 export interface InvestmentData {
     precioActual: number;
@@ -26,7 +27,13 @@ interface InvestmentCardProps {
      * per row.
      */
     onRefresh: (account: Account) => void;
-    isRefreshing: boolean;
+    /**
+     * Symbol-keyed predicate so two cards holding the same ticker share
+     * the spinner state.
+     */
+    isRefreshing: (accountId: string) => boolean;
+    /** Cache freshness for the next-refresh hint under the price row. */
+    getCacheInfo: (symbol: string) => InvestmentCacheInfo;
 }
 
 /**
@@ -39,6 +46,7 @@ const InvestmentCard = ({
     data,
     onRefresh,
     isRefreshing,
+    getCacheInfo,
 }: InvestmentCardProps) => {
     const navigate = useNavigate();
 
@@ -50,6 +58,10 @@ const InvestmentCard = ({
     // Use corrected values from data if available, otherwise fall back to account
     const montoInvertido = data?.montoInvertido ?? account.montoInvertido ?? 0;
     const shares = data?.shares ?? account.shares ?? 0;
+    const refreshing = isRefreshing(account.id);
+    const cacheLabel = account.stockSymbol
+        ? formatCacheLabel(getCacheInfo(account.stockSymbol))
+        : null;
 
     // Get performance status
     const getPerformanceStatus = () => {
@@ -161,13 +173,13 @@ const InvestmentCard = ({
                                     variant="ghost"
                                     size="sm"
                                     onClick={() => onRefresh(account)}
-                                    loading={isRefreshing}
-                                    disabled={isRefreshing}
+                                    loading={refreshing}
+                                    disabled={refreshing}
                                     className="p-1 h-6 w-6"
                                     aria-label={`Refresh ${account.stockSymbol || 'investment'} share price`}
                                     title="Refresh share price"
                                 >
-                                    <RefreshCw className={`w-3 h-3 ${isRefreshing ? 'animate-spin' : ''}`} aria-hidden="true" />
+                                    <RefreshCw className={`w-3 h-3 ${refreshing ? 'animate-spin' : ''}`} aria-hidden="true" />
                                 </Button>
                             </div>
                             <span className="font-mono font-semibold text-gray-900 dark:text-gray-100">
@@ -175,10 +187,10 @@ const InvestmentCard = ({
                             </span>
                         </div>
 
-                        {data.lastUpdated && (
+                        {cacheLabel && (
                             <div className="flex items-center justify-center gap-2 text-xs text-gray-500 dark:text-gray-400 pt-2">
                                 <Clock className="w-3 h-3" aria-hidden="true" />
-                                <span>Last updated {formatDistanceToNow(data.lastUpdated, { addSuffix: true })}</span>
+                                <span>{cacheLabel}</span>
                             </div>
                         )}
                     </div>

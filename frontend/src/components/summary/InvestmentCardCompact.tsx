@@ -3,8 +3,9 @@ import type { Account } from '../../types';
 import { currencyService } from '../../services/currencyService';
 import { TrendingUp, RefreshCw } from 'lucide-react';
 import Button from '../ui/Button';
-import { formatDistanceToNow } from 'date-fns';
 import SelectableValue from '../ui/SelectableValue';
+import type { InvestmentCacheInfo } from '../../hooks/useInvestmentPrices';
+import { formatCacheLabel } from './investmentCacheLabel';
 
 export interface InvestmentData {
     precioActual: number;
@@ -19,8 +20,12 @@ export interface InvestmentData {
 interface InvestmentCardCompactProps {
     account: Account;
     data?: InvestmentData;
-    onRefresh: () => void;
-    isRefreshing: boolean;
+    /** Aligned with InvestmentCard so the parent can hold one stable handler. */
+    onRefresh: (account: Account) => void;
+    /** Symbol-keyed predicate — see InvestmentCard for the rationale. */
+    isRefreshing: (accountId: string) => boolean;
+    /** Cache freshness for the next-refresh hint. */
+    getCacheInfo: (symbol: string) => InvestmentCacheInfo;
 }
 
 const InvestmentCardCompact = ({
@@ -28,6 +33,7 @@ const InvestmentCardCompact = ({
     data,
     onRefresh,
     isRefreshing,
+    getCacheInfo,
 }: InvestmentCardCompactProps) => {
     const navigate = useNavigate();
 
@@ -40,6 +46,10 @@ const InvestmentCardCompact = ({
     const montoInvertido = data?.montoInvertido ?? account.montoInvertido ?? 0;
     const shares = data?.shares ?? account.shares ?? 0;
     const refreshLabel = `Refresh ${stockSymbol} share price`;
+    const refreshing = isRefreshing(account.id);
+    const cacheLabel = account.stockSymbol
+        ? formatCacheLabel(getCacheInfo(account.stockSymbol))
+        : null;
 
     return (
         <div className="border-l-4 pl-4" style={{ borderColor: account.color }}>
@@ -88,14 +98,14 @@ const InvestmentCardCompact = ({
                             <Button
                                 variant="ghost"
                                 size="sm"
-                                onClick={onRefresh}
-                                loading={isRefreshing}
-                                disabled={isRefreshing}
+                                onClick={() => onRefresh(account)}
+                                loading={refreshing}
+                                disabled={refreshing}
                                 className="ml-2"
                                 aria-label={refreshLabel}
                                 title={refreshLabel}
                             >
-                                <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} aria-hidden="true" />
+                                <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} aria-hidden="true" />
                             </Button>
                         </div>
 
@@ -119,10 +129,10 @@ const InvestmentCardCompact = ({
                                 </span>
                             </div>
 
-                            {data.lastUpdated && (
+                            {cacheLabel && (
                                 <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 italic">
                                     <span>Last updated:</span>
-                                    <span>{formatDistanceToNow(data.lastUpdated, { addSuffix: true })}</span>
+                                    <span>{cacheLabel}</span>
                                 </div>
                             )}
 

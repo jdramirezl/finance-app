@@ -82,7 +82,7 @@ const SummaryPage = () => {
   const accountCardDisplay = settings?.accountCardDisplay || DEFAULT_DISPLAY;
 
   // Investment prices and refresh handler
-  const { investmentData, refreshingPrices, handleRefreshPrice } =
+  const { investmentData, isRefreshing, handleRefreshPrice, getCacheInfo } =
     useInvestmentPrices({ accounts, pockets, toast });
 
   // Per-currency totals + consolidated total
@@ -170,7 +170,8 @@ const SummaryPage = () => {
                   accountsByCurrency={accountsByCurrency}
                   pockets={pockets}
                   investmentData={investmentData}
-                  refreshingPrices={refreshingPrices}
+                  isRefreshing={isRefreshing}
+                  getCacheInfo={getCacheInfo}
                   accountCardDisplay={accountCardDisplay}
                   onRefreshPrice={handleRefreshPrice}
                 />
