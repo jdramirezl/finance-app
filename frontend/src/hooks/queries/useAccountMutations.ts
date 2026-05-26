@@ -28,12 +28,23 @@ export const useArchiveAccount = () => {
 
     return useMutation({
         mutationFn: (id: string) => accountService.archiveAccount(id),
-        onSuccess: () => {
+        onMutate: async (id: string) => {
+            // Cancel in-flight queries so they don't overwrite our optimistic update.
+            await queryClient.cancelQueries({ queryKey: ['accounts'] });
+            const previous = queryClient.getQueryData<Account[]>(['accounts']);
+            queryClient.setQueryData<Account[]>(['accounts'], (old) =>
+                old?.filter((a) => a.id !== id),
+            );
+            return { previous };
+        },
+        onError: (error, _id, context) => {
+            // Roll back to the snapshot taken in onMutate.
+            queryClient.setQueryData(['accounts'], context?.previous);
+            toast.error(errorMessage(error, 'Failed to archive account'));
+        },
+        onSettled: () => {
             queryClient.invalidateQueries({ queryKey: ['accounts'] });
             broadcastInvalidation([['accounts']]);
-        },
-        onError: (error) => {
-            toast.error(errorMessage(error, 'Failed to archive account'));
         },
     });
 };
@@ -49,12 +60,12 @@ export const useUnarchiveAccount = () => {
 
     return useMutation({
         mutationFn: (id: string) => accountService.unarchiveAccount(id),
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['accounts'] });
-            broadcastInvalidation([['accounts']]);
-        },
         onError: (error) => {
             toast.error(errorMessage(error, 'Failed to unarchive account'));
+        },
+        onSettled: () => {
+            queryClient.invalidateQueries({ queryKey: ['accounts'] });
+            broadcastInvalidation([['accounts']]);
         },
     });
 };
