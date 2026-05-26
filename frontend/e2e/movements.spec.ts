@@ -30,6 +30,8 @@ test.describe.serial('Movement CRUD + Transfer', () => {
     test.skip(!hasTestCredentials(), 'Test credentials not configured');
 
     await page.goto('/movements?action=new');
+    // Wait for the movement form to be visible
+    await expect(page.getByRole('spinbox', { name: 'Amount' })).toBeVisible({ timeout: 10000 });
     // Fill form (use spinbox role to disambiguate from QuickAddMovement's textbox Amount input)
     await page.getByLabel('Type').selectOption('EgresoNormal');
     await page.getByRole('spinbox', { name: 'Amount' }).fill('100');
@@ -71,6 +73,8 @@ test.describe.serial('Movement CRUD + Transfer', () => {
     test.skip(!hasTestCredentials(), 'Test credentials not configured');
 
     await page.goto('/movements?action=transfer');
+    // Wait for form to render
+    await expect(page.getByRole('spinbox', { name: 'Amount' })).toBeVisible({ timeout: 10000 });
     // Select Transfer type (spinbox role disambiguates from QuickAddMovement's textbox Amount)
     await page.getByLabel('Type').selectOption('Transfer');
     await page.getByRole('spinbox', { name: 'Amount' }).fill('50');
