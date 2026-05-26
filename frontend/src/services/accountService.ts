@@ -7,10 +7,36 @@ class AccountService {
   // When includeArchived is true, soft-archived accounts (archived_at IS NOT NULL)
   // are included — used by the Accounts page to render the "Archived" section.
   async getAllAccounts(includeArchived: boolean = false): Promise<Account[]> {
-    const path = includeArchived
-      ? '/api/accounts?include_archived=true'
-      : '/api/accounts';
-    return await apiClient.get<Account[]>(path);
+    // TEST: Direct Supabase call to bypass backend
+    const { supabase } = await import('../lib/supabase');
+    let query = supabase.from('accounts').select('*').order('display_order', { ascending: true });
+    if (!includeArchived) {
+      query = query.is('archived_at', null);
+    }
+    const { data, error } = await query;
+    if (error) throw new Error(error.message);
+    return (data || []).map((row: any) => ({
+      id: row.id,
+      name: row.name,
+      color: row.color,
+      currency: row.currency,
+      type: row.type,
+      balance: row.balance,
+      displayOrder: row.display_order,
+      stockSymbol: row.stock_symbol,
+      montoInvertido: row.monto_invertido,
+      shares: row.shares,
+      investmentType: row.investment_type,
+      principal: row.principal,
+      interestRate: row.interest_rate,
+      termMonths: row.term_months,
+      maturityDate: row.maturity_date,
+      compoundingFrequency: row.compounding_frequency,
+      earlyWithdrawalPenalty: row.early_withdrawal_penalty,
+      withholdingTaxRate: row.withholding_tax_rate,
+      cdCreatedAt: row.cd_created_at,
+      archivedAt: row.archived_at,
+    }));
   }
 
   // Get account by ID
@@ -99,7 +125,11 @@ class AccountService {
 
   // Update account
   async updateAccount(id: string, updates: Partial<Pick<Account, 'name' | 'color' | 'currency'>>): Promise<Account> {
-    return await apiClient.put<Account>(`/api/accounts/${id}`, updates);
+    // TEST: Direct Supabase call to bypass backend
+    const { supabase } = await import('../lib/supabase');
+    const { data, error } = await supabase.from('accounts').update(updates).eq('id', id).select().single();
+    if (error) throw new Error(error.message);
+    return data as any;
   }
 
   // Delete account
