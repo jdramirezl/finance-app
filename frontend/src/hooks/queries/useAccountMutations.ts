@@ -29,7 +29,7 @@ export const useArchiveAccount = () => {
     return useMutation({
         mutationFn: (id: string) => accountService.archiveAccount(id),
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['accounts'] });
+            queryClient.refetchQueries({ queryKey: ['accounts'] });
             broadcastInvalidation([['accounts']]);
         },
         onError: (error) => {
@@ -50,7 +50,7 @@ export const useUnarchiveAccount = () => {
     return useMutation({
         mutationFn: (id: string) => accountService.unarchiveAccount(id),
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['accounts'] });
+            queryClient.refetchQueries({ queryKey: ['accounts'] });
             broadcastInvalidation([['accounts']]);
         },
         onError: (error) => {
@@ -67,7 +67,7 @@ export const useAccountMutations = () => {
         mutationFn: (data: { name: string; color: string; currency: Account['currency']; type?: Account['type']; stockSymbol?: string }) =>
             accountService.createAccount(data.name, data.color, data.currency, data.type, data.stockSymbol),
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['accounts'] });
+            queryClient.refetchQueries({ queryKey: ['accounts'] });
             broadcastInvalidation([['accounts']]);
         },
         onError: (error) => {
@@ -79,7 +79,7 @@ export const useAccountMutations = () => {
         mutationFn: (data: { id: string; updates: Partial<Pick<Account, 'name' | 'color' | 'currency'>> }) =>
             accountService.updateAccount(data.id, data.updates),
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['accounts'] });
+            queryClient.refetchQueries({ queryKey: ['accounts'] });
             broadcastInvalidation([['accounts']]);
         },
         onError: (error) => {
@@ -90,8 +90,8 @@ export const useAccountMutations = () => {
     const deleteAccount = useMutation({
         mutationFn: (id: string) => accountService.deleteAccount(id),
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['accounts'] });
-            queryClient.invalidateQueries({ queryKey: ['pockets'] }); // Pockets are deleted too
+            queryClient.refetchQueries({ queryKey: ['accounts'] });
+            queryClient.refetchQueries({ queryKey: ['pockets'] }); // Pockets are deleted too
             broadcastInvalidation([['accounts'], ['pockets']]);
         },
         onError: (error) => {
@@ -103,10 +103,10 @@ export const useAccountMutations = () => {
         mutationFn: (data: { id: string; deleteMovements: boolean }) =>
             accountService.deleteAccountCascade(data.id, data.deleteMovements),
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['accounts'] });
-            queryClient.invalidateQueries({ queryKey: ['pockets'] });
-            queryClient.invalidateQueries({ queryKey: ['subPockets'] });
-            queryClient.invalidateQueries({ queryKey: ['movements'] });
+            queryClient.refetchQueries({ queryKey: ['accounts'] });
+            queryClient.refetchQueries({ queryKey: ['pockets'] });
+            queryClient.refetchQueries({ queryKey: ['subPockets'] });
+            queryClient.refetchQueries({ queryKey: ['movements'] });
             broadcastInvalidation([['accounts'], ['pockets'], ['subPockets'], ['movements']]);
         },
         onError: (error) => {
@@ -118,7 +118,7 @@ export const useAccountMutations = () => {
         mutationFn: (accounts: Account[]) =>
             accountService.reorderAccounts(accounts.map((a) => a.id)),
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['accounts'] });
+            queryClient.refetchQueries({ queryKey: ['accounts'] });
             broadcastInvalidation([['accounts']]);
         },
         onError: (error) => {

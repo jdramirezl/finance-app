@@ -56,15 +56,15 @@ export const useMovementMutations = () => {
             ),
         onSuccess: (_result, variables) => {
             // Movements list always changes.
-            queryClient.invalidateQueries({ queryKey: ['movements'] });
+            queryClient.refetchQueries({ queryKey: ['movements'] });
             // Account / pocket balances only change for non-pending movements.
             if (!variables.isPending) {
-                queryClient.invalidateQueries({ queryKey: ['accounts'] });
-                queryClient.invalidateQueries({ queryKey: ['pockets'] });
+                queryClient.refetchQueries({ queryKey: ['accounts'] });
+                queryClient.refetchQueries({ queryKey: ['pockets'] });
             }
             // Sub-pocket totals only change when a sub-pocket was targeted.
             if (variables.subPocketId) {
-                queryClient.invalidateQueries({ queryKey: ['subPockets'] });
+                queryClient.refetchQueries({ queryKey: ['subPockets'] });
             }
             const keys: string[][] = [['movements']];
             if (!variables.isPending) { keys.push(['accounts'], ['pockets']); }
@@ -100,9 +100,9 @@ export const useMovementMutations = () => {
             // both balances and the movements list always change. Sub-pockets
             // are not currently supported as transfer endpoints, so we don't
             // invalidate `['subPockets']` here.
-            queryClient.invalidateQueries({ queryKey: ['movements'] });
-            queryClient.invalidateQueries({ queryKey: ['accounts'] });
-            queryClient.invalidateQueries({ queryKey: ['pockets'] });
+            queryClient.refetchQueries({ queryKey: ['movements'] });
+            queryClient.refetchQueries({ queryKey: ['accounts'] });
+            queryClient.refetchQueries({ queryKey: ['pockets'] });
             broadcastInvalidation([['movements'], ['accounts'], ['pockets']]);
         },
         onError: (error) => {
@@ -130,13 +130,13 @@ export const useMovementMutations = () => {
             // Same conditional logic as `createMovement`: invalidate balance
             // queries only when the updated movement is not pending, and only
             // touch sub-pockets when the update references one.
-            queryClient.invalidateQueries({ queryKey: ['movements'] });
+            queryClient.refetchQueries({ queryKey: ['movements'] });
             if (!variables.updates.isPending) {
-                queryClient.invalidateQueries({ queryKey: ['accounts'] });
-                queryClient.invalidateQueries({ queryKey: ['pockets'] });
+                queryClient.refetchQueries({ queryKey: ['accounts'] });
+                queryClient.refetchQueries({ queryKey: ['pockets'] });
             }
             if (variables.updates.subPocketId) {
-                queryClient.invalidateQueries({ queryKey: ['subPockets'] });
+                queryClient.refetchQueries({ queryKey: ['subPockets'] });
             }
             const keys: string[][] = [['movements']];
             if (!variables.updates.isPending) { keys.push(['accounts'], ['pockets']); }
@@ -157,11 +157,11 @@ export const useMovementMutations = () => {
             // reminder may be restored. We don't have the original movement
             // payload here, so we conservatively invalidate everything that
             // could plausibly have changed.
-            queryClient.invalidateQueries({ queryKey: ['movements'] });
-            queryClient.invalidateQueries({ queryKey: ['accounts'] });
-            queryClient.invalidateQueries({ queryKey: ['pockets'] });
-            queryClient.invalidateQueries({ queryKey: ['subPockets'] });
-            queryClient.invalidateQueries({ queryKey: ['reminders'] });
+            queryClient.refetchQueries({ queryKey: ['movements'] });
+            queryClient.refetchQueries({ queryKey: ['accounts'] });
+            queryClient.refetchQueries({ queryKey: ['pockets'] });
+            queryClient.refetchQueries({ queryKey: ['subPockets'] });
+            queryClient.refetchQueries({ queryKey: ['reminders'] });
             broadcastInvalidation([['movements'], ['accounts'], ['pockets'], ['subPockets'], ['reminders']]);
         },
         onError: (error) => {
@@ -172,10 +172,10 @@ export const useMovementMutations = () => {
     const applyPendingMovement = useMutation({
         mutationFn: (id: string) => movementService.applyPendingMovement(id),
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['movements'] });
-            queryClient.invalidateQueries({ queryKey: ['accounts'] });
-            queryClient.invalidateQueries({ queryKey: ['pockets'] });
-            queryClient.invalidateQueries({ queryKey: ['subPockets'] });
+            queryClient.refetchQueries({ queryKey: ['movements'] });
+            queryClient.refetchQueries({ queryKey: ['accounts'] });
+            queryClient.refetchQueries({ queryKey: ['pockets'] });
+            queryClient.refetchQueries({ queryKey: ['subPockets'] });
             broadcastInvalidation([['movements'], ['accounts'], ['pockets'], ['subPockets']]);
         },
         onError: (error) => {
@@ -186,10 +186,10 @@ export const useMovementMutations = () => {
     const markAsPending = useMutation({
         mutationFn: (id: string) => movementService.markAsPending(id),
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['movements'] });
-            queryClient.invalidateQueries({ queryKey: ['accounts'] });
-            queryClient.invalidateQueries({ queryKey: ['pockets'] });
-            queryClient.invalidateQueries({ queryKey: ['subPockets'] });
+            queryClient.refetchQueries({ queryKey: ['movements'] });
+            queryClient.refetchQueries({ queryKey: ['accounts'] });
+            queryClient.refetchQueries({ queryKey: ['pockets'] });
+            queryClient.refetchQueries({ queryKey: ['subPockets'] });
             broadcastInvalidation([['movements'], ['accounts'], ['pockets'], ['subPockets']]);
         },
         onError: (error) => {
@@ -203,9 +203,9 @@ export const useMovementMutations = () => {
         onSuccess: () => {
             // Restoring orphans rewires movements onto an existing account /
             // pocket, so balances change and the movements list changes.
-            queryClient.invalidateQueries({ queryKey: ['movements'] });
-            queryClient.invalidateQueries({ queryKey: ['accounts'] });
-            queryClient.invalidateQueries({ queryKey: ['pockets'] });
+            queryClient.refetchQueries({ queryKey: ['movements'] });
+            queryClient.refetchQueries({ queryKey: ['accounts'] });
+            queryClient.refetchQueries({ queryKey: ['pockets'] });
             broadcastInvalidation([['movements'], ['accounts'], ['pockets']]);
         },
         onError: (error) => {

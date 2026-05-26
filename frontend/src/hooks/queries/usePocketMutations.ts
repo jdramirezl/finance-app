@@ -28,7 +28,7 @@ export const useArchivePocket = () => {
     return useMutation({
         mutationFn: (id: string) => pocketService.archivePocket(id),
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['pockets'] });
+            queryClient.refetchQueries({ queryKey: ['pockets'] });
             broadcastInvalidation([['pockets']]);
         },
         onError: (error) => {
@@ -49,7 +49,7 @@ export const useUnarchivePocket = () => {
     return useMutation({
         mutationFn: (id: string) => pocketService.unarchivePocket(id),
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['pockets'] });
+            queryClient.refetchQueries({ queryKey: ['pockets'] });
             broadcastInvalidation([['pockets']]);
         },
         onError: (error) => {
@@ -70,7 +70,7 @@ export const usePocketMutations = () => {
             // — the account's balance is unchanged, so we don't invalidate
             // `['accounts']`. The pockets query gets the new entry on its next
             // fetch.
-            queryClient.invalidateQueries({ queryKey: ['pockets'] });
+            queryClient.refetchQueries({ queryKey: ['pockets'] });
             broadcastInvalidation([['pockets']]);
         },
         onError: (error) => {
@@ -82,7 +82,7 @@ export const usePocketMutations = () => {
         mutationFn: (data: { id: string; updates: Partial<Pick<Pocket, 'name'>> }) =>
             pocketService.updatePocket(data.id, data.updates),
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['pockets'] });
+            queryClient.refetchQueries({ queryKey: ['pockets'] });
             broadcastInvalidation([['pockets']]);
         },
         onError: (error) => {
@@ -95,8 +95,8 @@ export const usePocketMutations = () => {
         onSuccess: () => {
             // Deleting a pocket removes its balance from the parent account
             // (movements become orphans), so account totals shift.
-            queryClient.invalidateQueries({ queryKey: ['pockets'] });
-            queryClient.invalidateQueries({ queryKey: ['accounts'] });
+            queryClient.refetchQueries({ queryKey: ['pockets'] });
+            queryClient.refetchQueries({ queryKey: ['accounts'] });
             broadcastInvalidation([['pockets'], ['accounts']]);
         },
         onError: (error) => {
@@ -113,7 +113,7 @@ export const usePocketMutations = () => {
             return pocketService.reorderPockets(accountId, pockets.map((p) => p.id));
         },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['pockets'] });
+            queryClient.refetchQueries({ queryKey: ['pockets'] });
             broadcastInvalidation([['pockets']]);
         },
         onError: (error) => {
@@ -126,9 +126,9 @@ export const usePocketMutations = () => {
             pocketService.migrateFixedPocketToAccount(data.pocketId, data.targetAccountId),
         onSuccess: () => {
             // Migration moves balances and rewires movements between accounts.
-            queryClient.invalidateQueries({ queryKey: ['pockets'] });
-            queryClient.invalidateQueries({ queryKey: ['accounts'] });
-            queryClient.invalidateQueries({ queryKey: ['movements'] });
+            queryClient.refetchQueries({ queryKey: ['pockets'] });
+            queryClient.refetchQueries({ queryKey: ['accounts'] });
+            queryClient.refetchQueries({ queryKey: ['movements'] });
             broadcastInvalidation([['pockets'], ['accounts'], ['movements']]);
         },
         onError: (error) => {

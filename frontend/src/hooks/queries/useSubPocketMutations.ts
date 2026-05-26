@@ -13,7 +13,7 @@ export const useSubPocketMutations = () => {
         mutationFn: (data: { pocketId: string; name: string; valueTotal: number; periodicityMonths: number }) =>
             subPocketService.createSubPocket(data.pocketId, data.name, data.valueTotal, data.periodicityMonths),
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['subPockets'] });
+            queryClient.refetchQueries({ queryKey: ['subPockets'] });
         },
         onError: (error) => {
             toast.error(errorMessage(error, 'Failed to create fixed expense'));
@@ -24,7 +24,7 @@ export const useSubPocketMutations = () => {
         mutationFn: (data: { id: string; updates: { name?: string; valueTotal?: number; periodicityMonths?: number } }) =>
             subPocketService.updateSubPocket(data.id, data.updates),
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['subPockets'] });
+            queryClient.refetchQueries({ queryKey: ['subPockets'] });
         },
         onError: (error) => {
             toast.error(errorMessage(error, 'Failed to update fixed expense'));
@@ -34,7 +34,7 @@ export const useSubPocketMutations = () => {
     const deleteSubPocket = useMutation({
         mutationFn: (id: string) => subPocketService.deleteSubPocket(id),
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['subPockets'] });
+            queryClient.refetchQueries({ queryKey: ['subPockets'] });
         },
         onError: (error) => {
             toast.error(errorMessage(error, 'Failed to delete fixed expense'));
@@ -45,7 +45,7 @@ export const useSubPocketMutations = () => {
         mutationFn: (data: { subPocketId: string; groupId: string | null }) =>
             subPocketService.moveToGroup(data.subPocketId, data.groupId),
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['subPockets'] });
+            queryClient.refetchQueries({ queryKey: ['subPockets'] });
         },
         onError: (error) => {
             toast.error(errorMessage(error, 'Failed to move expense'));

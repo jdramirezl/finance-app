@@ -13,7 +13,7 @@ export const useFixedExpenseGroupMutations = () => {
         mutationFn: (data: { name: string; color: string }) =>
             fixedExpenseGroupService.create(data.name, data.color),
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['fixedExpenseGroups'] });
+            queryClient.refetchQueries({ queryKey: ['fixedExpenseGroups'] });
         },
         onError: (error) => {
             toast.error(errorMessage(error, 'Failed to create group'));
@@ -24,7 +24,7 @@ export const useFixedExpenseGroupMutations = () => {
         mutationFn: (data: { id: string; name: string; color: string }) =>
             fixedExpenseGroupService.update(data.id, data.name, data.color),
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['fixedExpenseGroups'] });
+            queryClient.refetchQueries({ queryKey: ['fixedExpenseGroups'] });
         },
         onError: (error) => {
             toast.error(errorMessage(error, 'Failed to update group'));
@@ -34,8 +34,8 @@ export const useFixedExpenseGroupMutations = () => {
     const deleteFixedExpenseGroup = useMutation({
         mutationFn: (id: string) => fixedExpenseGroupService.delete(id),
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['fixedExpenseGroups'] });
-            queryClient.invalidateQueries({ queryKey: ['subPockets'] }); // Expenses moved to default group
+            queryClient.refetchQueries({ queryKey: ['fixedExpenseGroups'] });
+            queryClient.refetchQueries({ queryKey: ['subPockets'] }); // Expenses moved to default group
         },
         onError: (error) => {
             toast.error(errorMessage(error, 'Failed to delete group'));
@@ -45,7 +45,7 @@ export const useFixedExpenseGroupMutations = () => {
     const reorderFixedExpenseGroups = useMutation({
         mutationFn: (ids: string[]) => fixedExpenseGroupService.reorder(ids),
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['fixedExpenseGroups'] });
+            queryClient.refetchQueries({ queryKey: ['fixedExpenseGroups'] });
         },
         onError: (error) => {
             toast.error(errorMessage(error, 'Failed to reorder groups'));
