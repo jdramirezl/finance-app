@@ -31,7 +31,6 @@ export const useMovementsQuery = () => {
     return useQuery({
         queryKey: ['movements'],
         queryFn: () => movementService.getActiveMovements(),
-        staleTime: 1000 * 60 * 5, // 5 minutes
         // Keep previous data visible during refetch for instant page transitions.
         placeholderData: keepPreviousData,
     });
@@ -60,6 +59,5 @@ export const useInfiniteMovementsQuery = (
         getNextPageParam: (lastPage) =>
             lastPage.hasMore ? lastPage.page + 1 : undefined,
         initialPageParam: 1,
-        staleTime: 1000 * 60 * 5, // 5 minutes — match useMovementsQuery
     });
 };

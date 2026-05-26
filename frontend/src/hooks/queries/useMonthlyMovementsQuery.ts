@@ -11,7 +11,6 @@ export const useMonthlyMovementsQuery = (
   return useQuery({
     queryKey: ['movements', 'monthly', year, month, page, limit, filters],
     queryFn: () => movementService.getMovementsByMonth(year, month, page, limit, filters),
-    staleTime: 5 * 60 * 1000,
     placeholderData: keepPreviousData,
   });
 };
