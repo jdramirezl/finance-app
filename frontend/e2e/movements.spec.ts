@@ -44,6 +44,10 @@ test.describe.serial('Movement CRUD + Transfer', () => {
 
     await page.getByRole('button', { name: /create movement/i }).click();
 
+    // Wait for form to close, then reload to ensure fresh data
+    await page.waitForTimeout(2000);
+    await page.reload();
+
     // Verify it appears in the list (allow time for mutation + refetch in CI)
     await expect(page.getByText('[TEST] Expense Movement')).toBeVisible({ timeout: 30000 });
   });
@@ -91,6 +95,10 @@ test.describe.serial('Movement CRUD + Transfer', () => {
     await page.getByLabel(/target pocket/i).selectOption(targetPocketId);
 
     await page.getByRole('button', { name: /transfer funds/i }).click();
+
+    // Wait for form to close, then reload to ensure fresh data
+    await page.waitForTimeout(2000);
+    await page.reload();
 
     // Verify transfer note appears in list
     await expect(page.getByText('[TEST] Transfer')).toBeVisible({ timeout: 30000 });
