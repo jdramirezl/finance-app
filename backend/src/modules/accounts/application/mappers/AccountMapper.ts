@@ -65,7 +65,7 @@ export class AccountMapper {
       stock_symbol: account.stockSymbol ?? null,
       monto_invertido: account.montoInvertido ?? null,
       shares: account.shares ?? null,
-      display_order: account.displayOrder ?? null,
+      display_order: account.displayOrder ?? 0,
       // CD-specific fields
       investment_type: account.investmentType ?? null,
       principal: account.principal ?? null,

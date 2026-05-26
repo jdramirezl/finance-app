@@ -49,7 +49,7 @@ export class PocketMapper {
       type: pocket.type,
       balance: pocket.balance,
       currency: pocket.currency,
-      display_order: pocket.displayOrder ?? null,
+      display_order: pocket.displayOrder ?? 0,
       archived_at: pocket.archivedAt?.toISOString() ?? null,
     };
   }
