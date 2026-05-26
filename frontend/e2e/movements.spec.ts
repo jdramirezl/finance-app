@@ -30,8 +30,8 @@ test.describe.serial('Movement CRUD + Transfer', () => {
     test.skip(!hasTestCredentials(), 'Test credentials not configured');
 
     await page.goto('/movements?action=new');
-    // Wait for the movement form to be visible (input[type=number] is the Amount field in MovementForm)
-    const amountInput = page.locator('input[type="number"]');
+    // Wait for the movement form to be visible
+    const amountInput = page.locator('input[type="number"]').first();
     await expect(amountInput).toBeVisible({ timeout: 15000 });
     // Fill form
     await page.getByLabel('Type').selectOption('EgresoNormal');
@@ -75,7 +75,7 @@ test.describe.serial('Movement CRUD + Transfer', () => {
 
     await page.goto('/movements?action=transfer');
     // Wait for form to render
-    const amountInput = page.locator('input[type="number"]');
+    const amountInput = page.locator('input[type="number"]').first();
     await expect(amountInput).toBeVisible({ timeout: 15000 });
     // Select Transfer type
     await page.getByLabel('Type').selectOption('Transfer');
