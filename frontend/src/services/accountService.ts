@@ -7,10 +7,13 @@ class AccountService {
   // When includeArchived is true, soft-archived accounts (archived_at IS NOT NULL)
   // are included — used by the Accounts page to render the "Archived" section.
   async getAllAccounts(includeArchived: boolean = false): Promise<Account[]> {
+    console.log('[NETWORK] getAllAccounts called at', Date.now());
     const path = includeArchived
       ? '/api/accounts?include_archived=true'
       : '/api/accounts';
-    return await apiClient.get<Account[]>(path);
+    const result = await apiClient.get<Account[]>(path);
+    console.log('[NETWORK] getAllAccounts returned at', Date.now());
+    return result;
   }
 
   // Get account by ID
