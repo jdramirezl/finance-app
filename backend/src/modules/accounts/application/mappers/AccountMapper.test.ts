@@ -108,7 +108,7 @@ describe('AccountMapper', () => {
       expect(persistence.stock_symbol).toBeNull();
       expect(persistence.monto_invertido).toBeNull();
       expect(persistence.shares).toBeNull();
-      expect(persistence.display_order).toBeNull();
+      expect(persistence.display_order).toBe(0);
       expect(persistence.investment_type).toBeNull();
       expect(persistence.principal).toBeNull();
       expect(persistence.interest_rate).toBeNull();
@@ -229,7 +229,7 @@ describe('AccountMapper', () => {
         stock_symbol: null,
         monto_invertido: null,
         shares: null,
-        display_order: null,
+        display_order: 0,
         investment_type: null,
         principal: null,
         interest_rate: null,
@@ -247,7 +247,7 @@ describe('AccountMapper', () => {
       expect(account.stockSymbol).toBeUndefined();
       expect(account.montoInvertido).toBeUndefined();
       expect(account.shares).toBeUndefined();
-      expect(account.displayOrder).toBeUndefined();
+      expect(account.displayOrder).toBe(0);
     });
 
     it('should create valid domain entity that passes validation', () => {

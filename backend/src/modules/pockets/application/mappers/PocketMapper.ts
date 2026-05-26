@@ -23,7 +23,7 @@ interface PocketPersistence {
   type: string;
   balance: number;
   currency: string;
-  display_order: number | null;
+  display_order: number;
   archived_at: string | null;
   created_at?: string;
   updated_at?: string;
@@ -49,7 +49,7 @@ export class PocketMapper {
       type: pocket.type,
       balance: pocket.balance,
       currency: pocket.currency,
-      display_order: pocket.displayOrder ?? null,
+      display_order: pocket.displayOrder ?? 0,
       archived_at: pocket.archivedAt?.toISOString() ?? null,
     };
   }
