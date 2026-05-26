@@ -30,9 +30,9 @@ test.describe.serial('Movement CRUD + Transfer', () => {
     test.skip(!hasTestCredentials(), 'Test credentials not configured');
 
     await page.goto('/movements?action=new');
-    // Fill form
+    // Fill form (use spinbox role to disambiguate from QuickAddMovement's textbox Amount input)
     await page.getByLabel('Type').selectOption('EgresoNormal');
-    await page.getByLabel('Amount').fill('100');
+    await page.getByRole('spinbox', { name: 'Amount' }).fill('100');
     await page.getByLabel('Notes').fill('[TEST] Expense Movement');
 
     // Select account and pocket via the AccountPocketSelector
@@ -71,9 +71,9 @@ test.describe.serial('Movement CRUD + Transfer', () => {
     test.skip(!hasTestCredentials(), 'Test credentials not configured');
 
     await page.goto('/movements?action=transfer');
-    // Select Transfer type
+    // Select Transfer type (spinbox role disambiguates from QuickAddMovement's textbox Amount)
     await page.getByLabel('Type').selectOption('Transfer');
-    await page.getByLabel('Amount').fill('50');
+    await page.getByRole('spinbox', { name: 'Amount' }).fill('50');
     await page.getByLabel('Notes').fill('[TEST] Transfer');
 
     // Source
