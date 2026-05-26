@@ -25,27 +25,37 @@ type RequestContext = {
 class ApiClient {
   private readonly baseURL: string;
 
+  private cachedToken: string | null = null;
+
   constructor() {
     this.baseURL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+
+    // Cache the token from auth state changes instead of calling
+    // getSession() per-request (which uses navigator.locks and can hang).
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      this.cachedToken = session?.access_token ?? null;
+    });
+    supabase.auth.onAuthStateChange((_event, session) => {
+      this.cachedToken = session?.access_token ?? null;
+    });
   }
 
   /**
-   * Get authentication token from Supabase.
+   * Get authentication token from cache (set by onAuthStateChange).
    */
-  private async getAuthToken(): Promise<string | null> {
-    const { data: { session } } = await supabase.auth.getSession();
-    return session?.access_token ?? null;
+  private getAuthToken(): string | null {
+    return this.cachedToken;
   }
 
   /**
    * Build headers with authentication.
    */
-  private async buildHeaders(): Promise<Record<string, string>> {
+  private buildHeaders(): Record<string, string> {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
     };
 
-    const token = await this.getAuthToken();
+    const token = this.getAuthToken();
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
     }
@@ -117,7 +127,7 @@ class ApiClient {
     }
 
     try {
-      const headers = await this.buildHeaders();
+      const headers = this.buildHeaders();
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 30_000);
 
