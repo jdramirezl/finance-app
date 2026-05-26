@@ -50,6 +50,7 @@ describe('CreateAccountUseCase Property-Based Tests', () => {
               archive: jest.fn().mockResolvedValue(undefined),
               unarchive: jest.fn().mockResolvedValue(undefined),
               updateDisplayOrders: jest.fn().mockResolvedValue(undefined),
+              getDistinctActiveSymbols: jest.fn().mockResolvedValue([]),
             };
 
             const useCase = new CreateAccountUseCase(mockRepo);
@@ -105,6 +106,7 @@ describe('CreateAccountUseCase Property-Based Tests', () => {
               archive: jest.fn().mockResolvedValue(undefined),
               unarchive: jest.fn().mockResolvedValue(undefined),
               updateDisplayOrders: jest.fn().mockResolvedValue(undefined),
+              getDistinctActiveSymbols: jest.fn().mockResolvedValue([]),
             };
 
             const useCase = new CreateAccountUseCase(mockRepo);
@@ -154,6 +156,7 @@ describe('CreateAccountUseCase Property-Based Tests', () => {
               archive: jest.fn().mockResolvedValue(undefined),
               unarchive: jest.fn().mockResolvedValue(undefined),
               updateDisplayOrders: jest.fn().mockResolvedValue(undefined),
+              getDistinctActiveSymbols: jest.fn().mockResolvedValue([]),
             };
 
             const useCase = new CreateAccountUseCase(mockRepo);
@@ -209,6 +212,7 @@ describe('CreateAccountUseCase Property-Based Tests', () => {
               archive: jest.fn().mockResolvedValue(undefined),
               unarchive: jest.fn().mockResolvedValue(undefined),
               updateDisplayOrders: jest.fn().mockResolvedValue(undefined),
+              getDistinctActiveSymbols: jest.fn().mockResolvedValue([]),
             };
 
             const useCase = new CreateAccountUseCase(mockRepo);
@@ -258,6 +262,7 @@ describe('CreateAccountUseCase Property-Based Tests', () => {
               archive: jest.fn().mockResolvedValue(undefined),
               unarchive: jest.fn().mockResolvedValue(undefined),
               updateDisplayOrders: jest.fn().mockResolvedValue(undefined),
+              getDistinctActiveSymbols: jest.fn().mockResolvedValue([]),
             };
 
             const useCase = new CreateAccountUseCase(mockRepo);

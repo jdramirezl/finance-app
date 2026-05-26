@@ -382,7 +382,11 @@ describe('useMovementMutations', () => {
     });
 
     describe('applyPendingMovement / markAsPending', () => {
-        it('applyPendingMovement invalidates movements, accounts, pockets', async () => {
+        // Both mutations may flip the `is_pending` flag on a movement that
+        // targets a sub-pocket, so the hook conservatively invalidates
+        // sub-pocket caches in addition to the standard movement / balance
+        // keys. The tests below assert the full invalidation surface.
+        it('applyPendingMovement invalidates movements, accounts, pockets, subPockets', async () => {
             const { wrapper, invalidateSpy } = createWrapper();
             vi.mocked(movementService.applyPendingMovement).mockResolvedValue({ id: 'mov-1' } as never);
 
@@ -393,12 +397,13 @@ describe('useMovementMutations', () => {
 
             expect(movementService.applyPendingMovement).toHaveBeenCalledWith('mov-1');
             expect(sortKeys(invalidatedKeys(invalidateSpy))).toEqual(
-                sortKeys([['movements'], ['accounts'], ['pockets']]),
+                sortKeys([['movements'], ['accounts'], ['pockets'], ['subPockets']]),
             );
             expect(mocks.broadcastInvalidation).toHaveBeenCalledWith([
                 ['movements'],
                 ['accounts'],
                 ['pockets'],
+                ['subPockets'],
             ]);
         });
 
@@ -413,7 +418,7 @@ describe('useMovementMutations', () => {
 
             expect(movementService.markAsPending).toHaveBeenCalledWith('mov-1');
             expect(sortKeys(invalidatedKeys(invalidateSpy))).toEqual(
-                sortKeys([['movements'], ['accounts'], ['pockets']]),
+                sortKeys([['movements'], ['accounts'], ['pockets'], ['subPockets']]),
             );
         });
     });

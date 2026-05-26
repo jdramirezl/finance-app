@@ -49,6 +49,7 @@ describe('GetPocketsByAccountUseCase', () => {
       archive: jest.fn(),
       unarchive: jest.fn(),
       updateDisplayOrders: jest.fn(),
+      getDistinctActiveSymbols: jest.fn().mockResolvedValue([]),
     };
 
     useCase = new GetPocketsByAccountUseCase(mockPocketRepo, mockAccountRepo);

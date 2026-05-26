@@ -1,7 +1,31 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { movementService } from './movementService';
 import { apiClient } from './apiClient';
+import { supabase } from '../lib/supabase';
+import { makeSupabaseQuery } from '../test/supabaseQueryMock';
 import type { Movement } from '../types';
+
+// Override the global supabase mock from `test/setup.ts` so each read can
+// configure its own resolved data/error pair via `makeSupabaseQuery`.
+vi.mock('../lib/supabase', () => ({
+  supabase: { from: vi.fn() },
+}));
+
+// Snake-case row shape returned by Supabase. `movementService` runs each
+// row through `mapMovementRow` to produce the camelCase `Movement` domain
+// type that callers consume.
+const mockMovementRow = {
+  id: 'mov-1',
+  type: 'IngresoNormal',
+  account_id: 'acc-1',
+  pocket_id: 'pocket-1',
+  amount: 1000,
+  notes: 'Salary',
+  displayed_date: '2026-01-15T00:00:00.000Z',
+  created_at: '2026-01-15T00:00:00.000Z',
+  is_pending: false,
+  is_orphaned: false,
+};
 
 const mockMovement: Movement = {
   id: 'mov-1',
@@ -16,83 +40,142 @@ const mockMovement: Movement = {
   isOrphaned: false,
 };
 
-const mockPaginatedResponse = {
-  data: [mockMovement],
-  total: 1,
-  page: 1,
-  limit: 20,
-  hasMore: false,
-};
-
 describe('movementService', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   describe('getAllMovements', () => {
-    it('should return movements array from paginated response', async () => {
-      vi.spyOn(apiClient, 'get').mockResolvedValue(mockPaginatedResponse);
+    it('returns the data array from the paginated Supabase response', async () => {
+      const query = makeSupabaseQuery({ data: [mockMovementRow], count: 1, error: null });
+      vi.mocked(supabase.from).mockReturnValue(query as unknown as ReturnType<typeof supabase.from>);
+
       const result = await movementService.getAllMovements();
-      expect(apiClient.get).toHaveBeenCalledWith(expect.stringContaining('/api/movements?'));
+
+      expect(supabase.from).toHaveBeenCalledWith('movements');
+      expect(query.select).toHaveBeenCalledWith('*', { count: 'exact' });
+      expect(query.order).toHaveBeenCalledWith('displayed_date', { ascending: false });
       expect(result).toEqual([mockMovement]);
     });
 
-    it('should pass page and limit when provided', async () => {
-      vi.spyOn(apiClient, 'get').mockResolvedValue(mockPaginatedResponse);
+    it('uses the requested page/limit to compute the range offset', async () => {
+      const query = makeSupabaseQuery({ data: [mockMovementRow], count: 1, error: null });
+      vi.mocked(supabase.from).mockReturnValue(query as unknown as ReturnType<typeof supabase.from>);
+
       await movementService.getAllMovements(2, 10);
-      expect(apiClient.get).toHaveBeenCalledWith(expect.stringContaining('page=2'));
-      expect(apiClient.get).toHaveBeenCalledWith(expect.stringContaining('limit=10'));
+
+      // page=2 with limit=10 ⇒ offset=10, range=[10, 19].
+      expect(query.range).toHaveBeenCalledWith(10, 19);
     });
   });
 
   describe('getAllMovementsPaginated', () => {
-    it('should return full paginated response', async () => {
-      vi.spyOn(apiClient, 'get').mockResolvedValue(mockPaginatedResponse);
+    it('returns the full paginated envelope with hasMore=false when no more pages', async () => {
+      const query = makeSupabaseQuery({ data: [mockMovementRow], count: 1, error: null });
+      vi.mocked(supabase.from).mockReturnValue(query as unknown as ReturnType<typeof supabase.from>);
+
       const result = await movementService.getAllMovementsPaginated(1, 20);
-      expect(result).toEqual(mockPaginatedResponse);
-      expect(result.hasMore).toBe(false);
+
+      expect(result).toEqual({
+        data: [mockMovement],
+        total: 1,
+        page: 1,
+        limit: 20,
+        hasMore: false,
+      });
+    });
+
+    it('forwards optional category and tag filters to the query builder', async () => {
+      const query = makeSupabaseQuery({ data: [mockMovementRow], count: 1, error: null });
+      vi.mocked(supabase.from).mockReturnValue(query as unknown as ReturnType<typeof supabase.from>);
+
+      await movementService.getAllMovementsPaginated(1, 20, { category: 'food', tags: ['lunch'] });
+
+      expect(query.eq).toHaveBeenCalledWith('category', 'food');
+      expect(query.overlaps).toHaveBeenCalledWith('tags', ['lunch']);
     });
   });
 
   describe('getActiveMovements', () => {
-    it('should filter out orphaned movements', async () => {
-      const orphaned = { ...mockMovement, id: 'mov-2', isOrphaned: true };
-      vi.spyOn(apiClient, 'get').mockResolvedValue({ ...mockPaginatedResponse, data: [mockMovement, orphaned] });
+    it('filters out orphaned movements', async () => {
+      const orphanedRow = { ...mockMovementRow, id: 'mov-2', is_orphaned: true };
+      const query = makeSupabaseQuery({ data: [mockMovementRow, orphanedRow], count: 2, error: null });
+      vi.mocked(supabase.from).mockReturnValue(query as unknown as ReturnType<typeof supabase.from>);
+
       const result = await movementService.getActiveMovements();
+
       expect(result).toHaveLength(1);
       expect(result[0].id).toBe('mov-1');
     });
   });
 
   describe('getOrphanedMovements', () => {
-    it('should call correct endpoint', async () => {
-      vi.spyOn(apiClient, 'get').mockResolvedValue([]);
-      await movementService.getOrphanedMovements();
-      expect(apiClient.get).toHaveBeenCalledWith('/api/movements/orphaned');
+    it('queries movements with is_orphaned=true', async () => {
+      const orphanedRow = { ...mockMovementRow, id: 'mov-9', is_orphaned: true };
+      const query = makeSupabaseQuery({ data: [orphanedRow], error: null });
+      vi.mocked(supabase.from).mockReturnValue(query as unknown as ReturnType<typeof supabase.from>);
+
+      const result = await movementService.getOrphanedMovements();
+
+      expect(supabase.from).toHaveBeenCalledWith('movements');
+      expect(query.eq).toHaveBeenCalledWith('is_orphaned', true);
+      expect(query.order).toHaveBeenCalledWith('displayed_date', { ascending: false });
+      expect(result).toHaveLength(1);
+      expect(result[0].id).toBe('mov-9');
+      expect(result[0].isOrphaned).toBe(true);
     });
   });
 
   describe('getMovementsByAccount', () => {
-    it('should pass accountId as query param', async () => {
-      vi.spyOn(apiClient, 'get').mockResolvedValue([mockMovement]);
-      await movementService.getMovementsByAccount('acc-1');
-      expect(apiClient.get).toHaveBeenCalledWith(expect.stringContaining('accountId=acc-1'));
+    it('filters movements by account_id', async () => {
+      const query = makeSupabaseQuery({ data: [mockMovementRow], error: null });
+      vi.mocked(supabase.from).mockReturnValue(query as unknown as ReturnType<typeof supabase.from>);
+
+      const result = await movementService.getMovementsByAccount('acc-1');
+
+      expect(supabase.from).toHaveBeenCalledWith('movements');
+      expect(query.eq).toHaveBeenCalledWith('account_id', 'acc-1');
+      expect(query.order).toHaveBeenCalledWith('displayed_date', { ascending: false });
+      expect(query.range).not.toHaveBeenCalled();
+      expect(result).toEqual([mockMovement]);
+    });
+
+    it('applies pagination range when both page and limit are supplied', async () => {
+      const query = makeSupabaseQuery({ data: [mockMovementRow], error: null });
+      vi.mocked(supabase.from).mockReturnValue(query as unknown as ReturnType<typeof supabase.from>);
+
+      await movementService.getMovementsByAccount('acc-1', 2, 5);
+
+      // page=2 with limit=5 ⇒ offset=5, range=[5, 9].
+      expect(query.range).toHaveBeenCalledWith(5, 9);
     });
   });
 
   describe('getMovementsByPocket', () => {
-    it('should pass pocketId as query param', async () => {
-      vi.spyOn(apiClient, 'get').mockResolvedValue([mockMovement]);
+    it('filters movements by pocket_id', async () => {
+      const query = makeSupabaseQuery({ data: [mockMovementRow], error: null });
+      vi.mocked(supabase.from).mockReturnValue(query as unknown as ReturnType<typeof supabase.from>);
+
       await movementService.getMovementsByPocket('pocket-1');
-      expect(apiClient.get).toHaveBeenCalledWith(expect.stringContaining('pocketId=pocket-1'));
+
+      expect(query.eq).toHaveBeenCalledWith('pocket_id', 'pocket-1');
     });
   });
 
   describe('getMovementsByMonth', () => {
-    it('should pass year and month as query params', async () => {
-      vi.spyOn(apiClient, 'get').mockResolvedValue([mockMovement]);
-      await movementService.getMovementsByMonth(2026, 1);
-      expect(apiClient.get).toHaveBeenCalledWith('/api/movements?year=2026&month=1');
+    it('queries movements within the requested month using gte/lte', async () => {
+      const query = makeSupabaseQuery({ data: [mockMovementRow], count: 1, error: null });
+      vi.mocked(supabase.from).mockReturnValue(query as unknown as ReturnType<typeof supabase.from>);
+
+      const result = await movementService.getMovementsByMonth(2026, 1);
+
+      expect(supabase.from).toHaveBeenCalledWith('movements');
+      expect(query.gte).toHaveBeenCalledWith('displayed_date', '2026-01-01');
+      // The service generates an end-of-month timestamp via `new Date(year, month, 0)`.
+      // Assert just the prefix to keep the test stable across timezone differences.
+      expect(query.lte).toHaveBeenCalledWith('displayed_date', expect.stringMatching(/^2026-01-31T23:59:59\.999Z$/));
+      expect(result.data).toEqual([mockMovement]);
+      expect(result.total).toBe(1);
     });
   });
 
@@ -111,6 +194,8 @@ describe('movementService', () => {
         displayedDate: '2026-01-15',
         subPocketId: undefined,
         isPending: undefined,
+        category: undefined,
+        tags: undefined,
       });
       expect(result).toEqual(mockMovement);
     });
@@ -154,10 +239,18 @@ describe('movementService', () => {
   });
 
   describe('getPendingMovements', () => {
-    it('should call correct endpoint', async () => {
-      vi.spyOn(apiClient, 'get').mockResolvedValue([]);
-      await movementService.getPendingMovements();
-      expect(apiClient.get).toHaveBeenCalledWith('/api/movements/pending');
+    it('queries movements with is_pending=true', async () => {
+      const pendingRow = { ...mockMovementRow, id: 'mov-pending', is_pending: true };
+      const query = makeSupabaseQuery({ data: [pendingRow], error: null });
+      vi.mocked(supabase.from).mockReturnValue(query as unknown as ReturnType<typeof supabase.from>);
+
+      const result = await movementService.getPendingMovements();
+
+      expect(supabase.from).toHaveBeenCalledWith('movements');
+      expect(query.eq).toHaveBeenCalledWith('is_pending', true);
+      expect(query.order).toHaveBeenCalledWith('displayed_date', { ascending: false });
+      expect(result).toHaveLength(1);
+      expect(result[0].isPending).toBe(true);
     });
   });
 

@@ -35,6 +35,7 @@ describe('GetAllAccountsUseCase', () => {
       archive: jest.fn(),
       unarchive: jest.fn(),
       updateDisplayOrders: jest.fn(),
+      getDistinctActiveSymbols: jest.fn().mockResolvedValue([]),
     } as jest.Mocked<IAccountRepository>;
 
     mockPocketRepo = {
@@ -53,6 +54,7 @@ describe('GetAllAccountsUseCase', () => {
       archive: jest.fn(),
       unarchive: jest.fn(),
       updateDisplayOrders: jest.fn(),
+      getDistinctActiveSymbols: jest.fn().mockResolvedValue([]),
     } as jest.Mocked<IPocketRepository>;
 
     mockStockPriceService = {

@@ -44,6 +44,7 @@ interface IAccountRepository {
   archive(id: string, userId: string): Promise<void>;
   unarchive(id: string, userId: string): Promise<void>;
   updateDisplayOrders(accountIds: string[], userId: string): Promise<void>;
+  getDistinctActiveSymbols(): Promise<string[]>;
 }
 
 describe('MigrateFixedPocketUseCase', () => {

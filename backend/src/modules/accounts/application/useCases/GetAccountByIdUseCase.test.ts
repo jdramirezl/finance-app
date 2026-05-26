@@ -40,6 +40,7 @@ describe('GetAccountByIdUseCase', () => {
       archive: jest.fn(),
       unarchive: jest.fn(),
       updateDisplayOrders: jest.fn(),
+      getDistinctActiveSymbols: jest.fn().mockResolvedValue([]),
     } as jest.Mocked<IAccountRepository>;
 
     mockPocketRepo = {

@@ -1,7 +1,26 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { subPocketService } from './subPocketService';
 import { apiClient } from './apiClient';
+import { supabase } from '../lib/supabase';
+import { makeSupabaseQuery } from '../test/supabaseQueryMock';
 import type { SubPocket } from '../types';
+
+// Override the global supabase mock from `test/setup.ts` so each read can
+// configure its own resolved data/error pair via `makeSupabaseQuery`.
+vi.mock('../lib/supabase', () => ({
+  supabase: { from: vi.fn() },
+}));
+
+// Snake-case row shape returned by Supabase. `subPocketService` runs each
+// row through `mapSubPocketRow` to produce the camelCase `SubPocket` type.
+const mockSubPocketRow = {
+  id: 'sp-1',
+  pocket_id: 'pocket-1',
+  name: 'Rent',
+  value_total: 12000,
+  periodicity_months: 1,
+  balance: 0,
+};
 
 const mockSubPocket: SubPocket = {
   id: 'sp-1',
@@ -18,42 +37,69 @@ describe('subPocketService', () => {
   });
 
   describe('getAllSubPockets', () => {
-    it('should call apiClient.get with correct path', async () => {
-      vi.spyOn(apiClient, 'get').mockResolvedValue([mockSubPocket]);
+    it('queries the sub_pockets table ordered by display_order', async () => {
+      const query = makeSupabaseQuery({ data: [mockSubPocketRow], error: null });
+      vi.mocked(supabase.from).mockReturnValue(query as unknown as ReturnType<typeof supabase.from>);
+
       const result = await subPocketService.getAllSubPockets();
-      expect(apiClient.get).toHaveBeenCalledWith('/api/sub-pockets');
+
+      expect(supabase.from).toHaveBeenCalledWith('sub_pockets');
+      expect(query.select).toHaveBeenCalledWith('*');
+      expect(query.order).toHaveBeenCalledWith('display_order', { ascending: true, nullsFirst: false });
       expect(result).toEqual([mockSubPocket]);
+    });
+
+    it('throws when Supabase returns an error', async () => {
+      const query = makeSupabaseQuery({ data: null, error: { message: 'denied' } });
+      vi.mocked(supabase.from).mockReturnValue(query as unknown as ReturnType<typeof supabase.from>);
+
+      await expect(subPocketService.getAllSubPockets()).rejects.toThrow('Failed to fetch sub-pockets: denied');
     });
   });
 
   describe('getSubPocket', () => {
-    it('should retrieve sub-pocket by ID', async () => {
-      vi.spyOn(apiClient, 'get').mockResolvedValue(mockSubPocket);
+    it('retrieves a single sub-pocket by id via .eq().single()', async () => {
+      const query = makeSupabaseQuery({ data: mockSubPocketRow, error: null });
+      vi.mocked(supabase.from).mockReturnValue(query as unknown as ReturnType<typeof supabase.from>);
+
       const result = await subPocketService.getSubPocket('sp-1');
-      expect(apiClient.get).toHaveBeenCalledWith('/api/sub-pockets/sp-1');
+
+      expect(supabase.from).toHaveBeenCalledWith('sub_pockets');
+      expect(query.eq).toHaveBeenCalledWith('id', 'sp-1');
+      expect(query.single).toHaveBeenCalled();
       expect(result).toEqual(mockSubPocket);
     });
 
-    it('should return null for non-existent ID', async () => {
-      vi.spyOn(apiClient, 'get').mockResolvedValue(null);
+    it('returns null when the row is missing (PGRST116)', async () => {
+      const query = makeSupabaseQuery({ data: null, error: { message: 'no rows', code: 'PGRST116' } });
+      vi.mocked(supabase.from).mockReturnValue(query as unknown as ReturnType<typeof supabase.from>);
+
       const result = await subPocketService.getSubPocket('non-existent');
+
       expect(result).toBeNull();
     });
   });
 
   describe('getSubPocketsByPocket', () => {
-    it('should pass pocketId as query param', async () => {
-      vi.spyOn(apiClient, 'get').mockResolvedValue([mockSubPocket]);
-      await subPocketService.getSubPocketsByPocket('pocket-1');
-      expect(apiClient.get).toHaveBeenCalledWith('/api/sub-pockets?pocketId=pocket-1');
+    it('filters sub-pockets by pocket_id', async () => {
+      const query = makeSupabaseQuery({ data: [mockSubPocketRow], error: null });
+      vi.mocked(supabase.from).mockReturnValue(query as unknown as ReturnType<typeof supabase.from>);
+
+      const result = await subPocketService.getSubPocketsByPocket('pocket-1');
+
+      expect(query.eq).toHaveBeenCalledWith('pocket_id', 'pocket-1');
+      expect(result).toEqual([mockSubPocket]);
     });
   });
 
   describe('getSubPocketsByGroup', () => {
-    it('should pass groupId as query param', async () => {
-      vi.spyOn(apiClient, 'get').mockResolvedValue([mockSubPocket]);
+    it('filters sub-pockets by group_id', async () => {
+      const query = makeSupabaseQuery({ data: [mockSubPocketRow], error: null });
+      vi.mocked(supabase.from).mockReturnValue(query as unknown as ReturnType<typeof supabase.from>);
+
       await subPocketService.getSubPocketsByGroup('group-1');
-      expect(apiClient.get).toHaveBeenCalledWith('/api/sub-pockets?groupId=group-1');
+
+      expect(query.eq).toHaveBeenCalledWith('group_id', 'group-1');
     });
   });
 
@@ -100,22 +146,31 @@ describe('subPocketService', () => {
 
   describe('calculateTotalFijosMes', () => {
     it('sums contributions across all sub-pockets', async () => {
-      const second = { ...mockSubPocket, id: 'sp-2' };
-      vi.spyOn(apiClient, 'get').mockResolvedValue([mockSubPocket, second]);
+      const secondRow = { ...mockSubPocketRow, id: 'sp-2' };
+      const query = makeSupabaseQuery({ data: [mockSubPocketRow, secondRow], error: null });
+      vi.mocked(supabase.from).mockReturnValue(query as unknown as ReturnType<typeof supabase.from>);
+
       const result = await subPocketService.calculateTotalFijosMes('pocket-1');
+
       expect(result).toBeGreaterThan(0);
     });
 
     it('should return 0 when no sub-pockets', async () => {
-      vi.spyOn(apiClient, 'get').mockResolvedValue([]);
+      const query = makeSupabaseQuery({ data: [], error: null });
+      vi.mocked(supabase.from).mockReturnValue(query as unknown as ReturnType<typeof supabase.from>);
+
       const result = await subPocketService.calculateTotalFijosMes('pocket-1');
+
       expect(result).toBe(0);
     });
 
     it('should add debt repayment for negative balance', async () => {
-      const withDebt = { ...mockSubPocket, balance: -500 };
-      vi.spyOn(apiClient, 'get').mockResolvedValue([withDebt]);
+      const withDebtRow = { ...mockSubPocketRow, balance: -500 };
+      const query = makeSupabaseQuery({ data: [withDebtRow], error: null });
+      vi.mocked(supabase.from).mockReturnValue(query as unknown as ReturnType<typeof supabase.from>);
+
       const result = await subPocketService.calculateTotalFijosMes('pocket-1');
+
       // Should include the regular contribution + 500 debt
       expect(result).toBeGreaterThanOrEqual(500);
     });
@@ -123,21 +178,30 @@ describe('subPocketService', () => {
 
   describe('calculateNextPayment', () => {
     it('should return 0 when sub-pocket not found', async () => {
-      vi.spyOn(apiClient, 'get').mockResolvedValue(null);
+      const query = makeSupabaseQuery({ data: null, error: { message: 'no rows', code: 'PGRST116' } });
+      vi.mocked(supabase.from).mockReturnValue(query as unknown as ReturnType<typeof supabase.from>);
+
       const result = await subPocketService.calculateNextPayment('non-existent');
+
       expect(result).toBe(0);
     });
 
     it('should return contribution amount for normal sub-pocket', async () => {
-      vi.spyOn(apiClient, 'get').mockResolvedValue(mockSubPocket);
+      const query = makeSupabaseQuery({ data: mockSubPocketRow, error: null });
+      vi.mocked(supabase.from).mockReturnValue(query as unknown as ReturnType<typeof supabase.from>);
+
       const result = await subPocketService.calculateNextPayment('sp-1');
+
       expect(result).toBeGreaterThan(0);
     });
 
     it('should add debt repayment for negative balance', async () => {
-      const withDebt = { ...mockSubPocket, balance: -500 };
-      vi.spyOn(apiClient, 'get').mockResolvedValue(withDebt);
+      const withDebtRow = { ...mockSubPocketRow, balance: -500 };
+      const query = makeSupabaseQuery({ data: withDebtRow, error: null });
+      vi.mocked(supabase.from).mockReturnValue(query as unknown as ReturnType<typeof supabase.from>);
+
       const result = await subPocketService.calculateNextPayment('sp-1');
+
       expect(result).toBeGreaterThanOrEqual(500);
     });
   });

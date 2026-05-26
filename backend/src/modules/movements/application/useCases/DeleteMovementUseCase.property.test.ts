@@ -65,6 +65,7 @@ describe('DeleteMovementUseCase Property-Based Tests', () => {
       archive: jest.fn().mockResolvedValue(undefined),
       unarchive: jest.fn().mockResolvedValue(undefined),
       updateDisplayOrders: jest.fn().mockResolvedValue(undefined),
+      getDistinctActiveSymbols: jest.fn().mockResolvedValue([]),
     };
 
     const mockPocketRepo: jest.Mocked<IPocketRepository> = {
@@ -97,6 +98,7 @@ describe('DeleteMovementUseCase Property-Based Tests', () => {
       updateDisplayOrders: jest.fn().mockResolvedValue(undefined),
       countMovements: jest.fn().mockResolvedValue(remainingMovements.length),
       hasMovements: jest.fn().mockResolvedValue(remainingMovements.length > 0),
+      detachMovements: jest.fn().mockResolvedValue(undefined),
     };
 
     const mockReminderRepo: jest.Mocked<IReminderRepository> = {
