@@ -1,4 +1,4 @@
-import { PieChart, Pie, Cell } from 'recharts';
+import { PieChart, Pie, Cell, Tooltip } from 'recharts';
 import type { DistributionEntry } from './BudgetEntryRow';
 
 interface PortfolioDonutChartProps {
@@ -13,27 +13,35 @@ interface PortfolioDonutChartProps {
 const fmt = (value: number, currency: string) =>
   value.toLocaleString(undefined, { style: 'currency', currency, maximumFractionDigits: 0 });
 
-const FIXED_COLOR = '#ef4444'; // red for fixed expenses
+// Blue tonalities for allocations (savings/positive)
+const ALLOCATION_BLUES = [
+  '#3b82f6', '#60a5fa', '#93c5fd', '#2563eb', '#1d4ed8',
+  '#7dd3fc', '#38bdf8', '#0ea5e9', '#a5b4fc', '#818cf8',
+];
 
-const PortfolioDonutChart = ({ entries, distributable, currency, colors, fixedExpensesTotal = 0, income = 0 }: PortfolioDonutChartProps) => {
+// Red/orange for fixed expenses (negative/obligations)
+const FIXED_COLOR = '#f97316';
+
+const PortfolioDonutChart = ({ entries, distributable, currency, fixedExpensesTotal = 0, income = 0 }: PortfolioDonutChartProps) => {
   const totalBudget = income || (distributable + fixedExpensesTotal);
 
-  // Build slices as absolute amounts for proportional sizing
-  const data: { name: string; value: number; color: string }[] = [];
+  const data: { name: string; value: number; color: string; pct: number }[] = [];
 
   if (fixedExpensesTotal > 0) {
-    data.push({ name: 'Fixed Expenses', value: fixedExpensesTotal, color: FIXED_COLOR });
+    const pct = totalBudget > 0 ? (fixedExpensesTotal / totalBudget) * 100 : 0;
+    data.push({ name: 'Fixed Expenses', value: fixedExpensesTotal, color: FIXED_COLOR, pct });
   }
 
   entries
     .filter((e) => e.percentage > 0)
     .forEach((e, i) => {
       const amount = (e.percentage / 100) * distributable;
-      data.push({ name: e.name || 'Unnamed', value: amount, color: colors[i % colors.length] });
+      const pct = totalBudget > 0 ? (amount / totalBudget) * 100 : 0;
+      data.push({ name: e.name || 'Unnamed', value: amount, color: ALLOCATION_BLUES[i % ALLOCATION_BLUES.length], pct });
     });
 
   if (data.length === 0) {
-    data.push({ name: 'Unallocated', value: 100, color: '#1a1d27' });
+    data.push({ name: 'Unallocated', value: 100, color: '#1a1d27', pct: 100 });
   }
 
   return (
@@ -59,8 +67,20 @@ const PortfolioDonutChart = ({ entries, distributable, currency, colors, fixedEx
               <Cell key={i} fill={d.color} />
             ))}
           </Pie>
+          <Tooltip
+            content={({ active, payload }) => {
+              if (!active || !payload?.[0]) return null;
+              const d = payload[0].payload;
+              return (
+                <div className="bg-gray-900 border border-gray-600 rounded px-3 py-2 text-xs shadow-lg">
+                  <p className="text-gray-100 font-medium">{d.name}</p>
+                  <p className="text-gray-300">{fmt(d.value, currency)} ({d.pct.toFixed(1)}%)</p>
+                </div>
+              );
+            }}
+          />
         </PieChart>
-        <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
           <span className="text-lg font-semibold text-gray-100">
             {fmt(totalBudget, currency)}
           </span>
@@ -70,15 +90,18 @@ const PortfolioDonutChart = ({ entries, distributable, currency, colors, fixedEx
         </div>
       </div>
 
-      {/* Legend */}
-      <div className="w-full mt-4 space-y-1.5 max-h-32 overflow-y-auto">
+      {/* Legend with percentages */}
+      <div className="w-full mt-4 space-y-1.5 max-h-36 overflow-y-auto">
         {data.map((d, i) => (
           <div key={i} className="flex items-center justify-between text-xs">
-            <div className="flex items-center gap-2">
-              <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: d.color }} />
-              <span className="text-gray-300 truncate max-w-[140px]">{d.name}</span>
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: d.color }} />
+              <span className="text-gray-300 truncate">{d.name}</span>
             </div>
-            <span className="text-gray-400 font-mono">{fmt(d.value, currency)}</span>
+            <div className="flex items-center gap-2 shrink-0 ml-2">
+              <span className="text-gray-500 font-mono">{d.pct.toFixed(1)}%</span>
+              <span className="text-gray-400 font-mono">{fmt(d.value, currency)}</span>
+            </div>
           </div>
         ))}
       </div>
