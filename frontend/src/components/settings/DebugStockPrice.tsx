@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { investmentService } from '../../services/investmentService';
 import Button from '../ui/Button';
 import Card from '../ui/Card';
@@ -27,6 +27,12 @@ const DebugStockPrice = () => {
     )];
 
     const [symbol, setSymbol] = useState(symbols[0] || 'VOO');
+
+    useEffect(() => {
+        if (symbol) {
+            investmentService.getDebugPrice(symbol).then(setResult).catch(() => {});
+        }
+    }, [symbol]);
 
     const handleForceRefresh = async () => {
         if (!symbol) return;

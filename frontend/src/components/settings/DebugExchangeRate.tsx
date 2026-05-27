@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { currencyService } from '../../services/currencyService';
 import Button from '../ui/Button';
 import Card from '../ui/Card';
@@ -19,6 +19,10 @@ const DebugExchangeRate = () => {
         source?: string;
     } | null>(null);
     const [error, setError] = useState<string | null>(null);
+
+    useEffect(() => {
+        currencyService.getDebugRate(from, to).then(setResult).catch(() => {});
+    }, [from, to]);
 
     const handleForceRefresh = async () => {
         setLoading(true);
