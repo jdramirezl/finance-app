@@ -22,17 +22,18 @@ export const formatCacheLabel = (
   if (info.lastUpdated === null) return null;
 
   const ageMs = now - info.lastUpdated;
-  if (ageMs < ONE_MINUTE_MS) return 'Just now';
 
-  const ageLabel = ageMs < ONE_HOUR_MS
-    ? `${Math.round(ageMs / ONE_MINUTE_MS)}min ago`
-    : `${Math.round(ageMs / ONE_HOUR_MS)}h ago`;
+  const ageLabel = ageMs < ONE_MINUTE_MS
+    ? 'Just now'
+    : ageMs < ONE_HOUR_MS
+      ? `${Math.round(ageMs / ONE_MINUTE_MS)}min ago`
+      : `${Math.round(ageMs / ONE_HOUR_MS)}h ago`;
 
-  if (info.nextRefreshAt === null) return `Updated ${ageLabel}`;
+  if (info.nextRefreshAt === null) return ageLabel;
 
   const remainingMs = info.nextRefreshAt - now;
-  if (remainingMs <= 0) return `Updated ${ageLabel} · Refresh available`;
+  if (remainingMs <= 0) return `${ageLabel} · Refresh available`;
 
   const nextTime = new Date(info.nextRefreshAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  return `Updated ${ageLabel} · Next at ${nextTime}`;
+  return `${ageLabel} · Next at ${nextTime}`;
 };

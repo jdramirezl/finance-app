@@ -16,16 +16,18 @@ describe('formatCacheLabel', () => {
 
   it('shows "Just now" for sub-minute freshness', () => {
     const now = 1_000_000_000;
+    const nextAt = now - 30_000 + HOUR_MS;
+    const expectedTime = new Date(nextAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     expect(
       formatCacheLabel(
         {
           lastUpdated: now - 30_000,
           cacheHours: 1,
-          nextRefreshAt: now - 30_000 + HOUR_MS,
+          nextRefreshAt: nextAt,
         },
         now,
       ),
-    ).toBe('Just now');
+    ).toBe(`Just now · Next at ${expectedTime}`);
   });
 
   it('formats hours-ago and remaining hours when within the cache window', () => {
@@ -42,7 +44,7 @@ describe('formatCacheLabel', () => {
         },
         now,
       ),
-    ).toBe(`Updated 2h ago · Next at ${expectedTime}`);
+    ).toBe(`2h ago · Next at ${expectedTime}`);
   });
 
   it('signals "Refresh available" when the cache window has elapsed', () => {
@@ -57,7 +59,7 @@ describe('formatCacheLabel', () => {
         },
         now,
       ),
-    ).toBe('Updated 5h ago · Refresh available');
+    ).toBe('5h ago · Refresh available');
   });
 
   it('falls back to the age-only label when nextRefreshAt is missing', () => {
@@ -71,6 +73,6 @@ describe('formatCacheLabel', () => {
         },
         now,
       ),
-    ).toBe('Updated 3h ago');
+    ).toBe('3h ago');
   });
 });
