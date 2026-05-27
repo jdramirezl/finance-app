@@ -14,6 +14,7 @@ import { ConvertCurrencyUseCase } from '../application/useCases/ConvertCurrencyU
 import type { ConvertCurrencyDTO } from '../application/dtos/ExchangeRateDTO';
 import type { Currency } from '@shared-backend/types';
 import { ValidationError } from '../../../shared/errors/AppError';
+import type { IExchangeRateRepository } from '../infrastructure/IExchangeRateRepository';
 
 /**
  * Single conversion entry in a batch request.
@@ -41,7 +42,8 @@ interface BatchConversionResponseItem {
 export class CurrencyController {
   constructor(
     @inject(GetExchangeRateUseCase) private getExchangeRateUseCase: GetExchangeRateUseCase,
-    @inject(ConvertCurrencyUseCase) private convertCurrencyUseCase: ConvertCurrencyUseCase
+    @inject(ConvertCurrencyUseCase) private convertCurrencyUseCase: ConvertCurrencyUseCase,
+    @inject('ExchangeRateRepository') private exchangeRateRepository: IExchangeRateRepository
   ) {}
 
   /**
@@ -188,6 +190,19 @@ export class CurrencyController {
       );
 
       res.status(200).json({ results });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async forceRefresh(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const from = req.body?.from as Currency;
+      const to = req.body?.to as Currency;
+      if (!from || !to) throw new ValidationError('from and to are required');
+      await this.exchangeRateRepository.deleteRate(from, to);
+      const result = await this.getExchangeRateUseCase.execute(from, to);
+      res.status(200).json(result);
     } catch (error) {
       next(error);
     }

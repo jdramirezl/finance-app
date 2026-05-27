@@ -12,7 +12,7 @@ import { container } from 'tsyringe';
 import { CurrencyController } from './CurrencyController';
 import { authMiddleware } from '../../../shared/middleware/authMiddleware';
 import { validateBody } from '../../../shared/middleware/validate';
-import { convertCurrencySchema, convertBatchSchema } from './schemas';
+import { convertCurrencySchema, convertBatchSchema, forceRefreshSchema } from './schemas';
 
 const router = Router();
 
@@ -58,5 +58,12 @@ router.post('/convert', validateBody(convertCurrencySchema), (req, res, next) =>
  * currencies (e.g. for the dashboard total or net-worth snapshot).
  */
 router.post('/convert-batch', validateBody(convertBatchSchema), (req, res, next) => controller.convertBatch(req, res, next));
+
+/**
+ * POST /api/currency/force-refresh
+ * Delete cached rate and fetch fresh from API.
+ * Body: { from: Currency, to: Currency }
+ */
+router.post('/force-refresh', validateBody(forceRefreshSchema), (req, res, next) => controller.forceRefresh(req, res, next));
 
 export default router;
