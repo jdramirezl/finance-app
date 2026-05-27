@@ -213,7 +213,7 @@ export const useChartOverlays = ({
                     overlayId,
                     HISTORY_DAYS,
                 );
-                return response.data.map((entry) => ({
+                return response.map((entry: { date: string; price: number }) => ({
                     date: entry.date,
                     rawValue: entry.price,
                 }));
