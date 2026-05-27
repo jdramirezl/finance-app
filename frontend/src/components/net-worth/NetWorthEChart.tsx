@@ -51,6 +51,8 @@ import type { ComposeOption } from 'echarts/core';
 // so this does not pull the full echarts barrel into the runtime bundle.
 import type { DefaultLabelFormatterCallbackParams as CallbackDataParams } from 'echarts';
 
+import type { OverlaySeries } from '../../hooks/useChartOverlays';
+
 // Register only the components this chart needs. `LegendComponent` is
 // registered alongside the rest so breakdown mode can render the
 // per-currency legend without pulling in the full echarts barrel.
@@ -162,6 +164,34 @@ export interface NetWorthEChartProps {
      * `data`; the index maps directly to the snapshot at `data[i]`.
      */
     currencyData?: CurrencySeriesData[];
+    /**
+     * Wave 7: optional overlay reference lines (FX rates / stock
+     * prices) rendered as subtle dashed guides behind the main
+     * series. Each entry is its own line series with `z: 1` so the
+     * net-worth lines render on top.
+     *
+     * Display modes follow the chart's `showVariation` toggle:
+     * - **Variation mode** (`showVariation === true`): overlays
+     *   share the primary y-axis (`yAxisIndex: 0`). The hook normalises
+     *   each point to a window-relative percentage so overlay shape
+     *   reads cleanly against the net-worth percentage scale.
+     * - **Absolute mode** (`showVariation === false`): a hidden
+     *   secondary y-axis (right side, `show: false`) is added and
+     *   overlay series get `yAxisIndex: 1`. The hook normalises each
+     *   point to `[0, 1]` against the visible window's extrema, so
+     *   overlay shape is comparable to the primary line without
+     *   distorting the currency-amount y-axis.
+     *
+     * The tooltip extends to render one extra row per overlay using
+     * `overlay.data[idx].rawValue` (the underlying rate or price)
+     * regardless of the active mode — the user always wants the real
+     * number, not the normalisation.
+     *
+     * Overlays are intentionally excluded from the legend strip in
+     * breakdown mode (legend is gated to currency names only); they
+     * are toggled by a separate UI control above the chart.
+     */
+    overlaySeries?: OverlaySeries[];
 }
 
 /**
@@ -275,6 +305,25 @@ const formatBreakdownAmount = (value: number, currency: string): string => {
     const rounded = Math.round(value);
     return `${rounded.toLocaleString('en-US')} ${currency}`;
 };
+
+/**
+ * Format an overlay's raw rate or stock price for the tooltip.
+ *
+ * Uses thousands-separator locale formatting capped at 2 decimal
+ * places so FX rates ("4,081.50") and stock prices ("523.12") read
+ * cleanly without exposing the floating-point tail. The minimum
+ * fraction digits is 0 so values that round to whole numbers (e.g.
+ * "4,081") don't pick up trailing ".00" noise.
+ *
+ * Distinct from {@link formatBreakdownAmount} because overlays are
+ * not currency amounts — they're rates or per-share prices, with
+ * different rounding expectations and no currency-code suffix.
+ */
+const formatOverlayRawValue = (value: number): string =>
+    value.toLocaleString('en-US', {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2,
+    });
 
 /**
  * Format a delta amount for display in the tooltip. The leading sign is
@@ -490,6 +539,7 @@ const NetWorthEChart = ({
     dataZoomEnd,
     viewMode = 'total',
     currencyData,
+    overlaySeries,
 }: NetWorthEChartProps) => {
     // Ref to the echarts-for-react instance, exposed for programmatic
     // control via `getEchartsInstance().dispatchAction(...)` whenever
@@ -603,6 +653,32 @@ const NetWorthEChart = ({
             ? formatPercentAxisTick
             : formatCurrencyAxisTick;
         const hierarchical = makeHierarchicalFormatter(visibleCount);
+
+        // Wave 7: overlay reference lines (FX rates / stock prices).
+        //
+        // Two display modes follow the chart's `showVariation` toggle:
+        //  - Variation mode → overlays share the primary y-axis
+        //    (`yAxisIndex: 0`) since the hook normalises each point as
+        //    a window-relative percentage on the same scale as the
+        //    main lines.
+        //  - Absolute mode → a hidden secondary y-axis is added on the
+        //    right and overlays get `yAxisIndex: 1`. The hook
+        //    normalises overlays to `[0, 1]` against the visible
+        //    window, so the line shape is comparable to the main
+        //    chart without distorting the currency-amount axis.
+        //
+        // The id-set / id-map captured here are reused inside the
+        // tooltip formatters to (a) skip overlay params from the main
+        // currency rendering path and (b) reach the underlying
+        // `rawValue` for each overlay point at the hovered dataIndex.
+        const hasOverlays = (overlaySeries?.length ?? 0) > 0;
+        const useSecondaryAxis = hasOverlays && !showVariation;
+        const overlayIdSet = new Set(
+            (overlaySeries ?? []).map((o) => o.id),
+        );
+        const overlayMap = new Map(
+            (overlaySeries ?? []).map((o) => [o.id, o] as const),
+        );
 
         // Window-relative variation transform.
         //
@@ -812,6 +888,79 @@ const NetWorthEChart = ({
                   },
               ];
 
+        // Wave 7: overlay line series — appended AFTER the main series
+        // so the legend's `data` whitelist (currency names only)
+        // continues to ignore them and ECharts renders them with `z: 1`
+        // behind the primary line / currency lines. The overlay's
+        // `data` array carries the NORMALISED values produced by the
+        // hook; the underlying `rawValue` is reached via dataIndex
+        // inside the tooltip closure.
+        const overlayLineSeries: LineSeriesOption[] = (
+            overlaySeries ?? []
+        ).map((ov) => ({
+            name: ov.id,
+            type: 'line',
+            data: ov.data.map((p) => [p.date, p.value]),
+            smooth: true,
+            symbol: 'none',
+            showSymbol: false,
+            // z stacks below the main line (which inherits the
+            // ECharts default of z = 2 once itemStyle/lineStyle are
+            // set). Keeps the overlay readable as background context
+            // without competing with the headline net-worth line.
+            z: 1,
+            yAxisIndex: useSecondaryAxis ? 1 : 0,
+            lineStyle: { color: ov.color, type: 'dashed', width: 1.5 },
+            // `color` at series level drives the tooltip marker swatch
+            // (ECharts auto-builds the `<span>` marker from this) so
+            // the overlay row picks up its own color in the tooltip
+            // even though we suppress symbols on the line itself.
+            itemStyle: { color: ov.color },
+        }));
+
+        const seriesWithOverlays: LineSeriesOption[] = [
+            ...series,
+            ...overlayLineSeries,
+        ];
+
+        // yAxis is a single object in the common case so the existing
+        // tests continue to assert against `option.yAxis.axisLabel.
+        // formatter`. The array form only kicks in for overlay-enabled
+        // absolute mode where the hidden secondary axis is required;
+        // overlay-enabled variation mode keeps the single-axis shape
+        // because overlays share the primary % axis there.
+        const primaryYAxis = {
+            type: 'value' as const,
+            axisLabel: {
+                color: '#9ca3af',
+                fontSize: 11,
+                formatter: yAxisFormatter,
+            },
+            splitLine: {
+                lineStyle: { color: '#374151', type: 'dashed' as const },
+            },
+        };
+        const yAxisConfig = useSecondaryAxis
+            ? [
+                  primaryYAxis,
+                  {
+                      type: 'value' as const,
+                      // Hidden axis — labels and line are suppressed
+                      // because the overlay's normalised [0, 1] scale
+                      // would be meaningless to the user. The axis
+                      // exists purely so ECharts can map overlay
+                      // values onto it without colliding with the
+                      // primary currency-amount scale.
+                      show: false,
+                      // Pin the bounds so the axis stays stable across
+                      // renders even if the overlay normalisation
+                      // briefly emits a flat or empty series.
+                      min: 0,
+                      max: 1,
+                  },
+              ]
+            : primaryYAxis;
+
         return {
             backgroundColor: 'transparent',
             // Reserve more headroom in breakdown mode for the legend
@@ -866,18 +1015,8 @@ const NetWorthEChart = ({
                     label: { show: false },
                 },
             },
-            yAxis: {
-                type: 'value',
-                axisLabel: {
-                    color: '#9ca3af',
-                    fontSize: 11,
-                    formatter: yAxisFormatter,
-                },
-                splitLine: {
-                    lineStyle: { color: '#374151', type: 'dashed' },
-                },
-            },
-            series,
+            yAxis: yAxisConfig,
+            series: seriesWithOverlays,
             dataZoom: [
                 {
                     type: 'slider',
@@ -928,14 +1067,41 @@ const NetWorthEChart = ({
                           // defensively wrap a non-array param so a stub
                           // single-entry payload from a test doesn't
                           // throw.
-                          const list = Array.isArray(params)
+                          const allParams = Array.isArray(params)
                               ? (params as CallbackDataParams[])
                               : [params as CallbackDataParams];
-                          if (list.length === 0) return '';
+                          if (allParams.length === 0) return '';
+
+                          // Wave 7: split overlay params off so the
+                          // currency-row pipeline below ignores them.
+                          // Overlays are appended as their own rows
+                          // after the currency rows so they read as a
+                          // separate "reference lines" group.
+                          const list = hasOverlays
+                              ? allParams.filter(
+                                    (p) =>
+                                        !overlayIdSet.has(
+                                            String(p.seriesName ?? ''),
+                                        ),
+                                )
+                              : allParams;
+                          const overlayParams = hasOverlays
+                              ? allParams.filter((p) =>
+                                    overlayIdSet.has(
+                                        String(p.seriesName ?? ''),
+                                    ),
+                                )
+                              : [];
+                          // Header still resolves from the first
+                          // available param — overlays at minimum
+                          // ensures a date label even if the user is
+                          // hovering off the currency lines.
+                          const headerParam = list[0] ?? overlayParams[0];
+                          if (!headerParam) return '';
 
                           const idx =
-                              typeof list[0].dataIndex === 'number'
-                                  ? list[0].dataIndex
+                              typeof headerParam.dataIndex === 'number'
+                                  ? headerParam.dataIndex
                                   : -1;
                           const datum = idx >= 0 ? data[idx] : undefined;
 
@@ -948,10 +1114,10 @@ const NetWorthEChart = ({
                               dateLabel = formatTooltipDate(datum.date);
                           } else {
                               const rawDate =
-                                  Array.isArray(list[0].value) &&
-                                  typeof list[0].value[0] === 'string'
-                                      ? list[0].value[0]
-                                      : list[0].name || '';
+                                  Array.isArray(headerParam.value) &&
+                                  typeof headerParam.value[0] === 'string'
+                                      ? headerParam.value[0]
+                                      : headerParam.name || '';
                               dateLabel = rawDate
                                   ? formatTooltipDate(rawDate)
                                   : '';
@@ -1050,9 +1216,34 @@ const NetWorthEChart = ({
                               })
                               .filter(Boolean);
 
+                          // Wave 7: overlay reference rows. Each
+                          // surfaces the underlying rate or price at
+                          // the hovered dataIndex, regardless of the
+                          // axis the line is drawn on.
+                          const overlayRows = overlayParams
+                              .map((p) => {
+                                  const ov = overlayMap.get(
+                                      String(p.seriesName ?? ''),
+                                  );
+                                  if (!ov) return '';
+                                  const ovIdx =
+                                      typeof p.dataIndex === 'number'
+                                          ? p.dataIndex
+                                          : -1;
+                                  const point =
+                                      ovIdx >= 0 ? ov.data[ovIdx] : undefined;
+                                  if (!point) return '';
+                                  const marker =
+                                      typeof p.marker === 'string'
+                                          ? p.marker
+                                          : '';
+                                  return `${marker}${ov.label}: ${formatOverlayRawValue(point.rawValue)}`;
+                              })
+                              .filter(Boolean);
+
                           return (
                               `<strong>${dateLabel}</strong><br/>` +
-                              rows.join('<br/>')
+                              [...rows, ...overlayRows].join('<br/>')
                           );
                       }
                     : (params) => {
@@ -1065,11 +1256,63 @@ const NetWorthEChart = ({
                           // render the single-line value plus a
                           // delta-from-previous-point row for every
                           // datum after the first.
-                          const list = Array.isArray(params)
+                          const allParams = Array.isArray(params)
                               ? (params as CallbackDataParams[])
                               : [params as CallbackDataParams];
+
+                          // Wave 7: split overlay params off so the
+                          // total-line resolution below ignores them
+                          // (the overlay series share `trigger: 'axis'`
+                          // and would otherwise compete to be `first`).
+                          const list = hasOverlays
+                              ? allParams.filter(
+                                    (p) =>
+                                        !overlayIdSet.has(
+                                            String(p.seriesName ?? ''),
+                                        ),
+                                )
+                              : allParams;
+                          const overlayParams = hasOverlays
+                              ? allParams.filter((p) =>
+                                    overlayIdSet.has(
+                                        String(p.seriesName ?? ''),
+                                    ),
+                                )
+                              : [];
                           const first = list[0];
                           if (!first) return '';
+
+                          // Wave 7: pre-compute overlay rows once so
+                          // every return path below (N/A early return,
+                          // happy path) appends the same overlay block.
+                          // Overlay rows are independent of net-worth
+                          // resolution — even when the headline is
+                          // `N/A` the user still wants the underlying
+                          // rate / price visible.
+                          const overlayRowsHtml = overlayParams
+                              .map((p) => {
+                                  const ov = overlayMap.get(
+                                      String(p.seriesName ?? ''),
+                                  );
+                                  if (!ov) return '';
+                                  const ovIdx =
+                                      typeof p.dataIndex === 'number'
+                                          ? p.dataIndex
+                                          : -1;
+                                  const point =
+                                      ovIdx >= 0 ? ov.data[ovIdx] : undefined;
+                                  if (!point) return '';
+                                  const marker =
+                                      typeof p.marker === 'string'
+                                          ? p.marker
+                                          : '';
+                                  return `${marker}${ov.label}: ${formatOverlayRawValue(point.rawValue)}`;
+                              })
+                              .filter(Boolean)
+                              .join('<br/>');
+                          const overlaySuffix = overlayRowsHtml
+                              ? `<br/>${overlayRowsHtml}`
+                              : '';
 
                           // Resolve the data point. Prefer dataIndex (set by
                           // ECharts on every series-trigger) so we can look
@@ -1097,7 +1340,8 @@ const NetWorthEChart = ({
                                       // toggled away from.
                                       return (
                                           `<strong>${formatTooltipDate(datum.date)}</strong><br/>` +
-                                          `N/A`
+                                          `N/A` +
+                                          overlaySuffix
                                       );
                                   }
                                   numericValue = transformed;
@@ -1193,7 +1437,8 @@ const NetWorthEChart = ({
 
                           return (
                               `<strong>${dateLabel}</strong><br/>` +
-                              `${formatted}${deltaHtml}`
+                              `${formatted}${deltaHtml}` +
+                              overlaySuffix
                           );
                       },
             },
@@ -1209,6 +1454,7 @@ const NetWorthEChart = ({
         isBreakdown,
         currencyData,
         yearBoundaryDates,
+        overlaySeries,
     ]);
 
     // Stable click handler — only changes when the data array or the
