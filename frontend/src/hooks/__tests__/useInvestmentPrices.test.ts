@@ -27,7 +27,6 @@ vi.mock('../../services/investmentService', () => ({
       }),
     ),
     getPriceTimestamp: vi.fn(() => 1234567890),
-    markRefreshed: vi.fn(),
   },
 }));
 
@@ -245,10 +244,12 @@ describe('useInvestmentPrices', () => {
         await result.current.handleRefreshPrice(account);
       });
 
-      // Single click triggers the refresh — no "X more clicks" prompts.
-      expect(toast.info).not.toHaveBeenCalled();
+      // Single click shows hint about force refresh and confirms price from cache.
+      expect(toast.info).toHaveBeenCalledWith(
+        expect.stringContaining('2 more'),
+      );
       expect(toast.success).toHaveBeenCalledWith(
-        expect.stringContaining('Price refreshed: VOO'),
+        expect.stringContaining('Price confirmed: VOO'),
       );
     });
 

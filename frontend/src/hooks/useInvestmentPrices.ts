@@ -91,6 +91,9 @@ export const useInvestmentPrices = ({
   const [lastRefreshBySymbol, setLastRefreshBySymbol] = useState<
     Map<string, number>
   >(new Map());
+  const [clickCountBySymbol, setClickCountBySymbol] = useState<
+    Map<string, { count: number; timestamp: number }>
+  >(new Map());
 
   // Investment accounts that actually have a tradable symbol. Memoized so
   // useQueries' query list stays stable across unrelated account churn.
@@ -254,8 +257,28 @@ export const useInvestmentPrices = ({
         return;
       }
 
-      // Stamp the cooldown immediately so concurrent clicks (across
-      // siblings holding the same symbol) don't all slip through.
+      // Track clicks within 2s window for force refresh (3 clicks = force)
+      const prevClick = clickCountBySymbol.get(symbol);
+      const clickCount =
+        prevClick && now - prevClick.timestamp < 2000
+          ? prevClick.count + 1
+          : 1;
+      setClickCountBySymbol((prev) => {
+        const next = new Map(prev);
+        next.set(symbol, { count: clickCount, timestamp: now });
+        return next;
+      });
+
+      const isForce = clickCount >= 3;
+
+      if (clickCount === 1) {
+        toast.info('Click 2 more times to force refresh from API');
+      } else if (clickCount === 2) {
+        toast.info('Click 1 more time to force refresh from API');
+        return; // Don't refresh yet, wait for 3rd click
+      }
+
+      // Stamp the cooldown immediately
       setLastRefreshBySymbol((prev) => {
         const next = new Map(prev);
         next.set(symbol, now);
@@ -266,29 +289,39 @@ export const useInvestmentPrices = ({
         next.add(symbol);
         return next;
       });
+      // Reset click count
+      setClickCountBySymbol((prev) => {
+        const next = new Map(prev);
+        next.delete(symbol);
+        return next;
+      });
 
       try {
-        // invalidateQueries triggers a refetch via the registered queryFn
-        // (investmentService.getCurrentPrice) and resolves once the active
-        // query has finished. The fresh value then sits in the query cache
-        // for the toast below and propagates to consumers via priceQueries.
-        await queryClient.invalidateQueries({
-          queryKey: investmentPriceKey(symbol),
-        });
-
-        const price =
-          queryClient.getQueryData<number>(investmentPriceKey(symbol)) ?? 0;
-
-        // Update local timestamp so the UI shows "Just now" instead of
-        // the backend's stale cachedAt value.
-        investmentService.markRefreshed(symbol);
-
-        toast.success(
-          `Price refreshed: ${symbol} = ${currencyService.formatCurrency(
-            price,
-            account.currency
-          )}`
-        );
+        if (isForce) {
+          // Force refresh — bypass backend cache, hit Alpha Vantage
+          const price = await investmentService.getCurrentPrice(symbol, true);
+          // Update query cache with the fresh price
+          queryClient.setQueryData(investmentPriceKey(symbol), price);
+          toast.success(
+            `Force refreshed: ${symbol} = ${currencyService.formatCurrency(
+              price,
+              account.currency
+            )}`
+          );
+        } else {
+          // Normal refresh — just re-check backend (uses its cache)
+          await queryClient.invalidateQueries({
+            queryKey: investmentPriceKey(symbol),
+          });
+          const price =
+            queryClient.getQueryData<number>(investmentPriceKey(symbol)) ?? 0;
+          toast.success(
+            `Price confirmed: ${symbol} = ${currencyService.formatCurrency(
+              price,
+              account.currency
+            )}`
+          );
+        }
       } catch (error) {
         toast.error(
           error instanceof Error ? error.message : 'Failed to refresh price'
@@ -301,7 +334,7 @@ export const useInvestmentPrices = ({
         });
       }
     },
-    [lastRefreshBySymbol, queryClient, toast]
+    [clickCountBySymbol, lastRefreshBySymbol, queryClient, toast]
   );
 
   return {
