@@ -672,7 +672,7 @@ const NetWorthEChart = ({
         // currency rendering path and (b) reach the underlying
         // `rawValue` for each overlay point at the hovered dataIndex.
         const hasOverlays = (overlaySeries?.length ?? 0) > 0;
-        const useSecondaryAxis = hasOverlays;
+        const useSecondaryAxis = hasOverlays && !showVariation;
         const overlayIdSet = new Set(
             (overlaySeries ?? []).map((o) => o.id),
         );
