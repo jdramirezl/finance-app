@@ -41,6 +41,7 @@ describe('GetExchangeRateUseCase Property-Based Tests', () => {
               findRate: jest.fn().mockResolvedValue(cachedRate),
               saveRate: jest.fn().mockResolvedValue(undefined),
               deleteExpired: jest.fn().mockResolvedValue(0),
+              deleteRate: jest.fn().mockResolvedValue(undefined),
             };
             // Create mock API service
             const mockAPIService: jest.Mocked<IExchangeRateAPIService> = {
@@ -91,6 +92,7 @@ describe('GetExchangeRateUseCase Property-Based Tests', () => {
               findRate: jest.fn().mockResolvedValue(expiredRate),
               saveRate: jest.fn().mockResolvedValue(undefined),
               deleteExpired: jest.fn().mockResolvedValue(0),
+              deleteRate: jest.fn().mockResolvedValue(undefined),
             };
             const mockAPIService: jest.Mocked<IExchangeRateAPIService> = {
               fetchRate: jest.fn().mockResolvedValue(apiRateValue),
@@ -119,6 +121,7 @@ describe('GetExchangeRateUseCase Property-Based Tests', () => {
               findRate: jest.fn().mockResolvedValue(null),
               saveRate: jest.fn().mockResolvedValue(undefined),
               deleteExpired: jest.fn().mockResolvedValue(0),
+              deleteRate: jest.fn().mockResolvedValue(undefined),
             };
             const mockAPIService: jest.Mocked<IExchangeRateAPIService> = {
               fetchRate: jest.fn().mockResolvedValue(1.0),
@@ -158,6 +161,7 @@ describe('GetExchangeRateUseCase Property-Based Tests', () => {
               findRate: jest.fn().mockResolvedValue(null),
               saveRate: jest.fn().mockResolvedValue(undefined),
               deleteExpired: jest.fn().mockResolvedValue(0),
+              deleteRate: jest.fn().mockResolvedValue(undefined),
             };
             const mockAPIService: jest.Mocked<IExchangeRateAPIService> = {
               fetchRate: jest.fn().mockResolvedValue(apiRateValue),
@@ -195,6 +199,7 @@ describe('GetExchangeRateUseCase Property-Based Tests', () => {
               findRate: jest.fn().mockResolvedValue(null),
               saveRate: jest.fn().mockResolvedValue(undefined),
               deleteExpired: jest.fn().mockResolvedValue(0),
+              deleteRate: jest.fn().mockResolvedValue(undefined),
             };
             const mockAPIService: jest.Mocked<IExchangeRateAPIService> = {
               fetchRate: jest.fn().mockResolvedValue(apiRateValue),
@@ -229,6 +234,7 @@ describe('GetExchangeRateUseCase Property-Based Tests', () => {
               findRate: jest.fn().mockResolvedValue(null),
               saveRate: jest.fn().mockResolvedValue(undefined),
               deleteExpired: jest.fn().mockResolvedValue(0),
+              deleteRate: jest.fn().mockResolvedValue(undefined),
             };
             // Create mock API service that throws error
             const mockAPIService: jest.Mocked<IExchangeRateAPIService> = {
