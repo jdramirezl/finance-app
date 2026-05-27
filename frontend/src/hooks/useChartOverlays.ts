@@ -86,12 +86,20 @@ interface RawOverlayEntry {
     rawValue: number;
 }
 
+/**
+ * Returns the line / chip color for a given overlay id. Currency pairs
+ * and stock symbols share the same lookup table so the chip swatch in
+ * `OverlayToggleChips` can match the dashed line drawn on the chart for
+ * the same overlay. Unknown ids fall back to a neutral gray so the UI
+ * still renders something legible if a previously-saved overlay no
+ * longer maps to a known palette entry.
+ */
+export const getOverlayColor = (overlayId: string): string =>
+    OVERLAY_COLORS[overlayId] ?? DEFAULT_OVERLAY_COLOR;
+
 /** Currency pairs are encoded as `BASE→TARGET` — anything else is a stock symbol. */
 const isCurrencyPair = (overlayId: string): boolean =>
     overlayId.includes(FX_OVERLAY_SEPARATOR);
-
-const colorFor = (overlayId: string): string =>
-    OVERLAY_COLORS[overlayId] ?? DEFAULT_OVERLAY_COLOR;
 
 const overlayQueryKey = (overlayId: string) =>
     ['chartOverlay', overlayId] as const;
@@ -238,7 +246,7 @@ export const useChartOverlays = ({
             result.push({
                 id: overlayId,
                 label: overlayId,
-                color: colorFor(overlayId),
+                color: getOverlayColor(overlayId),
                 data,
             });
         });

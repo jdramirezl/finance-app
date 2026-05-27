@@ -26,12 +26,16 @@ import { TrendingUp } from 'lucide-react';
 import {
     useNetWorthSnapshotsQuery,
 } from '../../hooks/queries/useNetWorthSnapshotQueries';
-import { useSettingsQuery } from '../../hooks/queries';
+import { useAccountsQuery, useSettingsQuery } from '../../hooks/queries';
 import {
     useNetWorthChartData,
     type NetWorthViewMode,
     CURRENCY_LINE_COLORS,
 } from '../../hooks/useNetWorthChartData';
+import {
+    useChartOverlays,
+    getOverlayColor,
+} from '../../hooks/useChartOverlays';
 import Card from '../ui/Card';
 import CurrencyAmount from '../ui/CurrencyAmount';
 import NetWorthEChart, {
@@ -43,6 +47,9 @@ import NetWorthEditModal, {
 import NetWorthRangeControls, {
     type NetWorthRange,
 } from './NetWorthRangeControls';
+import OverlayToggleChips, {
+    type OverlayToggleChipItem,
+} from './OverlayToggleChips';
 import ExchangeRateTrend from './ExchangeRateTrend';
 
 type WidgetTab = NetWorthViewMode | 'rates';
@@ -143,6 +150,7 @@ export const calculateZoomRange = (
 const NetWorthTimelineWidget = () => {
     const { data: snapshots = [], isLoading } = useNetWorthSnapshotsQuery();
     const { data: settings } = useSettingsQuery();
+    const { data: accounts = [] } = useAccountsQuery();
 
     const [viewMode, setViewMode] = useState<WidgetTab>('total');
     // The chips drive the chart's dataZoom slider rather than filtering
@@ -152,6 +160,13 @@ const NetWorthTimelineWidget = () => {
     const [customFrom, setCustomFrom] = useState<string>('');
     const [customTo, setCustomTo] = useState<string>('');
     const [showVariation, setShowVariation] = useState(false);
+    // Active overlays are tracked as a Set so toggle is O(1) and the
+    // chip component can branch on `active.has(id)` without scanning an
+    // array. The hook accepts an array; we materialise one inside a
+    // memo below to keep its query keys stable.
+    const [activeOverlays, setActiveOverlays] = useState<Set<string>>(
+        () => new Set(),
+    );
 
     const editModalRef = useRef<NetWorthEditModalHandle>(null);
 
@@ -240,6 +255,94 @@ const NetWorthTimelineWidget = () => {
         );
         return calculateZoomRange(timestamps, activeRange, customFrom, customTo);
     }, [echartData, activeRange, customFrom, customTo]);
+
+    // Derive available overlays from the user's accounts. We surface:
+    //   - one currency-pair overlay per non-primary currency the user
+    //     actually holds, encoded as `BASE→PRIMARY` so the hook can
+    //     parse the pair without an extra schema field. Currencies the
+    //     user doesn't hold are omitted to match the
+    //     `finance-app-exchange-rate-user-currencies-only` UX rule.
+    //   - one stock-symbol overlay per distinct `stockSymbol` across
+    //     investment accounts. Two accounts on the same symbol (e.g.
+    //     two VOO accounts funded by different currencies) collapse to
+    //     a single chip so the price line isn't drawn twice.
+    // Both halves are deduplicated via Sets keyed on currency / symbol.
+    const availableOverlays = useMemo<OverlayToggleChipItem[]>(() => {
+        const items: OverlayToggleChipItem[] = [];
+        const seenCurrencies = new Set<string>();
+        const seenSymbols = new Set<string>();
+
+        for (const account of accounts) {
+            if (
+                account.currency &&
+                account.currency !== primaryCurrency &&
+                !seenCurrencies.has(account.currency)
+            ) {
+                seenCurrencies.add(account.currency);
+                const id = `${account.currency}→${primaryCurrency}`;
+                items.push({ id, label: id, color: getOverlayColor(id) });
+            }
+            if (account.stockSymbol && !seenSymbols.has(account.stockSymbol)) {
+                seenSymbols.add(account.stockSymbol);
+                items.push({
+                    id: account.stockSymbol,
+                    label: account.stockSymbol,
+                    color: getOverlayColor(account.stockSymbol),
+                });
+            }
+        }
+        return items;
+    }, [accounts, primaryCurrency]);
+
+    // The visible window for overlay normalisation is derived from the
+    // current `zoomRange` percentages projected onto the snapshot
+    // timeline. Daily-resolution overlays (FX rates, stock prices) are
+    // anchored against this window's start so variation-mode lines
+    // re-baseline whenever the user pans / zooms — same contract the
+    // net-worth chart already uses. Returns `null`/`null` when the
+    // timeline is empty so the hook can no-op cleanly.
+    const { visibleStartDate, visibleEndDate } = useMemo(() => {
+        if (echartData.length === 0) {
+            return { visibleStartDate: null, visibleEndDate: null };
+        }
+        const dates = echartData.map((d) => d.fullDate);
+        const lastIdx = dates.length - 1;
+        const clamp = (value: number) =>
+            Math.max(0, Math.min(lastIdx, value));
+        const startIdx = clamp(Math.floor((zoomRange.start / 100) * lastIdx));
+        const endIdx = clamp(Math.ceil((zoomRange.end / 100) * lastIdx));
+        return {
+            visibleStartDate: dates[startIdx] ?? null,
+            visibleEndDate: dates[endIdx] ?? null,
+        };
+    }, [echartData, zoomRange.start, zoomRange.end]);
+
+    // Stable array reference for the hook — sorting also keeps the
+    // TanStack Query keys deterministic regardless of toggle order.
+    const activeOverlayIds = useMemo(
+        () => Array.from(activeOverlays).sort(),
+        [activeOverlays],
+    );
+
+    const { overlays } = useChartOverlays({
+        activeOverlays: activeOverlayIds,
+        primaryCurrency,
+        showVariation,
+        visibleStartDate,
+        visibleEndDate,
+    });
+
+    const handleOverlayToggle = (id: string) => {
+        setActiveOverlays((prev) => {
+            const next = new Set(prev);
+            if (next.has(id)) {
+                next.delete(id);
+            } else {
+                next.add(id);
+            }
+            return next;
+        });
+    };
 
     const handleRangeChange = (
         range: NetWorthRange,
@@ -360,7 +463,22 @@ const NetWorthTimelineWidget = () => {
                     dataZoomEnd={zoomRange.end}
                     viewMode={viewMode === 'breakdown' ? 'breakdown' : 'total'}
                     currencyData={currencyData}
+                    overlaySeries={overlays}
                 />
+
+                {/* Overlay toggle chips. Renders nothing when the user
+                    has only a single currency and no stock symbols, so
+                    there's no empty-row visual artefact for those
+                    users. */}
+                {availableOverlays.length > 0 && (
+                    <div className="mt-3">
+                        <OverlayToggleChips
+                            available={availableOverlays}
+                            active={activeOverlays}
+                            onToggle={handleOverlayToggle}
+                        />
+                    </div>
+                )}
 
                 {/* Latest Value */}
                 {latestDatum && viewMode === 'total' && (
