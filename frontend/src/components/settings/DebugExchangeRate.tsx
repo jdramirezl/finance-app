@@ -1,12 +1,13 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { currencyService } from '../../services/currencyService';
 import Button from '../ui/Button';
 import Card from '../ui/Card';
 import Select from '../ui/Select';
-import { Search, RotateCw, ArrowRight } from 'lucide-react';
+import { RotateCw, ArrowRight } from 'lucide-react';
 import { parseDate } from '../../utils/dateUtils';
 import { CURRENCY_OPTIONS, DEFAULT_CURRENCY } from '../../constants';
 import type { Currency } from '../../types';
+import { apiClient } from '../../services/apiClient';
 
 const DebugExchangeRate = () => {
     const [from, setFrom] = useState<Currency>(DEFAULT_CURRENCY);
@@ -19,8 +20,28 @@ const DebugExchangeRate = () => {
     } | null>(null);
     const [error, setError] = useState<string | null>(null);
 
-    const handleSearch = async (e?: React.FormEvent) => {
-        e?.preventDefault();
+    useEffect(() => {
+        currencyService.getDebugRate(from, to).then(setResult).catch(() => {});
+    }, [from, to]);
+
+    const handleForceRefresh = async () => {
+        setLoading(true);
+        setError(null);
+        try {
+            const data = await apiClient.post<{ rate: number; cachedAt: string; source?: string }>(
+                '/api/currency/force-refresh',
+                { from, to, amount: 1 }
+            );
+            setResult(data);
+        } catch (err: unknown) {
+            setError(err instanceof Error ? err.message : 'Failed to refresh rate');
+            setResult(null);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleCheck = async () => {
         setLoading(true);
         setError(null);
         try {
@@ -37,11 +58,11 @@ const DebugExchangeRate = () => {
     return (
         <Card padding="md" className="space-y-4">
             <div>
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Debug Exchange Rate</h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Check rate source and freshness</p>
+                <h3 className="text-lg font-semibold text-gray-100">Exchange Rates</h3>
+                <p className="text-sm text-gray-400">Check or force-refresh cached rates</p>
             </div>
 
-            <form onSubmit={handleSearch} className="flex gap-2 items-end">
+            <div className="flex gap-2 items-end">
                 <Select
                     label="From"
                     value={from}
@@ -59,48 +80,33 @@ const DebugExchangeRate = () => {
                     options={CURRENCY_OPTIONS}
                     className="w-24"
                 />
-                <div className="flex-1"></div>
-                <Button
-                    type="submit"
-                    disabled={loading}
-                    aria-label={`Look up ${from} to ${to} exchange rate`}
-                >
-                    {loading
-                        ? <RotateCw className="w-4 h-4 animate-spin" aria-hidden="true" />
-                        : <Search className="w-4 h-4" aria-hidden="true" />}
+                <div className="flex-1" />
+                <Button variant="secondary" onClick={handleCheck} disabled={loading}>
+                    Check
                 </Button>
-            </form>
+                <Button onClick={handleForceRefresh} disabled={loading}>
+                    {loading ? <RotateCw className="w-4 h-4 animate-spin" /> : <RotateCw className="w-4 h-4" />}
+                    <span className="ml-1">Force Refresh</span>
+                </Button>
+            </div>
 
-            {error && (
-                <div className="text-sm text-red-500 bg-red-50 dark:bg-red-900/10 p-2 rounded">
-                    {error}
-                </div>
-            )}
+            {error && <div className="text-sm text-red-400 bg-red-900/10 p-2 rounded">{error}</div>}
 
             {result && (
-                <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3 space-y-2 text-sm border dark:border-gray-700">
+                <div className="bg-gray-800/50 rounded-lg p-3 space-y-2 text-sm border border-gray-700">
                     <div className="flex justify-between">
-                        <span className="text-gray-500">Rate:</span>
-                        <span className="font-mono font-bold text-gray-900 dark:text-gray-100">
-                            {result.rate.toFixed(4)}
-                        </span>
+                        <span className="text-gray-400">Rate:</span>
+                        <span className="font-mono font-bold text-gray-100">{result.rate.toFixed(4)}</span>
                     </div>
                     <div className="flex justify-between">
-                        <span className="text-gray-500">Source:</span>
-                        <span className={`font-mono px-1.5 py-0.5 rounded text-xs ${result.source === 'api'
-                                ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                                : result.source === 'db'
-                                    ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
-                                    : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
-                            }`}>
-                            {result.source || 'unknown'}
-                        </span>
+                        <span className="text-gray-400">Source:</span>
+                        <span className={`font-mono px-1.5 py-0.5 rounded text-xs ${
+                            result.source === 'api' ? 'bg-green-900/30 text-green-400' : 'bg-blue-900/30 text-blue-400'
+                        }`}>{result.source || 'unknown'}</span>
                     </div>
                     <div className="flex justify-between">
-                        <span className="text-gray-500">Cached:</span>
-                        <span className="font-mono text-gray-700 dark:text-gray-300">
-                            {parseDate(result.cachedAt).toLocaleString()}
-                        </span>
+                        <span className="text-gray-400">Cached:</span>
+                        <span className="font-mono text-gray-300">{parseDate(result.cachedAt).toLocaleString()}</span>
                     </div>
                 </div>
             )}

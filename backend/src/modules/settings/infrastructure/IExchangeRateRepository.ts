@@ -34,4 +34,6 @@ export interface IExchangeRateRepository {
    * @returns Number of deleted records
    */
   deleteExpired(): Promise<number>;
+
+  deleteRate(fromCurrency: Currency, toCurrency: Currency): Promise<void>;
 }

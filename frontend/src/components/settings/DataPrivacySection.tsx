@@ -1,6 +1,8 @@
 import { Download } from 'lucide-react';
 import Button from '../ui/Button';
 import Card from '../ui/Card';
+import DebugExchangeRate from './DebugExchangeRate';
+import DebugStockPrice from './DebugStockPrice';
 
 export interface DataPrivacySectionProps {
   isExporting: boolean;
@@ -36,6 +38,14 @@ const DataPrivacySection = ({ isExporting, onExport }: DataPrivacySectionProps) 
           </Button>
         </div>
       </Card>
+
+      <div>
+        <h3 className="text-xl font-semibold text-gray-100 mb-4">Force Refresh</h3>
+        <div className="space-y-4">
+          <DebugExchangeRate />
+          <DebugStockPrice />
+        </div>
+      </div>
     </div>
   );
 };

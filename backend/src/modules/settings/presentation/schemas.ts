@@ -30,6 +30,11 @@ export const convertBatchSchema = z.object({
   })).min(1),
 }).strict();
 
+export const forceRefreshSchema = z.object({
+  from: currency,
+  to: currency,
+});
+
 export const updateInvestmentSchema = z.object({
   shares: z.number().min(0).optional(),
   montoInvertido: z.number().min(0).optional(),
