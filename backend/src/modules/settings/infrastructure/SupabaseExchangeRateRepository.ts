@@ -139,4 +139,12 @@ export class SupabaseExchangeRateRepository implements IExchangeRateRepository {
 
     return data?.length ?? 0;
   }
+
+  async deleteRate(fromCurrency: string, toCurrency: string): Promise<void> {
+    await this.supabase
+      .from('exchange_rates')
+      .delete()
+      .eq('base_currency', fromCurrency)
+      .eq('target_currency', toCurrency);
+  }
 }
