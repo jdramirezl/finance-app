@@ -40,6 +40,7 @@ vi.mock('../../../hooks/queries/useNetWorthSnapshotQueries', () => ({
 
 vi.mock('../../../hooks/queries', () => ({
   useSettingsQuery: () => mocks.useSettingsQuery(),
+  useAccountsQuery: () => ({ data: [] }),
 }));
 
 vi.mock('../../../hooks/useNetWorthChartData', async (importOriginal) => {
