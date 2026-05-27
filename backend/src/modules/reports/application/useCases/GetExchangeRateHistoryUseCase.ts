@@ -11,7 +11,7 @@ export class GetExchangeRateHistoryUseCase {
   async execute(base: string, target: string, days: number): Promise<{ data: ExchangeRateHistoryRow[] }> {
     if (!base?.trim()) throw new ValidationError('base currency is required');
     if (!target?.trim()) throw new ValidationError('target currency is required');
-    if (days < 1 || days > 365) throw new ValidationError('days must be between 1 and 365');
+    if (days < 1 || days > 1825) throw new ValidationError('days must be between 1 and 1825');
 
     const data = await this.reportsRepo.getExchangeRateHistory(base, target, days);
     return { data };
