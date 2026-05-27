@@ -6,17 +6,32 @@ interface PortfolioDonutChartProps {
   distributable: number;
   currency: string;
   colors: string[];
+  fixedExpensesTotal?: number;
+  income?: number;
 }
 
 const fmt = (value: number, currency: string) =>
   value.toLocaleString(undefined, { style: 'currency', currency, maximumFractionDigits: 0 });
 
-const PortfolioDonutChart = ({ entries, distributable, currency, colors }: PortfolioDonutChartProps) => {
-  const data = entries
-    .filter((e) => e.percentage > 0)
-    .map((e, i) => ({ name: e.name || 'Unnamed', value: e.percentage, color: colors[i % colors.length] }));
+const FIXED_COLOR = '#ef4444'; // red for fixed expenses
 
-  // Show a placeholder ring when no data
+const PortfolioDonutChart = ({ entries, distributable, currency, colors, fixedExpensesTotal = 0, income = 0 }: PortfolioDonutChartProps) => {
+  const totalBudget = income || (distributable + fixedExpensesTotal);
+
+  // Build slices as absolute amounts for proportional sizing
+  const data: { name: string; value: number; color: string }[] = [];
+
+  if (fixedExpensesTotal > 0) {
+    data.push({ name: 'Fixed Expenses', value: fixedExpensesTotal, color: FIXED_COLOR });
+  }
+
+  entries
+    .filter((e) => e.percentage > 0)
+    .forEach((e, i) => {
+      const amount = (e.percentage / 100) * distributable;
+      data.push({ name: e.name || 'Unnamed', value: amount, color: colors[i % colors.length] });
+    });
+
   if (data.length === 0) {
     data.push({ name: 'Unallocated', value: 100, color: '#1a1d27' });
   }
@@ -45,15 +60,27 @@ const PortfolioDonutChart = ({ entries, distributable, currency, colors }: Portf
             ))}
           </Pie>
         </PieChart>
-        {/* Center label */}
         <div className="absolute inset-0 flex flex-col items-center justify-center">
           <span className="text-lg font-semibold text-gray-100">
-            {fmt(distributable, currency)}
+            {fmt(totalBudget, currency)}
           </span>
           <span className="text-[10px] text-gray-400 uppercase tracking-tight">
-            Total Allocated
+            Monthly Income
           </span>
         </div>
+      </div>
+
+      {/* Legend */}
+      <div className="w-full mt-4 space-y-1.5 max-h-32 overflow-y-auto">
+        {data.map((d, i) => (
+          <div key={i} className="flex items-center justify-between text-xs">
+            <div className="flex items-center gap-2">
+              <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: d.color }} />
+              <span className="text-gray-300 truncate max-w-[140px]">{d.name}</span>
+            </div>
+            <span className="text-gray-400 font-mono">{fmt(d.value, currency)}</span>
+          </div>
+        ))}
       </div>
     </div>
   );

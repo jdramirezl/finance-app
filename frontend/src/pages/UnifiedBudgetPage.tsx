@@ -369,6 +369,8 @@ const UnifiedBudgetPage = () => {
               distributable={budgetActions.remaining}
               currency={budgetCurrency}
               colors={ALLOCATION_COLORS}
+              fixedExpensesTotal={budgetActions.totalFijosMes}
+              income={initialAmount}
             />
           </div>
 
