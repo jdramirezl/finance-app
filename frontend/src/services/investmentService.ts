@@ -142,6 +142,18 @@ class InvestmentService {
     async getDebugPrice(symbol: string): Promise<BackendStockPriceResponse> {
         return await apiClient.get<BackendStockPriceResponse>(`/api/investments/prices/${symbol}`);
     }
+
+    // Get historical stock prices for a symbol over the last `days` days.
+    // Used by chart overlays to plot the price series alongside net worth.
+    // Returns an empty array if no history is available rather than throwing,
+    // so a missing series renders an empty overlay instead of breaking the
+    // whole chart.
+    async getStockPriceHistory(symbol: string, days = 365): Promise<{ date: string; price: number }[]> {
+        const response = await apiClient.get<{ data: { date: string; price: number }[] }>(
+            `/api/investments/prices/${symbol}/history?days=${days}`
+        );
+        return response.data;
+    }
 }
 
 export const investmentService = new InvestmentService();

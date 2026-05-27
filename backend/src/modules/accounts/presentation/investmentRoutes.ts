@@ -23,6 +23,18 @@ const controller = container.resolve(InvestmentController);
 router.use(authMiddleware);
 
 /**
+ * GET /api/investments/prices/:symbol/history
+ * Get historical stock prices for a symbol.
+ *
+ * Query params: ?days=365 (optional, defaults to 365, capped at 5 years)
+ * Response: 200 + { symbol: string, data: { date: string, price: number }[] }
+ *
+ * Registered before `/prices/:symbol` so Express matches the more
+ * specific path first.
+ */
+router.get('/prices/:symbol/history', (req, res, next) => controller.getPriceHistory(req, res, next));
+
+/**
  * GET /api/investments/prices/:symbol
  * Get stock price by symbol
  * 

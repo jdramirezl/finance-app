@@ -23,6 +23,7 @@
  */
 
 import { injectable, inject } from 'tsyringe';
+import { SupabaseClient } from '@supabase/supabase-js';
 import { StockPrice } from '../../domain/StockPrice';
 import type { IStockPriceRepository } from '../../infrastructure/IStockPriceRepository';
 import type { IAlphaVantageService } from '../../infrastructure/IAlphaVantageService';
@@ -58,7 +59,8 @@ export class GetCurrentStockPriceUseCase {
   constructor(
     @inject('StockPriceRepository') private stockPriceRepo: IStockPriceRepository,
     @inject('AlphaVantageService') private alphaVantageService: IAlphaVantageService,
-    @inject('AccountRepository') private accountRepo: IAccountRepository
+    @inject('AccountRepository') private accountRepo: IAccountRepository,
+    @inject('SupabaseClient') private supabase: SupabaseClient
   ) { }
 
   /**
@@ -99,6 +101,24 @@ export class GetCurrentStockPriceUseCase {
     // Cache in both locations
     await this.stockPriceRepo.save(stockPrice);
     this.localCache.set(normalizedSymbol, stockPrice);
+
+    // Fire-and-forget: append to the historical series so charts have a
+    // continuously growing time series. We deliberately don't await — a
+    // history insert failure (RLS denial, conflict, transient DB blip)
+    // must never break the price-fetch hot path that callers depend on.
+    // ON CONFLICT DO NOTHING is enforced via upsert+ignoreDuplicates so
+    // a duplicate same-day fetch is a no-op rather than an error.
+    this.supabase
+      .from('stock_price_history')
+      .upsert(
+        {
+          symbol: normalizedSymbol,
+          price: currentPrice,
+          recorded_at: new Date().toISOString(),
+        },
+        { ignoreDuplicates: true }
+      )
+      .then(() => { /* no-op on success */ }, () => { /* swallow errors */ });
 
     return stockPrice;
   }

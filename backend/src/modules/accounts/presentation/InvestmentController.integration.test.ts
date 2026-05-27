@@ -21,6 +21,8 @@ describe('InvestmentController Integration Tests', () => {
   let app: express.Application;
   let mockGetCurrentStockPriceUseCase: jest.Mocked<GetCurrentStockPriceUseCase>;
   let mockUpdateInvestmentAccountUseCase: jest.Mocked<UpdateInvestmentAccountUseCase>;
+  let mockSupabase: any;
+  let mockHistoryQuery: any;
   
   const testUserId = 'test-user-123';
   const mockAuthMiddleware = (req: any, res: any, next: any) => {
@@ -40,10 +42,24 @@ describe('InvestmentController Integration Tests', () => {
       execute: jest.fn()
     } as any;
 
+    // Mock Supabase chain for the price-history query. The chain mirrors
+    // the exact builder calls in InvestmentController.getPriceHistory so
+    // any drift in the controller's query shape will surface here.
+    mockHistoryQuery = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      gte: jest.fn().mockReturnThis(),
+      order: jest.fn().mockResolvedValue({ data: [], error: null }),
+    };
+    mockSupabase = {
+      from: jest.fn().mockReturnValue(mockHistoryQuery),
+    };
+
     // Create controller with mocked use cases
     const controller = new InvestmentController(
       mockGetCurrentStockPriceUseCase,
-      mockUpdateInvestmentAccountUseCase
+      mockUpdateInvestmentAccountUseCase,
+      mockSupabase
     );
 
     // Setup Express app with routes
@@ -52,6 +68,9 @@ describe('InvestmentController Integration Tests', () => {
     app.use(mockAuthMiddleware);
     
     const router = express.Router();
+    // Order matters — `/prices/:symbol/history` must come before `/prices/:symbol`
+    // so the more specific route wins.
+    router.get('/prices/:symbol/history', (req, res, next) => controller.getPriceHistory(req, res, next));
     router.get('/prices/:symbol', (req, res, next) => controller.getPriceBySymbol(req, res, next));
     router.get('/:accountId/price', (req, res, next) => controller.getPrice(req, res, next));
     router.post('/:accountId/update', (req, res, next) => controller.updateInvestment(req, res, next));
@@ -97,7 +116,8 @@ describe('InvestmentController Integration Tests', () => {
       
       const controller = new InvestmentController(
         mockGetCurrentStockPriceUseCase,
-        mockUpdateInvestmentAccountUseCase
+        mockUpdateInvestmentAccountUseCase,
+        mockSupabase
       );
       
       const router = express.Router();
@@ -109,6 +129,58 @@ describe('InvestmentController Integration Tests', () => {
         .get('/api/investments/prices/VOO');
 
       expect(response.status).toBe(401);
+    });
+  });
+
+  describe('GET /api/investments/prices/:symbol/history', () => {
+    it('should return historical prices ordered ascending', async () => {
+      // Stub the terminal `.order()` call on the mocked builder chain so
+      // the controller sees a clean two-row series.
+      mockHistoryQuery.order.mockResolvedValueOnce({
+        data: [
+          { recorded_at: '2024-01-01T00:00:00.000Z', price: 440.10 },
+          { recorded_at: '2024-01-02T00:00:00.000Z', price: 442.50 },
+        ],
+        error: null,
+      });
+
+      const response = await request(app)
+        .get('/api/investments/prices/VOO/history?days=30');
+
+      expect(response.status).toBe(200);
+      expect(response.body.symbol).toBe('VOO');
+      expect(response.body.data).toEqual([
+        { date: '2024-01-01T00:00:00.000Z', price: 440.10 },
+        { date: '2024-01-02T00:00:00.000Z', price: 442.50 },
+      ]);
+      // Symbol should be normalized to uppercase before the query.
+      expect(mockHistoryQuery.eq).toHaveBeenCalledWith('symbol', 'VOO');
+      expect(mockSupabase.from).toHaveBeenCalledWith('stock_price_history');
+    });
+
+    it('should default to 365 days when query param is missing', async () => {
+      mockHistoryQuery.order.mockResolvedValueOnce({ data: [], error: null });
+
+      const response = await request(app)
+        .get('/api/investments/prices/voo/history');
+
+      expect(response.status).toBe(200);
+      expect(response.body).toEqual({ symbol: 'VOO', data: [] });
+      // Verify gte was called — exact date is non-deterministic, so we just
+      // assert the bound was set.
+      expect(mockHistoryQuery.gte).toHaveBeenCalled();
+    });
+
+    it('should return 500 when Supabase returns an error', async () => {
+      mockHistoryQuery.order.mockResolvedValueOnce({
+        data: null,
+        error: { message: 'connection refused' },
+      });
+
+      const response = await request(app)
+        .get('/api/investments/prices/VOO/history');
+
+      expect(response.status).toBe(500);
     });
   });
 
@@ -235,7 +307,8 @@ describe('InvestmentController Integration Tests', () => {
       
       const controller = new InvestmentController(
         mockGetCurrentStockPriceUseCase,
-        mockUpdateInvestmentAccountUseCase
+        mockUpdateInvestmentAccountUseCase,
+        mockSupabase
       );
       
       const router = express.Router();
