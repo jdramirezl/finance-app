@@ -842,8 +842,6 @@ const NetWorthEChart = ({
             },
             xAxis: {
                 type: 'time',
-                min: data.length > 0 ? new Date(data[0].date + 'T00:00:00Z').getTime() : undefined,
-                max: data.length > 0 ? new Date(data[data.length - 1].date + 'T00:00:00Z').getTime() : undefined,
                 axisLabel: {
                     color: '#9ca3af',
                     fontSize: 11,

@@ -106,7 +106,11 @@ export const calculateZoomRange = (
             '2y': 730 * 24 * 60 * 60 * 1000,
         };
         const windowStart = now - msMap[range];
-        return { start: Math.max(0, pctOf(windowStart)), end: 100 };
+        // Snap to the first data point within the window so the line
+        // fills edge-to-edge without empty gaps on the left.
+        let startIdx = timestamps.findIndex(ts => ts >= windowStart);
+        if (startIdx === -1) startIdx = 0;
+        return { start: pctOf(timestamps[startIdx]), end: 100 };
     }
 
     if (range === 'custom') {
