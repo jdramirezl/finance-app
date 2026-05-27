@@ -41,7 +41,8 @@ describe('CurrencyController Integration Tests', () => {
     // Create controller with mocked use cases
     const controller = new CurrencyController(
       mockGetExchangeRateUseCase,
-      mockConvertCurrencyUseCase
+      mockConvertCurrencyUseCase,
+      { findRate: jest.fn(), saveRate: jest.fn(), deleteExpired: jest.fn(), deleteRate: jest.fn() } as any
     );
 
     // Setup Express app with routes
@@ -143,7 +144,8 @@ describe('CurrencyController Integration Tests', () => {
       
       const controller = new CurrencyController(
         mockGetExchangeRateUseCase,
-        mockConvertCurrencyUseCase
+        mockConvertCurrencyUseCase,
+        { findRate: jest.fn(), saveRate: jest.fn(), deleteExpired: jest.fn(), deleteRate: jest.fn() } as any
       );
       
       const router = express.Router();
