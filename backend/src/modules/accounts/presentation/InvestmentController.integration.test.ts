@@ -74,7 +74,7 @@ describe('InvestmentController Integration Tests', () => {
         price: 450.25,
         cachedAt: '2024-01-15T10:00:00.000Z'
       });
-      expect(mockGetCurrentStockPriceUseCase.execute).toHaveBeenCalledWith('VOO');
+      expect(mockGetCurrentStockPriceUseCase.execute).toHaveBeenCalledWith('VOO', false);
     });
 
     it('should handle errors when fetching stock price', async () => {

@@ -8,13 +8,15 @@ import CDSummaryCard from './CDSummaryCard';
 import CDSummaryCardCompact from './CDSummaryCardCompact';
 import Card from '../ui/Card';
 import { Banknote } from 'lucide-react';
+import type { InvestmentCacheInfo } from '../../hooks/useInvestmentPrices';
 
 interface CurrencySectionProps {
     currency: Currency;
     accounts: Account[];
     pockets: Pocket[];
     investmentData: Map<string, InvestmentData>;
-    refreshingPrices: Set<string>;
+    isRefreshing: (accountId: string) => boolean;
+    getCacheInfo: (symbol: string) => InvestmentCacheInfo;
     onRefreshPrice: (account: Account) => void;
     // Display mode settings
     normalAccountDisplayMode?: AccountCardDisplayMode;
@@ -32,7 +34,8 @@ const CurrencySection = ({
     accounts,
     pockets,
     investmentData,
-    refreshingPrices,
+    isRefreshing,
+    getCacheInfo,
     onRefreshPrice,
     normalAccountDisplayMode = 'detailed',
     investmentAccountDisplayMode = 'detailed',
@@ -97,16 +100,18 @@ const CurrencySection = ({
                                 key={account.id}
                                 account={account}
                                 data={investmentData.get(account.id)}
-                                isRefreshing={refreshingPrices.has(account.id)}
-                                onRefresh={() => onRefreshPrice(account)}
+                                isRefreshing={isRefreshing}
+                                getCacheInfo={getCacheInfo}
+                                onRefresh={onRefreshPrice}
                             />
                         ) : (
                             <InvestmentCard
                                 key={account.id}
                                 account={account}
                                 data={investmentData.get(account.id)}
-                                isRefreshing={refreshingPrices.has(account.id)}
-                                onRefresh={() => onRefreshPrice(account)}
+                                isRefreshing={isRefreshing}
+                                getCacheInfo={getCacheInfo}
+                                onRefresh={onRefreshPrice}
                             />
                         );
                     }

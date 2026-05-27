@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   CartesianGrid,
   Legend,
@@ -37,6 +37,24 @@ const ExchangeRateTrend = () => {
     const unique = [...new Set(accounts.map((a) => a.currency))];
     return unique.filter((c) => c !== primaryCurrency) as Currency[];
   }, [accounts, primaryCurrency]);
+
+  // Warm the exchange_rate_history table by requesting current rates for every
+  // currency pair the user has. Without this, pairs that no other widget asks
+  // for (e.g. MXN→COP when only USD→COP is auto-fetched elsewhere) never get
+  // persisted, so the history chart stays empty for those pairs.
+  const warmedPairsRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    if (targetCurrencies.length === 0) return;
+    targetCurrencies.forEach((currency) => {
+      const key = `${currency}_${primaryCurrency}`;
+      if (warmedPairsRef.current.has(key)) return;
+      warmedPairsRef.current.add(key);
+      currencyService.convert(1, currency, primaryCurrency).catch(() => {
+        // Allow retry on next mount if the request failed
+        warmedPairsRef.current.delete(key);
+      });
+    });
+  }, [targetCurrencies, primaryCurrency]);
 
   // Fetch exchange rate history for each pair (base → primary)
   const rateQueries = useQueries({

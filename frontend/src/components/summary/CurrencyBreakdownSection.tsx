@@ -8,13 +8,15 @@ import type {
 import EmptyState from '../ui/EmptyState';
 import CurrencySection from './CurrencySection';
 import type { InvestmentData } from './InvestmentCard';
+import type { InvestmentCacheInfo } from '../../hooks/useInvestmentPrices';
 
 export interface CurrencyBreakdownSectionProps {
   sortedCurrencies: Currency[];
   accountsByCurrency: Record<Currency, Account[]>;
   pockets: Pocket[];
   investmentData: Map<string, InvestmentData>;
-  refreshingPrices: Set<string>;
+  isRefreshing: (accountId: string) => boolean;
+  getCacheInfo: (symbol: string) => InvestmentCacheInfo;
   accountCardDisplay: AccountCardDisplaySettings;
   onRefreshPrice: (account: Account) => void;
 }
@@ -28,7 +30,8 @@ const CurrencyBreakdownSection = ({
   accountsByCurrency,
   pockets,
   investmentData,
-  refreshingPrices,
+  isRefreshing,
+  getCacheInfo,
   accountCardDisplay,
   onRefreshPrice,
 }: CurrencyBreakdownSectionProps) => {
@@ -51,7 +54,8 @@ const CurrencyBreakdownSection = ({
           accounts={accountsByCurrency[currency]}
           pockets={pockets}
           investmentData={investmentData}
-          refreshingPrices={refreshingPrices}
+          isRefreshing={isRefreshing}
+          getCacheInfo={getCacheInfo}
           onRefreshPrice={onRefreshPrice}
           normalAccountDisplayMode={accountCardDisplay.normal}
           investmentAccountDisplayMode={accountCardDisplay.investment}

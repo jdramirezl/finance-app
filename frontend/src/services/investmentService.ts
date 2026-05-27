@@ -44,10 +44,13 @@ class InvestmentService {
     }
 
     // Get current price for a symbol
-    async getCurrentPrice(symbol: string): Promise<number> {
-        const response = await apiClient.get<BackendStockPriceResponse>(`/api/investments/prices/${symbol}`);
+    async getCurrentPrice(symbol: string, force = false): Promise<number> {
+        const url = force
+            ? `/api/investments/prices/${symbol}?force=true`
+            : `/api/investments/prices/${symbol}`;
+        const response = await apiClient.get<BackendStockPriceResponse>(url);
 
-        // Update local cache so getPriceTimestamp can surface the freshness in UI
+        // Always use backend's cachedAt — it reflects when the price was actually fetched from the API
         const cachedAt = parseDate(response.cachedAt).getTime();
         this.priceCache.set(symbol, {
             symbol: response.symbol,

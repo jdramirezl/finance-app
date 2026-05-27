@@ -73,8 +73,9 @@ export class InvestmentController {
       }
 
       const { symbol } = req.params;
+      const force = req.query.force === 'true';
 
-      const stockPrice = await this.getCurrentStockPriceUseCase.execute(symbol);
+      const stockPrice = await this.getCurrentStockPriceUseCase.execute(symbol, force);
 
       res.status(200).json({
         symbol: stockPrice.symbol,

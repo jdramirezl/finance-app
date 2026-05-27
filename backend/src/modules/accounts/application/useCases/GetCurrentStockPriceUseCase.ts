@@ -67,7 +67,7 @@ export class GetCurrentStockPriceUseCase {
    * @param symbol - Stock symbol (e.g., 'VOO', 'AAPL')
    * @returns StockPrice with current price and cache metadata
    */
-  async execute(symbol: string): Promise<StockPrice> {
+  async execute(symbol: string, force = false): Promise<StockPrice> {
     // Normalize symbol to uppercase
     const normalizedSymbol = symbol.toUpperCase();
 
@@ -75,19 +75,21 @@ export class GetCurrentStockPriceUseCase {
     // uses the same TTL for this request.
     const cacheHours = await this.getCacheHours();
 
-    // 1. Check local cache first (Requirements 13.2)
-    const localCached = this.localCache.get(normalizedSymbol);
-    if (localCached && localCached.isFresh(cacheHours)) {
-      return new StockPrice(localCached.symbol, localCached.price, localCached.cachedAt, 'cache');
-    }
+    if (!force) {
+      // 1. Check local cache first (Requirements 13.2)
+      const localCached = this.localCache.get(normalizedSymbol);
+      if (localCached && localCached.isFresh(cacheHours)) {
+        return new StockPrice(localCached.symbol, localCached.price, localCached.cachedAt, 'cache');
+      }
 
-    // 2. Check database cache (Requirements 13.3)
-    const dbCached = await this.stockPriceRepo.findBySymbol(normalizedSymbol);
-    if (dbCached && dbCached.isFresh(cacheHours)) {
-      const stockPriceDb = new StockPrice(dbCached.symbol, dbCached.price, dbCached.cachedAt, 'db');
-      // Update local cache
-      this.localCache.set(normalizedSymbol, stockPriceDb);
-      return stockPriceDb;
+      // 2. Check database cache (Requirements 13.3)
+      const dbCached = await this.stockPriceRepo.findBySymbol(normalizedSymbol);
+      if (dbCached && dbCached.isFresh(cacheHours)) {
+        const stockPriceDb = new StockPrice(dbCached.symbol, dbCached.price, dbCached.cachedAt, 'db');
+        // Update local cache
+        this.localCache.set(normalizedSymbol, stockPriceDb);
+        return stockPriceDb;
+      }
     }
 
     // 3. Fetch from API (Requirements 13.4)
