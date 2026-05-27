@@ -15,6 +15,15 @@ interface BackendStockPriceResponse {
     source?: string;
 }
 
+export interface StockPriceHistoryEntry {
+    date: string;
+    price: number;
+}
+
+export interface StockPriceHistoryResponse {
+    data: StockPriceHistoryEntry[];
+}
+
 class InvestmentService {
     // Local cache used to surface a "last updated" timestamp to the UI without
     // re-hitting the backend on every render.
@@ -120,6 +129,13 @@ class InvestmentService {
         this.priceCache.delete(symbol);
         this.savePriceCache();
         return await this.getCurrentPrice(symbol);
+    }
+
+    // Get historical stock price data for charting / overlay rendering.
+    async getStockPriceHistory(symbol: string, days: number = 365): Promise<StockPriceHistoryResponse> {
+        return apiClient.get<StockPriceHistoryResponse>(
+            `/api/investments/prices/${symbol}/history?days=${days}`
+        );
     }
 
     // Debug: Get full price details with source
