@@ -64,7 +64,7 @@ export const useMovementMutations = () => {
             }
             // Sub-pocket totals only change when a sub-pocket was targeted.
             if (variables.subPocketId) {
-                queryClient.invalidateQueries({ queryKey: ['subPockets'] });
+                queryClient.invalidateQueries({ queryKey: ['subPockets'], refetchType: 'all' });
             }
             const keys: string[][] = [['movements']];
             if (!variables.isPending) { keys.push(['accounts'], ['pockets']); }
