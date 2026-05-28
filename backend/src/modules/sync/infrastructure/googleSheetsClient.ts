@@ -17,6 +17,9 @@ export function getGoogleClients() {
     throw new Error('GOOGLE_SERVICE_ACCOUNT_KEY is missing client_email or private_key');
   }
 
+  // Vercel may store \n as literal backslash-n — convert to real newlines
+  key.private_key = key.private_key.replace(/\\n/g, '\n');
+
   const auth = new google.auth.JWT({
     email: key.client_email,
     key: key.private_key,
