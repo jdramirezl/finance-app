@@ -54,6 +54,7 @@ import currencyRoutes from './modules/settings/presentation/currencyRoutes';
 import reminderRoutes from './modules/reminders/presentation/routes';
 import netWorthRoutes from './modules/net-worth/presentation/routes';
 import reportRoutes from './modules/reports/presentation/routes';
+import syncRoutes from './modules/sync/presentation/syncRoutes';
 
 const app = express();
 const PORT = process.env.PORT || process.env.BACKEND_PORT || 3001;
@@ -151,6 +152,9 @@ app.use('/api/net-worth-snapshots', cacheSettings, netWorthRoutes);
 
 // Mount reports routes
 app.use('/api/reports', cacheMovements, reportRoutes);
+
+// Mount sync routes
+app.use('/api/sync', syncRoutes);
 
 // 404 handler
 app.use((req: Request, res: Response) => {

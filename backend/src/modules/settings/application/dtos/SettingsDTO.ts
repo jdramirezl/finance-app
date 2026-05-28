@@ -25,6 +25,7 @@ export interface SettingsResponseDTO {
   movementsPerPage: number;
   reminderAdvanceDays: number;
   defaultCurrencyForNewAccounts: Currency;
+  googleSheetId?: string;
 }
 
 /**
@@ -43,4 +44,5 @@ export interface UpdateSettingsDTO {
   movementsPerPage?: number;
   reminderAdvanceDays?: number;
   defaultCurrencyForNewAccounts?: Currency;
+  googleSheetId?: string;
 }
