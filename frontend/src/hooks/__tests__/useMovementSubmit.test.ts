@@ -41,8 +41,6 @@ const baseFormData: MovementFormData = {
   targetPocketId: '',
   saveAsTemplate: false,
   templateName: '',
-  category: '',
-  tags: [],
 };
 
 describe('useMovementSubmit — reminder linking', () => {

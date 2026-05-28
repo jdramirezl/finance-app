@@ -8,8 +8,6 @@ import Button from '../ui/Button';
 import Input from '../ui/Input';
 import Select from '../ui/Select';
 import AccountPocketSelector from './AccountPocketSelector';
-import CategorySelector from './CategorySelector';
-import TagInput from './TagInput';
 import { toDateOnly } from '../../utils/dateUtils';
 import { MOVEMENT_TYPES, isFixedMovement } from '../../constants/movementTypes';
 import type { Movement, MovementType } from '../../types';
@@ -22,8 +20,6 @@ export interface MovementFormData {
   subPocketId: string;
   amount: string;
   notes: string;
-  category: string;
-  tags: string[];
   isPending: boolean;
   isTransfer: boolean;
   targetAccountId: string;
@@ -93,8 +89,6 @@ const MovementForm = forwardRef<MovementFormRef, MovementFormProps>(
         subPocketId: initialData?.subPocketId ?? '',
         amount: initialData ? initialData.amount.toString() : (prefillValues?.amount ? prefillValues.amount.toString() : ''),
         notes: initialData?.notes ?? prefillValues?.notes ?? '',
-        category: initialData?.category ?? '',
-        tags: initialData?.tags ?? [],
         isPending: initialData?.isPending ?? false,
         isTransfer: false,
         targetAccountId: '',
@@ -162,8 +156,6 @@ const MovementForm = forwardRef<MovementFormRef, MovementFormProps>(
         setValue('subPocketId', '');
         setValue('amount', '');
         setValue('notes', '');
-        setValue('category', '');
-        setValue('tags', []);
         setValue('type', 'EgresoNormal');
         return;
       }
@@ -258,6 +250,9 @@ const MovementForm = forwardRef<MovementFormRef, MovementFormProps>(
         {errors.pocketId && (
           <p className="text-sm text-red-600 dark:text-red-400">{errors.pocketId.message}</p>
         )}
+        {errors.subPocketId && (
+          <p className="text-sm text-red-600 dark:text-red-400">{errors.subPocketId.message}</p>
+        )}
 
         {isTransfer && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700">
@@ -295,16 +290,6 @@ const MovementForm = forwardRef<MovementFormRef, MovementFormProps>(
             />
           </div>
         )}
-
-        <CategorySelector
-          value={watch('category')}
-          onChange={(val) => setValue('category', val)}
-        />
-
-        <TagInput
-          value={watch('tags')}
-          onChange={(tags) => setValue('tags', tags)}
-        />
 
         <Input
           type="number"
@@ -366,9 +351,12 @@ const MovementForm = forwardRef<MovementFormRef, MovementFormProps>(
           </div>
         )}
 
-        {/* Hidden validation for accountId/pocketId/targetAccountId/targetPocketId */}
+        {/* Hidden validation for accountId/pocketId/targetAccountId/targetPocketId/subPocketId */}
         <input type="hidden" {...register('accountId', { required: 'Account is required' })} />
         <input type="hidden" {...register('pocketId', { required: 'Pocket is required' })} />
+        <input type="hidden" {...register('subPocketId', {
+          validate: (val) => !isDefaultFixedExpense || val.length > 0 || 'Sub-pocket is required for fixed expenses',
+        })} />
         <input type="hidden" {...register('targetAccountId', {
           validate: (val) => !isTransfer || val.length > 0 || 'Target account is required',
         })} />
