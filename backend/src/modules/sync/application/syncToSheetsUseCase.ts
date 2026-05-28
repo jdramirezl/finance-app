@@ -9,6 +9,7 @@ import {
   formatSettings,
 } from './formatters';
 import { createSpreadsheet, writeAllTabs } from './spreadsheetManager';
+import { applyFormatting } from './spreadsheetFormatter';
 
 export class SyncToSheetsUseCase {
   async execute(
@@ -114,6 +115,7 @@ export class SyncToSheetsUseCase {
 
     // Write to sheet
     await writeAllTabs(sheets, spreadsheetId, tabData);
+    await applyFormatting(sheets, spreadsheetId, tabData);
 
     return {
       spreadsheetUrl: `https://docs.google.com/spreadsheets/d/${spreadsheetId}`,
