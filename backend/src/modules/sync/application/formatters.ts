@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 export function formatSummary(stats: {
   lastSynced: string;
   accountCount: number;
@@ -10,111 +12,69 @@ export function formatSummary(stats: {
   ];
 }
 
-export function formatAccounts(
-  accounts: Array<{
-    id: string;
-    name: string;
-    currency: string;
-    type: string;
-    balance: number;
-    stockSymbol?: string;
-    archivedAt?: string | null;
-  }>,
-): string[][] {
+export function formatAccounts(accounts: any[]): string[][] {
   return [
     ['Name', 'Currency', 'Type', 'Balance', 'Stock Symbol', 'Archived', 'ID'],
     ...accounts.map((a) => [
-      a.name,
-      a.currency,
-      a.type,
-      String(a.balance),
-      a.stockSymbol ?? '',
-      a.archivedAt ? 'Yes' : '',
+      a.name ?? '',
+      a.currency ?? '',
+      a.type ?? '',
+      String(a.balance ?? 0),
+      a.stock_symbol ?? '',
+      a.archived_at ? 'Yes' : '',
       a.id,
     ]),
   ];
 }
 
-export function formatPockets(
-  pockets: Array<{
-    id: string;
-    name: string;
-    accountName: string;
-    type: string;
-    balance: number;
-    currency: string;
-    archivedAt?: string | null;
-  }>,
-): string[][] {
+export function formatPockets(pockets: any[]): string[][] {
   return [
     ['Account', 'Name', 'Type', 'Balance', 'Currency', 'Archived', 'ID'],
     ...pockets.map((p) => [
-      p.accountName,
-      p.name,
-      p.type,
-      String(p.balance),
-      p.currency,
-      p.archivedAt ? 'Yes' : '',
+      p.account_name ?? '',
+      p.name ?? '',
+      p.type ?? '',
+      String(p.balance ?? 0),
+      p.currency ?? '',
+      p.archived_at ? 'Yes' : '',
       p.id,
     ]),
   ];
 }
 
-export function formatFixedExpenses(
-  expenses: Array<{
-    id: string;
-    groupName: string;
-    name: string;
-    valueTotal: number;
-    periodicityMonths: number;
-    balance: number;
-    monthlyContribution: number;
-  }>,
-): string[][] {
+export function formatFixedExpenses(expenses: any[]): string[][] {
   return [
-    ['Group', 'Name', 'Target', 'Periodicity', 'Balance', 'Monthly Contribution', 'ID'],
+    ['Group', 'Name', 'Target', 'Periodicity (months)', 'Balance', 'Monthly Contribution', 'ID'],
     ...expenses.map((e) => [
-      e.groupName,
-      e.name,
-      String(e.valueTotal),
-      String(e.periodicityMonths),
-      String(e.balance),
-      String(e.monthlyContribution),
+      e.group_name ?? '',
+      e.name ?? '',
+      String(e.value_total ?? 0),
+      String(e.periodicity_months ?? 0),
+      String(e.balance ?? 0),
+      String(e.monthly_contribution ?? 0),
       e.id,
     ]),
   ];
 }
 
-export function formatMovements(
-  movements: Array<{
-    id: string;
-    displayedDate: string;
-    type: string;
-    accountName: string;
-    pocketName: string;
-    subPocketName?: string;
-    amount: number;
-    notes?: string;
-    isPending: boolean;
-  }>,
-): Map<number, string[][]> {
+export function formatMovements(movements: any[]): Map<number, string[][]> {
   const header = ['Date', 'Type', 'Account', 'Pocket', 'Sub-Pocket', 'Amount', 'Notes', 'Pending', 'ID'];
   const byYear = new Map<number, string[][]>();
 
   for (const m of movements) {
-    const year = new Date(m.displayedDate).getFullYear();
-    if (!byYear.has(year)) {
-      byYear.set(year, [header]);
-    }
+    const date = m.displayed_date ?? '';
+    const year = date ? new Date(date).getFullYear() : 0;
+    if (!Number.isFinite(year) || year === 0) continue;
+    if (!byYear.has(year)) byYear.set(year, [header]);
     byYear.get(year)!.push([
-      m.displayedDate,
-      m.type,
-      m.accountName,
-      m.pocketName,
-      m.subPocketName ?? '',
-      String(m.amount),
+      date,
+      m.type ?? '',
+      m.account_name ?? '',
+      m.pocket_name ?? '',
+      m.sub_pocket_name ?? '',
+      String(m.amount ?? 0),
       m.notes ?? '',
-      m.isPending ? 'Yes' : '',
+      m.is_pending ? 'Yes' : '',
       m.id,
     ]);
   }
@@ -122,20 +82,12 @@ export function formatMovements(
   return byYear;
 }
 
-export function formatNetWorth(
-  snapshots: Array<{
-    snapshotDate: string;
-    total: number;
-    breakdown?: Record<string, number>;
-    source?: string;
-    notes?: string;
-  }>,
-): string[][] {
+export function formatNetWorth(snapshots: any[]): string[][] {
   return [
     ['Date', 'Total', 'COP', 'USD', 'MXN', 'Source', 'Notes'],
     ...snapshots.map((s) => [
-      s.snapshotDate,
-      String(s.total),
+      s.snapshot_date ?? '',
+      String(s.total ?? 0),
       String(s.breakdown?.COP ?? ''),
       String(s.breakdown?.USD ?? ''),
       String(s.breakdown?.MXN ?? ''),
@@ -145,9 +97,11 @@ export function formatNetWorth(
   ];
 }
 
-export function formatSettings(settings: Record<string, string>): string[][] {
+export function formatSettings(settings: Record<string, any>): string[][] {
   return [
     ['Key', 'Value'],
-    ...Object.entries(settings).map(([k, v]) => [k, typeof v === 'object' ? JSON.stringify(v) : String(v ?? '')]),
+    ...Object.entries(settings)
+      .filter(([k]) => !['id', 'user_id', 'created_at', 'updated_at'].includes(k))
+      .map(([k, v]) => [k, typeof v === 'object' && v !== null ? JSON.stringify(v) : String(v ?? '')]),
   ];
 }

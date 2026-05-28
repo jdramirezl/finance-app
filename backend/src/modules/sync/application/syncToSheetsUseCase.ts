@@ -61,6 +61,9 @@ export class SyncToSheetsUseCase {
     const pocketMap = new Map(
       (pockets || []).map((p: any) => [p.id, p.name])
     );
+    const subPocketMap = new Map(
+      (subPockets || []).map((sp: any) => [sp.id, sp.name])
+    );
     const groupMap = new Map(
       (groups || []).map((g: any) => [g.id, g.name])
     );
@@ -68,22 +71,28 @@ export class SyncToSheetsUseCase {
     // Enrich data with joined names
     const enrichedPockets = (pockets || []).map((p: any) => ({
       ...p,
-      account_name: accountMap.get(p.account_id) || 'Unknown',
+      account_name: accountMap.get(p.account_id) || '',
     }));
 
     const enrichedMovements = (movements || []).map((m: any) => ({
       ...m,
-      account_name: accountMap.get(m.account_id) || 'Unknown',
+      account_name: accountMap.get(m.account_id) || '',
       pocket_name: pocketMap.get(m.pocket_id) || '',
+      sub_pocket_name: m.sub_pocket_id ? subPocketMap.get(m.sub_pocket_id) || '' : '',
     }));
 
     const enrichedSubPockets = (subPockets || []).map((sp: any) => ({
       ...sp,
-      group_name: groupMap.get(sp.group_id) || 'Unknown',
-      monthly_contribution: Math.ceil(
-        (sp.value_total - sp.balance) / sp.periodicity_months
-      ),
+      group_name: groupMap.get(sp.group_id) || '',
+      monthly_contribution: sp.periodicity_months > 0
+        ? Math.ceil((sp.value_total - sp.balance) / sp.periodicity_months)
+        : 0,
     }));
+
+    // Sort snapshots by date descending for latest net worth
+    const sortedSnapshots = [...(snapshots || [])].sort(
+      (a: any, b: any) => (b.snapshot_date || '').localeCompare(a.snapshot_date || '')
+    );
 
     // Format all tabs
     const tabData = new Map<string, string[][]>();
@@ -91,7 +100,7 @@ export class SyncToSheetsUseCase {
       lastSynced: new Date().toISOString(),
       accountCount: (accounts || []).length,
       movementCount: (movements || []).length,
-      netWorth: (snapshots || [])[0]?.total || 0,
+      netWorth: sortedSnapshots[0]?.total || 0,
     }));
     tabData.set('Accounts', formatAccounts(accounts || []));
     tabData.set('Pockets', formatPockets(enrichedPockets));
@@ -100,7 +109,7 @@ export class SyncToSheetsUseCase {
     for (const [year, rows] of movementsByYear) {
       tabData.set(`Movements ${year}`, rows);
     }
-    tabData.set('Net Worth', formatNetWorth(snapshots || []));
+    tabData.set('Net Worth', formatNetWorth(sortedSnapshots));
     tabData.set('Settings', formatSettings(settings || {}));
 
     // Write to sheet
