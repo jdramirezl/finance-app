@@ -148,6 +148,6 @@ export function formatNetWorth(
 export function formatSettings(settings: Record<string, string>): string[][] {
   return [
     ['Key', 'Value'],
-    ...Object.entries(settings).map(([k, v]) => [k, v]),
+    ...Object.entries(settings).map(([k, v]) => [k, typeof v === 'object' ? JSON.stringify(v) : String(v ?? '')]),
   ];
 }
