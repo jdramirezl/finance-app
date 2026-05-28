@@ -32,28 +32,14 @@ export async function writeAllTabs(
   const existingMap = new Map(existing.map(s => [s.properties!.title!, s.properties!.sheetId!]));
   const requests: sheets_v4.Schema$Request[] = [];
 
-  // Rename Sheet1 to first tab if it exists, otherwise delete it
-  if (existingMap.has('Sheet1')) {
-    if (!existingMap.has(tabNames[0])) {
-      requests.push({ updateSheetProperties: {
-        properties: { sheetId: existingMap.get('Sheet1'), title: tabNames[0] },
-        fields: 'title',
-      }});
-      existingMap.set(tabNames[0], existingMap.get('Sheet1')!);
-    } else {
-      requests.push({ deleteSheet: { sheetId: existingMap.get('Sheet1') } });
-    }
-    existingMap.delete('Sheet1');
-  }
-
-  // Delete tabs not in tabData
-  for (const [name, sheetId] of existingMap) {
-    if (!tabData.has(name)) requests.push({ deleteSheet: { sheetId } });
-  }
-
-  // Create tabs that don't exist
+  // Create tabs that don't exist yet (must happen before deletes)
   for (const name of tabNames) {
     if (!existingMap.has(name)) requests.push({ addSheet: { properties: { title: name } } });
+  }
+
+  // Delete tabs not in tabData (safe now since new tabs exist)
+  for (const [name, sheetId] of existingMap) {
+    if (!tabData.has(name)) requests.push({ deleteSheet: { sheetId } });
   }
 
   if (requests.length) {
