@@ -36,7 +36,8 @@ export class Settings {
     public dateFormat: DateFormatPreference = 'MMM d, yyyy',
     public movementsPerPage: number = 50,
     public reminderAdvanceDays: number = 7,
-    public defaultCurrencyForNewAccounts: Currency = 'USD'
+    public defaultCurrencyForNewAccounts: Currency = 'USD',
+    public googleSheetId?: string
   ) {
     this.validate();
   }
@@ -154,6 +155,7 @@ export class Settings {
       movementsPerPage: this.movementsPerPage,
       reminderAdvanceDays: this.reminderAdvanceDays,
       defaultCurrencyForNewAccounts: this.defaultCurrencyForNewAccounts,
+      googleSheetId: this.googleSheetId,
     };
   }
 }

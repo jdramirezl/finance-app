@@ -222,4 +222,5 @@ export interface Settings {
   movementsPerPage: number;
   reminderAdvanceDays: number;
   defaultCurrencyForNewAccounts: Currency;
+  googleSheetId?: string;
 }
