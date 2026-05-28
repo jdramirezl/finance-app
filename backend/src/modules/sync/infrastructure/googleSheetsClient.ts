@@ -6,7 +6,17 @@ export function getGoogleClients() {
     throw new Error('GOOGLE_SERVICE_ACCOUNT_KEY environment variable is not set');
   }
 
-  const key = JSON.parse(keyJson);
+  let key: any;
+  try {
+    key = JSON.parse(keyJson);
+  } catch (e) {
+    throw new Error(`Failed to parse GOOGLE_SERVICE_ACCOUNT_KEY: ${(e as Error).message}`);
+  }
+
+  if (!key.client_email || !key.private_key) {
+    throw new Error('GOOGLE_SERVICE_ACCOUNT_KEY is missing client_email or private_key');
+  }
+
   const auth = new google.auth.JWT({
     email: key.client_email,
     key: key.private_key,
