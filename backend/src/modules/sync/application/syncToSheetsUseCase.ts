@@ -115,7 +115,10 @@ export class SyncToSheetsUseCase {
 
     // Write to sheet
     await writeAllTabs(sheets, spreadsheetId, tabData);
-    await applyFormatting(sheets, spreadsheetId, tabData);
+    // Skip formatting on Vercel (10s timeout) — only apply locally
+    if (!process.env.VERCEL) {
+      await applyFormatting(sheets, spreadsheetId, tabData);
+    }
 
     return {
       spreadsheetUrl: `https://docs.google.com/spreadsheets/d/${spreadsheetId}`,
