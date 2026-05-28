@@ -25,7 +25,9 @@ export class SyncController {
         syncedAt: new Date().toISOString(),
       });
     } catch (error) {
-      next(error);
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      const stack = error instanceof Error ? error.stack : '';
+      res.status(500).json({ error: message, stack });
     }
   }
 }
