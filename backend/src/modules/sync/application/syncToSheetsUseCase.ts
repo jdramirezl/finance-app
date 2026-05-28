@@ -100,7 +100,7 @@ export class SyncToSheetsUseCase {
       lastSynced: new Date().toISOString(),
       accountCount: (accounts || []).length,
       movementCount: (movements || []).length,
-      netWorth: sortedSnapshots[0]?.total || 0,
+      netWorth: sortedSnapshots[0]?.total_net_worth || 0,
     }));
     tabData.set('Accounts', formatAccounts(accounts || []));
     tabData.set('Pockets', formatPockets(enrichedPockets));

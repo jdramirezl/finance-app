@@ -14,12 +14,14 @@ export function formatSummary(stats: {
 
 export function formatAccounts(accounts: any[]): string[][] {
   return [
-    ['Name', 'Currency', 'Type', 'Balance', 'Stock Symbol', 'Archived', 'ID'],
+    ['Name', 'Currency', 'Type', 'Balance', 'Principal', 'Interest Rate', 'Stock Symbol', 'Archived', 'ID'],
     ...accounts.map((a) => [
       a.name ?? '',
       a.currency ?? '',
       a.type ?? '',
       String(a.balance ?? 0),
+      a.type === 'cd' ? String(a.principal ?? 0) : '',
+      a.type === 'cd' ? String(a.interest_rate ?? 0) + '%' : '',
       a.stock_symbol ?? '',
       a.archived_at ? 'Yes' : '',
       a.id,
@@ -87,7 +89,7 @@ export function formatNetWorth(snapshots: any[]): string[][] {
     ['Date', 'Total', 'COP', 'USD', 'MXN', 'Source', 'Notes'],
     ...snapshots.map((s) => [
       s.snapshot_date ?? '',
-      String(s.total ?? 0),
+      String(s.total_net_worth ?? 0),
       String(s.breakdown?.COP ?? ''),
       String(s.breakdown?.USD ?? ''),
       String(s.breakdown?.MXN ?? ''),
