@@ -51,7 +51,7 @@ export async function writeAllTabs(
     await sheets.spreadsheets.values.update({
       spreadsheetId,
       range: `'${name}'`,
-      valueInputOption: 'RAW',
+      valueInputOption: 'USER_ENTERED',
       requestBody: { values: rows },
     });
   }
