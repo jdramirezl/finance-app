@@ -215,7 +215,7 @@ describe('BatchMovementForm', () => {
         subPocketId: 'sub1',
         amount: '10',
         notes: 'first',
-        category: 'food',
+        
         displayedDate: '2026-03-12',
       },
     ];
@@ -242,7 +242,6 @@ describe('BatchMovementForm', () => {
     // Money-shaped fields intentionally left blank for fresh input
     expect(rows[1].amount).toBe('');
     expect(rows[1].notes).toBe('');
-    expect(rows[1].category ?? '').toBe('');
     // New row gets its own id
     expect(rows[1].id).not.toBe('r1');
   });

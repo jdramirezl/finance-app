@@ -69,7 +69,7 @@ export const useMovementSubmit = ({
       type, accountId, pocketId, subPocketId,
       amount: amountStr, notes, displayedDate: dateStr,
       isPending, isTransfer, targetAccountId, targetPocketId,
-      saveAsTemplate, templateName, category,
+      saveAsTemplate, templateName,
     } = data;
 
     const amount = parseFloat(amountStr);
@@ -83,7 +83,6 @@ export const useMovementSubmit = ({
             type, accountId, pocketId,
             subPocketId: subPocketId || undefined,
             amount, notes: notes || undefined, displayedDate, isPending,
-            category: category || undefined,
           },
         });
         closeForms();
@@ -114,7 +113,6 @@ export const useMovementSubmit = ({
         type, accountId, pocketId, amount,
         notes: notes || undefined,
         displayedDate, subPocketId: subPocketId || undefined, isPending,
-        category: category || undefined,
       });
 
       useLastUsedPocket.getState().setLastUsed(toSimpleType(type), accountId, pocketId, type);
@@ -185,7 +183,6 @@ export const useMovementSubmit = ({
         notes: row.notes || undefined,
         displayedDate: row.displayedDate,
         isPending: row.isPending || false,
-        category: row.category || undefined,
       }))
     );
     setShowBatchForm(false);

@@ -4,7 +4,6 @@ import { Trash2 } from 'lucide-react';
 import Input from '../ui/Input';
 import Select from '../ui/Select';
 import AccountPocketSelector from './AccountPocketSelector';
-import CategorySelector from './CategorySelector';
 import { MOVEMENT_TYPES } from '../../constants/movementTypes';
 import type { MovementType } from '../../types';
 
@@ -27,7 +26,6 @@ export interface BatchMovementRow {
     amount: string;
     notes: string;
     displayedDate: string;
-    category?: string;
     isPending?: boolean;
 }
 
@@ -210,16 +208,6 @@ const BatchMovementRowComponent = ({
                 )}
             />
 
-            <Controller
-                control={control}
-                name={`rows.${index}.category`}
-                render={({ field }) => (
-                    <CategorySelector
-                        value={field.value ?? ''}
-                        onChange={field.onChange}
-                    />
-                )}
-            />
         </div>
     );
 };

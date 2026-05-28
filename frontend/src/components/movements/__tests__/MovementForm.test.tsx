@@ -64,8 +64,6 @@ describe('MovementForm', () => {
     expect(screen.getByLabelText(/type/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/date/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/amount/i)).toBeInTheDocument();
-    expect(screen.getByText('Category')).toBeInTheDocument();
-    expect(screen.getByText('Tags')).toBeInTheDocument();
   });
 
   it('shows red asterisk on required fields', () => {
@@ -159,13 +157,6 @@ describe('MovementForm', () => {
       expect(screen.getByLabelText(/amount/i)).toHaveValue(1200);
       expect(screen.getByLabelText(/notes/i)).toHaveValue('Rent payment');
     });
-  });
-
-  it('renders category selector and tag input', () => {
-    render(<MovementForm {...defaultProps} />);
-
-    expect(screen.getByText('Category')).toBeInTheDocument();
-    expect(screen.getByText('Tags')).toBeInTheDocument();
   });
 
   it('hides template selector when editing existing movement', () => {

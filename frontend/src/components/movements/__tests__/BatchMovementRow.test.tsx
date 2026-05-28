@@ -76,7 +76,6 @@ const Host = ({
     amount: '0',
     notes: '',
     displayedDate: '2026-01-15',
-    category: '',
     ...initialRow,
   };
 
@@ -144,12 +143,6 @@ describe('BatchMovementRow', () => {
     expect(screen.getByTestId('account-pocket-selector')).toHaveTextContent(
       'account=acc99|pocket=pkt99|type=IngresoFijo',
     );
-  });
-
-  it('renders the CategorySelector', () => {
-    render(<Host />);
-
-    expect(screen.getByTestId('category-selector')).toBeInTheDocument();
   });
 
   it('hides the remove button when canRemove is false', () => {
