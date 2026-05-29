@@ -99,11 +99,9 @@ export const calculateZoomRange = (
 
     const pctOf = (ts: number) => ((ts - min) / span) * 100;
 
-    if (range === '1w' || range === '2w' || range === '1m' || range === '3m' || range === '6m' || range === '1y' || range === '2y') {
+    if (range === '1m' || range === '3m' || range === '6m' || range === '1y' || range === '2y') {
         const now = max;
         const msMap: Record<string, number> = {
-            '1w': 7 * 24 * 60 * 60 * 1000,
-            '2w': 14 * 24 * 60 * 60 * 1000,
             '1m': 30 * 24 * 60 * 60 * 1000,
             '3m': 90 * 24 * 60 * 60 * 1000,
             '6m': 182 * 24 * 60 * 60 * 1000,
