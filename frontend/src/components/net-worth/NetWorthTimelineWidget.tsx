@@ -171,7 +171,7 @@ const NetWorthTimelineWidget = ({ totalsByCurrency = {}, consolidatedTotal = 0, 
     });
     const toggleLivePoint = useCallback(() => setShowLivePoint(prev => {
         const next = !prev;
-        try { localStorage.setItem('nw-phantom-live-point', String(next)); } catch {}
+        try { localStorage.setItem('nw-phantom-live-point', String(next)); } catch { /* ignore */ }
         return next;
     }), []);
 
