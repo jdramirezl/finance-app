@@ -182,7 +182,11 @@ const SummaryPage = () => {
           {/* Right column: Timeline + Widgets */}
           <div className="space-y-6">
             <ErrorBoundary>
-              <NetWorthTimelineWidget />
+              <NetWorthTimelineWidget
+                totalsByCurrency={totalsByCurrency}
+                consolidatedTotal={consolidatedTotal}
+                isConsolidatedReady={isConsolidatedReady}
+              />
             </ErrorBoundary>
 
             <ErrorBoundary>

@@ -1,6 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
-import { currencyService } from '../services/currencyService';
-import { useAccountsQuery, useSettingsQuery } from './queries';
+import type { Currency } from '../types';
 
 export interface PhantomPoint {
   date: string;
@@ -10,54 +8,29 @@ export interface PhantomPoint {
   isAnchor: true;
 }
 
-export const usePhantomNetWorthPoint = (): { data: PhantomPoint | null; isLoading: boolean } => {
-  const { data: accounts, isLoading: accountsLoading } = useAccountsQuery();
-  const { data: settings, isLoading: settingsLoading } = useSettingsQuery();
-  const primaryCurrency = settings?.primaryCurrency ?? 'COP';
+export interface UsePhantomNetWorthPointParams {
+  totalsByCurrency: Record<Currency, number>;
+  consolidatedTotal: number;
+  isReady: boolean;
+}
 
-  const activeAccounts = useMemo(
-    () => (accounts ?? []).filter((a) => !a.archivedAt),
-    [accounts]
-  );
-
-  const breakdown = useMemo(() => {
-    const map: Record<string, number> = {};
-    for (const a of activeAccounts) {
-      map[a.currency] = (map[a.currency] ?? 0) + a.balance;
-    }
-    return map;
-  }, [activeAccounts]);
-
-  const [total, setTotal] = useState<number | null>(null);
-
-  useEffect(() => {
-    if (accountsLoading || settingsLoading) return;
-    let ignore = false;
-
-    const convert = async () => {
-      let sum = 0;
-      const conversions: Array<{ amount: number; from: string; to: string }> = [];
-      for (const [currency, amount] of Object.entries(breakdown)) {
-        if (currency === primaryCurrency) { sum += amount; continue; }
-        conversions.push({ amount, from: currency, to: primaryCurrency });
-      }
-      if (conversions.length > 0) {
-        const results = await currencyService.convertBatch(conversions);
-        for (const { convertedAmount } of results) sum += convertedAmount;
-      }
-      if (!ignore) setTotal(sum);
-    };
-
-    convert();
-    return () => { ignore = true; };
-  }, [breakdown, primaryCurrency, accountsLoading, settingsLoading]);
-
-  if (accountsLoading || settingsLoading || total === null) {
-    return { data: null, isLoading: true };
+export const usePhantomNetWorthPoint = ({
+  totalsByCurrency,
+  consolidatedTotal,
+  isReady,
+}: UsePhantomNetWorthPointParams): { data: PhantomPoint | null; isLoading: boolean } => {
+  if (!isReady || consolidatedTotal === 0) {
+    return { data: null, isLoading: !isReady };
   }
 
   return {
-    data: { date: new Date().toISOString().slice(0, 10), total, breakdown, isPhantom: true, isAnchor: true },
+    data: {
+      date: new Date().toISOString().slice(0, 10),
+      total: consolidatedTotal,
+      breakdown: { ...totalsByCurrency },
+      isPhantom: true,
+      isAnchor: true,
+    },
     isLoading: false,
   };
 };

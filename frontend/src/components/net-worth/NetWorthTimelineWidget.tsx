@@ -145,7 +145,13 @@ export const calculateZoomRange = (
     return FULL_RANGE;
 };
 
-const NetWorthTimelineWidget = () => {
+interface NetWorthTimelineWidgetProps {
+    totalsByCurrency?: Record<string, number>;
+    consolidatedTotal?: number;
+    isConsolidatedReady?: boolean;
+}
+
+const NetWorthTimelineWidget = ({ totalsByCurrency = {}, consolidatedTotal = 0, isConsolidatedReady = false }: NetWorthTimelineWidgetProps) => {
     const { data: snapshots = [], isLoading } = useNetWorthSnapshotsQuery();
     const { data: settings } = useSettingsQuery();
 
@@ -167,7 +173,11 @@ const NetWorthTimelineWidget = () => {
         return next;
     }), []);
 
-    const { data: phantomPoint } = usePhantomNetWorthPoint();
+    const { data: phantomPoint } = usePhantomNetWorthPoint({
+        totalsByCurrency: totalsByCurrency as Record<import('../../types').Currency, number>,
+        consolidatedTotal,
+        isReady: isConsolidatedReady,
+    });
 
     const editModalRef = useRef<NetWorthEditModalHandle>(null);
 
@@ -249,7 +259,7 @@ const NetWorthTimelineWidget = () => {
         if (!showLivePoint || !phantomPoint) return echartData;
         const last = echartData[echartData.length - 1];
         if (last && phantomPoint.date <= last.date) return echartData;
-        return [...echartData, { date: phantomPoint.date, total: phantomPoint.total, snapshotId: '', fullDate: phantomPoint.date }];
+        return [...echartData, { date: phantomPoint.date, total: phantomPoint.total, snapshotId: 'phantom', fullDate: phantomPoint.date, isPhantom: true, isAnchor: true }];
     }, [echartData, showLivePoint, phantomPoint]);
 
     const finalCurrencyData = useMemo(() => {
