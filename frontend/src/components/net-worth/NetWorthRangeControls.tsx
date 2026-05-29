@@ -22,7 +22,7 @@
 
 import { useEffect, useId, useRef, useState } from 'react';
 
-export type NetWorthRange = '3m' | '6m' | '1y' | '2y' | 'all' | 'custom';
+export type NetWorthRange = '1m' | '3m' | '6m' | '1y' | '2y' | 'all' | 'custom';
 
 export interface NetWorthRangeControlsProps {
     /** Currently selected range. Drives the active-chip styling. */
@@ -52,6 +52,7 @@ interface ChipDef {
 // Order is intentional: presets first, escape hatch last. Keeping it as a
 // module-level constant avoids reallocating the array on every render.
 const CHIPS: readonly ChipDef[] = [
+    { value: '1m', label: '1M' },
     { value: '3m', label: '3M' },
     { value: '6m', label: '6M' },
     { value: '1y', label: '1Y' },

@@ -106,6 +106,12 @@ export interface NetWorthEChartDatum {
      * keep working unchanged.
      */
     isAnchor?: boolean;
+    /**
+     * Whether this point is a phantom (live/projected) data point.
+     * Phantom points render as green diamonds to distinguish them from
+     * real and derived points.
+     */
+    isPhantom?: boolean;
 }
 
 export interface NetWorthEChartProps {
@@ -736,6 +742,9 @@ const NetWorthEChart = ({
                           const resolved = showVariation
                               ? v ?? null
                               : v ?? 0;
+                          if (d.isPhantom) {
+                              return { value: [d.date, resolved], symbol: 'diamond', symbolSize: 10, itemStyle: { color: '#10b981', borderColor: '#10b981', borderWidth: 2 } };
+                          }
                           return [d.date, resolved];
                       }),
                       smooth: true,
@@ -771,6 +780,14 @@ const NetWorthEChart = ({
                           const value = showVariation
                               ? transformed ?? null
                               : d.total;
+                          if (d.isPhantom) {
+                              return {
+                                  value: [d.date, value],
+                                  symbol: 'diamond',
+                                  symbolSize: 10,
+                                  itemStyle: { color: '#10b981', borderColor: '#10b981', borderWidth: 2 },
+                              };
+                          }
                           return {
                               value: [d.date, value],
                               itemStyle: isDerived
@@ -954,6 +971,9 @@ const NetWorthEChart = ({
                                   ? formatTooltipDate(rawDate)
                                   : '';
                           }
+                          if (datum?.isPhantom) {
+                              dateLabel = `(Live) ${dateLabel}`;
+                          }
 
                           // Build a row per series. We look up the
                           // matching `currencyData` entry by name (set
@@ -1093,8 +1113,9 @@ const NetWorthEChart = ({
                                       // rather than collapse to the
                                       // raw absolute amount the user
                                       // toggled away from.
+                                      const phantomPrefix = datum.isPhantom ? '(Live) ' : '';
                                       return (
-                                          `<strong>${formatTooltipDate(datum.date)}</strong><br/>` +
+                                          `<strong>${phantomPrefix}${formatTooltipDate(datum.date)}</strong><br/>` +
                                           `N/A`
                                       );
                                   }
@@ -1102,7 +1123,9 @@ const NetWorthEChart = ({
                               } else {
                                   numericValue = datum.total;
                               }
-                              dateLabel = formatTooltipDate(datum.date);
+                              dateLabel = datum.isPhantom
+                                  ? `(Live) ${formatTooltipDate(datum.date)}`
+                                  : formatTooltipDate(datum.date);
                           } else {
                               // Fallback path: unpack the tuple ECharts ships
                               // through `value`.
@@ -1225,10 +1248,6 @@ const NetWorthEChart = ({
     // Wave 3: track the user's zoom so the option can echo it back and
     // so `visibleCount` can drive the smart axis + dot visibility.
     const handleDataZoom = useCallback((params: DataZoomEventParams) => {
-        // The slider fires `params.start`/`params.end`, the inside-zoom
-        // dispatches via `params.batch`. Take whichever is present;
-        // fall back to the existing range when neither is provided so
-        // we never collapse the chart to start === end.
         const batchEntry = params.batch?.[0];
         const start = params.start ?? batchEntry?.start;
         const end = params.end ?? batchEntry?.end;
