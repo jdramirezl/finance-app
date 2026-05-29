@@ -1252,29 +1252,11 @@ const NetWorthEChart = ({
         const start = params.start ?? batchEntry?.start;
         const end = params.end ?? batchEntry?.end;
         if (typeof start !== 'number' || typeof end !== 'number') return;
-
-        // Snap to nearest data point positions to avoid gaps
-        const n = data.length;
-        if (n > 1) {
-            const snapTo = (pct: number) => {
-                const idx = Math.round((pct / 100) * (n - 1));
-                const clamped = Math.max(0, Math.min(n - 1, idx));
-                return (clamped / (n - 1)) * 100;
-            };
-            const snappedStart = snapTo(start);
-            const snappedEnd = snapTo(end);
-            setZoomRange((prev) =>
-                prev.start === snappedStart && prev.end === snappedEnd
-                    ? prev
-                    : { start: snappedStart, end: snappedEnd },
-            );
-        } else {
-            setZoomRange((prev) =>
-                prev.start === start && prev.end === end
-                    ? prev
-                    : { start, end },
-            );
-        }
+        setZoomRange((prev) =>
+            prev.start === start && prev.end === end
+                ? prev
+                : { start, end },
+        );
     }, []);
 
     const onEvents = useMemo(
