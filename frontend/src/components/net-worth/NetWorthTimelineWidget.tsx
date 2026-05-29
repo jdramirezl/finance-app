@@ -45,6 +45,7 @@ import NetWorthRangeControls, {
     type NetWorthRange,
 } from './NetWorthRangeControls';
 import ExchangeRateTrend from './ExchangeRateTrend';
+import { currencyService } from '../../services/currencyService';
 
 type WidgetTab = NetWorthViewMode | 'rates';
 
@@ -269,11 +270,16 @@ const NetWorthTimelineWidget = ({ totalsByCurrency = {}, consolidatedTotal = 0, 
         if (!showLivePoint || !phantomPoint || !currencyData) return currencyData;
         const last = echartData[echartData.length - 1];
         if (last && phantomPoint.date <= last.date) return currencyData;
-        return currencyData.map(cd => ({
-            ...cd,
-            values: [...cd.values, phantomPoint.breakdown[cd.currency] ?? 0],
-        }));
-    }, [currencyData, showLivePoint, phantomPoint, echartData]);
+        const primary = settings?.primaryCurrency || 'COP';
+        return currencyData.map(cd => {
+            const native = phantomPoint.breakdown[cd.currency] ?? 0;
+            const converted = currencyService.convertAmount(native, cd.currency as import('../../types').Currency, primary as import('../../types').Currency);
+            return {
+                ...cd,
+                values: [...cd.values, converted],
+            };
+        });
+    }, [currencyData, showLivePoint, phantomPoint, echartData, settings]);
 
     // Compute zoom percentages from the EChart data so the dataZoom
     // window matches what the chart is actually rendering. Memoized on
