@@ -20,7 +20,7 @@
  * array so the chart can build one colored line per currency.
  */
 
-import { useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { TrendingUp } from 'lucide-react';
 
 import {
@@ -32,6 +32,7 @@ import {
     type NetWorthViewMode,
     CURRENCY_LINE_COLORS,
 } from '../../hooks/useNetWorthChartData';
+import { usePhantomNetWorthPoint } from '../../hooks/usePhantomNetWorthPoint';
 import Card from '../ui/Card';
 import CurrencyAmount from '../ui/CurrencyAmount';
 import NetWorthEChart, {
@@ -157,6 +158,17 @@ const NetWorthTimelineWidget = () => {
     const [customTo, setCustomTo] = useState<string>('');
     const [showVariation, setShowVariation] = useState(false);
 
+    const [showLivePoint, setShowLivePoint] = useState(() => {
+        try { return localStorage.getItem('nw-phantom-live-point') !== 'false'; } catch { return true; }
+    });
+    const toggleLivePoint = useCallback(() => setShowLivePoint(prev => {
+        const next = !prev;
+        try { localStorage.setItem('nw-phantom-live-point', String(next)); } catch {}
+        return next;
+    }), []);
+
+    const { data: phantomPoint } = usePhantomNetWorthPoint();
+
     const editModalRef = useRef<NetWorthEditModalHandle>(null);
 
     const primaryCurrency = settings?.primaryCurrency || 'USD';
@@ -232,6 +244,24 @@ const NetWorthTimelineWidget = () => {
         }));
     }, [viewMode, currencies, chartData]);
 
+    // Phantom live point: append to echartData when toggle is on
+    const finalChartData = useMemo(() => {
+        if (!showLivePoint || !phantomPoint) return echartData;
+        const last = echartData[echartData.length - 1];
+        if (last && phantomPoint.date <= last.date) return echartData;
+        return [...echartData, { date: phantomPoint.date, total: phantomPoint.total, snapshotId: '', fullDate: phantomPoint.date }];
+    }, [echartData, showLivePoint, phantomPoint]);
+
+    const finalCurrencyData = useMemo(() => {
+        if (!showLivePoint || !phantomPoint || !currencyData) return currencyData;
+        const last = echartData[echartData.length - 1];
+        if (last && phantomPoint.date <= last.date) return currencyData;
+        return currencyData.map(cd => ({
+            ...cd,
+            values: [...cd.values, phantomPoint.breakdown[cd.currency] ?? 0],
+        }));
+    }, [currencyData, showLivePoint, phantomPoint, echartData]);
+
     // Compute zoom percentages from the EChart data so the dataZoom
     // window matches what the chart is actually rendering. Memoized on
     // the inputs that affect the result so unchanged chip selections
@@ -239,11 +269,11 @@ const NetWorthTimelineWidget = () => {
     // chart) instead of fresh objects that would re-trigger the
     // chart's effect.
     const zoomRange = useMemo(() => {
-        const timestamps = echartData.map((d) =>
+        const timestamps = finalChartData.map((d) =>
             new Date(d.fullDate).getTime(),
         );
         return calculateZoomRange(timestamps, activeRange, customFrom, customTo);
-    }, [echartData, activeRange, customFrom, customTo]);
+    }, [finalChartData, activeRange, customFrom, customTo]);
 
     const handleRangeChange = (
         range: NetWorthRange,
@@ -343,27 +373,38 @@ const NetWorthTimelineWidget = () => {
                         initialCustomTo={customTo}
                     />
 
-                    <label className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 cursor-pointer select-none">
-                        <input
-                            type="checkbox"
-                            checked={showVariation}
-                            onChange={(e) => setShowVariation(e.target.checked)}
-                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                        />
-                        Show Variation (%)
-                    </label>
+                    <div className="flex items-center gap-4">
+                        <label className="flex items-center gap-1.5 text-xs text-gray-400 cursor-pointer">
+                            <input
+                                type="checkbox"
+                                checked={showLivePoint}
+                                onChange={toggleLivePoint}
+                                className="w-3.5 h-3.5 rounded border-gray-600 text-emerald-500 focus:ring-emerald-500"
+                            />
+                            Live Point
+                        </label>
+                        <label className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 cursor-pointer select-none">
+                            <input
+                                type="checkbox"
+                                checked={showVariation}
+                                onChange={(e) => setShowVariation(e.target.checked)}
+                                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                            />
+                            Show Variation (%)
+                        </label>
+                    </div>
                 </div>
 
                 {/* Chart */}
                 <NetWorthEChart
-                    data={echartData}
+                    data={finalChartData}
                     primaryCurrency={primaryCurrency}
                     showVariation={showVariation}
                     onPointClick={handlePointClick}
                     dataZoomStart={zoomRange.start}
                     dataZoomEnd={zoomRange.end}
                     viewMode={viewMode === 'breakdown' ? 'breakdown' : 'total'}
-                    currencyData={currencyData}
+                    currencyData={finalCurrencyData}
                 />
 
                 {/* Latest Value */}
