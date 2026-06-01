@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
-import { Plus } from 'lucide-react';
+import { ArrowRightLeft, Plus } from 'lucide-react';
 import {
   usePocketsQuery,
   useMovementTemplatesQuery,
@@ -35,6 +35,7 @@ import OrphanedMovementsPanel from '../components/movements/OrphanedMovementsPan
 import BulkActionsToolbar from '../components/movements/BulkActionsToolbar';
 import MovementFormPanel from '../components/movements/MovementFormPanel';
 import RestoreOrphanedModal from '../components/movements/RestoreOrphanedModal';
+import TransferModal from '../components/movements/TransferModal';
 import QuickAddMovement from '../components/movements/QuickAddMovement';
 import YearMonthNav from '../components/movements/YearMonthNav';
 import FloatingStatsBar from '../components/summary/FloatingStatsBar';
@@ -116,6 +117,7 @@ const MovementsPage = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [showOrphaned, setShowOrphaned] = useState(false);
   const [showBatchForm, setShowBatchForm] = useState(false);
+  const [showTransferModal, setShowTransferModal] = useState(false);
   const batchFormRef = useRef<BatchMovementFormRef>(null);
   const movementFormRef = useRef<MovementFormRef>(null);
   const [activeBatchRowId, setActiveBatchRowId] = useState<string | null>(null);
@@ -157,7 +159,6 @@ const MovementsPage = () => {
     formState, closeForms, setShowBatchForm, setError, toast,
     mutations: {
       createMovement: movementMutations.createMovement,
-      createTransfer: movementMutations.createTransfer,
       updateMovement: movementMutations.updateMovement,
       createMovementTemplate,
       markAsPaidMutation,
@@ -249,6 +250,15 @@ const MovementsPage = () => {
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Movements</h1>
         <div className="flex gap-2">
+          <Button
+            variant="secondary"
+            onClick={() => setShowTransferModal(true)}
+            className="px-2 sm:px-4"
+            aria-label="Transfer funds"
+          >
+            <ArrowRightLeft className="w-5 h-5" aria-hidden="true" />
+            <span className="hidden sm:inline ml-2">Transfer</span>
+          </Button>
           <Button
             variant="secondary"
             onClick={() => setShowBatchForm(true)}
@@ -366,6 +376,13 @@ const MovementsPage = () => {
         sourceLabel={restore.modalState.sourceLabel}
         isSubmitting={restore.isSubmitting}
         onConfirm={restore.confirmRestore}
+      />
+
+      <TransferModal
+        isOpen={showTransferModal}
+        onClose={() => setShowTransferModal(false)}
+        onSubmit={async (data) => { await movementMutations.createTransfer.mutateAsync(data); }}
+        isSaving={movementMutations.createTransfer.isPending}
       />
 
       <FloatingStatsBar primaryCurrency={primaryCurrency} />

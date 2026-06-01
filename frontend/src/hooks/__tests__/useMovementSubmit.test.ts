@@ -36,9 +36,6 @@ const baseFormData: MovementFormData = {
   notes: 'Netflix',
   displayedDate: '2025-06-15',
   isPending: false,
-  isTransfer: false,
-  targetAccountId: '',
-  targetPocketId: '',
   saveAsTemplate: false,
   templateName: '',
 };
@@ -64,11 +61,7 @@ describe('useMovementSubmit — reminder linking', () => {
       setError: vi.fn(),
       toast: { success: vi.fn(), error: vi.fn(), warning: vi.fn(), info: vi.fn() } as any,
       mutations: {
-        // Strict typing on `UseMutationResult` requires a full mutation
-        // surface. The minimal `{ mutateAsync, isPending }` mocks are
-        // sufficient for the code paths exercised here, so cast away.
         createMovement: createMovement as any,
-        createTransfer: { mutateAsync: vi.fn(), isPending: false } as any,
         updateMovement: { mutateAsync: vi.fn(), isPending: false } as any,
         createMovementTemplate: { mutateAsync: vi.fn(), isPending: false } as any,
         markAsPaidMutation: markAsPaidMutation as any,

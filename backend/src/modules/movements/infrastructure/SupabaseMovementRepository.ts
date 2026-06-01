@@ -49,6 +49,9 @@ export class SupabaseMovementRepository implements IMovementRepository {
       p_amount: params.amount,
       p_displayed_date: params.displayedDate,
       p_notes: params.notes ?? null,
+      p_transfer_pair_id: params.transferPairId ?? null,
+      p_source_notes: params.sourceNotes ?? null,
+      p_target_notes: params.targetNotes ?? null,
     });
 
     if (error) {

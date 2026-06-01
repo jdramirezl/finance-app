@@ -45,6 +45,9 @@ export interface CreateTransferAtomicParams {
   amount: number;
   displayedDate: string;
   notes?: string;
+  transferPairId?: string;
+  sourceNotes?: string;
+  targetNotes?: string;
 }
 
 /**

@@ -11,7 +11,7 @@ import { useLastUsedPocket, toSimpleType } from '../../store/useLastUsedPocket';
 
 type MovementMutations = Pick<
   ReturnType<typeof useMovementMutations>,
-  'createMovement' | 'createTransfer' | 'updateMovement'
+  'createMovement' | 'updateMovement'
 >;
 
 type TemplateMutations = Pick<
@@ -41,7 +41,7 @@ export interface UseMovementSubmitResult {
 
 /**
  * Encapsulates the imperative submit flow for the movements modal:
- * create / update / transfer (single) and batch create.
+ * create / update (single) and batch create.
  *
  * Receives validated MovementFormData from react-hook-form instead of
  * extracting values from FormData.
@@ -56,7 +56,6 @@ export const useMovementSubmit = ({
 }: UseMovementSubmitParams): UseMovementSubmitResult => {
   const {
     createMovement,
-    createTransfer,
     updateMovement,
     createMovementTemplate,
     markAsPaidMutation,
@@ -68,8 +67,7 @@ export const useMovementSubmit = ({
     const {
       type, accountId, pocketId, subPocketId,
       amount: amountStr, notes, displayedDate: dateStr,
-      isPending, isTransfer, targetAccountId, targetPocketId,
-      saveAsTemplate, templateName,
+      isPending, saveAsTemplate, templateName,
     } = data;
 
     const amount = parseFloat(amountStr);
@@ -95,19 +93,6 @@ export const useMovementSubmit = ({
       const wasReminderDate = formState.reminderDate;
       const wasReminderRecurring = formState.reminderRecurring;
       closeForms();
-
-      if (isTransfer) {
-        await createTransfer.mutateAsync({
-          sourceAccountId: accountId,
-          sourcePocketId: pocketId,
-          targetAccountId,
-          targetPocketId,
-          amount, displayedDate, notes: notes || undefined,
-        });
-        useLastUsedPocket.getState().setLastUsed(toSimpleType(type), accountId, pocketId, type);
-        toast.success('Transfer created successfully!');
-        return;
-      }
 
       const newMovement = await createMovement.mutateAsync({
         type, accountId, pocketId, amount,

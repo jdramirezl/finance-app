@@ -23,7 +23,8 @@ export class Movement {
     public orphanedAccountCurrency?: Currency,
     public orphanedPocketName?: string,
     public category?: string,
-    public tags: string[] = []
+    public tags: string[] = [],
+    public transferPairId?: string
   ) {
     this.validate();
   }
@@ -195,6 +196,7 @@ export class Movement {
       orphanedPocketName: this.orphanedPocketName,
       category: this.category,
       tags: this.tags,
+      transferPairId: this.transferPairId,
     };
   }
 }

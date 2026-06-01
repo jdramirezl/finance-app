@@ -56,6 +56,7 @@ export interface MovementResponseDTO {
   orphanedPocketName?: string;
   category?: string;
   tags?: string[];
+  transferPairId?: string;
   createdAt?: string;
 }
 
