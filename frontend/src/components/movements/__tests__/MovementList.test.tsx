@@ -6,10 +6,12 @@ import type { Movement } from '../../../types';
 
 const mockAccounts = [
   { id: 'acc1', name: 'Checking', color: '#000', currency: 'USD', balance: 1000, type: 'normal' as const },
+  { id: 'acc2', name: 'Savings', color: '#00f', currency: 'USD', balance: 5000, type: 'normal' as const },
 ];
 
 const mockPockets = [
   { id: 'pkt1', name: 'General', accountId: 'acc1', balance: 500, type: 'normal' as const, currency: 'USD' as const },
+  { id: 'pkt2', name: 'Emergency', accountId: 'acc2', balance: 3000, type: 'normal' as const, currency: 'USD' as const },
 ];
 
 const mockReminders = [
@@ -264,5 +266,113 @@ describe('MovementList', () => {
     );
 
     expect(screen.getByRole('checkbox', { name: /select movement/i })).toBeChecked();
+  });
+
+  describe('Transfer pair grouping', () => {
+    const transferPairId = 'pair-abc-123';
+
+    const transferExpense = buildMovement({
+      id: 'tx-exp',
+      type: 'EgresoNormal',
+      accountId: 'acc1',
+      pocketId: 'pkt1',
+      amount: 500,
+      notes: 'Transfer to savings',
+      transferPairId,
+    });
+
+    const transferIncome = buildMovement({
+      id: 'tx-inc',
+      type: 'IngresoNormal',
+      accountId: 'acc2',
+      pocketId: 'pkt2',
+      amount: 500,
+      notes: 'Transfer to savings',
+      transferPairId,
+    });
+
+    it('renders a combined transfer card when both pair movements are present', () => {
+      render(
+        <MovementList
+          {...defaultProps}
+          movements={[transferExpense, transferIncome]}
+        />,
+      );
+
+      expect(screen.getByText(/General.*→.*Emergency/)).toBeInTheDocument();
+      expect(screen.getByText('Transfer')).toBeInTheDocument();
+    });
+
+    it('renders only one card for a transfer pair (not two rows)', () => {
+      render(
+        <MovementList
+          {...defaultProps}
+          movements={[transferExpense, transferIncome]}
+        />,
+      );
+
+      // Should have exactly one checkbox (the combined card), not two
+      const checkboxes = screen.getAllByRole('checkbox');
+      expect(checkboxes).toHaveLength(1);
+    });
+
+    it('renders a normal row with Transfer badge when pair is not on the page', () => {
+      // Only the expense is present (income is on another page)
+      render(
+        <MovementList
+          {...defaultProps}
+          movements={[transferExpense]}
+        />,
+      );
+
+      // Should render as a normal MovementRow with a Transfer badge
+      expect(screen.getByText('Transfer to savings')).toBeInTheDocument();
+      expect(screen.getByText('Transfer')).toBeInTheDocument();
+      expect(screen.getByText('Checking')).toBeInTheDocument();
+    });
+
+    it('shows source account name when accounts differ', () => {
+      render(
+        <MovementList
+          {...defaultProps}
+          movements={[transferExpense, transferIncome]}
+        />,
+      );
+
+      // Since accounts differ, should show account names in parentheses
+      expect(screen.getByText(/General \(Checking\).*→.*Emergency \(Savings\)/)).toBeInTheDocument();
+    });
+
+    it('calls onDelete with expense id when delete is clicked on transfer card', async () => {
+      const user = userEvent.setup();
+      const onDelete = vi.fn();
+
+      render(
+        <MovementList
+          {...defaultProps}
+          movements={[transferExpense, transferIncome]}
+          onDelete={onDelete}
+        />,
+      );
+
+      await user.click(screen.getByRole('button', { name: /delete transfer/i }));
+      expect(onDelete).toHaveBeenCalledWith('tx-exp');
+    });
+
+    it('calls onEdit with expense movement when edit is clicked on transfer card', async () => {
+      const user = userEvent.setup();
+      const onEdit = vi.fn();
+
+      render(
+        <MovementList
+          {...defaultProps}
+          movements={[transferExpense, transferIncome]}
+          onEdit={onEdit}
+        />,
+      );
+
+      await user.click(screen.getByRole('button', { name: /edit transfer/i }));
+      expect(onEdit).toHaveBeenCalledWith(transferExpense);
+    });
   });
 });
