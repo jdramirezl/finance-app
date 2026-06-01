@@ -99,10 +99,10 @@ const TransferModal = ({ isOpen, onClose, onSubmit, isSaving }: TransferModalPro
     <Modal isOpen={isOpen} onClose={onClose} title="Transfer Funds" size="lg">
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Source / Arrow / Target row */}
-        <div className="grid grid-cols-[1fr_auto_1fr] gap-4 items-start">
+        <div className="grid grid-cols-[1fr_auto_1fr] gap-4 items-stretch">
           {/* Source */}
-          <div className="space-y-3">
-            <p className="text-sm font-medium text-gray-500 dark:text-gray-400">From</p>
+          <div className="p-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 space-y-3">
+            <p className="text-xs font-bold uppercase tracking-wide text-red-400">From</p>
             <Select
               label="Account"
               options={accountOptions}
@@ -111,7 +111,7 @@ const TransferModal = ({ isOpen, onClose, onSubmit, isSaving }: TransferModalPro
               required
             />
             <Select
-              label="Pocket"
+              label="→ Pocket"
               options={sourcePocketOptions}
               value={sourcePocketId}
               onChange={(e) => setSourcePocketId(e.target.value)}
@@ -121,12 +121,12 @@ const TransferModal = ({ isOpen, onClose, onSubmit, isSaving }: TransferModalPro
           </div>
 
           {/* Center arrow + swap */}
-          <div className="flex flex-col items-center justify-center gap-2 pt-8">
-            <ArrowRight className="w-5 h-5 text-gray-400" />
+          <div className="flex flex-col items-center justify-center gap-2">
+            <ArrowRight className="w-6 h-6 text-blue-400" />
             <button
               type="button"
               onClick={handleSwap}
-              className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+              className="p-2 rounded-full hover:bg-gray-700 transition-colors text-gray-500 hover:text-white"
               aria-label="Swap source and target"
             >
               <ArrowLeftRight className="w-4 h-4" />
@@ -134,8 +134,8 @@ const TransferModal = ({ isOpen, onClose, onSubmit, isSaving }: TransferModalPro
           </div>
 
           {/* Target */}
-          <div className="space-y-3">
-            <p className="text-sm font-medium text-gray-500 dark:text-gray-400">To</p>
+          <div className="p-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 space-y-3">
+            <p className="text-xs font-bold uppercase tracking-wide text-emerald-400">To</p>
             <Select
               label="Account"
               options={accountOptions}
@@ -144,7 +144,7 @@ const TransferModal = ({ isOpen, onClose, onSubmit, isSaving }: TransferModalPro
               required
             />
             <Select
-              label="Pocket"
+              label="→ Pocket"
               options={targetPocketOptions}
               value={targetPocketId}
               onChange={(e) => setTargetPocketId(e.target.value)}
