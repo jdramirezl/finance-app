@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useRef, useEffect } from 'react';
 import { useAccountsQuery, usePocketsQuery, useSubPocketsQuery } from '../../hooks/queries';
 import { formatCurrency } from '../../utils/formatCurrency';
 import { CheckCircle2 } from 'lucide-react';
@@ -8,6 +8,7 @@ import type { Currency } from '../../types';
 interface AccountContextPanelProps {
   accountId: string | null;
   selectedPocketId: string | null;
+  selectedSubPocketId?: string | null;
   className?: string;
   deltas?: {
     accountDeltas: Record<string, number>;
@@ -16,7 +17,7 @@ interface AccountContextPanelProps {
   };
 }
 
-const AccountContextPanel = ({ accountId, selectedPocketId, className = '', deltas }: AccountContextPanelProps) => {
+const AccountContextPanel = ({ accountId, selectedPocketId, selectedSubPocketId, className = '', deltas }: AccountContextPanelProps) => {
   const { data: accounts = [] } = useAccountsQuery();
   const { data: allPockets = [] } = usePocketsQuery();
   const { data: allSubPockets = [] } = useSubPocketsQuery();
@@ -33,6 +34,14 @@ const AccountContextPanel = ({ accountId, selectedPocketId, className = '', delt
 
   const getSubPocketsForPocket = (pocketId: string) => 
     allSubPockets.filter(sp => sp.pocketId === pocketId);
+
+  const selectedRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (selectedRef.current) {
+      selectedRef.current.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+  }, [selectedPocketId]);
 
   if (!accountId || !account) {
     return (
@@ -112,6 +121,7 @@ const AccountContextPanel = ({ accountId, selectedPocketId, className = '', delt
               return (
                 <div key={pocket.id} className="space-y-1">
                   <div
+                    ref={isSelected ? selectedRef : undefined}
                     className={`
                       p-3 rounded-lg border transition-all
                       ${isSelected 
@@ -164,16 +174,30 @@ const AccountContextPanel = ({ accountId, selectedPocketId, className = '', delt
                   {/* Sub-pockets for Fixed Expenses */}
                   {pocket.type === 'fixed' && subPockets.length > 0 && (
                     <div className="ml-4 space-y-1">
-                      {subPockets.map(subPocket => (
+                      {subPockets.map(subPocket => {
+                        const isSubSelected = subPocket.id === selectedSubPocketId;
+                        return (
                         <div
                           key={subPocket.id}
-                          className="p-2 rounded-md bg-purple-50/50 dark:bg-purple-900/10 border border-purple-200/50 dark:border-purple-800/30"
+                          className={`p-2 rounded-md border ${
+                            isSubSelected
+                              ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-300 dark:border-blue-700 shadow-sm'
+                              : 'bg-purple-50/50 dark:bg-purple-900/10 border-purple-200/50 dark:border-purple-800/30'
+                          }`}
                         >
                           <div className="flex items-center justify-between gap-2">
-                            <p className="text-xs font-medium text-purple-700 dark:text-purple-300 truncate">
+                            <p className={`text-xs font-medium truncate ${
+                              isSubSelected
+                                ? 'text-blue-700 dark:text-blue-300'
+                                : 'text-purple-700 dark:text-purple-300'
+                            }`}>
                               {subPocket.name}
                             </p>
-                            <div className="text-xs font-semibold text-purple-600 dark:text-purple-400">
+                            <div className={`text-xs font-semibold ${
+                              isSubSelected
+                                ? 'text-blue-600 dark:text-blue-400'
+                                : 'text-purple-600 dark:text-purple-400'
+                            }`}>
                               {renderBalancePreview(
                                 subPocket.balance,
                                 deltas?.subPocketDeltas[subPocket.id] || 0,
@@ -184,7 +208,8 @@ const AccountContextPanel = ({ accountId, selectedPocketId, className = '', delt
                             </div>
                           </div>
                         </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                 </div>
@@ -193,6 +218,40 @@ const AccountContextPanel = ({ accountId, selectedPocketId, className = '', delt
           </div>
         )}
       </div>
+
+      {/* Sub-Pocket Detail Card */}
+      {selectedSubPocketId && (() => {
+        const sp = allSubPockets.find(s => s.id === selectedSubPocketId);
+        if (!sp) return null;
+        const pocket = allPockets.find(p => p.id === sp.pocketId);
+        const currency = pocket?.currency || account.currency;
+        const progress = sp.valueTotal > 0 ? Math.min((sp.balance / sp.valueTotal) * 100, 100) : 0;
+        const monthly = sp.valueTotal > 0 && sp.periodicityMonths > 0
+          ? Math.ceil((sp.valueTotal - sp.balance) / sp.periodicityMonths)
+          : 0;
+        return (
+          <div className="p-3 border-t border-gray-200 dark:border-gray-700 bg-purple-50/50 dark:bg-purple-900/10">
+            <p className="text-xs font-semibold text-purple-700 dark:text-purple-300 mb-2 truncate">{sp.name}</p>
+            <div className="space-y-1 text-xs">
+              <div className="flex justify-between">
+                <span className="text-gray-500 dark:text-gray-400">Target</span>
+                <span className="font-medium text-gray-900 dark:text-gray-100">{formatCurrency(sp.valueTotal, currency)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500 dark:text-gray-400">Balance</span>
+                <span className="font-medium text-gray-900 dark:text-gray-100">{formatCurrency(sp.balance, currency)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500 dark:text-gray-400">Monthly</span>
+                <span className="font-medium text-gray-900 dark:text-gray-100">{formatCurrency(monthly, currency)}</span>
+              </div>
+            </div>
+            <div className="mt-2 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+              <div className="h-full bg-purple-500 dark:bg-purple-400 rounded-full" style={{ width: `${progress}%` }} />
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Footer Info */}
       <div className="p-3 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
