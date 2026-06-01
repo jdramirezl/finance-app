@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { Download, Sheet } from 'lucide-react';
+import { CloudUpload, Download, Sheet } from 'lucide-react';
 import Button from '../ui/Button';
 import Card from '../ui/Card';
 import DebugExchangeRate from './DebugExchangeRate';
 import DebugStockPrice from './DebugStockPrice';
 import { apiClient } from '../../services/apiClient';
+import { budgetPlanningService } from '../../services/budgetPlanningService';
 import { useToast } from '../../hooks/useToast';
 
 export interface DataPrivacySectionProps {
@@ -14,8 +15,26 @@ export interface DataPrivacySectionProps {
 
 const DataPrivacySection = ({ isExporting, onExport }: DataPrivacySectionProps) => {
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isSavingBudget, setIsSavingBudget] = useState(false);
   const [syncResult, setSyncResult] = useState<{ spreadsheetUrl: string; syncedAt: string } | null>(null);
   const toast = useToast();
+
+  const handleSaveBudget = async () => {
+    setIsSavingBudget(true);
+    try {
+      const raw = localStorage.getItem('finance_app_budget_planning');
+      if (!raw) {
+        toast.error('No budget data found in local storage');
+        return;
+      }
+      await budgetPlanningService.save(JSON.parse(raw));
+      toast.success('Budget saved to cloud!');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to save budget');
+    } finally {
+      setIsSavingBudget(false);
+    }
+  };
 
   const handleSync = async () => {
     setIsSyncing(true);
@@ -55,6 +74,26 @@ const DataPrivacySection = ({ isExporting, onExport }: DataPrivacySectionProps) 
           >
             <Download className="w-4 h-4 mr-2" />
             Export
+          </Button>
+        </div>
+      </Card>
+
+      <Card>
+        <div className="flex items-center justify-between">
+          <div>
+            <h4 className="font-semibold text-gray-100">Budget Cloud Sync</h4>
+            <p className="text-sm text-gray-400">
+              Save your current budget allocations and scenarios to the cloud
+            </p>
+          </div>
+          <Button
+            variant="secondary"
+            onClick={handleSaveBudget}
+            loading={isSavingBudget}
+            disabled={isSavingBudget}
+          >
+            <CloudUpload className="w-4 h-4 mr-2" />
+            Save to Cloud
           </Button>
         </div>
       </Card>
