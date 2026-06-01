@@ -72,19 +72,20 @@ test.describe('Settings and Net Worth flows', () => {
     await page.goto('/settings');
     await page.getByRole('heading', { name: 'Settings' }).waitFor();
 
-    // Primary currency lives in the Preferences section (the default).
-    // The <label>Base Currency</label> isn't associated to its <select>
-    // via htmlFor, so use an adjacent-sibling locator.
-    const currencySelect = page.locator('label:has-text("Base Currency") + select');
+    // Navigate to Preferences section (default active)
+    const currencySelect = page.locator('select').filter({ has: page.locator(`option[value="USD"]`) }).first();
+    await currencySelect.waitFor({ state: 'visible', timeout: 5000 });
     originalCurrency = await currencySelect.inputValue();
 
     const targetCurrency = originalCurrency === 'USD' ? 'EUR' : 'USD';
     await currencySelect.selectOption(targetCurrency);
-    await page.waitForTimeout(500);
+
+    // Wait for the mutation to settle
+    await page.waitForTimeout(1500);
 
     // Verify the choice is reflected on the summary page.
     await page.goto('/summary');
-    await page.waitForTimeout(1000);
+    await page.waitForLoadState('networkidle');
     const pageContent = await page.textContent('body');
     expect(pageContent).toContain(targetCurrency === 'USD' ? '$' : '€');
   });
