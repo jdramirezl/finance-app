@@ -150,6 +150,8 @@ describe('useBudgetPersistence', () => {
         defaultAccountId: '',
         defaultPocketId: '',
         budgetCurrency: '',
+        allocationScenarios: [],
+        activeAllocationScenarioId: '',
       });
     });
 

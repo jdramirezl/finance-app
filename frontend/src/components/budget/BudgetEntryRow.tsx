@@ -13,6 +13,12 @@ export interface DistributionEntry {
     accountId?: string;
 }
 
+export interface AllocationScenario {
+    id: string;
+    name: string;
+    entries: DistributionEntry[];
+}
+
 interface BudgetEntryRowProps {
     entry: DistributionEntry;
     amount: number;
