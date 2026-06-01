@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import type { DistributionEntry } from '../components/budget';
+import type { AllocationScenario, DistributionEntry } from '../components/budget';
 import type { PlanningScenario } from '../components/budget/ScenarioForm';
 import type { Currency } from '../constants/currencies';
 import { budgetPlanningService } from '../services/budgetPlanningService';
@@ -12,6 +12,8 @@ export interface BudgetPlanningData {
   initialAmount: number;
   distributionEntries: DistributionEntry[];
   scenarios: PlanningScenario[];
+  allocationScenarios: AllocationScenario[];
+  activeAllocationScenarioId: string;
   defaultAccountId: string;
   defaultPocketId: string;
   /**
@@ -27,6 +29,8 @@ const DEFAULT_DATA: BudgetPlanningData = {
   initialAmount: 0,
   distributionEntries: [],
   scenarios: [],
+  allocationScenarios: [],
+  activeAllocationScenarioId: '',
   defaultAccountId: '',
   defaultPocketId: '',
   budgetCurrency: '',
@@ -49,6 +53,10 @@ export interface UseBudgetPersistenceResult {
   setDistributionEntries: (entries: DistributionEntry[]) => void;
   scenarios: PlanningScenario[];
   setScenarios: React.Dispatch<React.SetStateAction<PlanningScenario[]>>;
+  allocationScenarios: AllocationScenario[];
+  setAllocationScenarios: React.Dispatch<React.SetStateAction<AllocationScenario[]>>;
+  activeAllocationScenarioId: string;
+  setActiveAllocationScenarioId: (value: string) => void;
   defaultAccountId: string;
   setDefaultAccountId: (value: string) => void;
   defaultPocketId: string;
@@ -74,6 +82,12 @@ export const useBudgetPersistence = (): UseBudgetPersistenceResult => {
     local.distributionEntries,
   );
   const [scenarios, setScenarios] = useState<PlanningScenario[]>(local.scenarios);
+  const [allocationScenarios, setAllocationScenarios] = useState<AllocationScenario[]>(
+    local.allocationScenarios,
+  );
+  const [activeAllocationScenarioId, setActiveAllocationScenarioId] = useState<string>(
+    local.activeAllocationScenarioId,
+  );
   const [defaultAccountId, setDefaultAccountId] = useState<string>(local.defaultAccountId);
   const [defaultPocketId, setDefaultPocketId] = useState<string>(local.defaultPocketId);
   const [budgetCurrency, setBudgetCurrency] = useState<Currency | ''>(
@@ -97,6 +111,7 @@ export const useBudgetPersistence = (): UseBudgetPersistenceResult => {
       remoteData.initialAmount > 0 ||
       remoteData.distributionEntries.length > 0 ||
       remoteData.scenarios.length > 0 ||
+      (remoteData.allocationScenarios?.length ?? 0) > 0 ||
       remoteData.defaultAccountId !== '' ||
       remoteData.defaultPocketId !== '';
     if (!hasData) {
@@ -106,6 +121,8 @@ export const useBudgetPersistence = (): UseBudgetPersistenceResult => {
     setInitialAmount(remoteData.initialAmount);
     setDistributionEntries(remoteData.distributionEntries);
     setScenarios(remoteData.scenarios);
+    setAllocationScenarios(remoteData.allocationScenarios ?? []);
+    setActiveAllocationScenarioId(remoteData.activeAllocationScenarioId ?? '');
     setDefaultAccountId(remoteData.defaultAccountId);
     setDefaultPocketId(remoteData.defaultPocketId);
     setBudgetCurrency((remoteData.budgetCurrency as Currency | '') || '');
@@ -126,6 +143,8 @@ export const useBudgetPersistence = (): UseBudgetPersistenceResult => {
       initialAmount,
       distributionEntries,
       scenarios,
+      allocationScenarios,
+      activeAllocationScenarioId,
       defaultAccountId,
       defaultPocketId,
       budgetCurrency,
@@ -143,7 +162,7 @@ export const useBudgetPersistence = (): UseBudgetPersistenceResult => {
     }, PERSIST_DELAY_MS);
 
     return () => clearTimeout(timeoutId);
-  }, [initialAmount, distributionEntries, scenarios, defaultAccountId, defaultPocketId, budgetCurrency]);
+  }, [initialAmount, distributionEntries, scenarios, allocationScenarios, activeAllocationScenarioId, defaultAccountId, defaultPocketId, budgetCurrency]);
 
   return {
     initialAmount,
@@ -152,6 +171,10 @@ export const useBudgetPersistence = (): UseBudgetPersistenceResult => {
     setDistributionEntries,
     scenarios,
     setScenarios,
+    allocationScenarios,
+    setAllocationScenarios,
+    activeAllocationScenarioId,
+    setActiveAllocationScenarioId,
     defaultAccountId,
     setDefaultAccountId,
     defaultPocketId,

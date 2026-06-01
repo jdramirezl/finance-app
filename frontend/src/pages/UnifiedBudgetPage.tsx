@@ -39,6 +39,7 @@ import {
   ObligationsHeader,
   PortfolioDonutChart,
 } from '../components/budget';
+import type { AllocationScenario, DistributionEntry } from '../components/budget';
 import {
   FixedExpenseForm,
   FixedExpenseGroupForm,
@@ -86,10 +87,14 @@ const UnifiedBudgetPage = () => {
   const {
     initialAmount,
     setInitialAmount,
-    distributionEntries,
+    distributionEntries: persistedDistributionEntries,
     setDistributionEntries,
     scenarios,
     setScenarios,
+    allocationScenarios,
+    setAllocationScenarios,
+    activeAllocationScenarioId,
+    setActiveAllocationScenarioId,
     defaultAccountId,
     defaultPocketId,
     budgetCurrency: persistedBudgetCurrency,
@@ -122,6 +127,19 @@ const UnifiedBudgetPage = () => {
 
   const primaryCurrency = settings?.primaryCurrency || 'USD';
   const budgetCurrency = (persistedBudgetCurrency || fixedPockets[0]?.currency || primaryCurrency) as Currency;
+
+  const activeAllocScenario = allocationScenarios.find(s => s.id === activeAllocationScenarioId);
+  const distributionEntries = activeAllocScenario?.entries ?? persistedDistributionEntries;
+
+  const handleDistributionEntriesChange = useCallback((entries: DistributionEntry[]) => {
+    if (activeAllocScenario) {
+      setAllocationScenarios(prev => prev.map(s =>
+        s.id === activeAllocationScenarioId ? { ...s, entries } : s
+      ));
+    } else {
+      setDistributionEntries(entries);
+    }
+  }, [activeAllocScenario, activeAllocationScenarioId, setAllocationScenarios, setDistributionEntries]);
 
   const totalCount = fixedSubPockets.length;
 
@@ -353,12 +371,55 @@ const UnifiedBudgetPage = () => {
               }}
             />
 
+            {/* Allocation scenario tabs */}
+            <div className="flex gap-2 flex-wrap">
+              <button
+                onClick={() => setActiveAllocationScenarioId('')}
+                className={`px-3 py-1 text-xs rounded-full ${!activeAllocationScenarioId ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-300'}`}
+              >
+                Default
+              </button>
+              {allocationScenarios.map(s => (
+                <span key={s.id} className="inline-flex items-center gap-1">
+                  <button
+                    onClick={() => setActiveAllocationScenarioId(s.id)}
+                    className={`px-3 py-1 text-xs rounded-full ${activeAllocationScenarioId === s.id ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-300'}`}
+                  >
+                    {s.name}
+                  </button>
+                  {activeAllocationScenarioId === s.id && (
+                    <button
+                      onClick={() => {
+                        setAllocationScenarios(prev => prev.filter(x => x.id !== s.id));
+                        setActiveAllocationScenarioId('');
+                      }}
+                      className="text-xs text-red-400 hover:text-red-300"
+                      title="Delete scenario"
+                    >
+                      ×
+                    </button>
+                  )}
+                </span>
+              ))}
+              <button
+                onClick={() => {
+                  const id = crypto.randomUUID();
+                  const newScenario: AllocationScenario = { id, name: `Scenario ${allocationScenarios.length + 1}`, entries: [] };
+                  setAllocationScenarios(prev => [...prev, newScenario]);
+                  setActiveAllocationScenarioId(id);
+                }}
+                className="px-3 py-1 text-xs rounded-full bg-gray-700 text-gray-400 hover:text-white"
+              >
+                + New
+              </button>
+            </div>
+
             <AllocationStrategy
               entries={distributionEntries}
               distributable={budgetActions.remaining}
               currency={budgetCurrency}
               totalPercentage={totalPercentage}
-              onEntriesChange={setDistributionEntries}
+              onEntriesChange={handleDistributionEntriesChange}
               showConversion={budgetActions.showConversion}
               convertedAmounts={budgetActions.convertedAmounts}
               primaryCurrency={primaryCurrency}

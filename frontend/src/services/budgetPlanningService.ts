@@ -5,6 +5,8 @@ const DEFAULT_DATA: BudgetPlanningData = {
   initialAmount: 0,
   distributionEntries: [],
   scenarios: [],
+  allocationScenarios: [],
+  activeAllocationScenarioId: '',
   defaultAccountId: '',
   defaultPocketId: '',
   budgetCurrency: '',
