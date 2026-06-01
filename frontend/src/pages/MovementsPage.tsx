@@ -201,7 +201,7 @@ const MovementsPage = () => {
             targetPocketId: income.pocketId,
             amount: expense.amount,
             notes: expense.notes || '',
-            displayedDate: expense.displayedDate,
+            displayedDate: expense.displayedDate.slice(0, 10),
             expenseId: expense.id,
             incomeId: income.id,
           });
