@@ -41,7 +41,7 @@ const AccountContextPanel = ({ accountId, selectedPocketId, selectedSubPocketId,
     if (selectedRef.current) {
       selectedRef.current.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
     }
-  }, [selectedPocketId]);
+  }, [selectedPocketId, selectedSubPocketId]);
 
   if (!accountId || !account) {
     return (
@@ -179,6 +179,7 @@ const AccountContextPanel = ({ accountId, selectedPocketId, selectedSubPocketId,
                         return (
                         <div
                           key={subPocket.id}
+                          ref={isSubSelected ? selectedRef : undefined}
                           className={`p-2 rounded-md border ${
                             isSubSelected
                               ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-300 dark:border-blue-700 shadow-sm'
@@ -218,40 +219,6 @@ const AccountContextPanel = ({ accountId, selectedPocketId, selectedSubPocketId,
           </div>
         )}
       </div>
-
-      {/* Sub-Pocket Detail Card */}
-      {selectedSubPocketId && (() => {
-        const sp = allSubPockets.find(s => s.id === selectedSubPocketId);
-        if (!sp) return null;
-        const pocket = allPockets.find(p => p.id === sp.pocketId);
-        const currency = pocket?.currency || account.currency;
-        const progress = sp.valueTotal > 0 ? Math.min((sp.balance / sp.valueTotal) * 100, 100) : 0;
-        const monthly = sp.valueTotal > 0 && sp.periodicityMonths > 0
-          ? Math.ceil((sp.valueTotal - sp.balance) / sp.periodicityMonths)
-          : 0;
-        return (
-          <div className="p-3 border-t border-gray-200 dark:border-gray-700 bg-purple-50/50 dark:bg-purple-900/10">
-            <p className="text-xs font-semibold text-purple-700 dark:text-purple-300 mb-2 truncate">{sp.name}</p>
-            <div className="space-y-1 text-xs">
-              <div className="flex justify-between">
-                <span className="text-gray-500 dark:text-gray-400">Target</span>
-                <span className="font-medium text-gray-900 dark:text-gray-100">{formatCurrency(sp.valueTotal, currency)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-500 dark:text-gray-400">Balance</span>
-                <span className="font-medium text-gray-900 dark:text-gray-100">{formatCurrency(sp.balance, currency)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-500 dark:text-gray-400">Monthly</span>
-                <span className="font-medium text-gray-900 dark:text-gray-100">{formatCurrency(monthly, currency)}</span>
-              </div>
-            </div>
-            <div className="mt-2 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-              <div className="h-full bg-purple-500 dark:bg-purple-400 rounded-full" style={{ width: `${progress}%` }} />
-            </div>
-          </div>
-        );
-      })()}
 
       {/* Footer Info */}
       <div className="p-3 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
