@@ -77,6 +77,7 @@ const buildProps = (overrides: Partial<MovementFormPanelProps> = {}): MovementFo
   sidePanel: {
     activeAccountId: '',
     activePocketId: '',
+    activeSubPocketId: '',
     balanceDeltas: { accountDeltas: {}, pocketDeltas: {}, subPocketDeltas: {} },
     selectedPocketBalance: null,
     onUseCalculatorAmount: vi.fn(),

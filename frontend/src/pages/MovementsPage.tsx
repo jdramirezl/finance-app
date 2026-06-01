@@ -191,6 +191,7 @@ const MovementsPage = () => {
   // Side panel data
   const activeAccountId = showBatchForm ? batchActiveAccountId : formState.liveValues.accountId;
   const activePocketId = showBatchForm ? batchActivePocketId : formState.liveValues.pocketId;
+  const activeSubPocketId = showBatchForm ? '' : formState.liveValues.subPocketId;
   const selectedPocketBalance = useMemo(() => {
     const pocket = pockets.find((p) => p.id === activePocketId);
     return pocket ? pocket.balance : null;
@@ -351,7 +352,7 @@ const MovementsPage = () => {
           onBatchRowsChange: setBatchRows,
         }}
         sidePanel={{
-          activeAccountId, activePocketId, balanceDeltas, selectedPocketBalance,
+          activeAccountId, activePocketId, activeSubPocketId, balanceDeltas, selectedPocketBalance,
           onUseCalculatorAmount: handleUseCalculatorAmount,
         }}
         movementFormRef={movementFormRef}

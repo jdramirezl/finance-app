@@ -26,6 +26,7 @@ export interface BatchFormBindings {
 export interface SidePanelBindings {
   activeAccountId: string;
   activePocketId: string;
+  activeSubPocketId: string;
   balanceDeltas: BalanceDeltas;
   selectedPocketBalance: number | null;
   onUseCalculatorAmount: (amount: number) => void;
@@ -137,6 +138,7 @@ const MovementFormPanel = ({
               <AccountContextPanel
                 accountId={sidePanel.activeAccountId || null}
                 selectedPocketId={sidePanel.activePocketId || null}
+                selectedSubPocketId={sidePanel.activeSubPocketId || null}
                 deltas={sidePanel.balanceDeltas}
               />
             </div>
