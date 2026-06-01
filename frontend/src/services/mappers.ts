@@ -104,6 +104,7 @@ export function mapMovementRow(row: any): Movement {
     orphanedPocketName: row.orphaned_pocket_name ?? undefined,
     category: row.category ?? undefined,
     tags: row.tags ?? undefined,
+    transferPairId: row.transfer_pair_id ?? undefined,
   };
 }
 

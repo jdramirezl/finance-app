@@ -106,6 +106,7 @@ export interface Movement {
   orphanedPocketName?: string; // Original pocket name (for matching + display)
   category?: string;
   tags?: string[];
+  transferPairId?: string;
 }
 
 // Investment-specific properties (extends Account)

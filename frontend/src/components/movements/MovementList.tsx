@@ -1,6 +1,6 @@
 import { memo, useCallback, useMemo } from 'react';
 import { format, parseISO } from 'date-fns';
-import { ChevronDown, ChevronUp, Edit2, Trash2, Bell, Filter } from 'lucide-react';
+import { ChevronDown, ChevronUp, Edit2, Trash2, Bell, Filter, ArrowRightLeft } from 'lucide-react';
 import Button from '../ui/Button';
 import Card from '../ui/Card';
 import { useAccountsQuery, usePocketsQuery, useRemindersQuery } from '../../hooks/queries';
@@ -141,6 +141,11 @@ const MovementRow = memo(({
                                 Pending
                             </span>
                         )}
+                        {movement.transferPairId && (
+                            <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-indigo-800 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
+                                Transfer
+                            </span>
+                        )}
                         {movement.category && (
                             <span
                                 className="text-xs px-2 py-0.5 rounded-full text-white flex items-center gap-1"
@@ -229,6 +234,120 @@ const MovementRow = memo(({
 });
 
 MovementRow.displayName = 'MovementRow';
+
+interface TransferCardProps {
+    expense: Movement;
+    sourcePocket: Pocket | undefined;
+    targetPocket: Pocket | undefined;
+    sourceAccount: Account | undefined;
+    targetAccount: Account | undefined;
+    isSelected: boolean;
+    onToggleSelection: (id: string) => void;
+    onEdit: (movement: Movement) => void;
+    onDelete: (id: string) => void;
+    isDeleting: boolean;
+}
+
+const TransferCard = memo(({
+    expense,
+    sourcePocket,
+    targetPocket,
+    sourceAccount,
+    targetAccount,
+    isSelected,
+    onToggleSelection,
+    onEdit,
+    onDelete,
+    isDeleting,
+}: TransferCardProps) => {
+    const sourceName = sourcePocket?.name || 'Unknown';
+    const targetName = targetPocket?.name || 'Unknown';
+    const sourceLabel = sourceAccount && sourceAccount.id !== targetAccount?.id
+        ? `${sourceName} (${sourceAccount.name})`
+        : sourceName;
+    const targetLabel = targetAccount && targetAccount.id !== sourceAccount?.id
+        ? `${targetName} (${targetAccount.name})`
+        : targetName;
+
+    return (
+        <div
+            className={`
+                group relative flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-lg border-l-4 border-l-indigo-500 border border-gray-200 dark:border-gray-700 bg-indigo-900/5 dark:bg-indigo-900/10 transition-all gap-4 sm:gap-0
+                ${isSelected ? 'ring-2 ring-blue-500' : ''}
+            `}
+        >
+            <div className="flex items-start gap-4">
+                <div className="pt-1">
+                    <label className="flex items-center justify-center min-w-[44px] min-h-[44px] cursor-pointer">
+                        <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => onToggleSelection(expense.id)}
+                            className="w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                            aria-label={`Select transfer: ${sourceLabel} → ${targetLabel}`}
+                        />
+                    </label>
+                </div>
+
+                <div className="p-2.5 rounded-xl bg-gradient-to-br from-indigo-50 to-indigo-100 dark:from-indigo-900/20 dark:to-indigo-900/30 shadow-sm">
+                    <ArrowRightLeft className="w-5 h-5 text-indigo-600 dark:text-indigo-400" aria-hidden="true" />
+                </div>
+
+                <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-medium text-gray-900 dark:text-gray-100">
+                            {sourceLabel} → {targetLabel}
+                        </span>
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-indigo-800 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
+                            Transfer
+                        </span>
+                    </div>
+                    <div className="text-sm text-gray-500 dark:text-gray-400 mt-1 flex flex-wrap items-center gap-2">
+                        <span>{format(parseISO(expense.displayedDate), 'MMM d, yyyy')}</span>
+                        {expense.notes && (
+                            <>
+                                <span className="hidden sm:inline">•</span>
+                                <span>{expense.notes}</span>
+                            </>
+                        )}
+                    </div>
+                </div>
+            </div>
+
+            <div className="flex items-center justify-between sm:justify-end gap-4 w-full sm:w-auto pl-12 sm:pl-0">
+                <span className="font-semibold text-indigo-700 dark:text-indigo-300">
+                    {expense.amount.toLocaleString(undefined, { style: 'currency', currency: sourceAccount?.currency || 'USD' })}
+                </span>
+
+                <div className="flex gap-2 opacity-60 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+                    <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => onEdit(expense)}
+                        className="text-gray-500 hover:text-blue-600 p-2.5"
+                        title="Edit Transfer"
+                        aria-label={`Edit transfer: ${sourceLabel} → ${targetLabel}`}
+                    >
+                        <Edit2 className="w-5 h-5" aria-hidden="true" />
+                    </Button>
+                    <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => onDelete(expense.id)}
+                        loading={isDeleting}
+                        className="text-gray-500 hover:text-red-600 p-2.5"
+                        title="Delete Transfer"
+                        aria-label={`Delete transfer: ${sourceLabel} → ${targetLabel}`}
+                    >
+                        <Trash2 className="w-5 h-5" aria-hidden="true" />
+                    </Button>
+                </div>
+            </div>
+        </div>
+    );
+});
+
+TransferCard.displayName = 'TransferCard';
 
 const MovementList = ({
     movements,
@@ -356,23 +475,56 @@ const MovementList = ({
             </div>
 
             <div className="space-y-2">
-                {movements.map((movement) => (
-                    <MovementRow
-                        key={movement.id}
-                        movement={movement}
-                        account={accountById.get(movement.accountId)}
-                        pocket={pocketById.get(movement.pocketId)}
-                        linkedReminder={reminderByMovementId.get(movement.id)}
-                        isSelected={selectedMovementIds.has(movement.id)}
-                        isDeleting={deletingId === movement.id}
-                        isApplying={applyingId === movement.id}
-                        onToggleSelection={toggleSelection}
-                        onEdit={onEdit}
-                        onDelete={onDelete}
-                        onApplyPending={onApplyPending}
-                        onUpdateAmount={onUpdateAmount}
-                    />
-                ))}
+                {(() => {
+                    const renderedPairIds = new Set<string>();
+                    return movements.map((movement) => {
+                        // Transfer pair grouping
+                        if (movement.transferPairId) {
+                            if (renderedPairIds.has(movement.transferPairId)) return null;
+                            renderedPairIds.add(movement.transferPairId);
+                            const pair = movements.find(
+                                (m) => m.transferPairId === movement.transferPairId && m.id !== movement.id
+                            );
+                            if (pair) {
+                                const expense = movement.type.includes('Egreso') ? movement : pair;
+                                const income = movement.type.includes('Egreso') ? pair : movement;
+                                return (
+                                    <TransferCard
+                                        key={expense.id}
+                                        expense={expense}
+                                        sourcePocket={pocketById.get(expense.pocketId)}
+                                        targetPocket={pocketById.get(income.pocketId)}
+                                        sourceAccount={accountById.get(expense.accountId)}
+                                        targetAccount={accountById.get(income.accountId)}
+                                        isSelected={selectedMovementIds.has(expense.id) || selectedMovementIds.has(income.id)}
+                                        onToggleSelection={toggleSelection}
+                                        onEdit={onEdit}
+                                        onDelete={onDelete}
+                                        isDeleting={deletingId === expense.id || deletingId === income.id}
+                                    />
+                                );
+                            }
+                            // Pair not on this page — render normally with badge (handled by MovementRow via transferPairId presence)
+                        }
+                        return (
+                            <MovementRow
+                                key={movement.id}
+                                movement={movement}
+                                account={accountById.get(movement.accountId)}
+                                pocket={pocketById.get(movement.pocketId)}
+                                linkedReminder={reminderByMovementId.get(movement.id)}
+                                isSelected={selectedMovementIds.has(movement.id)}
+                                isDeleting={deletingId === movement.id}
+                                isApplying={applyingId === movement.id}
+                                onToggleSelection={toggleSelection}
+                                onEdit={onEdit}
+                                onDelete={onDelete}
+                                onApplyPending={onApplyPending}
+                                onUpdateAmount={onUpdateAmount}
+                            />
+                        );
+                    });
+                })()}
             </div>
             {/* Floating Stats Bar */}
             {selectedMovementIds.size > 0 && (

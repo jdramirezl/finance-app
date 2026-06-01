@@ -118,6 +118,12 @@ const MovementsPage = () => {
   const [showOrphaned, setShowOrphaned] = useState(false);
   const [showBatchForm, setShowBatchForm] = useState(false);
   const [showTransferModal, setShowTransferModal] = useState(false);
+  const [editingTransferData, setEditingTransferData] = useState<{
+    sourceAccountId: string; sourcePocketId: string;
+    targetAccountId: string; targetPocketId: string;
+    amount: number; notes: string; displayedDate: string;
+    expenseId: string; incomeId: string;
+  } | null>(null);
   const batchFormRef = useRef<BatchMovementFormRef>(null);
   const movementFormRef = useRef<MovementFormRef>(null);
   const [activeBatchRowId, setActiveBatchRowId] = useState<string | null>(null);
@@ -181,12 +187,34 @@ const MovementsPage = () => {
 
   const handleEditMovement = useCallback(
     (movement: Movement) => {
+      if (movement.transferPairId) {
+        const pair = movements.find(
+          (m) => m.transferPairId === movement.transferPairId && m.id !== movement.id,
+        );
+        const expense = movement.type.includes('Egreso') ? movement : pair;
+        const income = movement.type.includes('Egreso') ? pair : movement;
+        if (expense && income) {
+          setEditingTransferData({
+            sourceAccountId: expense.accountId,
+            sourcePocketId: expense.pocketId,
+            targetAccountId: income.accountId,
+            targetPocketId: income.pocketId,
+            amount: expense.amount,
+            notes: expense.notes || '',
+            displayedDate: expense.displayedDate.slice(0, 10),
+            expenseId: expense.id,
+            incomeId: income.id,
+          });
+          setShowTransferModal(true);
+          return;
+        }
+      }
       formState.openEditForm(
         movement,
         pockets.find((p) => p.id === movement.pocketId),
       );
     },
-    [formState, pockets],
+    [formState, pockets, movements],
   );
 
   // Side panel data
@@ -380,8 +408,16 @@ const MovementsPage = () => {
 
       <TransferModal
         isOpen={showTransferModal}
-        onClose={() => setShowTransferModal(false)}
-        onSubmit={async (data) => { await movementMutations.createTransfer.mutateAsync(data); }}
+        onClose={() => { setShowTransferModal(false); setEditingTransferData(null); }}
+        initialData={editingTransferData ?? undefined}
+        onSubmit={async (data) => {
+          if (editingTransferData) {
+            await movementMutations.deleteMovement.mutateAsync(editingTransferData.expenseId);
+            await movementMutations.deleteMovement.mutateAsync(editingTransferData.incomeId);
+          }
+          await movementMutations.createTransfer.mutateAsync(data);
+          setEditingTransferData(null);
+        }}
         isSaving={movementMutations.createTransfer.isPending}
       />
 

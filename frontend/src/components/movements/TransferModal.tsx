@@ -7,24 +7,27 @@ import Button from '../ui/Button';
 import { useAccountsQuery } from '../../hooks/queries/useAccountsQuery';
 import { usePocketsQuery } from '../../hooks/queries/usePocketsQuery';
 
+interface TransferInitialData {
+  sourceAccountId: string;
+  sourcePocketId: string;
+  targetAccountId: string;
+  targetPocketId: string;
+  amount: number;
+  notes: string;
+  displayedDate: string;
+}
+
 interface TransferModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (data: {
-    sourceAccountId: string;
-    sourcePocketId: string;
-    targetAccountId: string;
-    targetPocketId: string;
-    amount: number;
-    notes: string;
-    displayedDate: string;
-  }) => Promise<void>;
+  onSubmit: (data: TransferInitialData) => Promise<void>;
   isSaving: boolean;
+  initialData?: TransferInitialData;
 }
 
 const today = () => new Date().toISOString().slice(0, 10);
 
-const TransferModal = ({ isOpen, onClose, onSubmit, isSaving }: TransferModalProps) => {
+const TransferModal = ({ isOpen, onClose, onSubmit, isSaving, initialData }: TransferModalProps) => {
   const { data: accounts = [] } = useAccountsQuery();
   const { data: pockets = [] } = usePocketsQuery();
 
@@ -39,15 +42,25 @@ const TransferModal = ({ isOpen, onClose, onSubmit, isSaving }: TransferModalPro
   // Reset form when modal opens
   useEffect(() => {
     if (isOpen) {
-      setSourceAccountId('');
-      setSourcePocketId('');
-      setTargetAccountId('');
-      setTargetPocketId('');
-      setAmount('');
-      setNotes('');
-      setDisplayedDate(today());
+      if (initialData) {
+        setSourceAccountId(initialData.sourceAccountId);
+        setSourcePocketId(initialData.sourcePocketId);
+        setTargetAccountId(initialData.targetAccountId);
+        setTargetPocketId(initialData.targetPocketId);
+        setAmount(String(initialData.amount));
+        setNotes(initialData.notes);
+        setDisplayedDate(initialData.displayedDate);
+      } else {
+        setSourceAccountId('');
+        setSourcePocketId('');
+        setTargetAccountId('');
+        setTargetPocketId('');
+        setAmount('');
+        setNotes('');
+        setDisplayedDate(today());
+      }
     }
-  }, [isOpen]);
+  }, [isOpen, initialData]);
 
   const accountOptions = useMemo(
     () => [{ value: '', label: 'Select account' }, ...accounts.map((a) => ({ value: a.id, label: `${a.name} (${a.currency})` }))],
@@ -96,7 +109,7 @@ const TransferModal = ({ isOpen, onClose, onSubmit, isSaving }: TransferModalPro
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Transfer Funds" size="lg">
+    <Modal isOpen={isOpen} onClose={onClose} title={initialData ? 'Edit Transfer' : 'Transfer Funds'} size="lg">
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Source / Arrow / Target row */}
         <div className="grid grid-cols-[1fr_auto_1fr] gap-4 items-stretch">
@@ -189,7 +202,7 @@ const TransferModal = ({ isOpen, onClose, onSubmit, isSaving }: TransferModalPro
             Cancel
           </Button>
           <Button variant="primary" type="submit" disabled={isSaving}>
-            {isSaving ? 'Transferring...' : 'Transfer'}
+            {isSaving ? 'Saving...' : (initialData ? 'Update Transfer' : 'Transfer')}
           </Button>
         </div>
       </form>
