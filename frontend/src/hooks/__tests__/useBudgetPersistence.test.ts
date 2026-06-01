@@ -4,6 +4,15 @@ import type { DistributionEntry } from '../../components/budget';
 import type { PlanningScenario } from '../../components/budget/ScenarioForm';
 import { useBudgetPersistence } from '../useBudgetPersistence';
 
+vi.mock('../../services/budgetPlanningService', () => ({
+  budgetPlanningService: { get: vi.fn().mockResolvedValue(null), save: vi.fn().mockResolvedValue(undefined) },
+}));
+
+vi.mock('@tanstack/react-query', () => ({
+  useQuery: () => ({ data: null, isLoading: false }),
+  useQueryClient: () => ({ invalidateQueries: vi.fn() }),
+}));
+
 /**
  * Tests for {@link useBudgetPersistence}. The hook owns purely device-local
  * UI state for the budget planner and persists it to localStorage. The
