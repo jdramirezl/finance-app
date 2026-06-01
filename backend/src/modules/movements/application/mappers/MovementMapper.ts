@@ -27,6 +27,7 @@ interface MovementRow {
   orphaned_pocket_name?: string;
   category?: string;
   tags?: string[];
+  transfer_pair_id?: string;
   created_at?: string;
 }
 
@@ -52,6 +53,7 @@ export class MovementMapper {
       orphaned_pocket_name: movement.orphanedPocketName || null,
       category: movement.category || null,
       tags: movement.tags.length > 0 ? movement.tags : '{}',
+      transfer_pair_id: movement.transferPairId || null,
     };
   }
 
@@ -79,7 +81,8 @@ export class MovementMapper {
       row.orphaned_account_currency,
       row.orphaned_pocket_name,
       row.category,
-      row.tags ?? []
+      row.tags ?? [],
+      row.transfer_pair_id
     );
   }
 
@@ -103,6 +106,7 @@ export class MovementMapper {
       orphanedPocketName: movement.orphanedPocketName,
       category: movement.category,
       tags: movement.tags.length > 0 ? movement.tags : undefined,
+      transferPairId: movement.transferPairId,
       createdAt: createdAt?.toISOString(),
     };
   }

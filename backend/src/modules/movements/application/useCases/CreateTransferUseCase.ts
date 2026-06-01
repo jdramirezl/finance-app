@@ -11,6 +11,7 @@ import type { IMovementRepository } from '../../infrastructure/IMovementReposito
 import type { IPocketRepository } from '../../../pockets/infrastructure/IPocketRepository';
 import { Movement } from '../../domain/Movement';
 import { ValidationError, NotFoundError } from '../../../../shared/errors/AppError';
+import { generateId } from '../../../../shared/utils/idGenerator';
 
 export interface CreateTransferDTO {
     sourceAccountId: string;
@@ -58,7 +59,12 @@ export class CreateTransferUseCase {
             throw new ValidationError('Target pocket does not belong to target account');
         }
 
-        // 3. Create transfer atomically via RPC
+        // 3. Generate transfer pair ID and auto-notes
+        const transferPairId = generateId();
+        const sourceNotes = dto.notes || `Transfer to ${targetPocket.name}`;
+        const targetNotes = dto.notes || `Transfer from ${sourcePocket.name}`;
+
+        // 4. Create transfer atomically via RPC
         return this.movementRepo.createTransferAtomic({
             userId,
             sourceAccountId: dto.sourceAccountId,
@@ -68,6 +74,9 @@ export class CreateTransferUseCase {
             amount: dto.amount,
             displayedDate: dto.displayedDate,
             notes: dto.notes,
+            transferPairId,
+            sourceNotes,
+            targetNotes,
         });
     }
 }
