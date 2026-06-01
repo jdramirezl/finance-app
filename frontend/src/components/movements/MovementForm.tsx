@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import { format } from 'date-fns';
 import { useAccountsQuery, useMovementTemplatesQuery, usePocketsQuery, useSettingsQuery, useSubPocketsQuery } from '../../hooks/queries';
@@ -21,9 +21,6 @@ export interface MovementFormData {
   amount: string;
   notes: string;
   isPending: boolean;
-  isTransfer: boolean;
-  targetAccountId: string;
-  targetPocketId: string;
   saveAsTemplate: boolean;
   templateName: string;
 }
@@ -50,11 +47,6 @@ export interface MovementFormProps {
   onTemplateSelect?: (id: string) => void;
 }
 
-const MOVEMENT_TYPE_OPTIONS_WITH_TRANSFER: { value: MovementType | 'Transfer'; label: string }[] = [
-  ...MOVEMENT_TYPES,
-  { value: 'Transfer', label: 'Transfer' },
-];
-
 const MovementForm = forwardRef<MovementFormRef, MovementFormProps>(
   ({ initialData, onSubmit, onCancel, isSaving, onValuesChange, defaultValues: prefillValues, selectedTemplateId = '', onTemplateSelect }, ref) => {
     const { data: accounts = [] } = useAccountsQuery();
@@ -79,7 +71,7 @@ const MovementForm = forwardRef<MovementFormRef, MovementFormProps>(
       ? resolveLastUsedPocket(toSimpleType(storedLastType), accounts, pockets, settings)
       : null;
 
-    const { register, handleSubmit, control, setValue, watch, formState: { errors, isDirty } } = useForm<MovementFormData>({
+    const { register, handleSubmit, control, setValue, formState: { errors, isDirty } } = useForm<MovementFormData>({
       mode: 'onBlur',
       defaultValues: {
         type: initialData?.type ?? prefillValues?.type ?? lastUsedDefaults?.lastType ?? 'EgresoNormal',
@@ -90,9 +82,6 @@ const MovementForm = forwardRef<MovementFormRef, MovementFormProps>(
         amount: initialData ? initialData.amount.toString() : (prefillValues?.amount ? prefillValues.amount.toString() : ''),
         notes: initialData?.notes ?? prefillValues?.notes ?? '',
         isPending: initialData?.isPending ?? false,
-        isTransfer: false,
-        targetAccountId: '',
-        targetPocketId: '',
         saveAsTemplate: false,
         templateName: '',
       },
@@ -100,14 +89,11 @@ const MovementForm = forwardRef<MovementFormRef, MovementFormProps>(
 
     useUnsavedChanges(isDirty);
 
-    const [isTransfer, setIsTransfer] = useState(false);
-
     const watchedType = useWatch({ control, name: 'type' });
     const watchedAccountId = useWatch({ control, name: 'accountId' });
     const watchedPocketId = useWatch({ control, name: 'pocketId' });
     const watchedSubPocketId = useWatch({ control, name: 'subPocketId' });
     const watchedAmount = useWatch({ control, name: 'amount' });
-    const watchedTargetAccountId = useWatch({ control, name: 'targetAccountId' });
     const watchedSaveAsTemplate = useWatch({ control, name: 'saveAsTemplate' });
 
     const isDefaultFixedExpense = isFixedMovement(watchedType);
@@ -142,11 +128,6 @@ const MovementForm = forwardRef<MovementFormRef, MovementFormProps>(
       setAmount: (value: string) => setValue('amount', value, { shouldDirty: true }),
     }));
 
-    // Available target pockets for transfer mode
-    const availableTargetPockets = watchedTargetAccountId
-      ? pockets.filter((p) => p.accountId === watchedTargetAccountId)
-      : [];
-
     // Template loading
     const handleTemplateChange = (templateId: string) => {
       onTemplateSelect?.(templateId);
@@ -170,7 +151,7 @@ const MovementForm = forwardRef<MovementFormRef, MovementFormProps>(
     };
 
     const onFormSubmit = async (data: MovementFormData) => {
-      await onSubmit({ ...data, isTransfer });
+      await onSubmit(data);
     };
 
     return (
@@ -191,24 +172,16 @@ const MovementForm = forwardRef<MovementFormRef, MovementFormProps>(
           <Select
             label="Type"
             required
-            value={isTransfer ? 'Transfer' : watchedType}
+            value={watchedType}
             onChange={(e) => {
-              const value = e.target.value;
-              if (value === 'Transfer') {
-                setIsTransfer(true);
-                setValue('accountId', '');
-                setValue('pocketId', '');
-              } else {
-                setIsTransfer(false);
-                const type = value as MovementType;
-                setValue('type', type, { shouldValidate: true });
-                if (isFixedMovement(type)) {
-                  const hasFixed = pockets.some(p => p.accountId === watchedAccountId && p.type === 'fixed');
-                  if (!hasFixed) setValue('accountId', '');
-                }
+              const type = e.target.value as MovementType;
+              setValue('type', type, { shouldValidate: true });
+              if (isFixedMovement(type)) {
+                const hasFixed = pockets.some(p => p.accountId === watchedAccountId && p.type === 'fixed');
+                if (!hasFixed) setValue('accountId', '');
               }
             }}
-            options={MOVEMENT_TYPE_OPTIONS_WITH_TRANSFER}
+            options={MOVEMENT_TYPES}
             error={errors.type?.message}
           />
 
@@ -238,10 +211,8 @@ const MovementForm = forwardRef<MovementFormRef, MovementFormProps>(
           movementType={watchedType}
           enforceMovementType
           showFixedPocketHint
-          showSubPocket={!isTransfer && isDefaultFixedExpense}
+          showSubPocket={isDefaultFixedExpense}
           showAccountCurrency
-          accountLabel={isTransfer ? 'Source Account' : 'Account'}
-          pocketLabel={isTransfer ? 'Source Pocket' : 'Pocket'}
           required
         />
         {errors.accountId && (
@@ -252,43 +223,6 @@ const MovementForm = forwardRef<MovementFormRef, MovementFormProps>(
         )}
         {errors.subPocketId && (
           <p className="text-sm text-red-600 dark:text-red-400">{errors.subPocketId.message}</p>
-        )}
-
-        {isTransfer && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700">
-            <Select
-              label="Target Account"
-              required
-              value={watchedTargetAccountId}
-              onChange={(e) => {
-                setValue('targetAccountId', e.target.value, { shouldValidate: true });
-                setValue('targetPocketId', '');
-              }}
-              options={[
-                { value: '', label: 'Select Target Account' },
-                ...accounts.map(acc => ({
-                  value: acc.id,
-                  label: `${acc.name} (${acc.currency})`
-                }))
-              ]}
-              error={errors.targetAccountId?.message}
-            />
-
-            <Select
-              label="Target Pocket"
-              required
-              value={watch('targetPocketId')}
-              onChange={(e) => setValue('targetPocketId', e.target.value, { shouldValidate: true })}
-              options={[
-                { value: '', label: 'Select Target Pocket' },
-                ...availableTargetPockets
-                  .filter(p => !watchedPocketId || p.id !== watchedPocketId)
-                  .map(p => ({ value: p.id, label: p.name }))
-              ]}
-              disabled={!watchedTargetAccountId}
-              error={errors.targetPocketId?.message}
-            />
-          </div>
         )}
 
         <Input
@@ -307,7 +241,7 @@ const MovementForm = forwardRef<MovementFormRef, MovementFormProps>(
 
         <Input
           label="Notes"
-          placeholder={isTransfer ? "Transfer details..." : "What is this for?"}
+          placeholder="What is this for?"
           {...register('notes')}
         />
 
@@ -323,7 +257,7 @@ const MovementForm = forwardRef<MovementFormRef, MovementFormProps>(
           </label>
         </div>
 
-        {!initialData && !isTransfer && (
+        {!initialData && (
           <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
             <div className="flex items-center gap-2 mb-2">
               <input
@@ -351,17 +285,11 @@ const MovementForm = forwardRef<MovementFormRef, MovementFormProps>(
           </div>
         )}
 
-        {/* Hidden validation for accountId/pocketId/targetAccountId/targetPocketId/subPocketId */}
+        {/* Hidden validation for accountId/pocketId/subPocketId */}
         <input type="hidden" {...register('accountId', { required: 'Account is required' })} />
         <input type="hidden" {...register('pocketId', { required: 'Pocket is required' })} />
         <input type="hidden" {...register('subPocketId', {
           validate: (val) => !isDefaultFixedExpense || val.length > 0 || 'Sub-pocket is required for fixed expenses',
-        })} />
-        <input type="hidden" {...register('targetAccountId', {
-          validate: (val) => !isTransfer || val.length > 0 || 'Target account is required',
-        })} />
-        <input type="hidden" {...register('targetPocketId', {
-          validate: (val) => !isTransfer || val.length > 0 || 'Target pocket is required',
         })} />
 
         <div className="flex justify-end gap-2 pt-4">
@@ -369,7 +297,7 @@ const MovementForm = forwardRef<MovementFormRef, MovementFormProps>(
             Cancel
           </Button>
           <Button type="submit" variant="primary" loading={isSaving}>
-            {initialData ? 'Update Movement' : (isTransfer ? 'Transfer Funds' : 'Create Movement')}
+            {initialData ? 'Update Movement' : 'Create Movement'}
           </Button>
         </div>
       </form>

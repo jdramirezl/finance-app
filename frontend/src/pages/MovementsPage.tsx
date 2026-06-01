@@ -159,7 +159,6 @@ const MovementsPage = () => {
     formState, closeForms, setShowBatchForm, setError, toast,
     mutations: {
       createMovement: movementMutations.createMovement,
-      createTransfer: movementMutations.createTransfer,
       updateMovement: movementMutations.updateMovement,
       createMovementTemplate,
       markAsPaidMutation,

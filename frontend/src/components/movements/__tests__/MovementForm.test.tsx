@@ -118,23 +118,8 @@ describe('MovementForm', () => {
           amount: '100',
           accountId: 'acc1',
           pocketId: 'pkt1',
-          isTransfer: false,
         }),
       );
-    });
-  });
-
-  it('shows target account/pocket fields in transfer mode', async () => {
-    const user = userEvent.setup();
-    render(<MovementForm {...defaultProps} />);
-
-    // Select Transfer type
-    const typeSelect = screen.getByLabelText(/type/i);
-    await user.selectOptions(typeSelect, 'Transfer');
-
-    await waitFor(() => {
-      expect(screen.getByLabelText(/target account/i)).toBeInTheDocument();
-      expect(screen.getByLabelText(/target pocket/i)).toBeInTheDocument();
     });
   });
 
