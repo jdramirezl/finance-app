@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ArrowRight, ArrowLeftRight } from 'lucide-react';
 import Modal from '../ui/Modal';
+import { formatCurrency } from '../../utils/formatCurrency';
 import Select from '../ui/Select';
 import Input from '../ui/Input';
 import Button from '../ui/Button';
@@ -131,6 +132,18 @@ const TransferModal = ({ isOpen, onClose, onSubmit, isSaving, initialData }: Tra
               disabled={!sourceAccountId}
               required
             />
+            {(() => {
+              const pocket = pockets.find(p => p.id === sourcePocketId);
+              const amt = parseFloat(amount) || 0;
+              if (!pocket || amt <= 0) return null;
+              return (
+                <p className="text-xs text-gray-400">
+                  {formatCurrency(pocket.balance, pocket.currency)}
+                  <span className="mx-1">→</span>
+                  <span className="text-red-400 font-medium">{formatCurrency(pocket.balance - amt, pocket.currency)}</span>
+                </p>
+              );
+            })()}
           </div>
 
           {/* Center arrow + swap */}
@@ -164,6 +177,18 @@ const TransferModal = ({ isOpen, onClose, onSubmit, isSaving, initialData }: Tra
               disabled={!targetAccountId}
               required
             />
+            {(() => {
+              const pocket = pockets.find(p => p.id === targetPocketId);
+              const amt = parseFloat(amount) || 0;
+              if (!pocket || amt <= 0) return null;
+              return (
+                <p className="text-xs text-gray-400">
+                  {formatCurrency(pocket.balance, pocket.currency)}
+                  <span className="mx-1">→</span>
+                  <span className="text-emerald-400 font-medium">{formatCurrency(pocket.balance + amt, pocket.currency)}</span>
+                </p>
+              );
+            })()}
           </div>
         </div>
 
