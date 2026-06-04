@@ -193,6 +193,7 @@ const AccountsPage = () => {
           pocketId: data.destinationPocketId,
           amount: data.amount,
           notes: data.notes,
+          displayedDate: new Date().toISOString().slice(0, 10),
         });
         try {
           await accountMutations.archiveAccount.mutateAsync(releasingCD.id);
