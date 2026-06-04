@@ -6,6 +6,7 @@ import {
   usePocketsWithArchived,
   useAccountMutations,
   usePocketMutations,
+  useMovementMutations,
 } from '../hooks/queries';
 import { useToast } from '../hooks/useToast';
 import { useConfirmDialog } from '../contexts/ConfirmDialogContext';
@@ -23,6 +24,7 @@ import CDAccountCard from '../components/accounts/CDAccountCard';
 import CDAccountForm, {
   type CDFormData,
 } from '../components/accounts/CDAccountForm';
+import CDReleaseModal from '../components/accounts/CDReleaseModal';
 import AccountDetailPanel from '../components/accounts/AccountDetailPanel';
 import CascadeDeleteDialog from '../components/accounts/CascadeDeleteDialog';
 
@@ -46,6 +48,7 @@ const AccountsPage = () => {
     usePocketsWithArchived();
   const accountMutations = useAccountMutations();
   const pocketMutations = usePocketMutations();
+  const movementMutations = useMovementMutations();
   const toast = useToast();
   const { confirm } = useConfirmDialog();
   const location = useLocation();
@@ -84,6 +87,8 @@ const AccountsPage = () => {
   const [showCDForm, setShowCDForm] = useState(false);
   const [editingAccount, setEditingAccount] = useState<Account | null>(null);
   const [editingCD, setEditingCD] = useState<CDInvestmentAccount | null>(null);
+  const [releasingCD, setReleasingCD] = useState<CDInvestmentAccount | null>(null);
+  const [isReleasing, setIsReleasing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState<'all' | 'investment' | 'normal' | 'cd'>('all');
@@ -172,6 +177,46 @@ const AccountsPage = () => {
     setEditingCD(account);
     setShowCDForm(true);
   }, []);
+
+  const handleReleaseCD = useCallback((account: CDInvestmentAccount) => {
+    setReleasingCD(account);
+  }, []);
+
+  const handleReleaseFunds = useCallback(
+    async (data: { destinationAccountId: string; destinationPocketId: string; amount: number; notes: string }) => {
+      if (!releasingCD) return;
+      setIsReleasing(true);
+      try {
+        await movementMutations.createMovement.mutateAsync({
+          type: 'IngresoNormal',
+          accountId: data.destinationAccountId,
+          pocketId: data.destinationPocketId,
+          amount: data.amount,
+          notes: data.notes,
+        });
+        try {
+          await accountMutations.archiveAccount.mutateAsync(releasingCD.id);
+        } catch {
+          toast.error('Funds released but failed to archive CD — please archive it manually.');
+          setReleasingCD(null);
+          if (selectedAccountIdRef.current === releasingCD.id) {
+            setSelectedAccountId(null);
+          }
+          return;
+        }
+        toast.success('CD funds released successfully');
+        setReleasingCD(null);
+        if (selectedAccountIdRef.current === releasingCD.id) {
+          setSelectedAccountId(null);
+        }
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : 'Failed to release CD funds');
+      } finally {
+        setIsReleasing(false);
+      }
+    },
+    [releasingCD, movementMutations.createMovement, accountMutations.archiveAccount, toast],
+  );
 
   // Archive is the new primary destructive action on each account card.
   // It's reversible (the row moves into the ArchivedSection below the grid),
@@ -450,6 +495,7 @@ const AccountsPage = () => {
                 setEditingCD(acc);
                 setShowCDForm(true);
               }}
+              onReleaseCD={handleReleaseCD}
               onCascadeDelete={accountActions.cascadeDelete.open}
               onClose={() => setSelectedAccountId(null)}
               onMobileBack={() => setSelectedAccountId(null)}
@@ -527,6 +573,14 @@ const AccountsPage = () => {
         onDeleteMovementsChange={accountActions.cascadeDelete.setDeleteMovements}
         onConfirm={() => accountActions.cascadeDelete.confirm()}
         onClose={accountActions.cascadeDelete.close}
+      />
+
+      <CDReleaseModal
+        isOpen={!!releasingCD}
+        onClose={() => setReleasingCD(null)}
+        cdAccount={releasingCD}
+        onRelease={handleReleaseFunds}
+        isProcessing={isReleasing}
       />
     </div>
   );

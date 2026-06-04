@@ -1,4 +1,5 @@
 export * from './useAccountActions';
+export * from './useCDRelease';
 export * from './useBudgetActions';
 export * from './useFixedExpenseActions';
 export * from './useMovementBulkActions';
