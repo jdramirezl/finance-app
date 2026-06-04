@@ -38,6 +38,10 @@ vi.mock('../../hooks/queries', () => ({
   useSettingsQuery: mocks.useSettingsQuery,
   useAccountMutations: mocks.useAccountMutations,
   usePocketMutations: mocks.usePocketMutations,
+  useMovementMutations: () => ({ createMovement: { mutateAsync: vi.fn(), isPending: false } }),
+  useAccountsQuery: () => ({ data: [], isLoading: false }),
+  usePocketsQuery: () => ({ data: [], isLoading: false }),
+  useSubPocketsQuery: () => ({ data: [], isLoading: false }),
 }));
 
 vi.mock('../../hooks/useToast', () => ({

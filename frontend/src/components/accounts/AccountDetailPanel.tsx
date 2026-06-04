@@ -20,6 +20,7 @@ interface AccountDetailPanelProps {
   setError: (value: string | null) => void;
   onEditAccount: (account: Account) => void;
   onEditCD: (account: CDInvestmentAccount) => void;
+  onReleaseCD?: (account: CDInvestmentAccount) => void;
   onCascadeDelete: (id: string) => void;
   onClose: () => void;
   onMobileBack: () => void;
@@ -41,6 +42,7 @@ const AccountDetailPanel = ({
   setError,
   onEditAccount,
   onEditCD,
+  onReleaseCD,
   onCascadeDelete,
   onClose,
   onMobileBack,
@@ -132,6 +134,7 @@ const AccountDetailPanel = ({
           <CDDetailsPanel
             account={account as CDInvestmentAccount}
             onEdit={() => onEditCD(account as CDInvestmentAccount)}
+            onRelease={onReleaseCD}
           />
         ) : (
           <PocketManagementSection
