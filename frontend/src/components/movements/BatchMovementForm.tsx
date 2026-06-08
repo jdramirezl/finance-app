@@ -4,6 +4,7 @@ import {
   useEffect,
   useImperativeHandle,
   useRef,
+  useState,
 } from 'react';
 import { useForm, useFieldArray, useWatch } from 'react-hook-form';
 import { format } from 'date-fns';
@@ -72,14 +73,13 @@ const BatchMovementForm = forwardRef<BatchMovementFormRef, BatchMovementFormProp
     // Watch rows to fire onRowsChange and onFocusRow
     const watchedRows = useWatch({ control, name: 'rows' }) || [];
 
-    // Notify parent when rows are added/removed
-    const prevLengthRef = useRef(fields.length);
+    // Notify parent of any row data change (debounced)
     useEffect(() => {
-      if (fields.length !== prevLengthRef.current) {
-        prevLengthRef.current = fields.length;
+      const timeout = setTimeout(() => {
         onRowsChangeRef.current?.(watchedRows);
-      }
-    }, [fields.length, watchedRows]);
+      }, 200);
+      return () => clearTimeout(timeout);
+    }, [watchedRows]);
 
     // Re-publish focused row data when it changes
     useEffect(() => {
@@ -134,12 +134,23 @@ const BatchMovementForm = forwardRef<BatchMovementFormRef, BatchMovementFormProp
       });
     }, [append, watchedRows]);
 
+    const [exitingIds, setExitingIds] = useState<Set<string>>(new Set());
+
     const handleRemove = useCallback(
       (index: number) => {
         if (fields.length <= 1) return;
-        remove(index);
+        const id = fields[index].id;
+        setExitingIds((prev) => new Set(prev).add(id));
+        setTimeout(() => {
+          remove(index);
+          setExitingIds((prev) => {
+            const next = new Set(prev);
+            next.delete(id);
+            return next;
+          });
+        }, 150);
       },
-      [fields.length, remove]
+      [fields, remove]
     );
 
     return (
@@ -187,16 +198,20 @@ const BatchMovementForm = forwardRef<BatchMovementFormRef, BatchMovementFormProp
               selectedPocket?.name === 'Shares' ? '0.000001' : '0.01';
 
             return (
-              <BatchMovementRow
+              <div
                 key={field.id}
-                index={index}
-                control={control}
-                errors={formState.errors.rows?.[index] as Record<string, { message?: string }> | undefined}
-                canRemove={fields.length > 1}
-                amountStep={amountStep}
-                onRemove={() => handleRemove(index)}
-                onFocus={() => handleRowFocus(index)}
-              />
+                className={exitingIds.has(field.id) ? 'animate-row-exit' : 'animate-row-enter'}
+              >
+                <BatchMovementRow
+                  index={index}
+                  control={control}
+                  errors={formState.errors.rows?.[index] as Record<string, { message?: string }> | undefined}
+                  canRemove={fields.length > 1}
+                  amountStep={amountStep}
+                  onRemove={() => handleRemove(index)}
+                  onFocus={() => handleRowFocus(index)}
+                />
+              </div>
             );
           })}
         </div>

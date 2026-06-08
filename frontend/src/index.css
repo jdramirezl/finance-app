@@ -120,6 +120,18 @@
   animation: modal-in 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+/* Row enter/exit animations */
+@keyframes row-enter {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes row-exit {
+  from { opacity: 1; transform: translateY(0); }
+  to { opacity: 0; transform: translateY(8px); }
+}
+.animate-row-enter { animation: row-enter 0.2s ease-out; }
+.animate-row-exit { animation: row-exit 0.15s ease-in forwards; }
+
 /* Custom scrollbar */
 .custom-scrollbar::-webkit-scrollbar {
   width: 8px;
