@@ -102,7 +102,9 @@ describe('BatchMovementForm', () => {
 
     await user.click(screen.getByRole('button', { name: /remove row 2/i }));
 
-    expect(screen.queryByTestId('batch-row-1')).not.toBeInTheDocument();
+    await vi.waitFor(() => {
+      expect(screen.queryByTestId('batch-row-1')).not.toBeInTheDocument();
+    }, { timeout: 300 });
   });
 
   it('hides the remove button on the last remaining row', () => {
