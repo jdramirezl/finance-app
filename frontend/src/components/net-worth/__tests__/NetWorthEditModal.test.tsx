@@ -105,7 +105,7 @@ describe('NetWorthEditModal', () => {
     await waitFor(() => {
       expect(mocks.updateMutation.mutateAsync).toHaveBeenCalledWith({
         id: 'snap-1',
-        data: { totalNetWorth: 20000 },
+        data: { totalNetWorth: 20000, breakdown: { USD: 12345.67 } },
       });
     });
     await waitFor(() => {
