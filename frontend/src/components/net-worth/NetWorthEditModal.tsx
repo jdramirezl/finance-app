@@ -31,6 +31,7 @@ const NetWorthEditModal = forwardRef<NetWorthEditModalHandle>((_, ref) => {
     const [selectedSnapshot, setSelectedSnapshot] =
         useState<NetWorthSnapshot | null>(null);
     const [editValue, setEditValue] = useState<string>('');
+    const [breakdownValues, setBreakdownValues] = useState<Record<string, string>>({});
 
     useImperativeHandle(
         ref,
@@ -38,6 +39,11 @@ const NetWorthEditModal = forwardRef<NetWorthEditModalHandle>((_, ref) => {
             open: (snapshot: NetWorthSnapshot) => {
                 setSelectedSnapshot(snapshot);
                 setEditValue(snapshot.totalNetWorth.toString());
+                const bv: Record<string, string> = {};
+                for (const [currency, amount] of Object.entries(snapshot.breakdown || {})) {
+                    bv[currency] = String(amount);
+                }
+                setBreakdownValues(bv);
                 setIsOpen(true);
             },
         }),
@@ -48,6 +54,7 @@ const NetWorthEditModal = forwardRef<NetWorthEditModalHandle>((_, ref) => {
         setIsOpen(false);
         setSelectedSnapshot(null);
         setEditValue('');
+        setBreakdownValues({});
     };
 
     const handleSaveEdit = async () => {
@@ -56,9 +63,15 @@ const NetWorthEditModal = forwardRef<NetWorthEditModalHandle>((_, ref) => {
         const newValue = parseFloat(editValue);
         if (isNaN(newValue) || newValue < 0) return;
 
+        const breakdown: Record<string, number> = {};
+        for (const [currency, val] of Object.entries(breakdownValues)) {
+            const parsed = parseFloat(val);
+            if (!isNaN(parsed) && parsed >= 0) breakdown[currency] = parsed;
+        }
+
         await updateMutation.mutateAsync({
             id: selectedSnapshot.id,
-            data: { totalNetWorth: newValue },
+            data: { totalNetWorth: newValue, breakdown },
         });
 
         handleClose();
@@ -115,6 +128,23 @@ const NetWorthEditModal = forwardRef<NetWorthEditModalHandle>((_, ref) => {
                         required
                         className="font-mono"
                     />
+
+                    {Object.keys(breakdownValues).length > 0 && (
+                        <div className="space-y-3 pt-2 border-t border-gray-700">
+                            <p className="text-sm font-medium text-gray-300">Currency Breakdown</p>
+                            {Object.entries(breakdownValues).map(([currency, val]) => (
+                                <Input
+                                    key={currency}
+                                    label={currency}
+                                    type="number"
+                                    value={val}
+                                    onChange={(e) => setBreakdownValues(prev => ({ ...prev, [currency]: e.target.value }))}
+                                    step="0.01"
+                                    min="0"
+                                />
+                            ))}
+                        </div>
+                    )}
 
                     <div className="flex justify-between gap-2 pt-4">
                         <Button
