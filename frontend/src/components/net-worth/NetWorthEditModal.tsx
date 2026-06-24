@@ -40,8 +40,16 @@ const NetWorthEditModal = forwardRef<NetWorthEditModalHandle>((_, ref) => {
                 setSelectedSnapshot(snapshot);
                 setEditValue(snapshot.totalNetWorth.toString());
                 const bv: Record<string, string> = {};
-                for (const [currency, amount] of Object.entries(snapshot.breakdown || {})) {
-                    bv[currency] = String(amount);
+                const entries = Object.entries(snapshot.breakdown || {});
+                if (entries.length > 0) {
+                    for (const [currency, amount] of entries) {
+                        bv[currency] = String(amount);
+                    }
+                } else {
+                    // Default currencies when breakdown is empty
+                    bv['COP'] = '0';
+                    bv['USD'] = '0';
+                    bv['MXN'] = '0';
                 }
                 setBreakdownValues(bv);
                 setIsOpen(true);
