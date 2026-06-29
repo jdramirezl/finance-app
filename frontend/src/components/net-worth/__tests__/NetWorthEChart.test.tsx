@@ -84,9 +84,13 @@ const renderChart = (
         dataZoomEnd: number;
         viewMode: 'total' | 'breakdown';
         currencyData: CurrencySeriesData[];
+        liveAnchorValue: number | null;
+        pinnedReferenceValues: number[];
+        onPinReferenceValue: (yValue: number) => void;
     }> = {},
 ) => {
     const onPointClick = overrides.onPointClick ?? vi.fn();
+    const onPinReferenceValue = overrides.onPinReferenceValue ?? vi.fn();
     const result = render(
         <NetWorthEChart
             data={overrides.data ?? [buildDatum()]}
@@ -98,9 +102,12 @@ const renderChart = (
             dataZoomEnd={overrides.dataZoomEnd}
             viewMode={overrides.viewMode}
             currencyData={overrides.currencyData}
+            liveAnchorValue={overrides.liveAnchorValue}
+            pinnedReferenceValues={overrides.pinnedReferenceValues}
+            onPinReferenceValue={onPinReferenceValue}
         />,
     );
-    return { onPointClick, ...result };
+    return { onPointClick, onPinReferenceValue, ...result };
 };
 
 describe('NetWorthEChart', () => {
@@ -1568,5 +1575,166 @@ describe('NetWorthEChart', () => {
 
         expect(onPointClick).toHaveBeenCalledTimes(1);
         expect(onPointClick).toHaveBeenCalledWith(data[0]);
+    });
+
+    describe('reference lines (live anchor + pinned levels)', () => {
+        // Compact shape we cast captured option series[0].markLine /
+        // markPoint into. Real `LineSeriesOption` types are too loose
+        // (`markLine.data` is `MarkLine1DDataItemOption | ...`), so we
+        // narrow to just the fields these tests assert on.
+        type MarkLineEntry = {
+            yAxis?: number;
+            xAxis?: number;
+            lineStyle?: { color?: string; type?: string };
+            label?: { show?: boolean };
+        };
+        type MarkPointEntry = {
+            coord?: [string, number];
+            itemStyle?: { color?: string };
+        };
+
+        const buildDataset = (): NetWorthEChartDatum[] => [
+            buildDatum({ date: '2025-01-01', total: 100, snapshotId: 's1', fullDate: '2025-01-01' }),
+            buildDatum({ date: '2025-04-01', total: 250, snapshotId: 's2', fullDate: '2025-04-01' }),
+            buildDatum({ date: '2025-07-01', total: 150, snapshotId: 's3', fullDate: '2025-07-01' }),
+        ];
+
+        const readFirstSeriesMarks = () => {
+            const option = captured.option as {
+                series: Array<{
+                    markLine?: { data: MarkLineEntry[] };
+                    markPoint?: { data: MarkPointEntry[] };
+                }>;
+            };
+            return {
+                markLineData: option.series[0]?.markLine?.data ?? [],
+                markPointData: option.series[0]?.markPoint?.data ?? [],
+            };
+        };
+
+        it('adds no horizontal markLine entries when no reference levels are provided', () => {
+            renderChart({ data: buildDataset() });
+            const { markLineData } = readFirstSeriesMarks();
+            // Only year-boundary verticals may remain. None should be
+            // a horizontal yAxis entry.
+            expect(markLineData.filter((m) => m.yAxis != null)).toHaveLength(0);
+        });
+
+        it('renders a solid green horizontal line for liveAnchorValue', () => {
+            renderChart({ data: buildDataset(), liveAnchorValue: 200 });
+            const { markLineData } = readFirstSeriesMarks();
+            const liveEntry = markLineData.find((m) => m.yAxis === 200);
+            expect(liveEntry).toBeDefined();
+            expect(liveEntry!.lineStyle?.color).toBe('#10b981');
+            expect(liveEntry!.lineStyle?.type).toBe('solid');
+            expect(liveEntry!.label?.show).toBe(true);
+        });
+
+        it('renders dashed blue horizontal lines for each pinnedReferenceValues entry', () => {
+            renderChart({
+                data: buildDataset(),
+                pinnedReferenceValues: [120, 180],
+            });
+            const { markLineData } = readFirstSeriesMarks();
+            const pinnedEntries = markLineData.filter((m) => m.yAxis === 120 || m.yAxis === 180);
+            expect(pinnedEntries).toHaveLength(2);
+            for (const entry of pinnedEntries) {
+                expect(entry.lineStyle?.color).toBe('#60a5fa');
+                expect(entry.lineStyle?.type).toBe('dashed');
+                expect(entry.label?.show).toBe(true);
+            }
+        });
+
+        it('dedupes a pinned value that coincides with the live anchor', () => {
+            renderChart({
+                data: buildDataset(),
+                liveAnchorValue: 200,
+                pinnedReferenceValues: [200, 180],
+            });
+            const { markLineData } = readFirstSeriesMarks();
+            // Only one entry at 200 — the live anchor — and one at 180.
+            const at200 = markLineData.filter((m) => m.yAxis === 200);
+            const at180 = markLineData.filter((m) => m.yAxis === 180);
+            expect(at200).toHaveLength(1);
+            expect(at180).toHaveLength(1);
+            // Live wins the styling for the deduped value.
+            expect(at200[0].lineStyle?.color).toBe('#10b981');
+        });
+
+        it('skips all reference lines in variation mode', () => {
+            renderChart({
+                data: buildDataset(),
+                showVariation: true,
+                liveAnchorValue: 200,
+                pinnedReferenceValues: [120, 180],
+            });
+            const { markLineData, markPointData } = readFirstSeriesMarks();
+            expect(markLineData.filter((m) => m.yAxis != null)).toHaveLength(0);
+            expect(markPointData).toHaveLength(0);
+        });
+
+        it('places a markPoint dot at the last historical intersection of each reference level', () => {
+            // Dataset: 100 → 250 → 150. Level 200 crosses twice: once
+            // between the first two points and once between the last
+            // two. The last-intersection logic must pick the more
+            // recent (Apr→Jul segment) crossing.
+            renderChart({
+                data: buildDataset(),
+                liveAnchorValue: 200,
+            });
+            const { markPointData } = readFirstSeriesMarks();
+            const liveDot = markPointData.find((p) => p.itemStyle?.color === '#10b981');
+            expect(liveDot).toBeDefined();
+            expect(liveDot!.coord?.[1]).toBe(200);
+            const dotMs = new Date(liveDot!.coord![0]).getTime();
+            expect(dotMs).toBeGreaterThan(new Date('2025-04-01').getTime());
+            expect(dotMs).toBeLessThan(new Date('2025-07-01').getTime());
+        });
+
+        it('omits a markPoint for a level that never crosses the chart line', () => {
+            // Pin 1_000_000_000 — way above the all-time high in the
+            // dataset. The line never reaches it.
+            renderChart({
+                data: buildDataset(),
+                pinnedReferenceValues: [1_000_000_000],
+            });
+            const { markLineData, markPointData } = readFirstSeriesMarks();
+            // markLine still draws at that y — user explicitly asked
+            // for it — but markPoint has nothing to anchor to.
+            expect(markLineData.some((m) => m.yAxis === 1_000_000_000)).toBe(true);
+            expect(markPointData).toHaveLength(0);
+        });
+
+        it('routes shift+click on a snapshot point to onPinReferenceValue with the total', () => {
+            const data = buildDataset();
+            const { onPinReferenceValue, onPointClick } = renderChart({ data });
+
+            // Mimic the ECharts param shape — `event.event` is the
+            // browser MouseEvent, which carries the shift modifier.
+            captured.onEvents?.click({
+                componentType: 'series',
+                dataIndex: 1,
+                event: { event: { shiftKey: true } },
+            });
+
+            expect(onPinReferenceValue).toHaveBeenCalledTimes(1);
+            expect(onPinReferenceValue).toHaveBeenCalledWith(data[1].total);
+            // Edit-modal path must NOT fire when the user is pinning.
+            expect(onPointClick).not.toHaveBeenCalled();
+        });
+
+        it('falls through to onPointClick when shift is not held', () => {
+            const data = buildDataset();
+            const { onPinReferenceValue, onPointClick } = renderChart({ data });
+
+            captured.onEvents?.click({
+                componentType: 'series',
+                dataIndex: 0,
+                event: { event: { shiftKey: false } },
+            });
+
+            expect(onPointClick).toHaveBeenCalledTimes(1);
+            expect(onPinReferenceValue).not.toHaveBeenCalled();
+        });
     });
 });

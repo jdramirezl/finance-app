@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createElement, forwardRef, useImperativeHandle, type Ref } from 'react';
-import { render, screen, fireEvent } from '../../../test/testUtils';
+import { render, screen, fireEvent, act } from '../../../test/testUtils';
 import userEvent from '@testing-library/user-event';
 import NetWorthTimelineWidget, {
   calculateZoomRange,
@@ -563,6 +563,148 @@ describe('NetWorthTimelineWidget', () => {
         showVariation: true,
       }),
     );
+  });
+
+  describe('pinned reference levels', () => {
+    // Helper: pull the latest props handed to the mocked chart,
+    // widened to expose the reference-line callbacks the widget owns.
+    type RefProps = {
+      liveAnchorValue?: number | null;
+      pinnedReferenceValues?: number[];
+      onPinReferenceValue?: (value: number) => void;
+    };
+    const lastRefProps = (): RefProps => {
+      const calls = mocks.echartProps.mock.calls;
+      return (calls.at(-1)?.[0] ?? {}) as RefProps;
+    };
+
+    beforeEach(() => {
+      // Each test starts with a clean slate so a leftover pin from a
+      // prior test doesn't leak in via localStorage.
+      try {
+        localStorage.removeItem('nw-pinned-reference-values');
+      } catch {
+        /* ignore disabled storage */
+      }
+    });
+
+    it('shows the empty-state hint when no values are pinned', () => {
+      render(<NetWorthTimelineWidget />);
+      const row = screen.getByTestId('nw-pinned-reference-chips');
+      expect(row).toHaveTextContent(/shift\+click any snapshot to pin/i);
+    });
+
+    it('adds a chip when the chart fires onPinReferenceValue', async () => {
+      const { rerender } = render(<NetWorthTimelineWidget />);
+      const handler = lastRefProps().onPinReferenceValue;
+      expect(typeof handler).toBe('function');
+
+      await act(async () => {
+        handler!(123456);
+      });
+      // Force a re-render so the chip row reflects the new state. The
+      // widget already re-renders internally on setState; rerender is
+      // just defensive in case React 19's batching delays the flush.
+      rerender(<NetWorthTimelineWidget />);
+
+      expect(screen.getByTestId('nw-pinned-chip-123456')).toBeInTheDocument();
+      // And localStorage now has the persisted value.
+      expect(
+        JSON.parse(
+          localStorage.getItem('nw-pinned-reference-values') ?? '[]',
+        ),
+      ).toEqual([123456]);
+    });
+
+    it('removes a chip when the user clicks its ×', async () => {
+      const user = userEvent.setup();
+      render(<NetWorthTimelineWidget />);
+      await act(async () => {
+        lastRefProps().onPinReferenceValue!(500);
+      });
+      // Chip is present.
+      expect(screen.getByTestId('nw-pinned-chip-500')).toBeInTheDocument();
+
+      await user.click(screen.getByLabelText('Remove pinned level 500'));
+
+      expect(screen.queryByTestId('nw-pinned-chip-500')).not.toBeInTheDocument();
+      expect(
+        JSON.parse(
+          localStorage.getItem('nw-pinned-reference-values') ?? '[]',
+        ),
+      ).toEqual([]);
+    });
+
+    it('dedupes when the same value is pinned twice', async () => {
+      render(<NetWorthTimelineWidget />);
+      const handler = lastRefProps().onPinReferenceValue!;
+      await act(async () => {
+        handler(777);
+      });
+      await act(async () => {
+        handler(777);
+      });
+
+      // Only one chip — second pin is a no-op.
+      expect(screen.getAllByTestId(/^nw-pinned-chip-/)).toHaveLength(1);
+    });
+
+    it('shows the Clear all action only when there are multiple pins', async () => {
+      render(<NetWorthTimelineWidget />);
+      const handler = lastRefProps().onPinReferenceValue!;
+      await act(async () => {
+        handler(100);
+      });
+      // Single pin — no Clear all yet.
+      expect(screen.queryByRole('button', { name: /clear all/i })).not.toBeInTheDocument();
+
+      await act(async () => {
+        handler(200);
+      });
+
+      const clearAll = screen.getByRole('button', { name: /clear all/i });
+      const user = userEvent.setup();
+      await user.click(clearAll);
+
+      expect(screen.queryAllByTestId(/^nw-pinned-chip-/)).toHaveLength(0);
+      expect(
+        JSON.parse(
+          localStorage.getItem('nw-pinned-reference-values') ?? '[]',
+        ),
+      ).toEqual([]);
+    });
+
+    it('hides the chip row in variation mode', async () => {
+      const user = userEvent.setup();
+      render(<NetWorthTimelineWidget />);
+      // Pin something so the chip row would be visible otherwise.
+      await act(async () => {
+        lastRefProps().onPinReferenceValue!(999);
+      });
+      expect(screen.queryByTestId('nw-pinned-reference-chips')).toBeInTheDocument();
+
+      await user.click(screen.getByLabelText(/show variation/i));
+
+      expect(screen.queryByTestId('nw-pinned-reference-chips')).not.toBeInTheDocument();
+      // Pinned values must also be suppressed in the props sent to
+      // the chart — the chart itself already skips them in variation
+      // mode, but the widget acts as a second line of defense so
+      // bugs don't accidentally leak the lines through.
+      expect(lastRefProps().pinnedReferenceValues).toEqual([]);
+    });
+
+    it('restores pinned values from localStorage on mount', () => {
+      localStorage.setItem(
+        'nw-pinned-reference-values',
+        JSON.stringify([42, 84]),
+      );
+
+      render(<NetWorthTimelineWidget />);
+
+      expect(screen.getByTestId('nw-pinned-chip-42')).toBeInTheDocument();
+      expect(screen.getByTestId('nw-pinned-chip-84')).toBeInTheDocument();
+      expect(lastRefProps().pinnedReferenceValues).toEqual([42, 84]);
+    });
   });
 });
 
