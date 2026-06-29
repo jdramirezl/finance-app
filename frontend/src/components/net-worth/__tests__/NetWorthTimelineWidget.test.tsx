@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createElement, forwardRef, useImperativeHandle, type Ref } from 'react';
-import { render, screen, fireEvent, act } from '../../../test/testUtils';
+import { render, screen, fireEvent } from '../../../test/testUtils';
 import userEvent from '@testing-library/user-event';
 import NetWorthTimelineWidget, {
   calculateZoomRange,
@@ -31,6 +31,9 @@ const mocks = vi.hoisted(() => ({
   useSettingsQuery: vi.fn(),
   useNetWorthChartData: vi.fn(),
   modalOpen: vi.fn(),
+  detailsOpen: vi.fn(),
+  detailsEditCallback: vi.fn(),
+  tableModalProps: vi.fn(),
   echartProps: vi.fn(),
 }));
 
@@ -119,6 +122,78 @@ vi.mock('../NetWorthEditModal', () => {
     return null;
   });
   Mock.displayName = 'NetWorthEditModalMock';
+  return { default: Mock };
+});
+
+vi.mock('../SnapshotDetailsModal', () => {
+  // The details modal exposes an imperative open() like the edit
+  // modal. We capture both the snapshot passed into open() and the
+  // onEdit prop the widget hands in, so tests can simulate "user
+  // clicks Edit inside the details modal" by invoking the captured
+  // callback directly — no need to render a real popover.
+  const Mock = forwardRef(
+    (
+      props: { onEdit: (snapshot: NetWorthSnapshot) => void },
+      ref: Ref<{
+        open: (snapshot: NetWorthSnapshot, previous: NetWorthSnapshot | null) => void;
+      }>,
+    ) => {
+      mocks.detailsEditCallback.mockImplementation((s: NetWorthSnapshot) =>
+        props.onEdit(s),
+      );
+      useImperativeHandle(
+        ref,
+        () => ({
+          open: (snapshot, previous) => mocks.detailsOpen(snapshot, previous),
+        }),
+        [],
+      );
+      return null;
+    },
+  );
+  Mock.displayName = 'SnapshotDetailsModalMock';
+  return { default: Mock };
+});
+
+vi.mock('../SnapshotsTableModal', () => {
+  // The snapshots table modal is a controlled component (isOpen +
+  // onClose + onEdit). We surface its props through
+  // `mocks.tableModalProps` so tests can assert the open state and
+  // exercise the onEdit callback the widget gives it.
+  const Mock = (props: {
+    isOpen: boolean;
+    onClose: () => void;
+    snapshots: NetWorthSnapshot[];
+    onEdit: (snapshot: NetWorthSnapshot) => void;
+    primaryCurrency: string;
+  }) => {
+    mocks.tableModalProps(props);
+    if (!props.isOpen) return null;
+    return createElement(
+      'div',
+      { 'data-testid': 'snapshots-table-modal-mock' },
+      createElement(
+        'button',
+        {
+          type: 'button',
+          'data-testid': 'snapshots-table-edit-first',
+          onClick: () => {
+            if (props.snapshots[0]) props.onEdit(props.snapshots[0]);
+          },
+        },
+        'edit-first',
+      ),
+      createElement(
+        'button',
+        {
+          type: 'button',
+          'data-testid': 'snapshots-table-close',
+          onClick: props.onClose,
+        },
+        'close',
+      ),
+    );
+  };
   return { default: Mock };
 });
 
@@ -399,7 +474,7 @@ describe('NetWorthTimelineWidget', () => {
     );
   });
 
-  it('opens the edit modal with the matching snapshot when a chart point is clicked', async () => {
+  it('opens the details modal with the matching snapshot when a chart point is clicked', async () => {
     const snapshot = buildSnapshot();
     mocks.useSnapshotsQuery.mockReturnValue({
       data: [snapshot],
@@ -411,8 +486,11 @@ describe('NetWorthTimelineWidget', () => {
 
     await user.click(screen.getByTestId('net-worth-chart-mock'));
 
-    expect(mocks.modalOpen).toHaveBeenCalledTimes(1);
-    expect(mocks.modalOpen).toHaveBeenCalledWith(snapshot);
+    // Click now lands on the details modal (read-only popover with
+    // Edit button), NOT directly on the edit modal.
+    expect(mocks.detailsOpen).toHaveBeenCalledTimes(1);
+    expect(mocks.detailsOpen).toHaveBeenCalledWith(snapshot, null);
+    expect(mocks.modalOpen).not.toHaveBeenCalled();
   });
 
   it('falls back to matching by snapshotDate when the id does not match', async () => {
@@ -429,11 +507,11 @@ describe('NetWorthTimelineWidget', () => {
 
     // Click sends snapshotId 's1' which does not match 'legacy', so the
     // widget falls back to matching the click's fullDate against
-    // snapshotDate.
-    expect(mocks.modalOpen).toHaveBeenCalledWith(legacy);
+    // snapshotDate. The details modal receives the resolved snapshot.
+    expect(mocks.detailsOpen).toHaveBeenCalledWith(legacy, null);
   });
 
-  it('does not open the edit modal when no snapshot matches the click', async () => {
+  it('does not open any modal when no snapshot matches the click', async () => {
     mocks.useSnapshotsQuery.mockReturnValue({
       data: [buildSnapshot({ id: 'other', snapshotDate: '2030-01-01' })],
       isLoading: false,
@@ -444,6 +522,7 @@ describe('NetWorthTimelineWidget', () => {
 
     await user.click(screen.getByTestId('net-worth-chart-mock'));
 
+    expect(mocks.detailsOpen).not.toHaveBeenCalled();
     expect(mocks.modalOpen).not.toHaveBeenCalled();
   });
 
@@ -565,242 +644,118 @@ describe('NetWorthTimelineWidget', () => {
     );
   });
 
-  describe('pinned reference levels', () => {
-    // Helper: pull the latest props handed to the mocked chart,
-    // widened to expose the reference-line callbacks the widget owns.
-    type RefProps = {
-      liveAnchorValue?: number | null;
-      pinnedReferenceValues?: number[];
-      onPinReferenceValue?: (value: number) => void;
-    };
-    const lastRefProps = (): RefProps => {
-      const calls = mocks.echartProps.mock.calls;
-      return (calls.at(-1)?.[0] ?? {}) as RefProps;
-    };
-
-    beforeEach(() => {
-      // Each test starts with a clean slate so a leftover pin from a
-      // prior test doesn't leak in via localStorage.
-      try {
-        localStorage.removeItem('nw-pinned-reference-values');
-      } catch {
-        /* ignore disabled storage */
-      }
-    });
-
-    it('shows the empty-state hint when no values are pinned', () => {
-      render(<NetWorthTimelineWidget />);
-      const row = screen.getByTestId('nw-pinned-reference-chips');
-      expect(row).toHaveTextContent(/shift\+click any snapshot to pin/i);
-    });
-
-    it('adds a chip when the chart fires onPinReferenceValue', async () => {
-      const { rerender } = render(<NetWorthTimelineWidget />);
-      const handler = lastRefProps().onPinReferenceValue;
-      expect(typeof handler).toBe('function');
-
-      await act(async () => {
-        handler!(123456);
-      });
-      // Force a re-render so the chip row reflects the new state. The
-      // widget already re-renders internally on setState; rerender is
-      // just defensive in case React 19's batching delays the flush.
-      rerender(<NetWorthTimelineWidget />);
-
-      expect(screen.getByTestId('nw-pinned-chip-123456')).toBeInTheDocument();
-      // And localStorage now has the persisted value.
-      expect(
-        JSON.parse(
-          localStorage.getItem('nw-pinned-reference-values') ?? '[]',
-        ),
-      ).toEqual([123456]);
-    });
-
-    it('removes a chip when the user clicks its ×', async () => {
-      const user = userEvent.setup();
-      render(<NetWorthTimelineWidget />);
-      await act(async () => {
-        lastRefProps().onPinReferenceValue!(500);
-      });
-      // Chip is present.
-      expect(screen.getByTestId('nw-pinned-chip-500')).toBeInTheDocument();
-
-      await user.click(screen.getByLabelText('Remove pinned level 500'));
-
-      expect(screen.queryByTestId('nw-pinned-chip-500')).not.toBeInTheDocument();
-      expect(
-        JSON.parse(
-          localStorage.getItem('nw-pinned-reference-values') ?? '[]',
-        ),
-      ).toEqual([]);
-    });
-
-    it('dedupes when the same value is pinned twice', async () => {
-      render(<NetWorthTimelineWidget />);
-      const handler = lastRefProps().onPinReferenceValue!;
-      await act(async () => {
-        handler(777);
-      });
-      await act(async () => {
-        handler(777);
+  describe('snapshot details & table flow', () => {
+    it('passes the previous snapshot to the details modal when one exists', async () => {
+      const oct = buildSnapshot({ id: 'oct', snapshotDate: '2025-10-01' });
+      const nov = buildSnapshot({ id: 'nov', snapshotDate: '2025-11-01' });
+      const dec = buildSnapshot({ id: 's1', snapshotDate: '2026-01-01' });
+      mocks.useSnapshotsQuery.mockReturnValue({
+        data: [oct, nov, dec],
+        isLoading: false,
       });
 
-      // Only one chip — second pin is a no-op.
-      expect(screen.getAllByTestId(/^nw-pinned-chip-/)).toHaveLength(1);
-    });
-
-    it('shows the Clear all action only when there are multiple pins', async () => {
-      render(<NetWorthTimelineWidget />);
-      const handler = lastRefProps().onPinReferenceValue!;
-      await act(async () => {
-        handler(100);
-      });
-      // Single pin — no Clear all yet.
-      expect(screen.queryByRole('button', { name: /clear all/i })).not.toBeInTheDocument();
-
-      await act(async () => {
-        handler(200);
-      });
-
-      const clearAll = screen.getByRole('button', { name: /clear all/i });
-      const user = userEvent.setup();
-      await user.click(clearAll);
-
-      expect(screen.queryAllByTestId(/^nw-pinned-chip-/)).toHaveLength(0);
-      expect(
-        JSON.parse(
-          localStorage.getItem('nw-pinned-reference-values') ?? '[]',
-        ),
-      ).toEqual([]);
-    });
-
-    it('hides the chip row in variation mode', async () => {
-      const user = userEvent.setup();
-      render(<NetWorthTimelineWidget />);
-      // Pin something so the chip row would be visible otherwise.
-      await act(async () => {
-        lastRefProps().onPinReferenceValue!(999);
-      });
-      expect(screen.queryByTestId('nw-pinned-reference-chips')).toBeInTheDocument();
-
-      await user.click(screen.getByLabelText(/show variation/i));
-
-      expect(screen.queryByTestId('nw-pinned-reference-chips')).not.toBeInTheDocument();
-      // Pinned values must also be suppressed in the props sent to
-      // the chart — the chart itself already skips them in variation
-      // mode, but the widget acts as a second line of defense so
-      // bugs don't accidentally leak the lines through.
-      expect(lastRefProps().pinnedReferenceValues).toEqual([]);
-    });
-
-    it('restores pinned values from localStorage on mount', () => {
-      localStorage.setItem(
-        'nw-pinned-reference-values',
-        JSON.stringify([42, 84]),
-      );
-
-      render(<NetWorthTimelineWidget />);
-
-      expect(screen.getByTestId('nw-pinned-chip-42')).toBeInTheDocument();
-      expect(screen.getByTestId('nw-pinned-chip-84')).toBeInTheDocument();
-      expect(lastRefProps().pinnedReferenceValues).toEqual([42, 84]);
-    });
-  });
-
-  describe('reference-line toggle', () => {
-    type RefProps = {
-      liveAnchorValue?: number | null;
-    };
-    const lastLiveAnchor = (): number | null | undefined => {
-      const calls = mocks.echartProps.mock.calls;
-      return (calls.at(-1)?.[0] as RefProps | undefined)?.liveAnchorValue;
-    };
-
-    beforeEach(() => {
-      // Reset both toggle keys so each test starts predictable.
-      try {
-        localStorage.removeItem('nw-reference-line');
-        localStorage.removeItem('nw-phantom-live-point');
-      } catch {
-        /* ignore */
-      }
-    });
-
-    it('does not pass a liveAnchorValue when the reference-line toggle is off (default)', () => {
-      render(<NetWorthTimelineWidget />);
-      // Default state is off → no horizontal anchor regardless of
-      // whether the Live Point diamond is showing.
-      expect(lastLiveAnchor() ?? null).toBeNull();
-    });
-
-    it('passes a liveAnchorValue once the user enables the reference-line toggle', async () => {
-      const user = userEvent.setup();
-      render(
-        <NetWorthTimelineWidget
-          totalsByCurrency={{ USD: 100 }}
-          consolidatedTotal={100}
-          isConsolidatedReady={true}
-        />,
-      );
-
-      await user.click(screen.getByLabelText(/reference line/i));
-
-      // The phantom point comes from `usePhantomNetWorthPoint`, which
-      // returns `consolidatedTotal` here. We only assert the prop is a
-      // finite number to confirm the toggle is gating it.
-      const value = lastLiveAnchor();
-      expect(typeof value).toBe('number');
-      expect(Number.isFinite(value as number)).toBe(true);
-    });
-
-    it('persists the reference-line toggle to localStorage independently of Live Point', async () => {
       const user = userEvent.setup();
       render(<NetWorthTimelineWidget />);
 
-      // Flip reference line on; Live Point stays at its default.
-      await user.click(screen.getByLabelText(/reference line/i));
+      // Chart mock fires onPointClick with snapshotId='s1' (the dec
+      // snapshot in our fixture). Previous-by-date is Nov.
+      await user.click(screen.getByTestId('net-worth-chart-mock'));
 
-      expect(localStorage.getItem('nw-reference-line')).toBe('true');
-      // Live Point key is untouched by the reference-line toggle.
-      expect(localStorage.getItem('nw-phantom-live-point')).toBeNull();
+      expect(mocks.detailsOpen).toHaveBeenCalledWith(dec, nov);
     });
 
-    it('restores the reference-line toggle from localStorage on mount', () => {
-      localStorage.setItem('nw-reference-line', 'true');
-      render(
-        <NetWorthTimelineWidget
-          totalsByCurrency={{ USD: 100 }}
-          consolidatedTotal={100}
-          isConsolidatedReady={true}
-        />,
-      );
+    it('passes null for previous when the clicked snapshot is the earliest', async () => {
+      const earliest = buildSnapshot({ id: 's1', snapshotDate: '2024-01-01' });
+      const later = buildSnapshot({ id: 'later', snapshotDate: '2025-01-01' });
+      mocks.useSnapshotsQuery.mockReturnValue({
+        data: [earliest, later],
+        isLoading: false,
+      });
 
-      const checkbox = screen.getByLabelText(/reference line/i) as HTMLInputElement;
-      expect(checkbox.checked).toBe(true);
-      // And the chart receives a non-null anchor value right away.
-      expect(lastLiveAnchor()).not.toBeNull();
-    });
-
-    it('keeps the anchor null when Live Point is on but reference line is off', async () => {
       const user = userEvent.setup();
-      render(
-        <NetWorthTimelineWidget
-          totalsByCurrency={{ USD: 100 }}
-          consolidatedTotal={100}
-          isConsolidatedReady={true}
-        />,
-      );
-      // Live Point is on by default. Reference Line is off by default.
-      // Confirm liveAnchorValue is still null — toggles are decoupled.
-      const liveCheckbox = screen.getByLabelText(/^live point$/i) as HTMLInputElement;
-      expect(liveCheckbox.checked).toBe(true);
-      expect(lastLiveAnchor() ?? null).toBeNull();
+      render(<NetWorthTimelineWidget />);
 
-      // Turn Live Point OFF and reference line ON: anchor still works.
-      await user.click(liveCheckbox);
-      await user.click(screen.getByLabelText(/reference line/i));
-      expect(liveCheckbox.checked).toBe(false);
-      expect(lastLiveAnchor()).not.toBeNull();
+      await user.click(screen.getByTestId('net-worth-chart-mock'));
+
+      expect(mocks.detailsOpen).toHaveBeenCalledWith(earliest, null);
+    });
+
+    it('opens the edit modal when the details modal triggers onEdit', async () => {
+      const snapshot = buildSnapshot();
+      mocks.useSnapshotsQuery.mockReturnValue({
+        data: [snapshot],
+        isLoading: false,
+      });
+
+      render(<NetWorthTimelineWidget />);
+
+      // Simulate the details modal calling its onEdit prop — this is
+      // what happens when the user clicks the Edit button inside the
+      // details popover. The mock wires onEdit to
+      // `mocks.detailsEditCallback` so we can invoke it directly.
+      mocks.detailsEditCallback(snapshot);
+
+      expect(mocks.modalOpen).toHaveBeenCalledTimes(1);
+      expect(mocks.modalOpen).toHaveBeenCalledWith(snapshot);
+    });
+
+    it('opens the snapshots table modal when the Snapshots button is clicked', async () => {
+      const snapshot = buildSnapshot();
+      mocks.useSnapshotsQuery.mockReturnValue({
+        data: [snapshot],
+        isLoading: false,
+      });
+
+      const user = userEvent.setup();
+      render(<NetWorthTimelineWidget />);
+
+      // Initially the table modal is closed.
+      expect(screen.queryByTestId('snapshots-table-modal-mock')).not.toBeInTheDocument();
+
+      await user.click(screen.getByTestId('open-snapshots-table'));
+
+      expect(screen.getByTestId('snapshots-table-modal-mock')).toBeInTheDocument();
+      // The widget hands the full snapshot list to the table modal.
+      const lastProps = mocks.tableModalProps.mock.calls.at(-1)?.[0] as {
+        snapshots: NetWorthSnapshot[];
+        isOpen: boolean;
+      };
+      expect(lastProps.isOpen).toBe(true);
+      expect(lastProps.snapshots).toEqual([snapshot]);
+    });
+
+    it('closes the snapshots table modal when its onClose fires', async () => {
+      mocks.useSnapshotsQuery.mockReturnValue({
+        data: [buildSnapshot()],
+        isLoading: false,
+      });
+
+      const user = userEvent.setup();
+      render(<NetWorthTimelineWidget />);
+
+      await user.click(screen.getByTestId('open-snapshots-table'));
+      expect(screen.getByTestId('snapshots-table-modal-mock')).toBeInTheDocument();
+
+      await user.click(screen.getByTestId('snapshots-table-close'));
+
+      expect(screen.queryByTestId('snapshots-table-modal-mock')).not.toBeInTheDocument();
+    });
+
+    it('opens the edit modal when the table modal triggers onEdit', async () => {
+      const snapshot = buildSnapshot();
+      mocks.useSnapshotsQuery.mockReturnValue({
+        data: [snapshot],
+        isLoading: false,
+      });
+
+      const user = userEvent.setup();
+      render(<NetWorthTimelineWidget />);
+
+      await user.click(screen.getByTestId('open-snapshots-table'));
+      await user.click(screen.getByTestId('snapshots-table-edit-first'));
+
+      expect(mocks.modalOpen).toHaveBeenCalledTimes(1);
+      expect(mocks.modalOpen).toHaveBeenCalledWith(snapshot);
     });
   });
 });

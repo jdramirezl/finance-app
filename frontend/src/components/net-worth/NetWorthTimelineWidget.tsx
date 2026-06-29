@@ -26,6 +26,7 @@ import { TrendingUp } from 'lucide-react';
 import {
     useNetWorthSnapshotsQuery,
 } from '../../hooks/queries/useNetWorthSnapshotQueries';
+import type { NetWorthSnapshot } from '../../services/netWorthSnapshotService';
 import { useSettingsQuery } from '../../hooks/queries';
 import {
     useNetWorthChartData,
@@ -41,6 +42,10 @@ import NetWorthEChart, {
 import NetWorthEditModal, {
     type NetWorthEditModalHandle,
 } from './NetWorthEditModal';
+import SnapshotDetailsModal, {
+    type SnapshotDetailsModalHandle,
+} from './SnapshotDetailsModal';
+import SnapshotsTableModal from './SnapshotsTableModal';
 import NetWorthRangeControls, {
     type NetWorthRange,
 } from './NetWorthRangeControls';
@@ -175,70 +180,6 @@ const NetWorthTimelineWidget = ({ totalsByCurrency = {}, consolidatedTotal = 0, 
         return next;
     }), []);
 
-    // Independent of the live diamond toggle: controls whether the
-    // horizontal "current level" reference line + intersection dot
-    // appear on the chart. The line still uses `phantomPoint.total`
-    // as its anchor (always computed below), so it works even when
-    // the live diamond itself is hidden — the two toggles compose
-    // freely. Defaults to off so users opt into the extra visual.
-    const [showReferenceLine, setShowReferenceLine] = useState(() => {
-        try { return localStorage.getItem('nw-reference-line') === 'true'; } catch { return false; }
-    });
-    const toggleReferenceLine = useCallback(() => setShowReferenceLine(prev => {
-        const next = !prev;
-        try { localStorage.setItem('nw-reference-line', String(next)); } catch { /* ignore */ }
-        return next;
-    }), []);
-
-    // User-pinned horizontal reference levels on the net-worth chart.
-    // Persisted as a JSON-encoded number[] in localStorage so they
-    // survive reloads. The live-anchor line is handled separately
-    // (driven by `showLivePoint` + `phantomPoint`) and never lands in
-    // this list. Pin gesture: shift+click a snapshot on the chart.
-    const [pinnedReferenceValues, setPinnedReferenceValues] = useState<number[]>(() => {
-        try {
-            const raw = localStorage.getItem('nw-pinned-reference-values');
-            if (!raw) return [];
-            const parsed = JSON.parse(raw);
-            if (!Array.isArray(parsed)) return [];
-            return parsed.filter((v): v is number => typeof v === 'number' && Number.isFinite(v));
-        } catch {
-            return [];
-        }
-    });
-
-    const persistPinnedValues = useCallback((next: number[]) => {
-        try {
-            localStorage.setItem('nw-pinned-reference-values', JSON.stringify(next));
-        } catch { /* ignore quota / disabled storage */ }
-    }, []);
-
-    const handlePinReferenceValue = useCallback((value: number) => {
-        if (!Number.isFinite(value)) return;
-        setPinnedReferenceValues((prev) => {
-            // Dedupe: shift-clicking a snapshot whose value is already
-            // pinned is a no-op rather than a duplicate entry.
-            if (prev.some((v) => v === value)) return prev;
-            const next = [...prev, value];
-            persistPinnedValues(next);
-            return next;
-        });
-    }, [persistPinnedValues]);
-
-    const handleUnpinReferenceValue = useCallback((value: number) => {
-        setPinnedReferenceValues((prev) => {
-            const next = prev.filter((v) => v !== value);
-            if (next.length === prev.length) return prev;
-            persistPinnedValues(next);
-            return next;
-        });
-    }, [persistPinnedValues]);
-
-    const clearAllPinnedValues = useCallback(() => {
-        setPinnedReferenceValues([]);
-        persistPinnedValues([]);
-    }, [persistPinnedValues]);
-
     const { data: phantomPoint } = usePhantomNetWorthPoint({
         totalsByCurrency: totalsByCurrency as Record<import('../../types').Currency, number>,
         consolidatedTotal,
@@ -246,6 +187,8 @@ const NetWorthTimelineWidget = ({ totalsByCurrency = {}, consolidatedTotal = 0, 
     });
 
     const editModalRef = useRef<NetWorthEditModalHandle>(null);
+    const detailsModalRef = useRef<SnapshotDetailsModalHandle>(null);
+    const [showSnapshotsTable, setShowSnapshotsTable] = useState(false);
 
     const primaryCurrency = settings?.primaryCurrency || 'USD';
 
@@ -271,6 +214,13 @@ const NetWorthTimelineWidget = ({ totalsByCurrency = {}, consolidatedTotal = 0, 
     // After Wave 5 the only chart implementation is NetWorthEChart, so
     // this signature targets `NetWorthEChartDatum` directly via the
     // structural shape both Total and Breakdown modes carry.
+    // Click on a point now opens a read-only details popover instead
+    // of jumping straight into the edit form. The popover surfaces the
+    // full per-currency breakdown plus a delta vs the previous
+    // snapshot and exposes an Edit button that hands off to the
+    // existing edit modal — so the editing capability is one extra
+    // click rather than gone. Bulk editing lives in the new
+    // SnapshotsTableModal.
     const handlePointClick = (datum: {
         snapshotId: string;
         fullDate: string;
@@ -280,10 +230,44 @@ const NetWorthTimelineWidget = ({ totalsByCurrency = {}, consolidatedTotal = 0, 
             snapshots.find((s) => s.id === snapshotId) ||
             snapshots.find((s) => s.snapshotDate === datum.fullDate);
 
-        if (snapshot) {
-            editModalRef.current?.open(snapshot);
+        if (!snapshot) return;
+
+        // Find the previous snapshot by date so the details modal can
+        // render a "Δ vs prev" line. Iterating once instead of sorting
+        // a copy keeps this cheap even when the snapshot list grows.
+        let previous: NetWorthSnapshot | null = null;
+        let previousMs = -Infinity;
+        const currentMs = new Date(snapshot.snapshotDate).getTime();
+        for (const s of snapshots) {
+            if (s.id === snapshot.id) continue;
+            const ms = new Date(s.snapshotDate).getTime();
+            if (ms < currentMs && ms > previousMs) {
+                previousMs = ms;
+                previous = s;
+            }
         }
+
+        detailsModalRef.current?.open(snapshot, previous);
     };
+
+    // Handler the details modal calls when the user clicks Edit. The
+    // details modal has already closed itself, so we can open the
+    // edit modal immediately without focus-trap conflicts.
+    const handleEditFromDetails = useCallback(
+        (snapshot: NetWorthSnapshot) => {
+            editModalRef.current?.open(snapshot);
+        },
+        [],
+    );
+
+    // Same handoff path from the snapshots-table modal: it closes
+    // first and then we open the edit modal.
+    const handleEditFromTable = useCallback(
+        (snapshot: NetWorthSnapshot) => {
+            editModalRef.current?.open(snapshot);
+        },
+        [],
+    );
 
     // Memoize the EChart data adapter so the option's useMemo dependency
     // (NetWorthEChart memoizes its option keyed on `data`) doesn't get
@@ -464,18 +448,15 @@ const NetWorthTimelineWidget = ({ totalsByCurrency = {}, consolidatedTotal = 0, 
                             />
                             Live Point
                         </label>
-                        <label
-                            className="flex items-center gap-1.5 text-xs text-gray-400 cursor-pointer"
-                            title="Show a horizontal line at the current net worth value with a marker at the most recent time you were at the same level."
+                        <button
+                            type="button"
+                            onClick={() => setShowSnapshotsTable(true)}
+                            className="inline-flex items-center gap-1 text-xs text-gray-400 hover:text-blue-300 underline-offset-2 hover:underline"
+                            title="View and edit all snapshots in a table"
+                            data-testid="open-snapshots-table"
                         >
-                            <input
-                                type="checkbox"
-                                checked={showReferenceLine}
-                                onChange={toggleReferenceLine}
-                                className="w-3.5 h-3.5 rounded border-gray-600 text-emerald-500 focus:ring-emerald-500"
-                            />
-                            Reference Line
-                        </label>
+                            Snapshots
+                        </button>
                         <label className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 cursor-pointer select-none">
                             <input
                                 type="checkbox"
@@ -498,70 +479,7 @@ const NetWorthTimelineWidget = ({ totalsByCurrency = {}, consolidatedTotal = 0, 
                     dataZoomEnd={zoomRange.end}
                     viewMode={viewMode === 'breakdown' ? 'breakdown' : 'total'}
                     currencyData={finalCurrencyData}
-                    liveAnchorValue={
-                        showReferenceLine && phantomPoint && !showVariation
-                            ? phantomPoint.total
-                            : null
-                    }
-                    pinnedReferenceValues={
-                        showVariation ? [] : pinnedReferenceValues
-                    }
-                    onPinReferenceValue={handlePinReferenceValue}
                 />
-
-                {/* Pinned reference levels — chip row. Shift+click a
-                    snapshot on the chart to pin its level; click the ×
-                    on a chip to remove it. Hidden in variation mode
-                    because absolute-currency anchors don't apply when
-                    the y-axis is window-relative percentages. */}
-                {!showVariation && viewMode === 'total' && (
-                    <div
-                        className="mt-3 flex flex-wrap items-center gap-2 text-xs"
-                        data-testid="nw-pinned-reference-chips"
-                    >
-                        {pinnedReferenceValues.length === 0 ? (
-                            <span className="text-gray-500 italic">
-                                Tip: shift+click any snapshot to pin a reference level.
-                            </span>
-                        ) : (
-                            <>
-                                <span className="text-gray-400">Pinned:</span>
-                                {pinnedReferenceValues.map((value) => (
-                                    <span
-                                        key={value}
-                                        className="inline-flex items-center gap-1 rounded-full bg-blue-500/10 border border-blue-500/30 px-2 py-0.5 text-blue-300"
-                                        data-testid={`nw-pinned-chip-${value}`}
-                                    >
-                                        <CurrencyAmount
-                                            amount={value}
-                                            currency={primaryCurrency}
-                                            locale="en-US"
-                                            minimumFractionDigits={0}
-                                            maximumFractionDigits={0}
-                                        />
-                                        <button
-                                            type="button"
-                                            onClick={() => handleUnpinReferenceValue(value)}
-                                            aria-label={`Remove pinned level ${value}`}
-                                            className="text-blue-400 hover:text-blue-200"
-                                        >
-                                            ×
-                                        </button>
-                                    </span>
-                                ))}
-                                {pinnedReferenceValues.length > 1 && (
-                                    <button
-                                        type="button"
-                                        onClick={clearAllPinnedValues}
-                                        className="text-gray-500 hover:text-gray-300 underline-offset-2 hover:underline"
-                                    >
-                                        Clear all
-                                    </button>
-                                )}
-                            </>
-                        )}
-                    </div>
-                )}
 
                 {/* Latest Value */}
                 {latestDatum && viewMode === 'total' && (
@@ -586,6 +504,18 @@ const NetWorthTimelineWidget = ({ totalsByCurrency = {}, consolidatedTotal = 0, 
             </Card>
 
             <NetWorthEditModal ref={editModalRef} />
+            <SnapshotDetailsModal
+                ref={detailsModalRef}
+                onEdit={handleEditFromDetails}
+                primaryCurrency={primaryCurrency}
+            />
+            <SnapshotsTableModal
+                isOpen={showSnapshotsTable}
+                onClose={() => setShowSnapshotsTable(false)}
+                snapshots={snapshots}
+                onEdit={handleEditFromTable}
+                primaryCurrency={primaryCurrency}
+            />
         </>
     );
 };
