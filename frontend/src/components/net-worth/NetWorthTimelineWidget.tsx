@@ -175,6 +175,55 @@ const NetWorthTimelineWidget = ({ totalsByCurrency = {}, consolidatedTotal = 0, 
         return next;
     }), []);
 
+    // User-pinned horizontal reference levels on the net-worth chart.
+    // Persisted as a JSON-encoded number[] in localStorage so they
+    // survive reloads. The live-anchor line is handled separately
+    // (driven by `showLivePoint` + `phantomPoint`) and never lands in
+    // this list. Pin gesture: shift+click a snapshot on the chart.
+    const [pinnedReferenceValues, setPinnedReferenceValues] = useState<number[]>(() => {
+        try {
+            const raw = localStorage.getItem('nw-pinned-reference-values');
+            if (!raw) return [];
+            const parsed = JSON.parse(raw);
+            if (!Array.isArray(parsed)) return [];
+            return parsed.filter((v): v is number => typeof v === 'number' && Number.isFinite(v));
+        } catch {
+            return [];
+        }
+    });
+
+    const persistPinnedValues = useCallback((next: number[]) => {
+        try {
+            localStorage.setItem('nw-pinned-reference-values', JSON.stringify(next));
+        } catch { /* ignore quota / disabled storage */ }
+    }, []);
+
+    const handlePinReferenceValue = useCallback((value: number) => {
+        if (!Number.isFinite(value)) return;
+        setPinnedReferenceValues((prev) => {
+            // Dedupe: shift-clicking a snapshot whose value is already
+            // pinned is a no-op rather than a duplicate entry.
+            if (prev.some((v) => v === value)) return prev;
+            const next = [...prev, value];
+            persistPinnedValues(next);
+            return next;
+        });
+    }, [persistPinnedValues]);
+
+    const handleUnpinReferenceValue = useCallback((value: number) => {
+        setPinnedReferenceValues((prev) => {
+            const next = prev.filter((v) => v !== value);
+            if (next.length === prev.length) return prev;
+            persistPinnedValues(next);
+            return next;
+        });
+    }, [persistPinnedValues]);
+
+    const clearAllPinnedValues = useCallback(() => {
+        setPinnedReferenceValues([]);
+        persistPinnedValues([]);
+    }, [persistPinnedValues]);
+
     const { data: phantomPoint } = usePhantomNetWorthPoint({
         totalsByCurrency: totalsByCurrency as Record<import('../../types').Currency, number>,
         consolidatedTotal,
@@ -422,7 +471,70 @@ const NetWorthTimelineWidget = ({ totalsByCurrency = {}, consolidatedTotal = 0, 
                     dataZoomEnd={zoomRange.end}
                     viewMode={viewMode === 'breakdown' ? 'breakdown' : 'total'}
                     currencyData={finalCurrencyData}
+                    liveAnchorValue={
+                        showLivePoint && phantomPoint && !showVariation
+                            ? phantomPoint.total
+                            : null
+                    }
+                    pinnedReferenceValues={
+                        showVariation ? [] : pinnedReferenceValues
+                    }
+                    onPinReferenceValue={handlePinReferenceValue}
                 />
+
+                {/* Pinned reference levels — chip row. Shift+click a
+                    snapshot on the chart to pin its level; click the ×
+                    on a chip to remove it. Hidden in variation mode
+                    because absolute-currency anchors don't apply when
+                    the y-axis is window-relative percentages. */}
+                {!showVariation && viewMode === 'total' && (
+                    <div
+                        className="mt-3 flex flex-wrap items-center gap-2 text-xs"
+                        data-testid="nw-pinned-reference-chips"
+                    >
+                        {pinnedReferenceValues.length === 0 ? (
+                            <span className="text-gray-500 italic">
+                                Tip: shift+click any snapshot to pin a reference level.
+                            </span>
+                        ) : (
+                            <>
+                                <span className="text-gray-400">Pinned:</span>
+                                {pinnedReferenceValues.map((value) => (
+                                    <span
+                                        key={value}
+                                        className="inline-flex items-center gap-1 rounded-full bg-blue-500/10 border border-blue-500/30 px-2 py-0.5 text-blue-300"
+                                        data-testid={`nw-pinned-chip-${value}`}
+                                    >
+                                        <CurrencyAmount
+                                            amount={value}
+                                            currency={primaryCurrency}
+                                            locale="en-US"
+                                            minimumFractionDigits={0}
+                                            maximumFractionDigits={0}
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => handleUnpinReferenceValue(value)}
+                                            aria-label={`Remove pinned level ${value}`}
+                                            className="text-blue-400 hover:text-blue-200"
+                                        >
+                                            ×
+                                        </button>
+                                    </span>
+                                ))}
+                                {pinnedReferenceValues.length > 1 && (
+                                    <button
+                                        type="button"
+                                        onClick={clearAllPinnedValues}
+                                        className="text-gray-500 hover:text-gray-300 underline-offset-2 hover:underline"
+                                    >
+                                        Clear all
+                                    </button>
+                                )}
+                            </>
+                        )}
+                    </div>
+                )}
 
                 {/* Latest Value */}
                 {latestDatum && viewMode === 'total' && (

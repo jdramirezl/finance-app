@@ -43,6 +43,8 @@ import {
     type LegendComponentOption,
     MarkLineComponent,
     type MarkLineComponentOption,
+    MarkPointComponent,
+    type MarkPointComponentOption,
 } from 'echarts/components';
 import { CanvasRenderer } from 'echarts/renderers';
 import type { ComposeOption } from 'echarts/core';
@@ -50,6 +52,7 @@ import type { ComposeOption } from 'echarts/core';
 // `import type` is erased by the compiler under `verbatimModuleSyntax`,
 // so this does not pull the full echarts barrel into the runtime bundle.
 import type { DefaultLabelFormatterCallbackParams as CallbackDataParams } from 'echarts';
+import { findLastIntersection } from '../../utils/findLastIntersection';
 
 // Register only the components this chart needs. `LegendComponent` is
 // registered alongside the rest so breakdown mode can render the
@@ -65,6 +68,7 @@ echarts.use([
     DataZoomComponent,
     LegendComponent,
     MarkLineComponent,
+    MarkPointComponent,
     CanvasRenderer,
 ]);
 
@@ -79,6 +83,7 @@ type ChartOption = ComposeOption<
     | DataZoomComponentOption
     | LegendComponentOption
     | MarkLineComponentOption
+    | MarkPointComponentOption
 >;
 
 export interface NetWorthEChartDatum {
@@ -168,6 +173,29 @@ export interface NetWorthEChartProps {
      * `data`; the index maps directly to the snapshot at `data[i]`.
      */
     currencyData?: CurrencySeriesData[];
+    /**
+     * Optional anchor at the user's current live net worth. When provided,
+     * the chart renders a solid green horizontal reference line at this
+     * value with a "$X" label and a dot marker placed at the most recent
+     * historical intersection. Hidden in `showVariation` mode because the
+     * y-axis there is in window-relative percentages, not currency.
+     */
+    liveAnchorValue?: number | null;
+    /**
+     * User-pinned reference levels. Each value renders as a dashed blue
+     * horizontal line + value label + last-intersection dot. Order is not
+     * significant; duplicates are tolerated (the chart deduplicates at
+     * render time). Like {@link liveAnchorValue}, ignored in
+     * `showVariation` mode.
+     */
+    pinnedReferenceValues?: readonly number[];
+    /**
+     * Fired when the user shift-clicks a snapshot point. The callback
+     * receives the clicked datum's `total` (absolute amount in primary
+     * currency). The widget owns the resulting pin state — the chart
+     * doesn't mutate it directly.
+     */
+    onPinReferenceValue?: (yValue: number) => void;
 }
 
 /**
@@ -496,6 +524,9 @@ const NetWorthEChart = ({
     dataZoomEnd,
     viewMode = 'total',
     currencyData,
+    liveAnchorValue = null,
+    pinnedReferenceValues,
+    onPinReferenceValue,
 }: NetWorthEChartProps) => {
     // Ref to the echarts-for-react instance, exposed for programmatic
     // control via `getEchartsInstance().dispatchAction(...)` whenever
@@ -687,6 +718,138 @@ const NetWorthEChart = ({
                   }
                 : undefined;
 
+        // Horizontal reference lines: the live-current anchor plus any
+        // user-pinned levels. Skipped in variation mode because the
+        // y-axis there is a window-relative percentage, so a "$209M"
+        // line would render at a meaningless value. We dedupe values
+        // (a pin coincidentally equal to live anchor would otherwise
+        // draw two overlapping lines) and keep the live anchor visually
+        // distinct: solid green vs dashed blue.
+        type ReferenceLevel = {
+            value: number;
+            kind: 'live' | 'pinned';
+        };
+        const referenceLevels: ReferenceLevel[] = (() => {
+            if (showVariation) return [];
+            const seen = new Set<number>();
+            const out: ReferenceLevel[] = [];
+            if (
+                liveAnchorValue != null &&
+                Number.isFinite(liveAnchorValue)
+            ) {
+                seen.add(liveAnchorValue);
+                out.push({ value: liveAnchorValue, kind: 'live' });
+            }
+            for (const v of pinnedReferenceValues ?? []) {
+                if (!Number.isFinite(v)) continue;
+                if (seen.has(v)) continue;
+                seen.add(v);
+                out.push({ value: v, kind: 'pinned' });
+            }
+            return out;
+        })();
+
+        // Series in (date, total) form that the intersection finder
+        // expects. Computed once and reused per reference level so we
+        // don't rebuild the array per line.
+        const intersectionSeries = data.map((d) => ({
+            date: d.date,
+            value: d.total,
+        }));
+
+        const referenceMarkLineData = referenceLevels.map(
+            ({ value, kind }) => ({
+                yAxis: value,
+                lineStyle: {
+                    color: kind === 'live' ? '#10b981' : '#60a5fa',
+                    type:
+                        kind === 'live'
+                            ? ('solid' as const)
+                            : ('dashed' as const),
+                    width: kind === 'live' ? 2 : 1,
+                    opacity: 0.9,
+                },
+                label: {
+                    show: true,
+                    formatter: () => formatCurrencyAxisTick(value),
+                    position: 'insideEndTop' as const,
+                    color: kind === 'live' ? '#10b981' : '#60a5fa',
+                    fontSize: 11,
+                    padding: [2, 4, 2, 4] as [number, number, number, number],
+                    backgroundColor: '#0f172a',
+                    borderRadius: 4,
+                },
+            }),
+        );
+
+        // Combined markLine config attached to the first series: year
+        // vertical guides PLUS the horizontal reference lines. Each
+        // entry's per-row style overrides the top-level defaults, so
+        // year boundaries stay dashed gray while reference lines pick
+        // up their own colors. When neither has anything to draw, the
+        // whole markLine config is dropped.
+        const combinedMarkLine: LineSeriesOption['markLine'] | undefined =
+            yearMarkLine || referenceMarkLineData.length > 0
+                ? {
+                      silent: true,
+                      symbol: 'none',
+                      // Default = year-boundary style. Reference lines
+                      // override per-entry. Hide labels by default;
+                      // reference lines opt back in per-entry.
+                      label: { show: false },
+                      lineStyle: yearMarkLine?.lineStyle ?? {
+                          color: '#374151',
+                          type: 'dashed',
+                          width: 1,
+                          opacity: 0.6,
+                      },
+                      data: [
+                          ...(yearMarkLine?.data ?? []),
+                          ...referenceMarkLineData,
+                      ],
+                  }
+                : undefined;
+
+        // Markers placed at the most recent historical intersection of
+        // each reference line with the chart curve. Levels with no
+        // crossing in the data are silently skipped (it's a no-op when
+        // the user pins a level above their all-time high or below
+        // their all-time low).
+        const referenceMarkPointData = referenceLevels
+            .map(({ value, kind }) => {
+                const crossing = findLastIntersection(
+                    intersectionSeries,
+                    value,
+                );
+                if (!crossing) return null;
+                return {
+                    // ECharts' MarkPoint data items require a `name`;
+                    // it isn't displayed because `label.show` is false,
+                    // but the type system insists on it.
+                    name: kind === 'live' ? 'live-anchor' : `pin-${value}`,
+                    coord: [crossing.date, value] as [string, number],
+                    symbol: 'circle' as const,
+                    symbolSize: 8,
+                    itemStyle: {
+                        color: kind === 'live' ? '#10b981' : '#60a5fa',
+                        borderColor: '#0f172a',
+                        borderWidth: 2,
+                    },
+                    label: { show: false },
+                };
+            })
+            .filter((m): m is NonNullable<typeof m> => m !== null);
+
+        const referenceMarkPoint:
+            | LineSeriesOption['markPoint']
+            | undefined =
+            referenceMarkPointData.length > 0
+                ? {
+                      silent: true,
+                      data: referenceMarkPointData,
+                  }
+                : undefined;
+
         // Build the series list. Total mode renders the single
         // aggregate line with the area gradient; breakdown mode emits
         // one line per currency, sharing the same x-axis date positions
@@ -759,8 +922,11 @@ const NetWorthEChart = ({
                       cursor: 'pointer',
                       // Year-boundary guide lines live on the first series
                       // only to avoid duplicate overlapping lines.
-                      ...(seriesIdx === 0 && yearMarkLine
-                          ? { markLine: yearMarkLine }
+                      ...(seriesIdx === 0 && combinedMarkLine
+                          ? { markLine: combinedMarkLine }
+                          : {}),
+                      ...(seriesIdx === 0 && referenceMarkPoint
+                          ? { markPoint: referenceMarkPoint }
                           : {}),
                   };
               })
@@ -822,10 +988,16 @@ const NetWorthEChart = ({
                       // affordance for "click to edit" is immediately
                       // discoverable.
                       cursor: 'pointer',
-                      // Year-boundary guide lines on the single total
-                      // series. Spread is a no-op when `yearMarkLine`
-                      // is `undefined` (short ranges).
-                      ...(yearMarkLine ? { markLine: yearMarkLine } : {}),
+                      // Year-boundary guide lines + horizontal reference
+                      // lines on the single total series. Spread is a
+                      // no-op when neither produced anything to draw
+                      // (short ranges with no reference levels).
+                      ...(combinedMarkLine
+                          ? { markLine: combinedMarkLine }
+                          : {}),
+                      ...(referenceMarkPoint
+                          ? { markPoint: referenceMarkPoint }
+                          : {}),
                   },
               ];
 
@@ -1240,9 +1412,26 @@ const NetWorthEChart = ({
             if (params.componentType !== 'series') return;
             if (typeof params.dataIndex !== 'number') return;
             const datum = data[params.dataIndex];
-            if (datum) onPointClick(datum);
+            if (!datum) return;
+            // Shift+click pins the snapshot's net-worth value as a
+            // reference level instead of opening the edit modal. The
+            // chart doesn't own pin state — it just bubbles the
+            // intended value up to the widget, which persists it.
+            // `params.event` is not declared on ECharts'
+            // `CallbackDataParams` type but is reliably present at
+            // runtime — the underlying zrender event carries the
+            // native browser MouseEvent inside `event.event`.
+            const eventCarrier = params as unknown as {
+                event?: { event?: { shiftKey?: boolean } };
+            };
+            const nativeEvent = eventCarrier.event?.event;
+            if (nativeEvent?.shiftKey && onPinReferenceValue) {
+                onPinReferenceValue(datum.total);
+                return;
+            }
+            onPointClick(datum);
         },
-        [data, onPointClick],
+        [data, onPointClick, onPinReferenceValue],
     );
 
     // Wave 3: track the user's zoom so the option can echo it back and
