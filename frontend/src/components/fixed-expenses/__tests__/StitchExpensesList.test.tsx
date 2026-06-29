@@ -434,4 +434,38 @@ describe('StitchExpensesList', () => {
       expect(available.map((g) => g.id)).toEqual(['grp-bills']);
     });
   });
+
+  describe('scenario highlight forwarding', () => {
+    it('forwards scenario highlight props to every group card', () => {
+      const highlightedExpenseIds = new Set([internet.id]);
+      const scenarioCountByExpense = new Map([[internet.id, 2]]);
+
+      render(
+        <StitchExpensesList
+          {...buildProps({
+            highlightedExpenseIds,
+            scenarioCountByExpense,
+            hasActiveScenarios: true,
+          })}
+        />,
+      );
+
+      // Two real group cards (bills + default). Both must receive the
+      // same highlight inputs — the page owns the derivation.
+      expect(groupCardRenders.length).toBeGreaterThanOrEqual(2);
+      for (const card of groupCardRenders) {
+        expect(card.highlightedExpenseIds).toBe(highlightedExpenseIds);
+        expect(card.scenarioCountByExpense).toBe(scenarioCountByExpense);
+        expect(card.hasActiveScenarios).toBe(true);
+      }
+    });
+
+    it('defaults hasActiveScenarios to false when not provided', () => {
+      render(<StitchExpensesList {...buildProps()} />);
+
+      for (const card of groupCardRenders) {
+        expect(card.hasActiveScenarios).toBe(false);
+      }
+    });
+  });
 });

@@ -22,6 +22,15 @@ export interface StitchExpensesListProps {
    */
   onMoveToGroup: (expense: SubPocket, targetGroupId: string | null) => void;
   deletingId?: string | null;
+  /**
+   * Scenario-driven highlight state passed through to every
+   * `StitchGroupCard`. See {@link StitchGroupCardProps} for the contract.
+   * Optional — when omitted, no rows are highlighted and the list behaves
+   * exactly like before.
+   */
+  highlightedExpenseIds?: ReadonlySet<string>;
+  scenarioCountByExpense?: ReadonlyMap<string, number>;
+  hasActiveScenarios?: boolean;
 }
 
 /**
@@ -46,6 +55,9 @@ const StitchExpensesList = ({
   onDeleteExpense,
   onMoveToGroup,
   deletingId = null,
+  highlightedExpenseIds,
+  scenarioCountByExpense,
+  hasActiveScenarios = false,
 }: StitchExpensesListProps) => {
   // ---- Bucketing ----
   // Bucket sub-pockets by groupId in a single pass so each card receives a
@@ -169,6 +181,9 @@ const StitchExpensesList = ({
             onMoveToGroup={onMoveToGroup}
             availableGroups={availableGroups}
             deletingExpenseId={deletingId}
+            highlightedExpenseIds={highlightedExpenseIds}
+            scenarioCountByExpense={scenarioCountByExpense}
+            hasActiveScenarios={hasActiveScenarios}
           />
         );
       })}

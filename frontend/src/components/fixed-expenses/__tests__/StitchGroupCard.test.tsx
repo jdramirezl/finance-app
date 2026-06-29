@@ -303,4 +303,149 @@ describe('StitchGroupCard', () => {
       ).toBeInTheDocument();
     });
   });
+
+  describe('scenario highlights', () => {
+    it('does not highlight or dim any row when highlightedExpenseIds is empty', () => {
+      render(
+        <StitchGroupCard
+          {...buildProps({
+            highlightedExpenseIds: new Set<string>(),
+            scenarioCountByExpense: new Map<string, number>(),
+            hasActiveScenarios: false,
+          })}
+        />,
+      );
+
+      const internetRow = screen.getByTestId(`stitch-expense-row-${internet.id}`);
+      const electricityRow = screen.getByTestId(
+        `stitch-expense-row-${electricity.id}`,
+      );
+
+      expect(internetRow.dataset.highlighted).toBe('false');
+      expect(internetRow.dataset.dimmed).toBe('false');
+      expect(electricityRow.dataset.highlighted).toBe('false');
+      expect(electricityRow.dataset.dimmed).toBe('false');
+    });
+
+    it('highlights only expenses present in highlightedExpenseIds', () => {
+      render(
+        <StitchGroupCard
+          {...buildProps({
+            highlightedExpenseIds: new Set([internet.id]),
+            scenarioCountByExpense: new Map([[internet.id, 1]]),
+            hasActiveScenarios: true,
+          })}
+        />,
+      );
+
+      const internetRow = screen.getByTestId(`stitch-expense-row-${internet.id}`);
+      const electricityRow = screen.getByTestId(
+        `stitch-expense-row-${electricity.id}`,
+      );
+
+      expect(internetRow.dataset.highlighted).toBe('true');
+      expect(internetRow.dataset.dimmed).toBe('false');
+      expect(internetRow.className).toMatch(/border-blue-400/);
+      expect(internetRow.className).toMatch(/bg-blue-500\/10/);
+      expect(electricityRow.dataset.highlighted).toBe('false');
+    });
+
+    it('dims expenses not in any active scenario when hasActiveScenarios is true', () => {
+      render(
+        <StitchGroupCard
+          {...buildProps({
+            highlightedExpenseIds: new Set([internet.id]),
+            scenarioCountByExpense: new Map([[internet.id, 1]]),
+            hasActiveScenarios: true,
+          })}
+        />,
+      );
+
+      const electricityRow = screen.getByTestId(
+        `stitch-expense-row-${electricity.id}`,
+      );
+      expect(electricityRow.dataset.dimmed).toBe('true');
+      expect(electricityRow.className).toMatch(/opacity-40/);
+    });
+
+    it('does not dim non-highlighted rows when hasActiveScenarios is false', () => {
+      render(
+        <StitchGroupCard
+          {...buildProps({
+            highlightedExpenseIds: new Set([internet.id]),
+            scenarioCountByExpense: new Map([[internet.id, 1]]),
+            hasActiveScenarios: false,
+          })}
+        />,
+      );
+
+      const electricityRow = screen.getByTestId(
+        `stitch-expense-row-${electricity.id}`,
+      );
+      expect(electricityRow.dataset.dimmed).toBe('false');
+      expect(electricityRow.className).not.toMatch(/opacity-40/);
+    });
+
+    it('renders an "×N" overlap badge only when scenarioCount > 1', () => {
+      render(
+        <StitchGroupCard
+          {...buildProps({
+            highlightedExpenseIds: new Set([internet.id, electricity.id]),
+            scenarioCountByExpense: new Map([
+              [internet.id, 1],
+              [electricity.id, 3],
+            ]),
+            hasActiveScenarios: true,
+          })}
+        />,
+      );
+
+      // Single-scenario expense has no badge.
+      expect(
+        screen.queryByTestId(`scenario-count-${internet.id}`),
+      ).not.toBeInTheDocument();
+
+      // Multi-scenario expense shows the count.
+      const badge = screen.getByTestId(`scenario-count-${electricity.id}`);
+      expect(badge).toHaveTextContent('×3');
+      expect(badge).toHaveAttribute(
+        'aria-label',
+        'In 3 active scenarios',
+      );
+    });
+
+    it('applies the group accent border when at least one expense is highlighted', () => {
+      render(
+        <StitchGroupCard
+          {...buildProps({
+            highlightedExpenseIds: new Set([internet.id]),
+            scenarioCountByExpense: new Map([[internet.id, 1]]),
+            hasActiveScenarios: true,
+          })}
+        />,
+      );
+
+      const card = screen.getByTestId(`stitch-group-card-${billsGroup.id}`);
+      expect(card.dataset.highlighted).toBe('true');
+      expect(card.className).toMatch(/border-blue-500\/40/);
+      expect(card.className).not.toMatch(/border-gray-700/);
+    });
+
+    it('keeps the default group border when no expense in this group is highlighted', () => {
+      render(
+        <StitchGroupCard
+          {...buildProps({
+            // Highlighted id refers to an expense NOT in this card.
+            highlightedExpenseIds: new Set(['sp-not-in-this-card']),
+            scenarioCountByExpense: new Map([['sp-not-in-this-card', 1]]),
+            hasActiveScenarios: true,
+          })}
+        />,
+      );
+
+      const card = screen.getByTestId(`stitch-group-card-${billsGroup.id}`);
+      expect(card.dataset.highlighted).toBe('false');
+      expect(card.className).toMatch(/border-gray-700/);
+    });
+  });
 });

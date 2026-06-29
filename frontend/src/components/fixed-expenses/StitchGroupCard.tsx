@@ -44,6 +44,25 @@ export interface StitchGroupCardProps {
    */
   availableGroups: { id: string; name: string }[];
   deletingExpenseId?: string | null;
+  /**
+   * Expense ids that belong to at least one active planning scenario.
+   * Rows whose id is in this set get the highlight treatment (tinted
+   * background + blue left accent). Rows not in the set are dimmed when
+   * `hasActiveScenarios` is true.
+   */
+  highlightedExpenseIds?: ReadonlySet<string>;
+  /**
+   * How many active scenarios each highlighted expense belongs to. The row
+   * shows a "×N" badge when the count is greater than 1. Counts of 0 or 1
+   * are not displayed.
+   */
+  scenarioCountByExpense?: ReadonlyMap<string, number>;
+  /**
+   * `true` when at least one planning scenario is selected. Enables
+   * focus-mode dimming for non-highlighted rows. Independent of whether
+   * `highlightedExpenseIds` ends up empty.
+   */
+  hasActiveScenarios?: boolean;
 }
 
 /**
@@ -127,6 +146,9 @@ const StitchGroupCard = ({
   onMoveToGroup,
   availableGroups,
   deletingExpenseId = null,
+  highlightedExpenseIds,
+  scenarioCountByExpense,
+  hasActiveScenarios = false,
 }: StitchGroupCardProps) => {
   // Tracks which expense's move-to-group dropdown is currently open. Only
   // one can be open at a time; clicking the trigger toggles it, picking an
@@ -143,8 +165,25 @@ const StitchGroupCard = ({
     return { groupTotal: total };
   }, [expenses]);
 
+  // Whether any expense in this group is currently highlighted by an
+  // active scenario. Drives the subtle accent border on the card so the
+  // group itself reflects scenario state without needing per-row hover.
+  const groupHasHighlight = useMemo(() => {
+    if (!highlightedExpenseIds || highlightedExpenseIds.size === 0) return false;
+    for (const sp of expenses) {
+      if (highlightedExpenseIds.has(sp.id)) return true;
+    }
+    return false;
+  }, [expenses, highlightedExpenseIds]);
+
   return (
-    <div className="group bg-gray-800 rounded-xl border border-gray-700 overflow-hidden">
+    <div
+      className={`group bg-gray-800 rounded-xl border overflow-hidden transition-colors ${
+        groupHasHighlight ? 'border-blue-500/40' : 'border-gray-700'
+      }`}
+      data-testid={`stitch-group-card-${group.id}`}
+      data-highlighted={groupHasHighlight ? 'true' : 'false'}
+    >
       {/* ---- Group Header ---- */}
       <div className="w-full flex items-center justify-between p-4 hover:bg-gray-700/50 transition-colors">
         <button
@@ -232,10 +271,29 @@ const StitchGroupCard = ({
                 expense.balance,
               );
 
+              // Scenario-driven visual state. `isHighlighted` toggles the
+              // blue tint + left accent. `scenarioCount` drives the "×N"
+              // overlap badge (only shown when > 1). `isDimmed` is focus
+              // mode: when any scenario is active, rows that aren't
+              // highlighted fade so the user's eye lands on the matching
+              // expenses.
+              const isHighlighted =
+                highlightedExpenseIds?.has(expense.id) ?? false;
+              const scenarioCount = scenarioCountByExpense?.get(expense.id) ?? 0;
+              const isDimmed = hasActiveScenarios && !isHighlighted;
+
               return (
                 <div
                   key={expense.id}
-                  className="group/row rounded-lg hover:bg-gray-700/30 transition-colors"
+                  data-testid={`stitch-expense-row-${expense.id}`}
+                  data-highlighted={isHighlighted ? 'true' : 'false'}
+                  data-dimmed={isDimmed ? 'true' : 'false'}
+                  data-scenario-count={String(scenarioCount)}
+                  className={`group/row rounded-lg transition-all border-l-2 ${
+                    isHighlighted
+                      ? 'border-blue-400 bg-blue-500/10'
+                      : 'border-transparent hover:bg-gray-700/30'
+                  } ${isDimmed ? 'opacity-40' : ''}`}
                 >
                   <div className="flex items-center justify-between p-2">
                     <div className="flex items-center gap-3 flex-1 min-w-0">
@@ -246,6 +304,16 @@ const StitchGroupCard = ({
                       <span className="text-gray-200 truncate">
                         {expense.name}
                       </span>
+                      {scenarioCount > 1 && (
+                        <span
+                          data-testid={`scenario-count-${expense.id}`}
+                          aria-label={`In ${scenarioCount} active scenarios`}
+                          title={`In ${scenarioCount} active scenarios`}
+                          className="text-[10px] font-semibold text-blue-300 bg-blue-500/20 rounded-full px-1.5 py-0.5 flex-shrink-0"
+                        >
+                          ×{scenarioCount}
+                        </span>
+                      )}
                     </div>
 
                     <div className="flex items-center gap-3 flex-shrink-0">

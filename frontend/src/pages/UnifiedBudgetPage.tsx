@@ -21,6 +21,7 @@ import type {
   SubPocket,
 } from '../types';
 import { calculateAporteMensual } from '../utils/fixedExpenseUtils';
+import { computeScenarioHighlight } from '../utils/scenarioHighlight';
 import BatchMovementForm from '../components/movements/BatchMovementForm';
 import EmptyState from '../components/ui/EmptyState';
 import Modal from '../components/ui/Modal';
@@ -236,6 +237,16 @@ const UnifiedBudgetPage = () => {
     [distributionEntries],
   );
 
+  // Cross-panel link: which fixed expenses should the left list emphasize
+  // because they belong to one of the currently-active scenarios on the
+  // right? Memoized on the inputs so unrelated re-renders don't recompute
+  // the union/count maps.
+  const scenarioHighlight = useMemo(
+    () =>
+      computeScenarioHighlight(scenarios, budgetActions.activeScenarioIds),
+    [scenarios, budgetActions.activeScenarioIds],
+  );
+
   // --- Loading branch ----------------------------------------------------
   if (settingsLoading || groupsLoading) {
     return (
@@ -322,6 +333,9 @@ const UnifiedBudgetPage = () => {
               onEditExpense={handleEditExpense}
               onDeleteExpense={handleDeleteExpense}
               onMoveToGroup={handleMoveToGroup}
+              highlightedExpenseIds={scenarioHighlight.expenseIds}
+              scenarioCountByExpense={scenarioHighlight.countByExpense}
+              hasActiveScenarios={scenarioHighlight.hasActiveScenarios}
             />
           </div>
 
