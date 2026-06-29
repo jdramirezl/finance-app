@@ -360,6 +360,13 @@ export const useBudgetActions = ({
           type: row.type,
           accountId: row.accountId,
           pocketId: row.pocketId,
+          // Forward the row's subPocketId so fixed-expense rows (and any
+          // other row the user attaches a sub-pocket to in the batch modal)
+          // actually persist against the sub-pocket. Without this the
+          // movement gets created on the parent pocket only and the
+          // sub-pocket balance never updates — which is exactly the bug
+          // reported for the Generate Movements flow.
+          subPocketId: row.subPocketId || undefined,
           amount: parseFloat(row.amount),
           notes: row.notes || undefined,
           displayedDate: row.displayedDate,
