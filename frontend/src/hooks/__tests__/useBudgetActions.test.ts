@@ -5,6 +5,7 @@ import type { UseBudgetActionsParams } from '../actions/useBudgetActions';
 import type { Account, Pocket, SubPocket } from '../../types';
 import type { DistributionEntry } from '../../components/budget';
 import type { PlanningScenario } from '../../components/budget/ScenarioForm';
+import type { BatchMovementRow } from '../../components/movements/BatchMovementForm';
 
 // `useBudgetActions` calls `useConfirmDialog()` at module-level. We mock
 // the context so tests don't need to render a `ConfirmDialogProvider`,
@@ -480,6 +481,7 @@ describe('useBudgetActions', () => {
         type: 'IngresoNormal',
         accountId: 'acc-1',
         pocketId: 'pkt-1',
+        subPocketId: undefined,
         amount: 100,
         notes: 'Row 1',
         displayedDate: '2025-06-15',
@@ -489,6 +491,7 @@ describe('useBudgetActions', () => {
         type: 'IngresoNormal',
         accountId: 'acc-1',
         pocketId: 'pkt-1',
+        subPocketId: undefined,
         amount: 200,
         notes: 'Row 2',
         displayedDate: '2025-06-15',
@@ -496,6 +499,64 @@ describe('useBudgetActions', () => {
       });
       expect(toast.success).toHaveBeenCalledWith('Successfully distributed budget!');
       expect(result.current.batch.isOpen).toBe(false);
+    });
+
+    it('forwards subPocketId on fixed-expense rows so sub-pocket balances update', async () => {
+      // Regression: prepareUnifiedBatch builds IngresoFijo rows that carry
+      // `subPocketId: sp.id`, but saveBatch was previously dropping the
+      // field when calling createMovement. As a result the movement got
+      // created on the parent pocket only and the sub-pocket balance
+      // never moved — even though the Generate Movements modal showed
+      // the right pre-filled values.
+      const { params, createMovement } = buildParams();
+      const { result } = renderHook(() => useBudgetActions(params));
+
+      const rows: BatchMovementRow[] = [
+        {
+          id: 'row-fixed-1',
+          type: 'IngresoFijo',
+          accountId: 'acc-1',
+          pocketId: 'pkt-fixed-1',
+          subPocketId: 'sp-1',
+          amount: '50.00',
+          notes: 'Monthly contribution for Internet',
+          displayedDate: '2025-06-15',
+        },
+        {
+          id: 'row-fixed-2',
+          type: 'IngresoFijo',
+          accountId: 'acc-1',
+          pocketId: 'pkt-fixed-1',
+          subPocketId: 'sp-2',
+          amount: '100.00',
+          notes: 'Monthly contribution for Electricity',
+          displayedDate: '2025-06-15',
+        },
+      ];
+
+      await act(async () => {
+        await result.current.batch.save(rows);
+      });
+
+      expect(createMovement.mutateAsync).toHaveBeenCalledTimes(2);
+      expect(createMovement.mutateAsync).toHaveBeenNthCalledWith(
+        1,
+        expect.objectContaining({
+          type: 'IngresoFijo',
+          pocketId: 'pkt-fixed-1',
+          subPocketId: 'sp-1',
+          amount: 50,
+        }),
+      );
+      expect(createMovement.mutateAsync).toHaveBeenNthCalledWith(
+        2,
+        expect.objectContaining({
+          type: 'IngresoFijo',
+          pocketId: 'pkt-fixed-1',
+          subPocketId: 'sp-2',
+          amount: 100,
+        }),
+      );
     });
 
     it('keeps the batch open when a mutation fails', async () => {
