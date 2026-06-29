@@ -175,6 +175,21 @@ const NetWorthTimelineWidget = ({ totalsByCurrency = {}, consolidatedTotal = 0, 
         return next;
     }), []);
 
+    // Independent of the live diamond toggle: controls whether the
+    // horizontal "current level" reference line + intersection dot
+    // appear on the chart. The line still uses `phantomPoint.total`
+    // as its anchor (always computed below), so it works even when
+    // the live diamond itself is hidden — the two toggles compose
+    // freely. Defaults to off so users opt into the extra visual.
+    const [showReferenceLine, setShowReferenceLine] = useState(() => {
+        try { return localStorage.getItem('nw-reference-line') === 'true'; } catch { return false; }
+    });
+    const toggleReferenceLine = useCallback(() => setShowReferenceLine(prev => {
+        const next = !prev;
+        try { localStorage.setItem('nw-reference-line', String(next)); } catch { /* ignore */ }
+        return next;
+    }), []);
+
     // User-pinned horizontal reference levels on the net-worth chart.
     // Persisted as a JSON-encoded number[] in localStorage so they
     // survive reloads. The live-anchor line is handled separately
@@ -449,6 +464,18 @@ const NetWorthTimelineWidget = ({ totalsByCurrency = {}, consolidatedTotal = 0, 
                             />
                             Live Point
                         </label>
+                        <label
+                            className="flex items-center gap-1.5 text-xs text-gray-400 cursor-pointer"
+                            title="Show a horizontal line at the current net worth value with a marker at the most recent time you were at the same level."
+                        >
+                            <input
+                                type="checkbox"
+                                checked={showReferenceLine}
+                                onChange={toggleReferenceLine}
+                                className="w-3.5 h-3.5 rounded border-gray-600 text-emerald-500 focus:ring-emerald-500"
+                            />
+                            Reference Line
+                        </label>
                         <label className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 cursor-pointer select-none">
                             <input
                                 type="checkbox"
@@ -472,7 +499,7 @@ const NetWorthTimelineWidget = ({ totalsByCurrency = {}, consolidatedTotal = 0, 
                     viewMode={viewMode === 'breakdown' ? 'breakdown' : 'total'}
                     currencyData={finalCurrencyData}
                     liveAnchorValue={
-                        showLivePoint && phantomPoint && !showVariation
+                        showReferenceLine && phantomPoint && !showVariation
                             ? phantomPoint.total
                             : null
                     }

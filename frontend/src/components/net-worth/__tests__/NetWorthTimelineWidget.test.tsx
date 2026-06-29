@@ -706,6 +706,103 @@ describe('NetWorthTimelineWidget', () => {
       expect(lastRefProps().pinnedReferenceValues).toEqual([42, 84]);
     });
   });
+
+  describe('reference-line toggle', () => {
+    type RefProps = {
+      liveAnchorValue?: number | null;
+    };
+    const lastLiveAnchor = (): number | null | undefined => {
+      const calls = mocks.echartProps.mock.calls;
+      return (calls.at(-1)?.[0] as RefProps | undefined)?.liveAnchorValue;
+    };
+
+    beforeEach(() => {
+      // Reset both toggle keys so each test starts predictable.
+      try {
+        localStorage.removeItem('nw-reference-line');
+        localStorage.removeItem('nw-phantom-live-point');
+      } catch {
+        /* ignore */
+      }
+    });
+
+    it('does not pass a liveAnchorValue when the reference-line toggle is off (default)', () => {
+      render(<NetWorthTimelineWidget />);
+      // Default state is off → no horizontal anchor regardless of
+      // whether the Live Point diamond is showing.
+      expect(lastLiveAnchor() ?? null).toBeNull();
+    });
+
+    it('passes a liveAnchorValue once the user enables the reference-line toggle', async () => {
+      const user = userEvent.setup();
+      render(
+        <NetWorthTimelineWidget
+          totalsByCurrency={{ USD: 100 }}
+          consolidatedTotal={100}
+          isConsolidatedReady={true}
+        />,
+      );
+
+      await user.click(screen.getByLabelText(/reference line/i));
+
+      // The phantom point comes from `usePhantomNetWorthPoint`, which
+      // returns `consolidatedTotal` here. We only assert the prop is a
+      // finite number to confirm the toggle is gating it.
+      const value = lastLiveAnchor();
+      expect(typeof value).toBe('number');
+      expect(Number.isFinite(value as number)).toBe(true);
+    });
+
+    it('persists the reference-line toggle to localStorage independently of Live Point', async () => {
+      const user = userEvent.setup();
+      render(<NetWorthTimelineWidget />);
+
+      // Flip reference line on; Live Point stays at its default.
+      await user.click(screen.getByLabelText(/reference line/i));
+
+      expect(localStorage.getItem('nw-reference-line')).toBe('true');
+      // Live Point key is untouched by the reference-line toggle.
+      expect(localStorage.getItem('nw-phantom-live-point')).toBeNull();
+    });
+
+    it('restores the reference-line toggle from localStorage on mount', () => {
+      localStorage.setItem('nw-reference-line', 'true');
+      render(
+        <NetWorthTimelineWidget
+          totalsByCurrency={{ USD: 100 }}
+          consolidatedTotal={100}
+          isConsolidatedReady={true}
+        />,
+      );
+
+      const checkbox = screen.getByLabelText(/reference line/i) as HTMLInputElement;
+      expect(checkbox.checked).toBe(true);
+      // And the chart receives a non-null anchor value right away.
+      expect(lastLiveAnchor()).not.toBeNull();
+    });
+
+    it('keeps the anchor null when Live Point is on but reference line is off', async () => {
+      const user = userEvent.setup();
+      render(
+        <NetWorthTimelineWidget
+          totalsByCurrency={{ USD: 100 }}
+          consolidatedTotal={100}
+          isConsolidatedReady={true}
+        />,
+      );
+      // Live Point is on by default. Reference Line is off by default.
+      // Confirm liveAnchorValue is still null — toggles are decoupled.
+      const liveCheckbox = screen.getByLabelText(/^live point$/i) as HTMLInputElement;
+      expect(liveCheckbox.checked).toBe(true);
+      expect(lastLiveAnchor() ?? null).toBeNull();
+
+      // Turn Live Point OFF and reference line ON: anchor still works.
+      await user.click(liveCheckbox);
+      await user.click(screen.getByLabelText(/reference line/i));
+      expect(liveCheckbox.checked).toBe(false);
+      expect(lastLiveAnchor()).not.toBeNull();
+    });
+  });
 });
 
 describe('calculateZoomRange', () => {
