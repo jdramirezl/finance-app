@@ -55,6 +55,7 @@ import reminderRoutes from './modules/reminders/presentation/routes';
 import netWorthRoutes from './modules/net-worth/presentation/routes';
 import reportRoutes from './modules/reports/presentation/routes';
 import syncRoutes from './modules/sync/presentation/syncRoutes';
+import mcpRoutes from './modules/mcp/routes';
 
 const app = express();
 const PORT = process.env.PORT || process.env.BACKEND_PORT || 3001;
@@ -155,6 +156,9 @@ app.use('/api/reports', cacheMovements, reportRoutes);
 
 // Mount sync routes
 app.use('/api/sync', syncRoutes);
+
+// MCP endpoint (bearer-token auth, stateless). Must be before the 404 handler.
+app.use('/mcp', mcpRoutes);
 
 // 404 handler
 app.use((req: Request, res: Response) => {
