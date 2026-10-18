@@ -173,8 +173,11 @@ app.use(errorHandler);
 
 // Start server (only in non-serverless environments)
 if (process.env.VERCEL !== '1') {
-  app.listen(PORT, () => {
-    console.log(`🚀 Backend server running on http://localhost:${PORT}`);
+  // Loopback by default: this process serves real data (/api, /mcp).
+  // Set BACKEND_HOST explicitly to expose it beyond this machine.
+  const HOST = process.env.BACKEND_HOST || '127.0.0.1';
+  app.listen(Number(PORT), HOST, () => {
+    console.log(`🚀 Backend server running on http://${HOST}:${PORT}`);
     console.log(`📊 Health check: http://localhost:${PORT}/health`);
     console.log(`🔧 Environment: ${process.env.NODE_ENV || 'development'}`);
   });
