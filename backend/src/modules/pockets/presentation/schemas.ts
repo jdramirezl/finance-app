@@ -4,7 +4,7 @@ const currency = z.enum(['USD', 'MXN', 'COP', 'EUR', 'GBP']);
 const pocketType = z.enum(['normal', 'fixed']);
 
 export const createPocketSchema = z.object({
-  accountId: z.string().uuid(),
+  accountId: z.string().guid(),
   name: z.string().min(1).max(100),
   type: pocketType,
   currency: currency.optional(),
@@ -15,9 +15,9 @@ export const updatePocketSchema = z.object({
 }).strict();
 
 export const migratePocketSchema = z.object({
-  targetAccountId: z.string().uuid(),
+  targetAccountId: z.string().guid(),
 }).strict();
 
 export const reorderPocketsSchema = z.object({
-  pocketIds: z.array(z.string().uuid()).min(1),
+  pocketIds: z.array(z.string().guid()).min(1),
 }).strict();

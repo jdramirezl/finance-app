@@ -40,5 +40,5 @@ export const cascadeDeleteSchema = z.object({
 }).strict();
 
 export const reorderAccountsSchema = z.object({
-  accountIds: z.array(z.string().uuid()).min(1),
+  accountIds: z.array(z.string().guid()).min(1),
 }).strict();

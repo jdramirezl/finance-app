@@ -4,12 +4,12 @@ const movementType = z.enum(['IngresoNormal', 'EgresoNormal', 'IngresoFijo', 'Eg
 
 export const createMovementSchema = z.object({
   type: movementType,
-  accountId: z.string().uuid(),
-  pocketId: z.string().uuid(),
+  accountId: z.string().guid(),
+  pocketId: z.string().guid(),
   amount: z.number().positive(),
   displayedDate: z.string().min(1),
   notes: z.string().optional(),
-  subPocketId: z.string().uuid().optional(),
+  subPocketId: z.string().guid().optional(),
   isPending: z.boolean().optional(),
   category: z.string().max(50).optional(),
   tags: z.array(z.string().max(30)).max(10).optional(),
@@ -20,19 +20,19 @@ export const updateMovementSchema = z.object({
   amount: z.number().positive().optional(),
   displayedDate: z.string().min(1).optional(),
   notes: z.string().optional(),
-  subPocketId: z.string().uuid().nullable().optional(),
-  accountId: z.string().uuid().optional(),
-  pocketId: z.string().uuid().optional(),
+  subPocketId: z.string().guid().nullable().optional(),
+  accountId: z.string().guid().optional(),
+  pocketId: z.string().guid().optional(),
   isPending: z.boolean().optional(),
   category: z.string().max(50).nullable().optional(),
   tags: z.array(z.string().max(30)).max(10).nullable().optional(),
 }).strict();
 
 export const createTransferSchema = z.object({
-  sourceAccountId: z.string().uuid(),
-  sourcePocketId: z.string().uuid(),
-  targetAccountId: z.string().uuid(),
-  targetPocketId: z.string().uuid(),
+  sourceAccountId: z.string().guid(),
+  sourcePocketId: z.string().guid(),
+  targetAccountId: z.string().guid(),
+  targetPocketId: z.string().guid(),
   amount: z.number().positive(),
   displayedDate: z.string().min(1),
   notes: z.string().optional(),
@@ -41,12 +41,12 @@ export const createTransferSchema = z.object({
 export const batchMovementSchema = z.object({
   movements: z.array(z.object({
     type: movementType,
-    accountId: z.string().uuid(),
-    pocketId: z.string().uuid(),
+    accountId: z.string().guid(),
+    pocketId: z.string().guid(),
     amount: z.number().positive(),
     displayedDate: z.string().min(1),
     notes: z.string().optional(),
-    subPocketId: z.string().uuid().optional(),
+    subPocketId: z.string().guid().optional(),
     isPending: z.boolean().optional(),
     category: z.string().max(50).optional(),
     tags: z.array(z.string().max(30)).max(10).optional(),
@@ -54,11 +54,11 @@ export const batchMovementSchema = z.object({
 }).strict();
 
 export const markOrphanedSchema = z.object({
-  entityId: z.string().uuid(),
+  entityId: z.string().guid(),
   entityType: z.enum(['account', 'pocket']),
 }).strict();
 
 export const updateAccountForPocketSchema = z.object({
-  pocketId: z.string().uuid(),
-  newAccountId: z.string().uuid(),
+  pocketId: z.string().guid(),
+  newAccountId: z.string().guid(),
 }).strict();
