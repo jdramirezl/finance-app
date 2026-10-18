@@ -33,7 +33,7 @@ export interface ToolDefinition<S extends z.ZodType> {
   input: S;
   /** 'read' → readOnlyHint; 'write' → audited; 'destructive' → audited + destructiveHint */
   kind: 'read' | 'write' | 'destructive';
-  /** For writes: pull the entity id(s) out of the input/result for the audit log. */
+  /** For writes: pull the entity id(s) out of the input and the JSON-serialized result for the audit log. */
   auditIds?: (input: z.output<S>, result: unknown) => Record<string, unknown>;
   handler: (input: z.output<S>, ctx: ToolContext) => Promise<unknown>;
 }
@@ -63,11 +63,14 @@ export const errorResult = (body: McpErrorBody): CallToolResult => ({
 });
 
 export const okResult = (data: unknown): CallToolResult => {
-  const structured = (Array.isArray(data) || data === null || typeof data !== 'object')
-    ? { result: data ?? null }
-    : (data as Record<string, unknown>);
+  // Round-trip through JSON so domain objects (toJSON) and Dates become plain data.
+  const text = JSON.stringify(data ?? null);
+  const plain: unknown = JSON.parse(text);
+  const structured = (Array.isArray(plain) || plain === null || typeof plain !== 'object')
+    ? { result: plain }
+    : (plain as Record<string, unknown>);
   return {
-    content: [{ type: 'text', text: JSON.stringify(data ?? null) }],
+    content: [{ type: 'text', text }],
     structuredContent: structured,
   };
 };
@@ -118,11 +121,13 @@ export function defineTool<S extends z.ZodType>(server: McpServer, ctx: ToolCont
         return errorResult(body);
       }
       try {
-        const result = await def.handler(parsed.data, ctx);
+        const ok = okResult(await def.handler(parsed.data, ctx));
         if (isWrite) {
-          auditWrite({ tool: def.name, userId: ctx.userId, outcome: 'ok', durationMs: Date.now() - started, ids: def.auditIds?.(parsed.data, result) });
+          // auditIds sees the same plain JSON the client receives (domain objects already serialized).
+          const plain = JSON.parse((ok.content[0] as { text: string }).text);
+          auditWrite({ tool: def.name, userId: ctx.userId, outcome: 'ok', durationMs: Date.now() - started, ids: def.auditIds?.(parsed.data, plain) });
         }
-        return okResult(result);
+        return ok;
       } catch (err) {
         const body = toToolError(err);
         if (body.error.code === 'INTERNAL_ERROR' || body.error.code === 'DATABASE_ERROR') {

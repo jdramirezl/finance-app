@@ -28,6 +28,13 @@ describe('okResult', () => {
     expect(okResult(undefined).structuredContent).toEqual({ result: null });
     expect(okResult({ a: 1 }).structuredContent).toEqual({ a: 1 });
   });
+
+  it('serializes domain objects via toJSON into plain structuredContent', () => {
+    const entity = { secret: 'x', toJSON: () => ({ id: 'm1' }) };
+    const res = okResult({ expense: entity, at: new Date('2026-01-02T00:00:00Z') });
+    expect(res.structuredContent).toEqual({ expense: { id: 'm1' }, at: '2026-01-02T00:00:00.000Z' });
+    expect(res.content[0]).toEqual({ type: 'text', text: JSON.stringify(res.structuredContent) });
+  });
 });
 
 describe('defineTool', () => {

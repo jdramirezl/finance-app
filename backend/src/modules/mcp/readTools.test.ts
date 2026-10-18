@@ -53,7 +53,7 @@ describe('MCP read tools', () => {
   });
 
   it('advertises the read tools, all read-only', async () => {
-    const tools = await listTools(factory, USER);
+    const tools = (await listTools(factory, USER)).filter((t) => t.annotations.readOnlyHint);
     expect(tools.map((t) => t.name).sort()).toEqual([
       'finance_convert_currency',
       'finance_list_accounts',

@@ -5,6 +5,7 @@
 import { McpServer } from '@modelcontextprotocol/server';
 import { container, DependencyContainer } from 'tsyringe';
 import { registerReadTools } from './readTools';
+import { registerWriteTools } from './writeTools';
 
 export const MCP_SERVER_INFO = { name: 'finance-app', version: '1.0.0' } as const;
 
@@ -17,5 +18,6 @@ export function buildMcpServer(userId: string, di: DependencyContainer = contain
   });
   const ctx = { userId, di };
   registerReadTools(server, ctx);
+  registerWriteTools(server, ctx);
   return server;
 }
