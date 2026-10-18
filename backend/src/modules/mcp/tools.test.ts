@@ -1,4 +1,6 @@
+import 'reflect-metadata';
 import { McpServer } from '@modelcontextprotocol/server';
+import { container } from 'tsyringe';
 import { z } from 'zod';
 import { ConflictError, DatabaseError, ForbiddenError, NotFoundError, UnauthorizedError, ValidationError, AppError } from '../../shared/errors/AppError';
 import { defineTool, toToolError, okResult } from './tools';
@@ -36,7 +38,7 @@ describe('defineTool', () => {
 
   const build = (kind: 'read' | 'write' | 'destructive') => (userId: string) => {
     const server = new McpServer({ name: 't', version: '0' }, { capabilities: { tools: {} } });
-    defineTool(server, { userId }, {
+    defineTool(server, { userId, di: container }, {
       name: 'finance_ping',
       title: 'Ping',
       description: 'test',
@@ -70,7 +72,7 @@ describe('defineTool', () => {
   it('passes parsed input and the authenticated userId; returns JSON + structuredContent', async () => {
     handler.mockResolvedValue({ pong: true });
     const res = await callTool(build('read'), USER, 'finance_ping', { id: ID });
-    expect(handler).toHaveBeenCalledWith({ id: ID, fail: 'none' }, { userId: USER });
+    expect(handler).toHaveBeenCalledWith({ id: ID, fail: 'none' }, { userId: USER, di: container });
     expect(res.isError).toBeFalsy();
     expect(res.structuredContent).toEqual({ pong: true });
     expect(JSON.parse(res.content[0].text)).toEqual({ pong: true });

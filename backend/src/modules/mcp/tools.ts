@@ -8,6 +8,7 @@
  */
 import type { McpServer, ToolAnnotations, CallToolResult, StandardSchemaWithJSON } from '@modelcontextprotocol/server';
 import { z } from 'zod';
+import type { DependencyContainer } from 'tsyringe';
 import {
   AppError,
   ConflictError,
@@ -21,6 +22,8 @@ import { mcpError, McpErrorBody } from './auth';
 
 export interface ToolContext {
   userId: string;
+  /** DI container to resolve use cases from (child container with mocks in tests). */
+  di: DependencyContainer;
 }
 
 export interface ToolDefinition<S extends z.ZodType> {

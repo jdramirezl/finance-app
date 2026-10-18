@@ -1,5 +1,7 @@
+import 'reflect-metadata';
 import express, { Request, Response } from 'express';
 import request from 'supertest';
+import { withLocalServer } from './testkit.test-helper';
 import mcpRoutes from './routes';
 import { verifyToken } from './auth';
 
@@ -25,15 +27,20 @@ const initParams = {
   clientInfo: { name: 'jest', version: '0.0.0' },
 };
 
-const post = (app: express.Express, body: unknown, token: string | null = TOKEN) => {
-  const r = request(app)
-    .post('/mcp')
-    .set('Accept', 'application/json, text/event-stream')
-    .set('Content-Type', 'application/json')
-    .set('MCP-Protocol-Version', '2025-06-18');
-  if (token !== null) r.set('Authorization', `Bearer ${token}`);
-  return r.send(body as object);
-};
+// IPv4-loopback server per request (see testkit.test-helper.ts for why).
+const call = (app: express.Express, fn: (agent: ReturnType<typeof request>) => request.Test) =>
+  withLocalServer(app, (url) => fn(request(url)).then((r) => r));
+
+const post = (app: express.Express, body: unknown, token: string | null = TOKEN) =>
+  call(app, (agent) => {
+    const r = agent
+      .post('/mcp')
+      .set('Accept', 'application/json, text/event-stream')
+      .set('Content-Type', 'application/json')
+      .set('MCP-Protocol-Version', '2025-06-18');
+    if (token !== null) r.set('Authorization', `Bearer ${token}`);
+    return r.send(body as object);
+  });
 
 describe('MCP endpoint', () => {
   const env = { ...process.env };
@@ -59,7 +66,7 @@ describe('MCP endpoint', () => {
     });
 
     it('rejects a non-Bearer scheme', async () => {
-      const res = await request(app).post('/mcp').set('Authorization', `Basic ${TOKEN}`).send(rpc('initialize', initParams));
+      const res = await call(app, (a) => a.post('/mcp').set('Authorization', `Basic ${TOKEN}`).send(rpc('initialize', initParams)));
       expect(res.status).toBe(401);
     });
 
@@ -94,7 +101,7 @@ describe('MCP endpoint', () => {
     });
 
     it.each(['get', 'delete'] as const)('%s returns 405', async (method) => {
-      const res = await request(app)[method]('/mcp').set('Authorization', `Bearer ${TOKEN}`);
+      const res = await call(app, (a) => a[method]('/mcp').set('Authorization', `Bearer ${TOKEN}`));
       expect(res.status).toBe(405);
       expect(res.headers.allow).toBe('POST');
     });
@@ -102,8 +109,8 @@ describe('MCP endpoint', () => {
 
   describe('existing routing is unchanged', () => {
     it('serves other routes and keeps the 404 catch-all', async () => {
-      expect((await request(app).get('/api')).status).toBe(200);
-      const res = await request(app).get('/nope');
+      expect((await call(app, (a) => a.get('/api'))).status).toBe(200);
+      const res = await call(app, (a) => a.get('/nope'));
       expect(res.status).toBe(404);
       expect(res.body.message).toBe('Route GET /nope not found');
     });

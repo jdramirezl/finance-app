@@ -1,14 +1,33 @@
 /**
  * Test-only helpers: drive an McpServer through the real stateless HTTP
- * transport via supertest. Not part of the production build (*.test-helper.ts
- * is excluded in tsconfig).
+ * transport. Not part of the production build (*.test-helper.ts is excluded
+ * in tsconfig).
+ *
+ * Servers bind explicitly to 127.0.0.1. supertest's default `listen(0)` binds
+ * the dual-stack `::` address but connects to 127.0.0.1:<port>; on macOS that
+ * port can already be held on 127.0.0.1 by another local process, so the
+ * request intermittently reaches the wrong server (403s, parse errors, hangs).
  */
+import http from 'http';
+import { AddressInfo } from 'net';
 import express from 'express';
 import request from 'supertest';
 import { McpServer } from '@modelcontextprotocol/server';
 import { NodeStreamableHTTPServerTransport } from '@modelcontextprotocol/node';
 
 export type ServerFactory = (userId: string) => McpServer;
+
+/** Run `fn` against `app` served on an IPv4-loopback ephemeral port. */
+export async function withLocalServer<T>(app: express.Express, fn: (baseUrl: string) => Promise<T>): Promise<T> {
+  const server = http.createServer(app);
+  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+  const { port } = server.address() as AddressInfo;
+  try {
+    return await fn(`http://127.0.0.1:${port}`);
+  } finally {
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+  }
+}
 
 function appFor(factory: ServerFactory, userId: string) {
   const app = express();
@@ -25,12 +44,14 @@ function appFor(factory: ServerFactory, userId: string) {
 
 let nextId = 1;
 export async function rpc(factory: ServerFactory, userId: string, method: string, params: Record<string, unknown> = {}) {
-  const res = await request(appFor(factory, userId))
-    .post('/mcp')
-    .set('Accept', 'application/json, text/event-stream')
-    .set('Content-Type', 'application/json')
-    .set('MCP-Protocol-Version', '2025-06-18')
-    .send({ jsonrpc: '2.0', id: nextId++, method, params });
+  const res = await withLocalServer(appFor(factory, userId), (url) =>
+    request(url)
+      .post('/mcp')
+      .set('Accept', 'application/json, text/event-stream')
+      .set('Content-Type', 'application/json')
+      .set('MCP-Protocol-Version', '2025-06-18')
+      .send({ jsonrpc: '2.0', id: nextId++, method, params }),
+  );
   if (res.status !== 200) throw new Error(`MCP HTTP ${res.status}: ${res.text}`);
   if (res.body.error) throw new Error(`MCP JSON-RPC error: ${JSON.stringify(res.body.error)}`);
   return res.body.result;
