@@ -23,7 +23,7 @@ export function validateQuery(schema: ZodSchema) {
       next(new ValidationError(message));
       return;
     }
-    req.query = result.data;
+    req.query = result.data as Request['query'];
     next();
   };
 }

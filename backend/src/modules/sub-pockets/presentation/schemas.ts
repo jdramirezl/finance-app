@@ -2,11 +2,11 @@ import { z } from 'zod';
 
 // SubPocket schemas
 export const createSubPocketSchema = z.object({
-  pocketId: z.string().uuid(),
+  pocketId: z.string().guid(),
   name: z.string().min(1).max(100),
   valueTotal: z.number().positive(),
   periodicityMonths: z.number().int().positive(),
-  groupId: z.string().uuid().optional(),
+  groupId: z.string().guid().optional(),
 }).strict();
 
 export const updateSubPocketSchema = z.object({
@@ -16,11 +16,11 @@ export const updateSubPocketSchema = z.object({
 }).strict();
 
 export const moveToGroupSchema = z.object({
-  groupId: z.string().uuid().nullable(),
+  groupId: z.string().guid().nullable(),
 }).strict();
 
 export const reorderSubPocketsSchema = z.object({
-  subPocketIds: z.array(z.string().uuid()).min(1),
+  subPocketIds: z.array(z.string().guid()).min(1),
 }).strict();
 
 // FixedExpenseGroup schemas
@@ -35,5 +35,5 @@ export const updateGroupSchema = z.object({
 }).strict();
 
 export const reorderGroupsSchema = z.object({
-  ids: z.array(z.string().uuid()).min(1),
+  ids: z.array(z.string().guid()).min(1),
 }).strict();

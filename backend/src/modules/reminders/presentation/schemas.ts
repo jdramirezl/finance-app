@@ -17,8 +17,8 @@ export const createReminderSchema = z.object({
   amount: z.number().positive(),
   dueDate: z.string().min(1),
   recurrence: recurrenceConfigSchema,
-  fixedExpenseId: z.string().uuid().optional(),
-  templateId: z.string().uuid().optional(),
+  fixedExpenseId: z.string().guid().optional(),
+  templateId: z.string().guid().optional(),
 }).strict();
 
 export const updateReminderSchema = z.object({
@@ -27,13 +27,13 @@ export const updateReminderSchema = z.object({
   dueDate: z.string().min(1).optional(),
   isPaid: z.boolean().optional(),
   recurrence: recurrenceConfigSchema.optional(),
-  linkedMovementId: z.string().uuid().nullable().optional(),
-  fixedExpenseId: z.string().uuid().optional(),
-  templateId: z.string().uuid().optional(),
+  linkedMovementId: z.string().guid().nullable().optional(),
+  fixedExpenseId: z.string().guid().optional(),
+  templateId: z.string().guid().optional(),
 }).strict();
 
 export const markAsPaidSchema = z.object({
-  movementId: z.string().uuid().optional(),
+  movementId: z.string().guid().optional(),
 }).strict();
 
 export const createExceptionSchema = z.object({
@@ -43,7 +43,7 @@ export const createExceptionSchema = z.object({
   newAmount: z.number().positive().optional(),
   newDate: z.string().optional(),
   isPaid: z.boolean().optional(),
-  linkedMovementId: z.string().uuid().optional(),
+  linkedMovementId: z.string().guid().optional(),
 }).strict();
 
 export const splitSeriesSchema = z.object({

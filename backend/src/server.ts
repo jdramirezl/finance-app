@@ -55,6 +55,7 @@ import reminderRoutes from './modules/reminders/presentation/routes';
 import netWorthRoutes from './modules/net-worth/presentation/routes';
 import reportRoutes from './modules/reports/presentation/routes';
 import syncRoutes from './modules/sync/presentation/syncRoutes';
+import mcpRoutes from './modules/mcp/routes';
 
 const app = express();
 const PORT = process.env.PORT || process.env.BACKEND_PORT || 3001;
@@ -156,6 +157,9 @@ app.use('/api/reports', cacheMovements, reportRoutes);
 // Mount sync routes
 app.use('/api/sync', syncRoutes);
 
+// MCP endpoint (bearer-token auth, stateless). Must be before the 404 handler.
+app.use('/mcp', mcpRoutes);
+
 // 404 handler
 app.use((req: Request, res: Response) => {
   res.status(404).json({
@@ -169,8 +173,11 @@ app.use(errorHandler);
 
 // Start server (only in non-serverless environments)
 if (process.env.VERCEL !== '1') {
-  app.listen(PORT, () => {
-    console.log(`🚀 Backend server running on http://localhost:${PORT}`);
+  // Loopback by default: this process serves real data (/api, /mcp).
+  // Set BACKEND_HOST explicitly to expose it beyond this machine.
+  const HOST = process.env.BACKEND_HOST || '127.0.0.1';
+  app.listen(Number(PORT), HOST, () => {
+    console.log(`🚀 Backend server running on http://${HOST}:${PORT}`);
     console.log(`📊 Health check: http://localhost:${PORT}/health`);
     console.log(`🔧 Environment: ${process.env.NODE_ENV || 'development'}`);
   });
