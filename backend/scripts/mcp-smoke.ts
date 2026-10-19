@@ -6,6 +6,7 @@
  * Read-only by default. Set MCP_SMOKE_WRITE=1 to also create → update → delete
  * one movement labeled "[mcp-test]" (always deleted, even if a step fails).
  * Optional: MCP_SMOKE_ACCOUNT_ID / MCP_SMOKE_POCKET_ID (default: first normal pocket).
+ * Optional: VERCEL_PROTECTION_BYPASS to reach a protected Vercel preview deployment.
  */
 /* eslint-disable no-console */
 
@@ -25,6 +26,7 @@ async function rpc(method: string, params: Record<string, unknown> = {}) {
       Accept: 'application/json, text/event-stream',
       'MCP-Protocol-Version': '2025-06-18',
       Authorization: `Bearer ${token}`,
+      ...(process.env.VERCEL_PROTECTION_BYPASS ? { 'x-vercel-protection-bypass': process.env.VERCEL_PROTECTION_BYPASS } : {}),
     },
     body: JSON.stringify({ jsonrpc: '2.0', id: ++rpcId, method, params }),
   });

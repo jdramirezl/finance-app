@@ -13,7 +13,9 @@ The backend exposes the finance app as [MCP](https://modelcontextprotocol.io) to
 | `MCP_TOKEN` | Bearer token clients must send. Generate with `openssl rand -hex 32`. |
 | `MCP_OWNER_USER_ID` | Supabase auth user id (UUID) that every MCP call acts as. |
 
-If either is missing, `/mcp` fails closed with `500 MCP_NOT_CONFIGURED`. Set both in `backend/.env` locally and in the backend Vercel project (Preview and Production) for deploys. Treat `MCP_TOKEN` like a password: anyone holding it can read and write your finance data.
+If either is missing, `/mcp` fails closed with `500 MCP_NOT_CONFIGURED`.
+
+Current setup in the `finance-app-backend` Vercel project: **Production** acts as the main account, **Preview** acts as the test account, each with its own token (a production token is rejected by previews and vice versa). Local copies live in `~/.config/finance-mcp/` (mode 600): `prod.token`, `preview.token`, and matching `*-headers.txt` files for `mcp-remote --header-file`. Set both in `backend/.env` locally and in the backend Vercel project (Preview and Production) for deploys. Treat `MCP_TOKEN` like a password: anyone holding it can read and write your finance data.
 
 To rotate the token, set a new value in Vercel, redeploy, and update each client.
 
@@ -68,6 +70,7 @@ curl -s http://localhost:3001/mcp \
 
 ```bash
 MCP_URL=http://localhost:3001/mcp MCP_TOKEN=... npx ts-node --transpile-only scripts/mcp-smoke.ts
+# against a protected preview, add VERCEL_PROTECTION_BYPASS=<project bypass secret>
 # also create → update → delete one pending "[mcp-test]" movement (always cleaned up):
 MCP_SMOKE_WRITE=1 MCP_URL=... MCP_TOKEN=... npx ts-node --transpile-only scripts/mcp-smoke.ts
 ```
