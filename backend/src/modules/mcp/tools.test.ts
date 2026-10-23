@@ -2,7 +2,7 @@ import 'reflect-metadata';
 import { McpServer } from '@modelcontextprotocol/server';
 import { container } from 'tsyringe';
 import { z } from 'zod';
-import { ConflictError, DatabaseError, ForbiddenError, NotFoundError, UnauthorizedError, ValidationError, AppError } from '../../shared/errors/AppError';
+import { ConflictError, DatabaseError, ForbiddenError, NotFoundError, UnauthorizedError, ValidationError, AppError, PriceUnavailableError } from '../../shared/errors/AppError';
 import { defineTool, toToolError, okResult } from './tools';
 import { callTool, listTools } from './testkit.test-helper';
 
@@ -15,6 +15,8 @@ describe('toToolError', () => {
     [new UnauthorizedError('who'), 'UNAUTHORIZED', false, 'who'],
     [new DatabaseError('pg: secret detail'), 'DATABASE_ERROR', true, 'A database error occurred'],
     [new AppError(422, 'odd'), 'BAD_REQUEST', false, 'odd'],
+    [new PriceUnavailableError('VOO', 'rate limited', true, 60), 'PRICE_UNAVAILABLE', true, 'Stock price for VOO is temporarily unavailable (rate limited)'],
+    [new PriceUnavailableError('VOO', 'key rejected', false), 'PRICE_UNAVAILABLE', false, 'Stock price for VOO is temporarily unavailable (key rejected)'],
     [new Error('boom at /internal/path'), 'INTERNAL_ERROR', true, 'Unexpected server error'],
     ['string thrown', 'INTERNAL_ERROR', true, 'Unexpected server error'],
   ])('maps %p → %s', (err, code, retryable, message) => {

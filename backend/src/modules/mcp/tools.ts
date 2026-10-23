@@ -15,6 +15,7 @@ import {
   DatabaseError,
   ForbiddenError,
   NotFoundError,
+  PriceUnavailableError,
   UnauthorizedError,
   ValidationError,
 } from '../../shared/errors/AppError';
@@ -46,6 +47,7 @@ export function toToolError(err: unknown): McpErrorBody {
   if (err instanceof ForbiddenError) return mcpError('FORBIDDEN', err.message);
   if (err instanceof UnauthorizedError) return mcpError('UNAUTHORIZED', err.message);
   if (err instanceof DatabaseError) return mcpError('DATABASE_ERROR', 'A database error occurred', true);
+  if (err instanceof PriceUnavailableError) return mcpError(err.code, err.message, err.retryable);
   if (err instanceof AppError && err.isOperational && err.statusCode < 500) {
     return mcpError('BAD_REQUEST', err.message);
   }

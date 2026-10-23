@@ -51,3 +51,21 @@ export class DatabaseError extends AppError {
     super(500, message);
   }
 }
+
+/**
+ * A stock price could not be obtained from the provider and no cached
+ * price exists to fall back on. 503 + PRICE_UNAVAILABLE so clients can
+ * tell "try again later" apart from a server bug.
+ */
+export class PriceUnavailableError extends AppError {
+  readonly code = 'PRICE_UNAVAILABLE';
+
+  constructor(
+    public readonly symbol: string,
+    reason: string,
+    public readonly retryable: boolean,
+    public readonly retryAfterSeconds?: number
+  ) {
+    super(503, `Stock price for ${symbol} is temporarily unavailable (${reason})`);
+  }
+}

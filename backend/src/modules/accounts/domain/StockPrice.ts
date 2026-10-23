@@ -12,7 +12,7 @@ export class StockPrice {
     public readonly symbol: string,
     public readonly price: number,
     public readonly cachedAt: Date,
-    public readonly source?: 'cache' | 'db' | 'api'
+    public readonly source?: 'cache' | 'db' | 'api' | 'stale'
   ) {
     this.validate();
   }

@@ -52,6 +52,8 @@ export class InvestmentController {
         price: stockPrice.price,
         cachedAt: stockPrice.cachedAt.toISOString(),
         source: stockPrice.source,
+        // true when the provider failed and this is the last cached price
+        stale: stockPrice.source === 'stale',
       });
     } catch (error) {
       next(error);
@@ -82,6 +84,8 @@ export class InvestmentController {
         price: stockPrice.price,
         cachedAt: stockPrice.cachedAt.toISOString(),
         source: stockPrice.source,
+        // true when the provider failed and this is the last cached price
+        stale: stockPrice.source === 'stale',
       });
     } catch (error) {
       next(error);
