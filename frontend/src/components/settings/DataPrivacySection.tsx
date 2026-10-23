@@ -1,12 +1,18 @@
 import { useState } from 'react';
-import { CloudUpload, Download, Sheet } from 'lucide-react';
+import { Camera, CloudUpload, Download, Sheet } from 'lucide-react';
 import Button from '../ui/Button';
 import Card from '../ui/Card';
 import DebugExchangeRate from './DebugExchangeRate';
 import DebugStockPrice from './DebugStockPrice';
 import { apiClient } from '../../services/apiClient';
 import { budgetPlanningService } from '../../services/budgetPlanningService';
+import { currencyService } from '../../services/currencyService';
 import { useToast } from '../../hooks/useToast';
+import { useAccountsQuery, useSettingsQuery, usePocketsQuery } from '../../hooks/queries';
+import { useLatestSnapshotQuery, useNetWorthSnapshotMutations } from '../../hooks/queries/useNetWorthSnapshotQueries';
+import { useInvestmentPrices } from '../../hooks/useInvestmentPrices';
+import { useConsolidatedTotal } from '../../hooks/useConsolidatedTotal';
+import type { Currency } from '../../types';
 
 export interface DataPrivacySectionProps {
   isExporting: boolean;
@@ -18,6 +24,20 @@ const DataPrivacySection = ({ isExporting, onExport }: DataPrivacySectionProps) 
   const [isSavingBudget, setIsSavingBudget] = useState(false);
   const [syncResult, setSyncResult] = useState<{ spreadsheetUrl: string; syncedAt: string } | null>(null);
   const toast = useToast();
+
+  // Snapshot capture hooks
+  const { data: accounts = [] } = useAccountsQuery();
+  const { data: settings } = useSettingsQuery();
+  const { data: pockets = [] } = usePocketsQuery();
+  const primaryCurrency = (settings?.primaryCurrency || 'COP') as Currency;
+  const investmentAccounts = accounts.filter(a => a.type === 'investment' && a.stockSymbol);
+  const { investmentData } = useInvestmentPrices({ accounts: investmentAccounts, pockets, toast });
+  const { consolidatedTotal, totalsByCurrency, isConsolidatedReady } = useConsolidatedTotal({ accounts, primaryCurrency, investmentData });
+  const { data: latestSnapshot } = useLatestSnapshotQuery();
+  const { createMutation } = useNetWorthSnapshotMutations();
+
+  const today = new Date().toISOString().slice(0, 10);
+  const hasTodaySnapshot = latestSnapshot?.snapshotDate === today;
 
   const handleSaveBudget = async () => {
     setIsSavingBudget(true);
@@ -74,6 +94,31 @@ const DataPrivacySection = ({ isExporting, onExport }: DataPrivacySectionProps) 
           >
             <Download className="w-4 h-4 mr-2" />
             Export
+          </Button>
+        </div>
+      </Card>
+
+      <Card>
+        <div className="flex items-center justify-between">
+          <div>
+            <h4 className="font-semibold text-gray-100">Net Worth Snapshot</h4>
+            <p className="text-sm text-gray-400">
+              Manually capture your current net worth
+            </p>
+            {isConsolidatedReady && (
+              <p className="text-sm text-gray-300 mt-1">
+                Current: {currencyService.formatCurrency(consolidatedTotal, primaryCurrency)}
+              </p>
+            )}
+          </div>
+          <Button
+            variant="secondary"
+            onClick={() => createMutation.mutate({ totalNetWorth: consolidatedTotal, baseCurrency: primaryCurrency, breakdown: totalsByCurrency })}
+            loading={createMutation.isPending}
+            disabled={!isConsolidatedReady || createMutation.isPending}
+          >
+            <Camera className="w-4 h-4 mr-2" />
+            {hasTodaySnapshot ? "Overwrite Today's Snapshot" : 'Capture Snapshot'}
           </Button>
         </div>
       </Card>

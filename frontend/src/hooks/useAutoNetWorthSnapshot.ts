@@ -68,12 +68,15 @@ export const useAutoNetWorthSnapshot = ({
     };
 
     if (shouldTake()) {
-      hasRun.current = true; // Set immediately to prevent re-entry
+      // Don't take snapshot if breakdown is empty (data not fully loaded yet)
+      const breakdown = breakdownRef.current as Record<string, number>;
+      if (Object.keys(breakdown).length === 0) return;
+      hasRun.current = true;
       const primaryCurrency = (settings.primaryCurrency || 'USD') as Currency;
       mutationRef.current.mutate({
         totalNetWorth: totalRef.current,
         baseCurrency: primaryCurrency,
-        breakdown: breakdownRef.current as Record<string, number>,
+        breakdown,
       });
     } else {
       hasRun.current = true;
