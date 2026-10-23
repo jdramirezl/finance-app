@@ -1,31 +1,29 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { useQueries, useQueryClient } from '@tanstack/react-query';
 import { currencyService } from '../services/currencyService';
 import { investmentService } from '../services/investmentService';
 import type { Account, Pocket } from '../types';
 import type { InvestmentData } from '../components/summary';
 import type { useToast } from './useToast';
+import {
+  formatClock,
+  providerLabel,
+  staleReasonLabel,
+} from '../components/summary/investmentCacheLabel';
 
-// Single-click cooldown so impatient retaps don't hammer the upstream
-// price service. Per-symbol — not per-account — so two cards holding the
-// same ticker share the cooldown (matches the cross-card spinner behavior
-// below).
-const REFRESH_COOLDOWN_MS = 60_000;
-
-// Prices don't move often enough to justify refetching on every mount or
-// dependency change, but the backend now decides how aggressively to hit
-// the upstream price API based on the active-symbol count. We poll the
-// backend every 5 minutes so cache invalidations propagate quickly while
-// still letting the backend's dynamic TTL throttle real upstream calls.
+// "Sync with the backend" is automatic: after 5 minutes the query is stale
+// and TanStack refetches on mount / window focus. The backend owns the
+// market-provider cache window and returns it as `freshUntil`.
 const PRICE_STALE_TIME_MS = 1000 * 60 * 5;
 
-// Mirrors backend logic for converting "active symbol count" into a TTL
-// in hours. Kept in sync manually — see backend investments module.
-const computeCacheHours = (symbolCount: number): number =>
-  Math.max(1, Math.ceil((symbolCount * 24) / 25));
-
-const investmentPriceKey = (symbol: string) =>
+export const investmentPriceKey = (symbol: string) =>
   ['investmentPrice', symbol] as const;
+
+/** Strip the apiClient "GET /path failed: " prefix so toasts read naturally. */
+const serverMessage = (error: unknown): string => {
+  const message = error instanceof Error ? error.message : String(error);
+  return message.replace(/^[A-Z]+ \S+ failed: /, '');
+};
 
 const findInvestmentPocketBalances = (accountId: string, pockets: Pocket[]) => {
   const investedPocket = pockets.find(
@@ -47,21 +45,25 @@ export interface UseInvestmentPricesParams {
 }
 
 export interface InvestmentCacheInfo {
-  /** Unix ms timestamp of the last cached price for the symbol, or null. */
+  /** Unix ms when the price was fetched from the market, or null if never. */
   lastUpdated: number | null;
-  /** Backend-aligned cache window for this dataset, in hours. */
-  cacheHours: number;
-  /** Unix ms timestamp at which a fresh fetch is expected, or null when uncached. */
+  /** Unix ms when the backend's automatic cache window ends, or null. */
   nextRefreshAt: number | null;
+  /** True when the last refresh failed and this is the last saved price. */
+  stale: boolean;
+  /** Provider failure code behind a stale price (e.g. RATE_LIMITED). */
+  staleReason: string | null;
+  /** Provider that produced the price (e.g. "finnhub"), when known. */
+  provider: string | null;
 }
 
 export interface UseInvestmentPricesResult {
   investmentData: Map<string, InvestmentData>;
   /** True while the account's symbol is being refreshed (shared across cards). */
   isRefreshing: (accountId: string) => boolean;
-  /** Single-click refresh — per-symbol cooldown applies. */
+  /** Single click: fetch a new market price now (no cooldown). */
   handleRefreshPrice: (account: Account) => Promise<void>;
-  /** Cache freshness data for a symbol, used to render next-refresh hints. */
+  /** Freshness/provenance for a symbol, used for the label under the price. */
   getCacheInfo: (symbol: string) => InvestmentCacheInfo;
 }
 
@@ -73,9 +75,10 @@ export interface UseInvestmentPricesResult {
  * the main performance win over the previous useEffect-based loader, which
  * refetched every price whenever `accounts` or `pockets` references churned.
  *
- * `handleRefreshPrice` is a single-click action that invalidates the cached
- * query and refetches. State (cooldowns, in-flight set) is keyed by SYMBOL,
- * so two accounts holding VOO share both the cooldown and the spinner.
+ * `handleRefreshPrice` asks the backend to skip its cache and call the
+ * market provider now, then pushes the result into every view. The
+ * in-flight set is keyed by SYMBOL, so two accounts holding VOO share the
+ * spinner and a click while a refresh is running is ignored.
  */
 export const useInvestmentPrices = ({
   accounts,
@@ -88,12 +91,9 @@ export const useInvestmentPrices = ({
   const [refreshingSymbols, setRefreshingSymbols] = useState<Set<string>>(
     new Set()
   );
-  const [lastRefreshBySymbol, setLastRefreshBySymbol] = useState<
-    Map<string, number>
-  >(new Map());
-  const [clickCountBySymbol, setClickCountBySymbol] = useState<
-    Map<string, { count: number; timestamp: number }>
-  >(new Map());
+  // Ref mirror of refreshingSymbols so two clicks in the same render tick
+  // can't both start a request.
+  const inFlightRef = useRef<Set<string>>(new Set());
 
   // Investment accounts that actually have a tradable symbol. Memoized so
   // useQueries' query list stays stable across unrelated account churn.
@@ -114,21 +114,6 @@ export const useInvestmentPrices = ({
     }
     return m;
   }, [investmentAccounts]);
-
-  // Distinct symbol count — a single ticker held by multiple accounts only
-  // counts once, matching the backend's view of "active symbols" for TTL.
-  const distinctSymbolCount = useMemo(() => {
-    const symbols = new Set<string>();
-    for (const acc of investmentAccounts) {
-      if (acc.stockSymbol) symbols.add(acc.stockSymbol);
-    }
-    return symbols.size;
-  }, [investmentAccounts]);
-
-  const cacheHours = useMemo(
-    () => computeCacheHours(distinctSymbolCount),
-    [distinctSymbolCount]
-  );
 
   // One query per symbol — TanStack Query dedupes identical keys, so two
   // accounts holding the same symbol share a single network call and a
@@ -227,12 +212,18 @@ export const useInvestmentPrices = ({
 
   const getCacheInfo = useCallback(
     (symbol: string): InvestmentCacheInfo => {
-      const lastUpdated = investmentService.getPriceTimestamp(symbol);
-      const nextRefreshAt =
-        lastUpdated !== null ? lastUpdated + cacheHours * 3_600_000 : null;
-      return { lastUpdated, cacheHours, nextRefreshAt };
+      const info = investmentService.getPriceInfo(symbol);
+      return {
+        lastUpdated: info?.timestamp ?? null,
+        nextRefreshAt: info?.freshUntil ?? null,
+        stale: info?.stale ?? false,
+        staleReason: info?.staleReason ?? null,
+        provider: info?.provider ?? null,
+      };
     },
-    [cacheHours]
+    // Re-derive whenever price data changes so cards re-render the label.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [queriesSignature]
   );
 
   // Memoized so the handler keeps a stable identity when its inputs don't
@@ -242,91 +233,36 @@ export const useInvestmentPrices = ({
     async (account: Account) => {
       if (!account.stockSymbol) return;
       const symbol = account.stockSymbol;
+      if (inFlightRef.current.has(symbol)) return;
 
-      const now = Date.now();
-      const lastForSymbol = lastRefreshBySymbol.get(symbol) ?? 0;
-      const sinceLast = now - lastForSymbol;
-
-      if (sinceLast < REFRESH_COOLDOWN_MS) {
-        const secondsLeft = Math.ceil(
-          (REFRESH_COOLDOWN_MS - sinceLast) / 1000
-        );
-        toast.error(
-          `Please wait ${secondsLeft} seconds before refreshing again`
-        );
-        return;
-      }
-
-      // Track clicks within 2s window for force refresh (3 clicks = force)
-      const prevClick = clickCountBySymbol.get(symbol);
-      const clickCount =
-        prevClick && now - prevClick.timestamp < 2000
-          ? prevClick.count + 1
-          : 1;
-      setClickCountBySymbol((prev) => {
-        const next = new Map(prev);
-        next.set(symbol, { count: clickCount, timestamp: now });
-        return next;
-      });
-
-      const isForce = clickCount >= 3;
-
-      if (clickCount === 1) {
-        toast.info('Click 2 more times to force refresh from API');
-      } else if (clickCount === 2) {
-        toast.info('Click 1 more time to force refresh from API');
-        return; // Don't refresh yet, wait for 3rd click
-      }
-
-      // Stamp the cooldown immediately
-      setLastRefreshBySymbol((prev) => {
-        const next = new Map(prev);
-        next.set(symbol, now);
-        return next;
-      });
-      setRefreshingSymbols((prev) => {
-        const next = new Set(prev);
-        next.add(symbol);
-        return next;
-      });
-      // Reset click count
-      setClickCountBySymbol((prev) => {
-        const next = new Map(prev);
-        next.delete(symbol);
-        return next;
-      });
+      inFlightRef.current.add(symbol);
+      setRefreshingSymbols((prev) => new Set(prev).add(symbol));
 
       try {
-        if (isForce) {
-          // Force refresh — bypass backend cache, hit Alpha Vantage
-          const price = await investmentService.getCurrentPrice(symbol, true);
-          // Update query cache with the fresh price
-          queryClient.setQueryData(investmentPriceKey(symbol), price);
-          toast.success(
-            `Force refreshed: ${symbol} = ${currencyService.formatCurrency(
-              price,
-              account.currency
-            )}`
+        const details = await investmentService.getPriceDetails(symbol, true);
+        // Push the new price into every card/total (cancelling any older
+        // fetch still in flight so it can't overwrite it), and resync the
+        // backend-computed account balances.
+        await queryClient.cancelQueries({ queryKey: investmentPriceKey(symbol) });
+        queryClient.setQueryData(investmentPriceKey(symbol), details.price);
+        void queryClient.invalidateQueries({ queryKey: ['accounts'] });
+
+        if (details.stale) {
+          toast.warning(
+            `Couldn't get a new ${symbol} price (${staleReasonLabel(details.staleReason)}). ` +
+              `Showing the ${formatClock(details.cachedAt)} price.`
           );
         } else {
-          // Normal refresh — just re-check backend (uses its cache)
-          await queryClient.invalidateQueries({
-            queryKey: investmentPriceKey(symbol),
-          });
-          const price =
-            queryClient.getQueryData<number>(investmentPriceKey(symbol)) ?? 0;
+          const from = providerLabel(details.provider);
           toast.success(
-            `Price confirmed: ${symbol} = ${currencyService.formatCurrency(
-              price,
-              account.currency
-            )}`
+            `${symbol} ${currencyService.formatCurrency(details.price, account.currency)}` +
+              (from ? ` · updated from ${from}` : ' · updated')
           );
         }
       } catch (error) {
-        toast.error(
-          error instanceof Error ? error.message : 'Failed to refresh price'
-        );
+        toast.error(serverMessage(error));
       } finally {
+        inFlightRef.current.delete(symbol);
         setRefreshingSymbols((prev) => {
           const next = new Set(prev);
           next.delete(symbol);
@@ -334,7 +270,7 @@ export const useInvestmentPrices = ({
         });
       }
     },
-    [clickCountBySymbol, lastRefreshBySymbol, queryClient, toast]
+    [queryClient, toast]
   );
 
   return {

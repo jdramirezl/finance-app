@@ -176,8 +176,8 @@ const InvestmentCard = ({
                                     loading={refreshing}
                                     disabled={refreshing}
                                     className="p-1 h-6 w-6"
-                                    aria-label={`Refresh ${account.stockSymbol || 'investment'} share price`}
-                                    title="Refresh share price"
+                                    aria-label={`Get latest ${account.stockSymbol || 'investment'} market price`}
+                                    title="Get latest market price"
                                 >
                                     <RefreshCw className={`w-3 h-3 ${refreshing ? 'animate-spin' : ''}`} aria-hidden="true" />
                                 </Button>

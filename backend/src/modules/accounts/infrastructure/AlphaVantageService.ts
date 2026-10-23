@@ -15,6 +15,7 @@
 
 import { injectable } from 'tsyringe';
 import type { IAlphaVantageService } from './IAlphaVantageService';
+import type { IStockPriceProvider } from './IStockPriceProvider';
 import { StockPriceProviderError, StockPriceProviderFailure } from './StockPriceProviderError';
 
 interface AlphaVantageGlobalQuoteResponse {
@@ -53,7 +54,10 @@ async function waitForSlot(minIntervalMs: number): Promise<void> {
 }
 
 @injectable()
-export class AlphaVantageService implements IAlphaVantageService {
+export class AlphaVantageService implements IAlphaVantageService, IStockPriceProvider {
+  readonly name = 'alphavantage';
+  /** Free tier: 25 requests/day. */
+  readonly dailyCallBudget = 25;
   private readonly baseUrl = 'https://www.alphavantage.co/query';
   private readonly apiKey: string;
 

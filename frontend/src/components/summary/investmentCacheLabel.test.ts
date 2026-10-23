@@ -1,78 +1,46 @@
 import { describe, it, expect } from 'vitest';
-import { formatCacheLabel } from './investmentCacheLabel';
+import { formatCacheLabel, providerLabel, staleReasonLabel } from './investmentCacheLabel';
 
 const HOUR_MS = 3_600_000;
+const base = { nextRefreshAt: null, stale: false, staleReason: null, provider: null };
+const hhmm = (ms: number) => new Date(ms).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
 describe('formatCacheLabel', () => {
   it('returns null when there is no cached price yet', () => {
-    expect(
-      formatCacheLabel({
-        lastUpdated: null,
-        cacheHours: 1,
-        nextRefreshAt: null,
-      }),
-    ).toBeNull();
+    expect(formatCacheLabel({ ...base, lastUpdated: null })).toBeNull();
   });
 
-  it('shows "Just now" for sub-minute freshness', () => {
+  it('shows "Just now" and the provider for a fresh price', () => {
     const now = 1_000_000_000;
-    const nextAt = now - 30_000 + HOUR_MS;
-    const expectedTime = new Date(nextAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    expect(
-      formatCacheLabel(
-        {
-          lastUpdated: now - 30_000,
-          cacheHours: 1,
-          nextRefreshAt: nextAt,
-        },
-        now,
-      ),
-    ).toBe(`Just now · Next at ${expectedTime}`);
+    expect(formatCacheLabel({ ...base, lastUpdated: now - 30_000, provider: 'finnhub' }, now)).toBe('Just now · Finnhub');
   });
 
-  it('formats hours-ago and remaining hours when within the cache window', () => {
+  it('formats minutes and hours ago', () => {
     const now = 1_000_000_000;
-    // Cached 2h ago, 6h cache window — 4h left until next refresh.
-    const nextAt = now - 2 * HOUR_MS + 6 * HOUR_MS;
-    const expectedTime = new Date(nextAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    expect(
-      formatCacheLabel(
-        {
-          lastUpdated: now - 2 * HOUR_MS,
-          cacheHours: 6,
-          nextRefreshAt: nextAt,
-        },
-        now,
-      ),
-    ).toBe(`2h ago · Next at ${expectedTime}`);
+    expect(formatCacheLabel({ ...base, lastUpdated: now - 12 * 60_000, provider: 'alphavantage' }, now)).toBe('12min ago · Alpha Vantage');
+    expect(formatCacheLabel({ ...base, lastUpdated: now - 2 * HOUR_MS }, now)).toBe('2h ago');
   });
 
-  it('signals "Refresh available" when the cache window has elapsed', () => {
+  it('says plainly when the price is stale and why', () => {
     const now = 1_000_000_000;
-    // Cached 5h ago with a 1h window — refresh is well past due.
-    expect(
-      formatCacheLabel(
-        {
-          lastUpdated: now - 5 * HOUR_MS,
-          cacheHours: 1,
-          nextRefreshAt: now - 5 * HOUR_MS + HOUR_MS,
-        },
-        now,
-      ),
-    ).toBe('5h ago · Refresh available');
+    const at = now - 5 * HOUR_MS;
+    expect(formatCacheLabel({ ...base, lastUpdated: at, stale: true, staleReason: 'RATE_LIMITED' }, now))
+      .toBe(`Price from ${hhmm(at)} · couldn't refresh (provider limit reached)`);
+  });
+});
+
+describe('label helpers', () => {
+  it('maps provider ids to names', () => {
+    expect(providerLabel('finnhub')).toBe('Finnhub');
+    expect(providerLabel('alphavantage')).toBe('Alpha Vantage');
+    expect(providerLabel('other')).toBe('other');
+    expect(providerLabel(null)).toBeNull();
   });
 
-  it('falls back to the age-only label when nextRefreshAt is missing', () => {
-    const now = 1_000_000_000;
-    expect(
-      formatCacheLabel(
-        {
-          lastUpdated: now - 3 * HOUR_MS,
-          cacheHours: 4,
-          nextRefreshAt: null,
-        },
-        now,
-      ),
-    ).toBe('3h ago');
+  it('maps stale reasons to plain text', () => {
+    expect(staleReasonLabel('RATE_LIMITED')).toBe('provider limit reached');
+    expect(staleReasonLabel('AUTH')).toBe('provider API key rejected');
+    expect(staleReasonLabel('NETWORK')).toBe('provider unreachable');
+    expect(staleReasonLabel(null)).toBe('provider unavailable');
   });
 });

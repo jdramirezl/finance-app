@@ -9,6 +9,7 @@ import { StockPriceProviderError } from '../../infrastructure/StockPriceProvider
 import { DatabaseError, NotFoundError, PriceUnavailableError } from '../../../../shared/errors/AppError';
 import type { IStockPriceRepository } from '../../infrastructure/IStockPriceRepository';
 import type { IAlphaVantageService } from '../../infrastructure/IAlphaVantageService';
+import type { IStockPriceProvider } from '../../infrastructure/IStockPriceProvider';
 import type { IAccountRepository } from '../../infrastructure/IAccountRepository';
 
 const hoursAgo = (h: number) => new Date(Date.now() - h * 3600_000);
@@ -122,5 +123,59 @@ describe('GetCurrentStockPriceUseCase provider failures', () => {
     expect(a.price).toBe(702);
     expect(b.price).toBe(702);
     expect(provider.fetchStockPrice).toHaveBeenCalledTimes(1);
+  });
+
+  it('records the stale reason on the fallback price', async () => {
+    const { repo, provider, useCase } = setup();
+    repo.findBySymbol.mockResolvedValue(new StockPrice('VOO', 698.12, hoursAgo(30)));
+    provider.fetchStockPrice.mockRejectedValue(rateLimited('VOO'));
+
+    const result = await useCase.execute('VOO', true);
+    expect(result.staleReason).toBe('RATE_LIMITED');
+    expect(result.freshUntil).toBeUndefined();
+  });
+});
+
+describe('GetCurrentStockPriceUseCase provider metadata and freshness', () => {
+  afterEach(() => jest.restoreAllMocks());
+
+  function withProvider(p: Partial<IStockPriceProvider> & Pick<IStockPriceProvider, 'fetchStockPrice'>) {
+    const repo: jest.Mocked<IStockPriceRepository> = {
+      findBySymbol: jest.fn().mockResolvedValue(null),
+      save: jest.fn().mockResolvedValue(undefined),
+      deleteExpired: jest.fn(),
+    };
+    const accounts = { getDistinctActiveSymbols: jest.fn().mockResolvedValue(['VOO', 'AMZN']) } as unknown as IAccountRepository;
+    return { repo, useCase: new GetCurrentStockPriceUseCase(repo, p as IStockPriceProvider, accounts) };
+  }
+
+  it('reports which provider served a fresh price', async () => {
+    const { useCase } = withProvider({
+      fetchStockPrice: jest.fn(),
+      fetchQuote: jest.fn().mockResolvedValue({ price: 699.1, provider: 'finnhub' }),
+      dailyCallBudget: Infinity,
+    });
+    const result = await useCase.execute('VOO', true);
+    expect(result).toMatchObject({ price: 699.1, source: 'api', provider: 'finnhub' });
+  });
+
+  it('uses a 15-minute auto-refresh window when the provider has no daily budget', async () => {
+    const { repo, useCase } = withProvider({ fetchStockPrice: jest.fn().mockResolvedValue(1), dailyCallBudget: Infinity });
+    repo.findBySymbol.mockResolvedValue(new StockPrice('VOO', 698, new Date(Date.now() - 20 * 60_000)));
+
+    const result = await useCase.execute('VOO');
+    // 20 min old > 15 min window → refetched from the provider
+    expect(result.source).toBe('api');
+    expect(result.freshUntil!.getTime() - result.cachedAt.getTime()).toBe(15 * 60_000);
+  });
+
+  it('keeps the quota-sized window (2 symbols → 2h) for a 25/day provider', async () => {
+    const { repo, useCase } = withProvider({ fetchStockPrice: jest.fn().mockResolvedValue(1), dailyCallBudget: 25 });
+    const cachedAt = new Date(Date.now() - 20 * 60_000);
+    repo.findBySymbol.mockResolvedValue(new StockPrice('VOO', 698, cachedAt));
+
+    const result = await useCase.execute('VOO');
+    expect(result.source).toBe('db');
+    expect(result.freshUntil!.getTime() - cachedAt.getTime()).toBe(2 * 3600_000);
   });
 });

@@ -1,5 +1,8 @@
 import { useState, useEffect } from 'react';
-import { investmentService } from '../../services/investmentService';
+import { useQueryClient } from '@tanstack/react-query';
+import { investmentService, type BackendStockPriceResponse } from '../../services/investmentService';
+import { investmentPriceKey } from '../../hooks/useInvestmentPrices';
+import { providerLabel, staleReasonLabel } from '../summary/investmentCacheLabel';
 import Button from '../ui/Button';
 import Card from '../ui/Card';
 import Select from '../ui/Select';
@@ -10,13 +13,9 @@ import { useAccountsQuery } from '../../hooks/queries';
 
 const DebugStockPrice = () => {
     const { data: accounts } = useAccountsQuery();
+    const queryClient = useQueryClient();
     const [loading, setLoading] = useState(false);
-    const [result, setResult] = useState<{
-        symbol: string;
-        price: number;
-        cachedAt: string;
-        source?: string;
-    } | null>(null);
+    const [result, setResult] = useState<BackendStockPriceResponse | null>(null);
     const [error, setError] = useState<string | null>(null);
 
     // Get unique symbols from investment accounts
@@ -39,7 +38,11 @@ const DebugStockPrice = () => {
         setLoading(true);
         setError(null);
         try {
-            await investmentService.getCurrentPrice(symbol, true);
+            const details = await investmentService.getPriceDetails(symbol, true);
+            // Keep the dashboard in sync with what was just fetched.
+            await queryClient.cancelQueries({ queryKey: investmentPriceKey(symbol) });
+            queryClient.setQueryData(investmentPriceKey(symbol), details.price);
+            void queryClient.invalidateQueries({ queryKey: ['accounts'] });
             const data = await investmentService.getDebugPrice(symbol);
             setResult(data);
         } catch (err: unknown) {
@@ -72,7 +75,9 @@ const DebugStockPrice = () => {
         <Card padding="md" className="space-y-4">
             <div>
                 <h3 className="text-lg font-semibold text-gray-100">Stock Prices</h3>
-                <p className="text-sm text-gray-400">Check or force-refresh cached prices (uses API token)</p>
+                <p className="text-sm text-gray-400">
+                    Check the saved price, or fetch a new one from the market now. The dashboard updates too.
+                </p>
             </div>
 
             <div className="flex gap-2 items-end">
@@ -89,7 +94,7 @@ const DebugStockPrice = () => {
                 </Button>
                 <Button onClick={handleForceRefresh} disabled={loading}>
                     {loading ? <RotateCw className="w-4 h-4 animate-spin" /> : <RotateCw className="w-4 h-4" />}
-                    <span className="ml-1">Force Refresh</span>
+                    <span className="ml-1">Get latest price</span>
                 </Button>
             </div>
 
@@ -106,9 +111,31 @@ const DebugStockPrice = () => {
                     <div className="flex justify-between">
                         <span className="text-gray-400">Source:</span>
                         <span className={`font-mono px-1.5 py-0.5 rounded text-xs ${
-                            result.source === 'api' ? 'bg-green-900/30 text-green-400' : 'bg-blue-900/30 text-blue-400'
+                            result.source === 'api'
+                                ? 'bg-green-900/30 text-green-400'
+                                : result.source === 'stale'
+                                    ? 'bg-yellow-900/30 text-yellow-400'
+                                    : 'bg-blue-900/30 text-blue-400'
                         }`}>{result.source || 'unknown'}</span>
                     </div>
+                    {result.provider && (
+                        <div className="flex justify-between">
+                            <span className="text-gray-400">Provider:</span>
+                            <span className="font-mono text-gray-300">{providerLabel(result.provider)}</span>
+                        </div>
+                    )}
+                    {result.stale && (
+                        <div className="flex justify-between">
+                            <span className="text-gray-400">Couldn't refresh:</span>
+                            <span className="text-yellow-400">{staleReasonLabel(result.staleReason)}</span>
+                        </div>
+                    )}
+                    {result.freshUntil && (
+                        <div className="flex justify-between">
+                            <span className="text-gray-400">Auto-refresh after:</span>
+                            <span className="font-mono text-gray-300">{parseDate(result.freshUntil).toLocaleString()}</span>
+                        </div>
+                    )}
                     <div className="flex justify-between">
                         <span className="text-gray-400">Cached:</span>
                         <span className="font-mono text-gray-300">{parseDate(result.cachedAt).toLocaleString()}</span>
