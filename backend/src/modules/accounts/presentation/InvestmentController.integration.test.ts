@@ -14,7 +14,7 @@ import { InvestmentController } from './InvestmentController';
 import { GetCurrentStockPriceUseCase } from '../application/useCases/GetCurrentStockPriceUseCase';
 import { UpdateInvestmentAccountUseCase } from '../application/useCases/UpdateInvestmentAccountUseCase';
 import { StockPrice } from '../domain/StockPrice';
-import { NotFoundError, ForbiddenError } from '../../../shared/errors/AppError';
+import { NotFoundError, ForbiddenError, PriceUnavailableError } from '../../../shared/errors/AppError';
 import { errorHandler } from '../../../shared/middleware/errorHandler';
 
 describe('InvestmentController Integration Tests', () => {
@@ -72,9 +72,69 @@ describe('InvestmentController Integration Tests', () => {
       expect(response.body).toEqual({
         symbol: 'VOO',
         price: 450.25,
-        cachedAt: '2024-01-15T10:00:00.000Z'
+        cachedAt: '2024-01-15T10:00:00.000Z',
+        stale: false,
+        staleReason: null,
+        freshUntil: null,
+        provider: null
       });
       expect(mockGetCurrentStockPriceUseCase.execute).toHaveBeenCalledWith('VOO', false);
+    });
+
+    it('returns 200 with stale:true and the cached timestamp when the provider is down', async () => {
+      mockGetCurrentStockPriceUseCase.execute.mockResolvedValue(
+        new StockPrice('VOO', 698.12, new Date('2026-10-22T15:00:00Z'), 'stale', { staleReason: 'RATE_LIMITED' })
+      );
+
+      const response = await request(app).get('/api/investments/prices/VOO');
+
+      expect(response.status).toBe(200);
+      expect(response.body).toEqual({
+        symbol: 'VOO',
+        price: 698.12,
+        cachedAt: '2026-10-22T15:00:00.000Z',
+        source: 'stale',
+        stale: true,
+        staleReason: 'RATE_LIMITED',
+        freshUntil: null,
+        provider: null
+      });
+    });
+
+    it('returns provider and freshUntil for a fresh price', async () => {
+      mockGetCurrentStockPriceUseCase.execute.mockResolvedValue(
+        new StockPrice('VOO', 699.1, new Date('2026-10-23T19:00:00Z'), 'api', {
+          provider: 'finnhub',
+          freshUntil: new Date('2026-10-23T19:15:00Z'),
+        })
+      );
+
+      const response = await request(app).get('/api/investments/prices/VOO?force=true');
+
+      expect(response.body).toEqual({
+        symbol: 'VOO',
+        price: 699.1,
+        cachedAt: '2026-10-23T19:00:00.000Z',
+        source: 'api',
+        stale: false,
+        staleReason: null,
+        freshUntil: '2026-10-23T19:15:00.000Z',
+        provider: 'finnhub'
+      });
+      expect(mockGetCurrentStockPriceUseCase.execute).toHaveBeenCalledWith('VOO', true);
+    });
+
+    it('returns 503 PRICE_UNAVAILABLE (never a raw 500) when no price is available', async () => {
+      jest.spyOn(console, 'error').mockImplementation(() => undefined);
+      mockGetCurrentStockPriceUseCase.execute.mockRejectedValue(
+        new PriceUnavailableError('AMZN', 'rate limited', true, 60)
+      );
+
+      const response = await request(app).get('/api/investments/prices/AMZN');
+
+      expect(response.status).toBe(503);
+      expect(response.headers['retry-after']).toBe('60');
+      expect(response.body).toMatchObject({ status: 'error', code: 'PRICE_UNAVAILABLE', retryable: true });
     });
 
     it('should handle errors when fetching stock price', async () => {
@@ -124,7 +184,11 @@ describe('InvestmentController Integration Tests', () => {
       expect(response.body).toEqual({
         symbol: 'AAPL',
         price: 175.50,
-        cachedAt: '2024-01-15T10:00:00.000Z'
+        cachedAt: '2024-01-15T10:00:00.000Z',
+        stale: false,
+        staleReason: null,
+        freshUntil: null,
+        provider: null
       });
       expect(mockGetCurrentStockPriceUseCase.execute).toHaveBeenCalledWith('AAPL');
     });

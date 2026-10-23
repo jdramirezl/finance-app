@@ -45,7 +45,7 @@ const InvestmentCardCompact = ({
     // Use corrected values from data if available, otherwise fall back to account
     const montoInvertido = data?.montoInvertido ?? account.montoInvertido ?? 0;
     const shares = data?.shares ?? account.shares ?? 0;
-    const refreshLabel = `Refresh ${stockSymbol} share price`;
+    const refreshLabel = `Get latest ${stockSymbol} market price`;
     const refreshing = isRefreshing(account.id);
     const cacheLabel = account.stockSymbol
         ? formatCacheLabel(getCacheInfo(account.stockSymbol))

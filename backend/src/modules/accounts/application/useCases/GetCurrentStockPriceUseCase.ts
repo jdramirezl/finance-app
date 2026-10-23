@@ -4,20 +4,16 @@
  * Fetches current stock price with 3-tier caching:
  * 1. Local in-memory cache
  * 2. Database cache
- * 3. Alpha Vantage API (cache result in both locations)
+ * 3. Price provider chain (Finnhub → Alpha Vantage), cached in both places
  *
- * The cache TTL is now dynamic and sized to the number of distinct active
- * investment symbols system-wide, so we max out the free Alpha Vantage
- * quota (25 calls/day) regardless of how many symbols the user holds:
+ * Cache window ("freshUntil"):
+ * - Primary provider without a daily limit (Finnhub, 60/min): 15 minutes.
+ * - Alpha Vantage only (25/day): sized to the active-symbol count,
+ *   cacheHours = max(1, ceil(symbolCount * 24 / 25)).
  *
- *   cacheHours = max(1, ceil(symbolCount * 24 / 25))
- *
- * - 1 symbol  → 1h refresh (24 calls/day)
- * - 5 symbols → 5h refresh (24 calls/day total across the 5 symbols)
- * - 25 symbols → 24h (back to original behavior)
- *
- * The symbol count itself is queried lazily and memoized for 10 minutes so
- * we don't hit the database on every single price check.
+ * `force` skips both caches. If the provider fails, the last known price is
+ * returned with source 'stale' and a staleReason; with nothing cached the
+ * caller gets PRICE_UNAVAILABLE (503) or NotFound (unknown symbol).
  *
  * Requirements: 13.1, 13.2, 13.3, 13.4
  */
@@ -25,8 +21,27 @@
 import { injectable, inject } from 'tsyringe';
 import { StockPrice } from '../../domain/StockPrice';
 import type { IStockPriceRepository } from '../../infrastructure/IStockPriceRepository';
-import type { IAlphaVantageService } from '../../infrastructure/IAlphaVantageService';
+import type { IStockPriceProvider, StockQuote } from '../../infrastructure/IStockPriceProvider';
 import type { IAccountRepository } from '../../infrastructure/IAccountRepository';
+import { StockPriceProviderError, StockPriceProviderFailure } from '../../infrastructure/StockPriceProviderError';
+import { NotFoundError, PriceUnavailableError } from '../../../../shared/errors/AppError';
+
+const REASON_TEXT: Record<StockPriceProviderFailure, string> = {
+  RATE_LIMITED: 'price provider rate limit reached',
+  AUTH: 'price provider rejected the API key',
+  SYMBOL_NOT_FOUND: 'symbol not found',
+  UPSTREAM: 'price provider error',
+  NETWORK: 'price provider unreachable',
+};
+
+/** Retry hints. Rate limits are usually the 1 req/s burst limit or the daily quota. */
+const RETRY_AFTER_SECONDS: Record<StockPriceProviderFailure, number> = {
+  RATE_LIMITED: 60,
+  AUTH: 0,
+  SYMBOL_NOT_FOUND: 0,
+  UPSTREAM: 30,
+  NETWORK: 30,
+};
 
 /**
  * Free-tier Alpha Vantage daily call budget. Used to spread refreshes
@@ -37,6 +52,12 @@ import type { IAccountRepository } from '../../infrastructure/IAccountRepository
 const DAILY_API_CALL_BUDGET = 25;
 
 /**
+ * Automatic refresh window when the primary provider has no meaningful
+ * daily limit (Finnhub: 60 calls/minute).
+ */
+const UNLIMITED_PROVIDER_CACHE_HOURS = 0.25; // 15 minutes
+
+/**
  * How long to trust the cached symbol count before re-querying. Short
  * enough that adding a new investment account starts tightening the
  * refresh interval within minutes; long enough to keep the database hit
@@ -44,10 +65,16 @@ const DAILY_API_CALL_BUDGET = 25;
  */
 const SYMBOL_COUNT_MEMO_TTL_MS = 10 * 60 * 1000; // 10 minutes
 
+const freshUntil = (cachedAt: Date, cacheHours: number) =>
+  new Date(cachedAt.getTime() + cacheHours * 3_600_000);
+
 @injectable()
 export class GetCurrentStockPriceUseCase {
   // Local in-memory cache, keyed by uppercase symbol.
   private localCache: Map<string, StockPrice> = new Map();
+
+  // In-flight provider calls, keyed by uppercase symbol.
+  private inFlight: Map<string, Promise<StockQuote>> = new Map();
 
   // Memoized symbol-count lookup. We don't store the raw symbol list
   // because callers only need the count — keeping just a number avoids
@@ -57,7 +84,7 @@ export class GetCurrentStockPriceUseCase {
 
   constructor(
     @inject('StockPriceRepository') private stockPriceRepo: IStockPriceRepository,
-    @inject('AlphaVantageService') private alphaVantageService: IAlphaVantageService,
+    @inject('StockPriceProvider') private priceProvider: IStockPriceProvider,
     @inject('AccountRepository') private accountRepo: IAccountRepository
   ) { }
 
@@ -75,32 +102,102 @@ export class GetCurrentStockPriceUseCase {
     // uses the same TTL for this request.
     const cacheHours = await this.getCacheHours();
 
-    if (!force) {
-      // 1. Check local cache first (Requirements 13.2)
-      const localCached = this.localCache.get(normalizedSymbol);
-      if (localCached && localCached.isFresh(cacheHours)) {
-        return new StockPrice(localCached.symbol, localCached.price, localCached.cachedAt, 'cache');
-      }
+    // Last known price, kept as a fallback if the provider fails.
+    let lastKnown: StockPrice | null = this.localCache.get(normalizedSymbol) ?? null;
 
-      // 2. Check database cache (Requirements 13.3)
+    if (!force && lastKnown && lastKnown.isFresh(cacheHours)) {
+      // 1. Local cache hit (Requirements 13.2)
+      return new StockPrice(lastKnown.symbol, lastKnown.price, lastKnown.cachedAt, 'cache', {
+        provider: lastKnown.provider,
+        freshUntil: freshUntil(lastKnown.cachedAt, cacheHours),
+      });
+    }
+
+    // 2. Database cache (Requirements 13.3). A DB failure must not block
+    //    the provider call, so it only loses us the fallback.
+    try {
       const dbCached = await this.stockPriceRepo.findBySymbol(normalizedSymbol);
-      if (dbCached && dbCached.isFresh(cacheHours)) {
-        const stockPriceDb = new StockPrice(dbCached.symbol, dbCached.price, dbCached.cachedAt, 'db');
-        // Update local cache
-        this.localCache.set(normalizedSymbol, stockPriceDb);
-        return stockPriceDb;
+      if (dbCached) {
+        if (!lastKnown || dbCached.cachedAt > lastKnown.cachedAt) lastKnown = dbCached;
+        if (!force && dbCached.isFresh(cacheHours)) {
+          const stockPriceDb = new StockPrice(dbCached.symbol, dbCached.price, dbCached.cachedAt, 'db', {
+            freshUntil: freshUntil(dbCached.cachedAt, cacheHours),
+          });
+          this.localCache.set(normalizedSymbol, stockPriceDb);
+          return stockPriceDb;
+        }
       }
+    } catch (error) {
+      console.error(`[stock-price] DB cache read failed for ${normalizedSymbol}:`, (error as Error).message);
     }
 
     // 3. Fetch from API (Requirements 13.4)
-    const currentPrice = await this.alphaVantageService.fetchStockPrice(normalizedSymbol);
-    const stockPrice = new StockPrice(normalizedSymbol, currentPrice, new Date(), 'api');
+    let quote: StockQuote;
+    try {
+      quote = await this.fetchDeduped(normalizedSymbol);
+    } catch (error) {
+      return this.handleProviderFailure(normalizedSymbol, error, lastKnown);
+    }
 
-    // Cache in both locations
-    await this.stockPriceRepo.save(stockPrice);
+    const now = new Date();
+    const stockPrice = new StockPrice(normalizedSymbol, quote.price, now, 'api', {
+      provider: quote.provider,
+      freshUntil: freshUntil(now, cacheHours),
+    });
     this.localCache.set(normalizedSymbol, stockPrice);
+    try {
+      await this.stockPriceRepo.save(stockPrice);
+    } catch (error) {
+      console.error(`[stock-price] DB cache write failed for ${normalizedSymbol}:`, (error as Error).message);
+    }
 
     return stockPrice;
+  }
+
+  /** One provider call per symbol at a time; concurrent callers share it. */
+  private fetchDeduped(symbol: string): Promise<StockQuote> {
+    const pending = this.inFlight.get(symbol);
+    if (pending) return pending;
+    const provider = this.priceProvider;
+    const call: Promise<StockQuote> = provider.fetchQuote
+      ? provider.fetchQuote(symbol)
+      : provider.fetchStockPrice(symbol).then((price) => ({ price, provider: provider.name ?? 'unknown' }));
+    const request = call.finally(() => this.inFlight.delete(symbol));
+    this.inFlight.set(symbol, request);
+    return request;
+  }
+
+  /**
+   * Provider failed: serve the last known price marked 'stale' if we have
+   * one; otherwise raise a typed error (never a generic 500).
+   */
+  private handleProviderFailure(symbol: string, error: unknown, lastKnown: StockPrice | null): StockPrice {
+    const providerError = error instanceof StockPriceProviderError ? error : null;
+    const reason = providerError?.reason ?? 'UPSTREAM';
+    const detail = providerError?.message ?? (error instanceof Error ? error.message : String(error));
+
+    if (reason === 'SYMBOL_NOT_FOUND') {
+      throw new NotFoundError(`No price found for symbol ${symbol}`);
+    }
+
+    if (lastKnown) {
+      console.warn(
+        `[stock-price] ${reason} for ${symbol}; serving stale price from ${lastKnown.cachedAt.toISOString()}: ${detail}`
+      );
+      return new StockPrice(symbol, lastKnown.price, lastKnown.cachedAt, 'stale', {
+        provider: lastKnown.provider,
+        staleReason: reason,
+      });
+    }
+
+    console.error(`[stock-price] ${reason} for ${symbol} and no cached price: ${detail}`);
+    const retryable = providerError ? providerError.retryable : true;
+    throw new PriceUnavailableError(
+      symbol,
+      REASON_TEXT[reason],
+      retryable,
+      retryable ? RETRY_AFTER_SECONDS[reason] : undefined
+    );
   }
 
   /**
@@ -111,8 +208,10 @@ export class GetCurrentStockPriceUseCase {
    * DB blip can never escalate API usage past the free-tier budget.
    */
   private async getCacheHours(): Promise<number> {
+    const budget = this.priceProvider.dailyCallBudget ?? DAILY_API_CALL_BUDGET;
+    if (!Number.isFinite(budget)) return UNLIMITED_PROVIDER_CACHE_HOURS;
     const symbolCount = await this.getSymbolCount();
-    return Math.max(1, Math.ceil((symbolCount * 24) / DAILY_API_CALL_BUDGET));
+    return Math.max(1, Math.ceil((symbolCount * 24) / budget));
   }
 
   /**

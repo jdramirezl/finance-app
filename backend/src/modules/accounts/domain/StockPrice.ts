@@ -5,15 +5,34 @@
  * Value objects are immutable and defined by their attributes.
  */
 
+export type StockPriceSource = 'cache' | 'db' | 'api' | 'stale';
+
+export interface StockPriceMeta {
+  /** Upstream that produced the price (e.g. "finnhub"), when known. */
+  provider?: string;
+  /** Why a fresh price couldn't be fetched (only for source 'stale'). */
+  staleReason?: string;
+  /** When the automatic cache window for this price ends. */
+  freshUntil?: Date;
+}
+
 export class StockPrice {
   private static readonly CACHE_EXPIRATION_HOURS = 24;
+
+  public readonly provider?: string;
+  public readonly staleReason?: string;
+  public readonly freshUntil?: Date;
 
   constructor(
     public readonly symbol: string,
     public readonly price: number,
     public readonly cachedAt: Date,
-    public readonly source?: 'cache' | 'db' | 'api'
+    public readonly source?: StockPriceSource,
+    meta: StockPriceMeta = {}
   ) {
+    this.provider = meta.provider;
+    this.staleReason = meta.staleReason;
+    this.freshUntil = meta.freshUntil;
     this.validate();
   }
 
@@ -56,11 +75,8 @@ export class StockPrice {
    */
   isExpired(cacheHours?: number): boolean {
     const hours = cacheHours ?? StockPrice.CACHE_EXPIRATION_HOURS;
-    const now = new Date();
-    const expirationTime = new Date(this.cachedAt);
-    expirationTime.setHours(expirationTime.getHours() + hours);
-
-    return now > expirationTime;
+    // Millisecond math so fractional windows (e.g. 0.25h) work.
+    return Date.now() > this.cachedAt.getTime() + hours * 3_600_000;
   }
 
   /**

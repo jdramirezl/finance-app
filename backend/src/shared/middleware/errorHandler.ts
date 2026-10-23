@@ -7,7 +7,7 @@
  */
 
 import { Request, Response, NextFunction } from 'express';
-import { AppError } from '../errors/AppError';
+import { AppError, PriceUnavailableError } from '../errors/AppError';
 
 /**
  * Global error handler
@@ -31,6 +31,20 @@ export function errorHandler(
     method: req.method,
     userId: req.user?.id,
   });
+
+  // Provider outages carry a machine-readable code and retry hint
+  if (err instanceof PriceUnavailableError) {
+    if (err.retryable && err.retryAfterSeconds) {
+      res.setHeader('Retry-After', String(err.retryAfterSeconds));
+    }
+    res.status(err.statusCode).json({
+      status: 'error',
+      code: err.code,
+      retryable: err.retryable,
+      message: err.message,
+    });
+    return;
+  }
 
   // Handle operational errors (AppError instances)
   if (err instanceof AppError && err.isOperational) {

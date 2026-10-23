@@ -223,6 +223,12 @@ describe('Dependency Injection Container', () => {
       expect(service).toHaveProperty('fetchStockPrice');
     });
 
+    it('should register a StockPriceProvider chain (Finnhub first when FINNHUB_API_KEY is set)', () => {
+      const provider = container.resolve<{ name: string; fetchQuote: unknown }>('StockPriceProvider');
+      expect(typeof provider.fetchQuote).toBe('function');
+      expect(provider.name).toMatch(process.env.FINNHUB_API_KEY ? /^finnhub\+alphavantage$/ : /^alphavantage$/);
+    });
+
     it('should register GetCurrentStockPriceUseCase with dependencies injected', () => {
       const useCase = container.resolve(GetCurrentStockPriceUseCase);
       expect(useCase).toBeDefined();

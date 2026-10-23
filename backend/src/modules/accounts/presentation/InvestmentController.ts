@@ -9,9 +9,22 @@
 
 import { Request, Response, NextFunction } from 'express';
 import { injectable, inject } from 'tsyringe';
+import type { StockPrice } from '../domain/StockPrice';
 import { GetCurrentStockPriceUseCase } from '../application/useCases/GetCurrentStockPriceUseCase';
 import { UpdateInvestmentAccountUseCase } from '../application/useCases/UpdateInvestmentAccountUseCase';
 import type { UpdateInvestmentAccountDTO } from '../application/useCases/UpdateInvestmentAccountUseCase';
+
+/** Freshness/provenance fields shared by both price endpoints. */
+function priceMeta(stockPrice: StockPrice) {
+  return {
+    source: stockPrice.source,
+    // true when the provider failed and this is the last cached price
+    stale: stockPrice.source === 'stale',
+    staleReason: stockPrice.staleReason ?? null,
+    freshUntil: stockPrice.freshUntil?.toISOString() ?? null,
+    provider: stockPrice.provider ?? null,
+  };
+}
 
 @injectable()
 export class InvestmentController {
@@ -51,7 +64,7 @@ export class InvestmentController {
         symbol: stockPrice.symbol,
         price: stockPrice.price,
         cachedAt: stockPrice.cachedAt.toISOString(),
-        source: stockPrice.source,
+        ...priceMeta(stockPrice),
       });
     } catch (error) {
       next(error);
@@ -81,7 +94,7 @@ export class InvestmentController {
         symbol: stockPrice.symbol,
         price: stockPrice.price,
         cachedAt: stockPrice.cachedAt.toISOString(),
-        source: stockPrice.source,
+        ...priceMeta(stockPrice),
       });
     } catch (error) {
       next(error);

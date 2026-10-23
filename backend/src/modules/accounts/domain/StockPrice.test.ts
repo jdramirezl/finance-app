@@ -76,6 +76,13 @@ describe('StockPrice Value Object', () => {
       expect(stockPrice.isFresh()).toBe(false);
     });
 
+    it('should support fractional-hour cache windows (15 minutes)', () => {
+      const twentyMinAgo = new Date(Date.now() - 20 * 60_000);
+      const tenMinAgo = new Date(Date.now() - 10 * 60_000);
+      expect(new StockPrice('VOO', 1, twentyMinAgo).isFresh(0.25)).toBe(false);
+      expect(new StockPrice('VOO', 1, tenMinAgo).isFresh(0.25)).toBe(true);
+    });
+
     it('should not be expired at exactly 24 hours', () => {
       const almostExpired = new Date();
       almostExpired.setHours(almostExpired.getHours() - 24);
