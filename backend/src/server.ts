@@ -56,6 +56,7 @@ import netWorthRoutes from './modules/net-worth/presentation/routes';
 import reportRoutes from './modules/reports/presentation/routes';
 import syncRoutes from './modules/sync/presentation/syncRoutes';
 import mcpRoutes from './modules/mcp/routes';
+import { createOAuthRouters } from './modules/mcp/oauth/routes';
 
 const app = express();
 const PORT = process.env.PORT || process.env.BACKEND_PORT || 3001;
@@ -157,7 +158,13 @@ app.use('/api/reports', cacheMovements, reportRoutes);
 // Mount sync routes
 app.use('/api/sync', syncRoutes);
 
-// MCP endpoint (bearer-token auth, stateless). Must be before the 404 handler.
+// MCP endpoint (static bearer token or OAuth access token, stateless).
+// OAuth discovery, authorization server and connection management for the
+// ChatGPT connector live alongside it. All must be before the 404 handler.
+const mcpOAuth = createOAuthRouters();
+app.use('/.well-known', mcpOAuth.wellKnown);
+app.use('/oauth', mcpOAuth.oauth);
+app.use('/api/mcp/grants', mcpOAuth.grants);
 app.use('/mcp', mcpRoutes);
 
 // 404 handler
