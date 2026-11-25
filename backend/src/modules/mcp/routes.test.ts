@@ -61,7 +61,11 @@ describe('MCP endpoint', () => {
     ])('rejects %s with 401 + WWW-Authenticate', async (_label, token) => {
       const res = await post(app, rpc('initialize', initParams), token);
       expect(res.status).toBe(401);
-      expect(res.headers['www-authenticate']).toMatch(/^Bearer resource_metadata="http:\/\/.+\/\.well-known\/oauth-protected-resource"$/);
+      expect(res.headers['www-authenticate']).toMatch(
+        /^Bearer resource_metadata="http:\/\/127\.0\.0\.1:\d+\/\.well-known\/oauth-protected-resource\/mcp", scope="finance:read finance:write"/,
+      );
+      if (token === null) expect(res.headers['www-authenticate']).not.toMatch(/error=/);
+      else expect(res.headers['www-authenticate']).toMatch(/error="invalid_token"/);
       expect(res.body).toEqual({ error: { code: 'UNAUTHORIZED', message: expect.any(String), retryable: false } });
     });
 

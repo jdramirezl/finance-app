@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Settings as SettingsIcon, Wallet, Palette, Database, Info } from 'lucide-react';
+import { Settings as SettingsIcon, Wallet, Palette, Database, Bot, Info } from 'lucide-react';
 import { useSettingsQuery, useUpdateSettings } from '../hooks/queries';
 import { useSettingsActions } from '../hooks/actions/useSettingsActions';
 import { useToast } from '../hooks/useToast';
@@ -9,16 +9,18 @@ import {
   PreferencesSection,
   DisplaySection,
   DataPrivacySection,
+  ChatGptConnectionSection,
   AboutSection,
 } from '../components/settings';
 
-type SettingsSection = 'preferences' | 'default-accounts' | 'display' | 'data-privacy' | 'about';
+type SettingsSection = 'preferences' | 'default-accounts' | 'display' | 'data-privacy' | 'chatgpt' | 'about';
 
 const NAV_ITEMS: { id: SettingsSection; label: string; icon: typeof SettingsIcon }[] = [
   { id: 'preferences', label: 'Preferences', icon: SettingsIcon },
   { id: 'default-accounts', label: 'Default Accounts', icon: Wallet },
   { id: 'display', label: 'Display', icon: Palette },
   { id: 'data-privacy', label: 'Data & Privacy', icon: Database },
+  { id: 'chatgpt', label: 'ChatGPT', icon: Bot },
   { id: 'about', label: 'About', icon: Info },
 ];
 
@@ -112,6 +114,7 @@ const SettingsPage = () => {
               onExport={actions.handleExport}
             />
           )}
+          {activeSection === 'chatgpt' && <ChatGptConnectionSection />}
           {activeSection === 'about' && <AboutSection />}
         </div>
       </section>

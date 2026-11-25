@@ -5,13 +5,19 @@ import LoginPage from '../LoginPage';
 import { supabase } from '../../test/__mocks__/supabase';
 
 const mockNavigate = vi.fn();
+const mockLocation = vi.hoisted(() => ({ current: { state: null as unknown } }));
 vi.mock('react-router', async () => {
-  const actual = await vi.importActual('react-router');
-  return { ...actual, useNavigate: () => mockNavigate };
+  const actual = await vi.importActual<typeof import('react-router')>('react-router');
+  return {
+    ...actual,
+    useNavigate: () => mockNavigate,
+    useLocation: () => ({ ...actual.useLocation(), state: mockLocation.current.state }),
+  };
 });
 describe('LoginPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockLocation.current.state = null;
     supabase.auth.signInWithPassword.mockResolvedValue({ data: { session: {} }, error: null });
   });
 
@@ -70,5 +76,25 @@ describe('LoginPage', () => {
     await waitFor(() => {
       expect(screen.getByRole('button', { name: /sign in/i })).toBeDisabled();
     });
+  });
+
+  it('returns to the page that required login (ChatGPT consent)', async () => {
+    mockLocation.current.state = { from: '/oauth/consent?request=abc' };
+    const user = userEvent.setup();
+    render(<LoginPage />);
+    await user.type(await screen.findByLabelText(/email/i), 'user@test.com');
+    await user.type(screen.getByLabelText(/password/i), 'secret123');
+    await user.click(screen.getByRole('button', { name: /sign in/i }));
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/oauth/consent?request=abc'));
+  });
+
+  it('ignores an off-site return path', async () => {
+    mockLocation.current.state = { from: '//evil.example' };
+    const user = userEvent.setup();
+    render(<LoginPage />);
+    await user.type(await screen.findByLabelText(/email/i), 'user@test.com');
+    await user.type(screen.getByLabelText(/password/i), 'secret123');
+    await user.click(screen.getByRole('button', { name: /sign in/i }));
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/'));
   });
 });

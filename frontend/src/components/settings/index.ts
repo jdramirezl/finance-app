@@ -1,4 +1,5 @@
 export { default as AboutSection } from './AboutSection';
+export { default as ChatGptConnectionSection } from './ChatGptConnectionSection';
 export { default as DangerZoneSection } from './DangerZoneSection';
 export { default as DataPrivacySection } from './DataPrivacySection';
 export { default as DebugExchangeRate } from './DebugExchangeRate';

@@ -16,6 +16,7 @@ const UnifiedBudgetPage = lazy(() => import('./pages/UnifiedBudgetPage'));
 const MovementsPage = lazy(() => import('./pages/MovementsPage'));
 const TemplatesPage = lazy(() => import('./pages/TemplatesPage'));
 const SettingsPage = lazy(() => import('./pages/SettingsPage'));
+const OAuthConsentPage = lazy(() => import('./pages/OAuthConsentPage'));
 
 // Loading fallback component
 const PageLoader = () => (
@@ -44,6 +45,12 @@ function App() {
                 {/* Public routes */}
                 <Route path="/login" element={guard(<LoginPage />)} />
                 <Route path="/signup" element={guard(<SignUpPage />)} />
+
+                {/* ChatGPT connector consent (login required, no app chrome) */}
+                <Route
+                  path="/oauth/consent"
+                  element={<ProtectedRoute>{guard(<OAuthConsentPage />)}</ProtectedRoute>}
+                />
 
                 {/* Protected routes */}
                 <Route

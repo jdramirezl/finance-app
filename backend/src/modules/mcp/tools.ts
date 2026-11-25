@@ -25,7 +25,14 @@ export interface ToolContext {
   userId: string;
   /** DI container to resolve use cases from (child container with mocks in tests). */
   di: DependencyContainer;
+  /** Granted OAuth scopes. Undefined means every scope (static MCP_TOKEN). */
+  scopes?: string[];
+  /** WWW-Authenticate value sent back when a write needs finance:write. */
+  insufficientScopeChallenge?: string;
 }
+
+export const WRITE_SCOPE = 'finance:write';
+const canWrite = (ctx: ToolContext) => !ctx.scopes || ctx.scopes.includes(WRITE_SCOPE);
 
 export interface ToolDefinition<S extends z.ZodType> {
   name: `finance_${string}`;
@@ -112,10 +119,23 @@ export function defineTool<S extends z.ZodType>(server: McpServer, ctx: ToolCont
       description: def.description,
       inputSchema: advertiseOnly(def.input),
       annotations: { title: def.title, ...annotationsFor(def.kind) },
+      // ChatGPT reads per-tool auth policy from here (Apps SDK securitySchemes).
+      _meta: {
+        securitySchemes: [{ type: 'oauth2', scopes: [def.kind === 'read' ? 'finance:read' : WRITE_SCOPE] }],
+      },
     },
     async (rawArgs: unknown): Promise<CallToolResult> => {
       const started = Date.now();
       const isWrite = def.kind !== 'read';
+      if (isWrite && !canWrite(ctx)) {
+        auditWrite({ tool: def.name, userId: ctx.userId, outcome: 'error', durationMs: 0, errorCode: 'FORBIDDEN' });
+        return {
+          ...errorResult(mcpError('FORBIDDEN', 'This connection is read-only. Reconnect and allow finance:write.')),
+          ...(ctx.insufficientScopeChallenge
+            ? { _meta: { 'mcp/www_authenticate': [ctx.insufficientScopeChallenge] } }
+            : {}),
+        };
+      }
       const parsed = def.input.safeParse(rawArgs ?? {});
       if (!parsed.success) {
         const body = mcpError('VALIDATION_ERROR', formatZodError(parsed.error));
