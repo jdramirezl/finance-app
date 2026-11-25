@@ -1,12 +1,14 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router';
+import { useLocation, useNavigate } from 'react-router';
 import { useAuth } from '../contexts/AuthContext';
+import { safeReturnPath } from '../utils/safeReturnPath';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
 import Card from '../components/ui/Card';
 
 const LoginPage = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { signIn } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -24,7 +26,7 @@ const LoginPage = () => {
       setError(error.message);
       setLoading(false);
     } else {
-      navigate('/');
+      navigate(safeReturnPath((location.state as { from?: unknown } | null)?.from));
     }
   };
 
